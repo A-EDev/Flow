@@ -12,13 +12,15 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.components.shared.MediaKind
 
 @Composable
 internal fun LibrarySectionList(
     counts: LibraryCounts?,
     shortsEnabled: Boolean,
+    separatePlaylistKinds: Boolean,
     onNavigateToHistory: () -> Unit,
-    onNavigateToPlaylists: () -> Unit,
+    onNavigateToPlaylists: (MediaKind?) -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToLikedMusic: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
@@ -28,7 +30,12 @@ internal fun LibrarySectionList(
     Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
         LibrarySectionHeader(stringResource(R.string.library_section_header))
         LibrarySectionRow(LibrarySection.HISTORY, counts, onNavigateToHistory)
-        LibrarySectionRow(LibrarySection.PLAYLISTS, counts, onNavigateToPlaylists)
+        if (separatePlaylistKinds) {
+            LibrarySectionRow(LibrarySection.VIDEO_PLAYLISTS, counts) { onNavigateToPlaylists(MediaKind.Videos) }
+            LibrarySectionRow(LibrarySection.MUSIC_PLAYLISTS, counts) { onNavigateToPlaylists(MediaKind.Music) }
+        } else {
+            LibrarySectionRow(LibrarySection.PLAYLISTS, counts) { onNavigateToPlaylists(null) }
+        }
         LibrarySectionRow(LibrarySection.WATCH_LATER, counts, onNavigateToWatchLater)
         LibrarySectionRow(LibrarySection.LIKED_VIDEOS, counts, onNavigateToLikedVideos)
         LibrarySectionRow(LibrarySection.LIKED_MUSIC, counts, onNavigateToLikedMusic)

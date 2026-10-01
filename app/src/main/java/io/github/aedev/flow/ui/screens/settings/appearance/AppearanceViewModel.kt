@@ -44,6 +44,7 @@ class AppearanceViewModel
                 .map { raw -> GridItemSize.entries.firstOrNull { it.name == raw } ?: GridItemSize.BIG }
                 .asState(GridItemSize.BIG)
         val libraryPreviews = preferences.libraryShelfPreviewsEnabled.asState(true)
+        val separatePlaylists = preferences.separatePlaylistKinds.asState(false)
         val appLogo = preferences.showAppLogoIcon.asState(true)
         val groupBadges = preferences.showChannelGroupBadges.asState(false)
         val cardLikeButtons = preferences.videoCardActionsEnabled.asState(false)
@@ -87,6 +88,8 @@ class AppearanceViewModel
         fun setGridItemSize(size: GridItemSize) = write { preferences.setGridItemSize(size.name) }
 
         fun setLibraryPreviews(enabled: Boolean) = write { preferences.setLibraryShelfPreviewsEnabled(enabled) }
+
+        fun setSeparatePlaylists(enabled: Boolean) = write { preferences.setSeparatePlaylistKinds(enabled) }
 
         fun setAppLogo(enabled: Boolean) = write { preferences.setShowAppLogoIcon(enabled) }
 

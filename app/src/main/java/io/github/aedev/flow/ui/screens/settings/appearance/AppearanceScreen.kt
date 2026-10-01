@@ -54,6 +54,7 @@ internal fun AppearanceScreen(
     val homeColumns by viewModel.homeColumns.collectAsStateWithLifecycle()
     val gridItemSize by viewModel.gridItemSize.collectAsStateWithLifecycle()
     val libraryPreviews by viewModel.libraryPreviews.collectAsStateWithLifecycle()
+    val separatePlaylists by viewModel.separatePlaylists.collectAsStateWithLifecycle()
     val appLogo by viewModel.appLogo.collectAsStateWithLifecycle()
     val groupBadges by viewModel.groupBadges.collectAsStateWithLifecycle()
     val cardLikeButtons by viewModel.cardLikeButtons.collectAsStateWithLifecycle()
@@ -134,6 +135,7 @@ internal fun AppearanceScreen(
             }
             toggleGroup(AppearanceIndex.musicArtworkSize, artworkOptions, gridItemSize, viewModel::setGridItemSize)
             switch(AppearanceIndex.libraryPreviews, libraryPreviews, viewModel::setLibraryPreviews)
+            switch(AppearanceIndex.separatePlaylists, separatePlaylists, viewModel::setSeparatePlaylists)
             switch(AppearanceIndex.appLogo, appLogo, viewModel::setAppLogo)
             switch(AppearanceIndex.groupBadges, groupBadges, viewModel::setGroupBadges)
         }

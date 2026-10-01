@@ -192,8 +192,8 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToHistory = {
                 navController.navigate("history")
             },
-            onNavigateToPlaylists = {
-                navController.navigate("playlists")
+            onNavigateToPlaylists = { kind ->
+                navController.navigate(if (kind == null) "playlists" else "playlists?kind=${kind.name}")
             },
             onNavigateToLikedVideos = {
                 navController.navigate("playlist/${PlaylistRepository.LIKED_VIDEOS_ID}")
@@ -415,9 +415,25 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Playlists Screen
-    composable("playlists") {
+    composable(
+        route = "playlists?kind={kind}",
+        arguments =
+            listOf(
+                navArgument("kind") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
         currentRoute.value = "playlists"
+        val fixedKind =
+            backStackEntry.arguments?.getString("kind")?.let { name ->
+                io.github.aedev.flow.ui.components.shared.MediaKind.entries
+                    .firstOrNull { it.name == name }
+            }
         PlaylistsScreen(
+            fixedKind = fixedKind,
             onBackClick = { navController.popBackStack() },
             onVideoPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -545,6 +561,10 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onAlbumClick = { albumId ->
                 mediaNavigator.openAlbum(albumId)
+            },
+            onPlaylistClick = mediaNavigator::openMusicPlaylist,
+            onAllPlaylistsClick = {
+                navController.navigate("playlists?kind=${io.github.aedev.flow.ui.components.shared.MediaKind.Music.name}")
             },
             onMoodsClick = { item ->
                 if (item != null) {

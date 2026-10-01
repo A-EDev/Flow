@@ -388,95 +388,25 @@ class PlaylistRepository
             playlistDao.reorderPlaylistVideos(playlistId, orderedVideoIds)
         }
 
+        suspend fun reorderPlaylists(orderedIds: List<String>) = playlistDao.reorderPlaylists(orderedIds)
+
         fun getAllPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getVideoPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getVideoPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         fun getUserCreatedVideoPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getUserCreatedVideoPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getUserCreatedVideoPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         fun getSavedVideoPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getSavedVideoPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getSavedVideoPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         fun getMusicPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getMusicPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getMusicPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         fun getUserCreatedMusicPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getUserCreatedMusicPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getUserCreatedMusicPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         fun getSavedMusicPlaylistsFlow(): Flow<List<PlaylistInfo>> =
-            playlistDao.getSavedMusicPlaylistsWithCount().map { items ->
-                items.map { item ->
-                    PlaylistInfo(
-                        id = item.playlist.id,
-                        name = item.playlist.name,
-                        description = item.playlist.description,
-                        videoCount = item.videoCount,
-                        thumbnailUrl = item.playlist.thumbnailUrl,
-                        isPrivate = item.playlist.isPrivate,
-                        createdAt = item.playlist.createdAt,
-                    )
-                }
-            }
+            playlistDao.getSavedMusicPlaylistsWithCount().map { items -> items.map(PlaylistWithCount::toPlaylistInfo) }
 
         suspend fun getSavedVideoPlaylistVideos(): List<Video> = playlistDao.getSavedVideoPlaylistVideos().map { it.toDomain() }
 
@@ -526,3 +456,15 @@ class PlaylistRepository
             )
         }
     }
+
+private fun PlaylistWithCount.toPlaylistInfo() =
+    PlaylistInfo(
+        id = playlist.id,
+        name = playlist.name,
+        description = playlist.description,
+        videoCount = videoCount,
+        thumbnailUrl = playlist.thumbnailUrl,
+        isPrivate = playlist.isPrivate,
+        createdAt = playlist.createdAt,
+        position = playlist.position,
+    )

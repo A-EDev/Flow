@@ -37,6 +37,7 @@ import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.stats.RecapEntryCard
 import java.time.format.TextStyle
 
@@ -47,7 +48,7 @@ private val RecapCardPadding = 16.dp
 @Composable
 fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
-    onNavigateToPlaylists: () -> Unit,
+    onNavigateToPlaylists: (MediaKind?) -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToLikedMusic: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
@@ -68,6 +69,7 @@ fun LibraryScreen(
 ) {
     val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
     val shelfPreviewsEnabled by viewModel.shelfPreviewsEnabled.collectAsStateWithLifecycle()
+    val separatePlaylistKinds by viewModel.separatePlaylistKinds.collectAsStateWithLifecycle()
     val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
     val recapReady by viewModel.recapReady.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
@@ -122,6 +124,7 @@ fun LibraryScreen(
                 libraryShelves(
                     viewModel = viewModel,
                     shortsEnabled = shortsEnabled,
+                    separatePlaylistKinds = separatePlaylistKinds,
                     onNavigateToHistory = onNavigateToHistory,
                     onNavigateToPlaylists = onNavigateToPlaylists,
                     onNavigateToLikedVideos = onNavigateToLikedVideos,
@@ -143,6 +146,7 @@ fun LibraryScreen(
                     LibrarySectionList(
                         counts = counts,
                         shortsEnabled = shortsEnabled,
+                        separatePlaylistKinds = separatePlaylistKinds,
                         onNavigateToHistory = onNavigateToHistory,
                         onNavigateToPlaylists = onNavigateToPlaylists,
                         onNavigateToLikedVideos = onNavigateToLikedVideos,
@@ -177,8 +181,9 @@ fun LibraryScreen(
 private fun LazyListScope.libraryShelves(
     viewModel: LibraryViewModel,
     shortsEnabled: Boolean,
+    separatePlaylistKinds: Boolean,
     onNavigateToHistory: () -> Unit,
-    onNavigateToPlaylists: () -> Unit,
+    onNavigateToPlaylists: (MediaKind?) -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToLikedMusic: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
@@ -204,15 +209,38 @@ private fun LazyListScope.libraryShelves(
         )
     }
 
-    item(key = "playlists", contentType = "playlist-shelf") {
-        LibraryPlaylistsShelf(
-            section = LibrarySection.PLAYLISTS,
-            videoPlaylistsFlow = viewModel.playlists,
-            musicPlaylistsFlow = viewModel.musicPlaylists,
-            onTitleClick = onNavigateToPlaylists,
-            onVideoPlaylistClick = onPlaylistClick,
-            onMusicPlaylistClick = onMusicPlaylistClick,
-        )
+    if (separatePlaylistKinds) {
+        item(key = "video-playlists", contentType = "playlist-shelf") {
+            LibraryPlaylistsShelf(
+                section = LibrarySection.VIDEO_PLAYLISTS,
+                videoPlaylistsFlow = viewModel.playlists,
+                musicPlaylistsFlow = null,
+                onTitleClick = { onNavigateToPlaylists(MediaKind.Videos) },
+                onVideoPlaylistClick = onPlaylistClick,
+                onMusicPlaylistClick = onMusicPlaylistClick,
+            )
+        }
+        item(key = "music-playlists", contentType = "playlist-shelf") {
+            LibraryPlaylistsShelf(
+                section = LibrarySection.MUSIC_PLAYLISTS,
+                videoPlaylistsFlow = null,
+                musicPlaylistsFlow = viewModel.musicPlaylists,
+                onTitleClick = { onNavigateToPlaylists(MediaKind.Music) },
+                onVideoPlaylistClick = onPlaylistClick,
+                onMusicPlaylistClick = onMusicPlaylistClick,
+            )
+        }
+    } else {
+        item(key = "playlists", contentType = "playlist-shelf") {
+            LibraryPlaylistsShelf(
+                section = LibrarySection.PLAYLISTS,
+                videoPlaylistsFlow = viewModel.playlists,
+                musicPlaylistsFlow = viewModel.musicPlaylists,
+                onTitleClick = { onNavigateToPlaylists(null) },
+                onVideoPlaylistClick = onPlaylistClick,
+                onMusicPlaylistClick = onMusicPlaylistClick,
+            )
+        }
     }
 
     item(key = "watch-later", contentType = "video-shelf") {

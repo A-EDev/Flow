@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.data.model.SponsorBlockCategories
+import io.github.aedev.flow.data.playlist.PlaylistListOrder
 import io.github.aedev.flow.data.video.downloader.work.RetagResult
 import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
@@ -161,6 +162,10 @@ class PlayerPreferences(
         val VIDEO_NOTES_ENABLED = booleanPreferencesKey("video_notes_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val LIBRARY_SHELF_PREVIEWS_ENABLED = booleanPreferencesKey("library_shelf_previews_enabled")
+        val SEPARATE_PLAYLIST_KINDS = booleanPreferencesKey("separate_playlist_kinds")
+        val PLAYLIST_LIST_ORDER = stringPreferencesKey("playlist_list_order")
+        val PLAYLISTS_COMPACT_LAYOUT = booleanPreferencesKey("playlists_compact_layout")
+        val PLAYLISTS_SHOW_MUSIC = booleanPreferencesKey("playlists_show_music")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_SUBSCRIPTIONS_ENABLED = booleanPreferencesKey("home_subscriptions_enabled")
         val SHOW_WATCH_PROGRESS = booleanPreferencesKey("show_watch_progress")
@@ -908,6 +913,52 @@ class PlayerPreferences(
     suspend fun setLibraryShelfPreviewsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.LIBRARY_SHELF_PREVIEWS_ENABLED] = enabled
+        }
+    }
+
+    /** Library lists video and music playlists as two separate entries instead of one. */
+    val separatePlaylistKinds: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SEPARATE_PLAYLIST_KINDS] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setSeparatePlaylistKinds(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SEPARATE_PLAYLIST_KINDS] = enabled
+        }
+    }
+
+    val playlistListOrder: Flow<PlaylistListOrder> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> PlaylistListOrder.fromStorageValue(preferences[Keys.PLAYLIST_LIST_ORDER]) }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistListOrder(order: PlaylistListOrder) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLIST_LIST_ORDER] = order.storageValue
+        }
+    }
+
+    val playlistsCompactLayout: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYLISTS_COMPACT_LAYOUT] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistsCompactLayout(compact: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLISTS_COMPACT_LAYOUT] = compact
+        }
+    }
+
+    /** The Videos/Music choice on the playlists page, kept between visits. */
+    val playlistsShowMusic: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYLISTS_SHOW_MUSIC] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistsShowMusic(showMusic: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLISTS_SHOW_MUSIC] = showMusic
         }
     }
 

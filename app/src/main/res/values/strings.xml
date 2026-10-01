@@ -3945,4 +3945,16 @@
     <string name="home_chip_empty_body">Pull down to look again later.</string>
     <string name="home_chip_failed">Couldn\'t load this right now.</string>
     <string name="home_mix_title">Mix - %1$s</string>
+    <string name="library_video_playlists">Video playlists</string>
+    <string name="library_music_playlists">Music playlists</string>
+    <string name="playlists_sort_newest">Newest</string>
+    <string name="playlists_sort_oldest">Oldest</string>
+    <string name="playlists_sort_name">Name</string>
+    <string name="playlists_sort_custom">Custom order</string>
+    <string name="playlists_reorder">Reorder playlists</string>
+    <string name="playlists_show_list">Show as list</string>
+    <string name="playlists_show_grid">Show as grid</string>
+    <string name="settings_separate_playlists_title">Separate video and music playlists</string>
+    <string name="settings_separate_playlists_summary">Show them as two entries in Library</string>
+    <string name="music_home_your_playlists">Your playlists</string>
 </resources>

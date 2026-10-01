@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.audioMusicOnly
@@ -37,7 +39,9 @@ import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
+import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
@@ -59,9 +63,13 @@ fun EnhancedMusicScreen(
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
+    onPlaylistClick: (String) -> Unit = {},
+    onAllPlaylistsClick: () -> Unit = {},
     viewModel: MusicViewModel = sharedMusicViewModel(),
+    playlistsViewModel: MusicHomePlaylistsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val ownPlaylists by playlistsViewModel.playlists.collectAsStateWithLifecycle()
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
@@ -189,6 +197,19 @@ fun EnhancedMusicScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = flowBottomContentPadding(FeedBottomClearance)),
                         ) {
+                            if (uiState.selectedFilter == null && ownPlaylists.isNotEmpty()) {
+                                item(key = "your_playlists") {
+                                    MusicCollectionShelf(
+                                        title = stringResource(R.string.music_home_your_playlists),
+                                        collections = ownPlaylists,
+                                        keyNamespace = "your_playlists",
+                                        onCollectionClick = { onPlaylistClick(it.id) },
+                                        onCollectionMenu = { onPlaylistClick(it.id) },
+                                        action = MusicSectionAction.Navigate(onAllPlaylistsClick),
+                                        collectionSubtitle = { stringResource(R.string.tracks_count_template, it.trackCount) },
+                                    )
+                                }
+                            }
                             musicHomeFeed(
                                 uiState = uiState,
                                 sectionOrder = sectionOrder,

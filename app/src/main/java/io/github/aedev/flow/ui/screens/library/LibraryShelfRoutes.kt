@@ -64,14 +64,14 @@ internal fun LibraryMediaShelfRoute(
 @Composable
 internal fun LibraryPlaylistsShelf(
     section: LibrarySection,
-    videoPlaylistsFlow: StateFlow<List<PlaylistInfo>?>,
-    musicPlaylistsFlow: StateFlow<List<PlaylistInfo>?>,
+    videoPlaylistsFlow: StateFlow<List<PlaylistInfo>?>?,
+    musicPlaylistsFlow: StateFlow<List<PlaylistInfo>?>?,
     onTitleClick: () -> Unit,
     onVideoPlaylistClick: (String) -> Unit,
     onMusicPlaylistClick: (String) -> Unit,
 ) {
-    val videoPlaylists by videoPlaylistsFlow.collectAsStateWithLifecycle()
-    val musicPlaylists by musicPlaylistsFlow.collectAsStateWithLifecycle()
+    val videoPlaylists = videoPlaylistsFlow?.collectAsStateWithLifecycle()?.value
+    val musicPlaylists = musicPlaylistsFlow?.collectAsStateWithLifecycle()?.value
     val title = section.title
 
     if (videoPlaylists == null && musicPlaylists == null) {
