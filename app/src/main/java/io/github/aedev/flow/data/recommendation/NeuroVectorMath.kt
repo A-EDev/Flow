@@ -263,29 +263,30 @@ internal object NeuroVectorMath {
         return plantKeys(current, selectPlantKeys(source, topK), floor)
     }
 
-    /** How much of its weight a word keeps when it is part of a phrase in the same title. */
+    /** How much of its weight a word keeps when a stronger phrase of the same video contains it. */
     const val PHRASE_WORD_SHARE = 0.5
 
     /**
-     * The vector a positive signal learns from. A word that belongs to a phrase of the same video
-     * keeps [PHRASE_WORD_SHARE] of its weight, so "google pixel" becomes the interest rather than
-     * "google" and "pixel" alone. A word repeated across many different phrases still builds up.
+     * The vector a positive signal learns from. A word gives way to a phrase of the same video that
+     * outweighs it, so "guitar playalong" becomes the interest rather than "guitar" alone. A pair the
+     * engine does not yet know is a phrase weighs less than its words and takes nothing from them.
      */
     fun phraseFirst(
         vector: ContentVector,
         wordShare: Double = PHRASE_WORD_SHARE,
     ): ContentVector {
-        val phraseWords =
-            vector.topics.keys
-                .map(NeuroScoring::stripDomainTag)
-                .filter { ' ' in it }
-                .flatMapTo(HashSet()) { it.split(' ') }
-        if (phraseWords.isEmpty()) return vector
+        val strongestPhraseByWord = HashMap<String, Double>()
+        vector.topics.forEach { (key, weight) ->
+            val base = NeuroScoring.stripDomainTag(key)
+            if (' ' in base) base.split(' ').forEach { strongestPhraseByWord.merge(it, weight, ::maxOf) }
+        }
+        if (strongestPhraseByWord.isEmpty()) return vector
         return vector.copy(
             topics =
                 vector.topics.mapValues { (key, weight) ->
                     val base = NeuroScoring.stripDomainTag(key)
-                    if (' ' !in base && base in phraseWords) weight * wordShare else weight
+                    val phrase = strongestPhraseByWord[base]
+                    if (' ' !in base && phrase != null && phrase >= weight) weight * wordShare else weight
                 },
         )
     }

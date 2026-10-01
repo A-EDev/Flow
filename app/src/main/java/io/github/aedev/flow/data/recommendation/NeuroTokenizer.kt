@@ -33,7 +33,9 @@ internal class NeuroTokenizer {
         const val IDF_MAX_WEIGHT = 1.0
         const val CHANNEL_KEYWORD_WEIGHT = 0.6
         const val TITLE_KEYWORD_WEIGHT = 0.5
-        const val BIGRAM_WEIGHT = 0.75
+
+        /** A title pair not yet known to be a phrase: counted, so it can become one, but barely weighted. */
+        const val BIGRAM_CANDIDATE_WEIGHT = 0.2
         const val BIGRAM_PRIORITY_WEIGHT = 1.2
         const val DESCRIPTION_MIN_LENGTH = 20
         const val DESCRIPTION_TAKE_WORDS = 15
@@ -49,7 +51,11 @@ internal class NeuroTokenizer {
         const val CHAPTER_TIMESTAMP_MIN = 3
 
         // ── Tag Processing Constants ──
-        const val TAG_MAX_INGEST = 8
+        const val TAG_MAX_INGEST = 15
+        const val TAG_PHRASE_MAX_WORDS = 3
+        const val TAG_PHRASE_WORD_SHARE = 0.5
+        const val HASHTAG_MAX = 5
+        private val HASHTAG_REGEX = Regex("""#([\p{L}\p{N}_]{3,40})""")
         const val TAG_VERIFIED_WEIGHT = 0.65
         const val TAG_UNVERIFIED_WEIGHT = 0.10
         const val TAG_MIN_LENGTH = 3
@@ -786,7 +792,8 @@ internal class NeuroTokenizer {
                         polysemousWords.contains(titleWords[i + 1]) ||
                         // Also treat domain-disambiguable words as meaningful for bigram protection
                         titleWords[i] in domainDisambiguation ||
-                        titleWords[i + 1] in domainDisambiguation
+                        titleWords[i + 1] in domainDisambiguation ||
+                        NeuroPhrases.isPhrase(bigram, idfSnapshot)
 
                 if (isMeaningful) {
                     topics[bigram] =
@@ -801,7 +808,7 @@ internal class NeuroTokenizer {
                     topics[bigram] =
                         calculateIdfWeight(
                             bigram,
-                            BIGRAM_WEIGHT,
+                            BIGRAM_CANDIDATE_WEIGHT,
                             idfSnapshot,
                         )
                 }
@@ -843,7 +850,8 @@ internal class NeuroTokenizer {
         }
 
         // ── Tag Processing ──
-        if (video.tags.isNotEmpty()) {
+        val tags = topicTags(video)
+        if (tags.isNotEmpty()) {
             val descWords =
                 if (!video.description.isNullOrBlank()) {
                     tokenize(
@@ -858,7 +866,7 @@ internal class NeuroTokenizer {
 
             val tagTopics =
                 processTags(
-                    video.tags,
+                    tags,
                     titleWords,
                     descWords,
                     idfSnapshot,
@@ -986,6 +994,19 @@ internal class NeuroTokenizer {
         )
     }
 
+    /** The creator's tags, then the description's hashtags, which the description reader skips. */
+    fun topicTags(video: Video): List<String> {
+        val description = video.description
+        if (description.isNullOrBlank() || '#' !in description) return video.tags
+        val hashtags =
+            HASHTAG_REGEX
+                .findAll(description)
+                .map { it.groupValues[1].replace('_', ' ') }
+                .take(HASHTAG_MAX)
+                .toList()
+        return (video.tags + hashtags).distinct()
+    }
+
     fun extractDescriptionKeywords(
         description: String?,
         idfSnapshot: IdfSnapshot,
@@ -1053,7 +1074,7 @@ internal class NeuroTokenizer {
         tags.take(TAG_MAX_INGEST).forEach { rawTag ->
             val cleaned = NeuroText.fold(rawTag).trim()
 
-            if (cleaned.length < TAG_MIN_LENGTH ||
+            if ((cleaned.length < TAG_MIN_LENGTH && cleaned !in NeuroText.SHORT_TOPICS) ||
                 cleaned.length > TAG_MAX_LENGTH
             ) {
                 return@forEach
@@ -1075,6 +1096,13 @@ internal class NeuroTokenizer {
                     TAG_UNVERIFIED_WEIGHT
                 }
 
+            // A creator's multi-word tag is a phrase they chose; keep it whole ("guitar playalong").
+            val isPhrase = tagTokens.size in 2..TAG_PHRASE_MAX_WORDS
+            if (isPhrase) {
+                val phrase = tagTokens.joinToString(" ")
+                result[phrase] = (result[phrase] ?: 0.0) + calculateIdfWeight(phrase, baseWeight, idfSnapshot)
+            }
+            val wordWeight = if (isPhrase) baseWeight * TAG_PHRASE_WORD_SHARE else baseWeight
             tagTokens.forEach { token ->
                 val resolved =
                     if (token in domainDisambiguation) {
@@ -1083,7 +1111,7 @@ internal class NeuroTokenizer {
                         token
                     }
 
-                val idfWeighted = calculateIdfWeight(resolved, baseWeight, idfSnapshot)
+                val idfWeighted = calculateIdfWeight(resolved, wordWeight, idfSnapshot)
 
                 result[resolved] = (result[resolved] ?: 0.0) + idfWeighted
             }
@@ -2672,8 +2700,9 @@ internal class NeuroTokenizer {
         }
 
         // Tags provide critical disambiguation context
-        if (video.tags.isNotEmpty()) {
-            video.tags.take(TAG_MAX_INGEST).forEach { tag ->
+        val tags = topicTags(video)
+        if (tags.isNotEmpty()) {
+            tags.take(TAG_MAX_INGEST).forEach { tag ->
                 NeuroText
                     .fold(tag)
                     .split(WHITESPACE_REGEX)

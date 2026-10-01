@@ -187,40 +187,130 @@ internal object NeuroLearningBenchmark {
     )
 
     private val comedyPool =
-        listOf("%s roasts %s, full set", "Funniest %s bits from %s", "%s crowd work about %s", "Comedians react to %s with %s")
+        listOf(
+            "Bill Burr rants about airlines",
+            "Taylor Tomlinson on dating apps, full special",
+            "Ali Wong roasts her husband",
+            "John Mulaney on horses at the airport",
+            "Jim Gaffigan on hot pockets",
+            "Mike Birbiglia sleepwalking story",
+            "Stand-up comedy: crowd work in Chicago",
+            "Funniest comedians on parenting",
+            "Dave Chappelle on fame",
+            "Nate Bargatze on the space race",
+            "Hasan Minhaj on homecoming",
+            "Comedy roast of a tech CEO",
+            "Stand-up special about moving to Texas",
+            "Comedian heckler takedown compilation",
+            "Iliza on bachelorette parties",
+            "Sebastian Maniscalco on family dinners",
+            "Best of late night stand-up sets",
+            "Comedy club open mic night highlights",
+            "Bert Kreischer the machine story",
+            "Stand-up comedy about cats and dogs",
+        )
     private val techPool =
-        listOf("%s vs %s camera comparison", "I used the %s for a week: %s", "%s unboxing and %s first look", "Should you buy the %s? %s")
+        listOf(
+            "Pixel 10 Pro vs iPhone 17 camera comparison",
+            "Galaxy S26 Ultra one week later",
+            "Best phones of 2026 so far",
+            "Nothing Phone 3 unboxing and first look",
+            "OnePlus 14 battery test",
+            "Should you buy the Pixel 10a",
+            "iPhone 17 review after a month",
+            "Galaxy Z Fold 7 durability test",
+            "Budget phone camera shootout",
+            "Snapdragon 8 Elite benchmark results",
+            "Pixel 10 Pro display review",
+            "Smartphone charging speed test",
+            "Android 17 features hands on",
+            "Phone review: Xiaomi 16 Ultra",
+            "Foldable phones compared",
+            "Is the iPhone 17 Air worth it",
+            "Galaxy S26 vs Pixel 10 Pro speed test",
+            "Best cheap Android phone",
+            "Smartwatch review: Pixel Watch 4",
+            "Tech review: earbuds under 100 dollars",
+        )
     private val cookingPool =
-        listOf("How to make %s at home, %s", "%s three ways for a %s", "Chef reacts to %s: %s", "The best %s I have ever made, %s")
+        listOf(
+            "Crispy chicken thighs recipe",
+            "How to make fresh pasta at home",
+            "Easy beef stew for cold nights",
+            "Homemade ramen from scratch",
+            "One pot chili recipe",
+            "The best chocolate chip cookies",
+            "Sourdough starter for beginners",
+            "Weeknight stir fry in 15 minutes",
+            "Perfect roast potatoes recipe",
+            "Chef reacts to viral pasta recipe",
+            "Japanese curry at home",
+            "Easy banana bread recipe",
+            "How to cook the perfect steak",
+            "Meal prep for the week, cheap",
+            "Thai green curry recipe",
+            "Homemade pizza dough guide",
+            "Restaurant style fried rice",
+            "Easy lasagna recipe",
+            "Dinner ideas for busy families",
+            "French omelette technique",
+        )
     private val guitarPool =
-        listOf("%s guitar lesson for beginners %s", "Learn %s on guitar, %s tabs", "%s guitar cover %s", "%s riff tutorial %s")
-
-    private fun fill(
-        templates: List<String>,
-        i: Int,
-        a: String,
-        b: String,
-    ) = templates[i % templates.size].format(a, b)
+        listOf(
+            "Wonderwall guitar lesson for beginners",
+            "Learn Enter Sandman on guitar with tabs",
+            "Hotel California solo tutorial",
+            "Back in Black riff lesson",
+            "Seven Nation Army guitar cover",
+            "Easy guitar songs for beginners",
+            "Nothing Else Matters fingerstyle guitar",
+            "Blues guitar improvisation lesson",
+            "Smells Like Teen Spirit guitar tabs",
+            "Guitar playalong: Highway to Hell",
+            "Come As You Are guitar playalong",
+            "Rock guitar backing track jam",
+            "How to play barre chords on guitar",
+            "Sweet Child O Mine intro lesson",
+            "Acoustic guitar strumming patterns",
+            "Metal guitar riffs tutorial",
+            "Guitar scales every player should know",
+            "Stairway to Heaven guitar lesson",
+            "Guitar playalong with tabs: Paranoid",
+            "Electric guitar tone tips",
+        )
+    private val phonkPool =
+        listOf(
+            "𝙋𝙃𝙊𝙉𝙆 2026 aggressive",
+            "BRAZILIAN PHONK MIX",
+            "phonk for night drives",
+            "ᴅʀɪꜰᴛ ᴘʜᴏɴᴋ playlist",
+            "ＧＹＭ ＰＨＯＮＫ",
+            "aggressive phonk workout",
+            "phonk mix 1 hour",
+            "ⓟⓗⓞⓝⓚ drift music",
+            "cowbell phonk mix",
+            "Phonk house playlist",
+            "best phonk songs 2026",
+            "𝐏𝐇𝐎𝐍𝐊 gym motivation",
+            "dark phonk for gaming",
+            "funk phonk brazil mix",
+            "phonk drift car edit music",
+            "slowed phonk playlist",
+            "memphis phonk classics",
+            "phonk remix of a pop song",
+            "ＰＨＯＮＫ ＭＩＸ night",
+            "chill phonk for studying",
+        )
 
     /** The candidate pool every ranking is drawn from: 20 bare-title videos per family, from channels never watched. */
     fun pool(): List<Video> =
         (0 until 20).flatMap { i ->
             listOf(
-                video(
-                    "pool-comedy-$i",
-                    Family.COMEDY,
-                    fill(comedyPool, i, comedyNames[i % 6], comedyThings[(i + 3) % 8]),
-                    "Laugh Factory ${i % 4}",
-                ),
-                video("pool-tech-$i", Family.TECH, fill(techPool, i, phones[i % 5], phones[(i + 2) % 5]), "Tech Spurt ${i % 4}"),
-                video(
-                    "pool-cooking-$i",
-                    Family.COOKING,
-                    fill(cookingPool, i, dishes[i % 5], dishStyles[(i + 1) % 4]),
-                    "Kitchen Table ${i % 4}",
-                ),
-                video("pool-guitar-$i", Family.GUITAR, fill(guitarPool, i, songs[i % 10], songs[(i + 3) % 10]), "Guitar Lessons ${i % 4}"),
-                video("pool-phonk-$i", Family.PHONK, phonkTitles[(i + 3) % phonkTitles.size] + " vol ${i + 1}", "Phonk Radio ${i % 4}"),
+                video("pool-comedy-$i", Family.COMEDY, comedyPool[i], "Laugh Factory ${i % 7}"),
+                video("pool-tech-$i", Family.TECH, techPool[i], "Tech Spurt ${i % 7}"),
+                video("pool-cooking-$i", Family.COOKING, cookingPool[i], "Kitchen Table ${i % 7}"),
+                video("pool-guitar-$i", Family.GUITAR, guitarPool[i], "Guitar Lessons ${i % 7}"),
+                video("pool-phonk-$i", Family.PHONK, phonkPool[i], "Phonk Radio ${i % 7}"),
                 other(100 + i),
             )
         }
