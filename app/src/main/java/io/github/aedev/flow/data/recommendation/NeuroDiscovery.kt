@@ -1017,7 +1017,8 @@ internal class NeuroDiscovery(
             adjacentWeights.entries
                 .filter { (topic, _) ->
                     !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) } &&
-                        tokenizer.normalizeLemma(topic) !in blockedPhraseWords
+                        tokenizer.normalizeLemma(topic) !in blockedPhraseWords &&
+                        !tokenizer.isNoiseTopic(topic)
                 }.sortedByDescending { it.value }
                 .take(6)
         return picks.map { it.key }
