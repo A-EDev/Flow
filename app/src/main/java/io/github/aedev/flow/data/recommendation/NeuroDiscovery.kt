@@ -990,10 +990,14 @@ internal class NeuroDiscovery(
                 }
         }
 
+        // Exploration is a guess, so it also steers clear of the single words of a blocked phrase:
+        // channels that taught "resident evil" go on teaching "evil".
+        val blockedPhraseWords = blocked.filter { ' ' in it }.flatMapTo(HashSet()) { tokenizer.tokenize(it) }
         val picks =
             adjacentWeights.entries
                 .filter { (topic, _) ->
-                    !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) }
+                    !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) } &&
+                        tokenizer.normalizeLemma(topic) !in blockedPhraseWords
                 }.sortedByDescending { it.value }
                 .take(6)
                 .shuffled()

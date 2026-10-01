@@ -58,6 +58,43 @@ class NeuroLearningDynamicsTest {
     }
 
     @Test
+    fun `v17 rebuilds a vector decay emptied, without blocked topics or filler`() {
+        val brain =
+            UserBrain(
+                schemaVersion = 16,
+                globalVector = ContentVector(topics = mapOf("zoo" to 0.06, "these" to 0.05, "invention heated" to 0.03)),
+                blockedTopics = setOf("zoo", "resident evil"),
+                channelScores = mapOf("chCode" to 0.8, "chGym" to 0.7, "chGames" to 0.7),
+                channelTopicProfiles =
+                    mapOf(
+                        "chCode" to mapOf("kotlin" to 0.6, "android" to 0.5),
+                        "chGym" to mapOf("gym" to 0.6, "chest" to 0.4),
+                        "chGames" to mapOf("resident" to 0.5, "evil" to 0.5, "horror" to 0.4),
+                    ),
+                topicAffinities = mapOf("android|these" to 0.2, "android|kotlin" to 0.3),
+            )
+
+        val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
+
+        assertThat(updated.globalVector.topics.keys).containsAtLeast("kotlin", "android", "gym", "horror")
+        assertThat(updated.globalVector.topics.keys).containsNoneOf("zoo", "these", "resident", "evil")
+        assertThat(updated.topicAffinities.keys).doesNotContain("android|these")
+    }
+
+    @Test
+    fun `v17 leaves a healthy vector to what it learned`() {
+        val healthy = (0 until 8).associate { "topic$it" to 0.3 }
+        val brain =
+            UserBrain(
+                schemaVersion = 16,
+                globalVector = ContentVector(topics = healthy),
+                channelTopicProfiles = mapOf("ch" to mapOf("kotlin" to 0.6)),
+            )
+
+        assertThat(NeuroMaintenance.runIfNeeded(brain, tokenizer).globalVector.topics).isEqualTo(healthy)
+    }
+
+    @Test
     fun `v17 estimates bucket counts from the topics a bucket holds`() {
         val brain =
             UserBrain(
