@@ -53,6 +53,7 @@ class FlowNeuroEngine internal constructor(
     private val appContext: Context,
     private val storage: NeuroStorage,
     private val contentStore: NeuroContentStore,
+    learningPaused: (suspend () -> Boolean)? = null,
 ) {
     constructor(appContext: Context) : this(appContext, NeuroStorage(appContext), NeuroContentStore(appContext))
 
@@ -311,6 +312,7 @@ class FlowNeuroEngine internal constructor(
     // ── Module Instances ──
     private val tokenizer = NeuroTokenizer()
     private val playerPreferences by lazy { PlayerPreferences(appContext) }
+    private val isLearningPaused: suspend () -> Boolean = learningPaused ?: { playerPreferences.isDeepFlowCurrentlyActive() }
     private val discovery by lazy {
         NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
     }
@@ -1904,7 +1906,7 @@ class FlowNeuroEngine internal constructor(
         percentWatched: Float = 0f,
     ) {
         // Deep Flow mode: freeze vector learning while active and not yet expired
-        if (playerPreferences.isDeepFlowCurrentlyActive()) return
+        if (isLearningPaused()) return
 
         val idfSnapshot = withBrainLock { takeIdfSnapshot() }
         val videoVector = getOrExtractFeatures(video, idfSnapshot)
@@ -2404,7 +2406,7 @@ class FlowNeuroEngine internal constructor(
      * (see NeuroSearchLearning) without counting as a full interaction.
      */
     suspend fun onSearchQuery(rawQuery: String) {
-        if (rawQuery.isBlank() || playerPreferences.isDeepFlowCurrentlyActive()) return
+        if (rawQuery.isBlank() || isLearningPaused()) return
         withBrainLock {
             val learned =
                 NeuroSearchLearning.learn(currentUserBrain, rawQuery, tokenizer, System.currentTimeMillis())
