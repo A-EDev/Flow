@@ -417,6 +417,7 @@ internal class NeuroTokenizer {
             "than",
             "well",
             "even",
+            "else",
             // Filler adverbs that leaked into topic vectors as junk unigrams and
             // bigram halves ("laptops right" from "laptops right now").
             "right",
