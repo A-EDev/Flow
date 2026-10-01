@@ -37,6 +37,9 @@ internal object NeuroScoring {
     const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
     const val CHANNEL_EMA_ALPHA = 0.05
     const val CHANNEL_EMA_DECAY = 1.0 - CHANNEL_EMA_ALPHA
+
+    /** A thumbs-down halves the channel's score; the EMA step moved it by 2.5 % (#907). */
+    const val DISLIKE_CHANNEL_FACTOR = 0.5
     const val MAX_CHANNEL_SCORES = 500
     const val CHANNEL_KEEP_LOW = 50
     const val CHANNEL_KEEP_HIGH = 200
@@ -107,7 +110,6 @@ internal object NeuroScoring {
     const val CHANNEL_PROFILE_MIN_VIDEOS = 3
     const val NOT_INTERESTED_GLOBAL_RATE = -0.35
     const val NOT_INTERESTED_TIME_RATE = -0.25
-    const val NOT_INTERESTED_SKIP_INCREMENT = 3
     const val PERSONA_STABILITY_THRESHOLD = 3
     const val PERSONA_MAX_STABILITY = 10
     const val EXPLORATION_SCORE_THRESHOLD = 0.1
@@ -183,7 +185,10 @@ internal object NeuroScoring {
     const val QUERY_OVERLAP_THRESHOLD = 0.4
 
     // ── Rejection Pattern Memory ──
-    const val REJECTION_EXPIRY_DAYS = 14L
+
+    /** A rejection's weight halves every month instead of vanishing after two weeks. */
+    const val REJECTION_HALF_LIFE_DAYS = 30.0
+    const val REJECTION_FORGET_BELOW = 0.5
     const val REJECTION_MEMORY_MAX = 200
     const val REJECTION_PENALTY_1 = 0.50
     const val REJECTION_PENALTY_2 = 0.20
@@ -882,30 +887,35 @@ internal object NeuroScoring {
         return keys
     }
 
+    /** The rejection count left after [now] - lastRejectedAt of monthly halving. */
+    fun effectiveRejections(
+        signal: RejectionSignal,
+        now: Long,
+    ): Double {
+        val ageDays = (now - signal.lastRejectedAt).coerceAtLeast(0L) / 86_400_000.0
+        return signal.count * 0.5.pow(ageDays / REJECTION_HALF_LIFE_DAYS)
+    }
+
+    private fun strongestRejection(
+        videoVector: ContentVector,
+        rejectionPatterns: Map<String, RejectionSignal>,
+        now: Long,
+    ): Double =
+        extractRejectionKeys(videoVector).maxOfOrNull { key ->
+            rejectionPatterns[key]?.let { effectiveRejections(it, now) } ?: 0.0
+        } ?: 0.0
+
     fun calculateRejectionPatternPenalty(
         videoVector: ContentVector,
         rejectionPatterns: Map<String, RejectionSignal>,
         now: Long,
     ): Double {
         if (rejectionPatterns.isEmpty()) return 1.0
-
-        val videoKeys = extractRejectionKeys(videoVector)
-        if (videoKeys.isEmpty()) return 1.0
-
-        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
-        var maxCount = 0
-
-        videoKeys.forEach { key ->
-            val signal = rejectionPatterns[key] ?: return@forEach
-            if ((now - signal.lastRejectedAt) < expiryMs) {
-                maxCount = maxOf(maxCount, signal.count)
-            }
-        }
-
+        val strength = strongestRejection(videoVector, rejectionPatterns, now)
         return when {
-            maxCount >= 3 -> REJECTION_PENALTY_3_PLUS
-            maxCount == 2 -> REJECTION_PENALTY_2
-            maxCount == 1 -> REJECTION_PENALTY_1
+            strength >= 2.5 -> REJECTION_PENALTY_3_PLUS
+            strength >= 1.5 -> REJECTION_PENALTY_2
+            strength >= REJECTION_FORGET_BELOW -> REJECTION_PENALTY_1
             else -> 1.0
         }
     }
@@ -916,23 +926,36 @@ internal object NeuroScoring {
         now: Long,
     ): Double {
         if (rejectionPatterns.isEmpty()) return 0.5
-
-        val videoKeys = extractRejectionKeys(videoVector)
-        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
-        var maxCount = 0
-
-        videoKeys.forEach { key ->
-            val signal = rejectionPatterns[key] ?: return@forEach
-            if ((now - signal.lastRejectedAt) < expiryMs) {
-                maxCount = maxOf(maxCount, signal.count)
-            }
-        }
-
+        val strength = strongestRejection(videoVector, rejectionPatterns, now)
         return when {
-            maxCount >= 2 -> 0.10
-            maxCount >= 1 -> 0.25
+            strength >= 1.5 -> 0.10
+            strength >= REJECTION_FORGET_BELOW -> 0.25
             else -> 0.50
         }
+    }
+
+    /**
+     * Adds one rejection of [videoVector]'s patterns and forgets the ones whose weight has decayed
+     * away. Both "Not interested" and a thumbs-down write here (#907).
+     */
+    fun recordRejection(
+        rejectionPatterns: Map<String, RejectionSignal>,
+        videoVector: ContentVector,
+        now: Long,
+    ): Map<String, RejectionSignal> {
+        val updated = rejectionPatterns.toMutableMap()
+        extractRejectionKeys(videoVector).forEach { key ->
+            val left = updated[key]?.let { effectiveRejections(it, now) } ?: 0.0
+            updated[key] = RejectionSignal(count = (left + 1).roundToInt().coerceAtLeast(1), lastRejectedAt = now)
+        }
+        updated.entries.removeAll { effectiveRejections(it.value, now) < REJECTION_FORGET_BELOW }
+        if (updated.size > REJECTION_MEMORY_MAX) {
+            updated.entries
+                .sortedBy { it.value.lastRejectedAt }
+                .take(updated.size - REJECTION_MEMORY_MAX)
+                .forEach { updated.remove(it.key) }
+        }
+        return updated
     }
 
     /** Events a time bucket needs before its vector weighs as much as the whole profile. */

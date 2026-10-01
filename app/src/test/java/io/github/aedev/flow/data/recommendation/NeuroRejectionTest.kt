@@ -1,0 +1,95 @@
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
+
+package io.github.aedev.flow.data.recommendation
+
+import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.recommendation.eval.NeuroLearningBenchmark
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+
+/** #907: what the viewer rejects stays rejected, and rejecting does not make the feed random. */
+class NeuroRejectionTest {
+    private val day = 86_400_000L
+    private val now = 1_800_000_000_000L
+    private val phonk = ContentVector(topics = mapOf("phonk" to 0.8, "drift phonk" to 0.5))
+
+    @Test
+    fun `a rejection halves every month instead of expiring after two weeks`() {
+        val signal = RejectionSignal(count = 3, lastRejectedAt = now - 30 * day)
+
+        assertThat(NeuroScoring.effectiveRejections(signal, now)).isWithin(1e-9).of(1.5)
+        assertThat(NeuroScoring.calculateRejectionPatternPenalty(phonk, mapOf("phonk" to signal), now))
+            .isEqualTo(NeuroScoring.REJECTION_PENALTY_2)
+        assertThat(
+            NeuroScoring.calculateRejectionPatternPenalty(phonk, mapOf("phonk" to signal.copy(lastRejectedAt = now - 60 * day)), now),
+        ).isEqualTo(NeuroScoring.REJECTION_PENALTY_1)
+    }
+
+    @Test
+    fun `a new rejection adds to what is left of the old ones`() {
+        val patterns = mapOf("phonk" to RejectionSignal(count = 2, lastRejectedAt = now - 30 * day))
+
+        val updated = NeuroScoring.recordRejection(patterns, phonk, now)
+
+        assertThat(updated.getValue("phonk")).isEqualTo(RejectionSignal(count = 2, lastRejectedAt = now))
+    }
+
+    @Test
+    fun `faded rejections are forgotten`() {
+        val patterns = mapOf("gaming" to RejectionSignal(count = 1, lastRejectedAt = now - 45 * day))
+
+        assertThat(NeuroScoring.recordRejection(patterns, phonk, now)).doesNotContainKey("gaming")
+    }
+
+    @Test
+    fun `a thumbs-down is remembered and does not raise boredom`() =
+        runTest {
+            val engine = NeuroLearningBenchmark.engine()
+            engine.onVideoInteraction(NeuroLearningBenchmark.phonk(5), InteractionType.DISLIKED)
+            engine.onVideoInteraction(NeuroLearningBenchmark.phonk(7), InteractionType.DISLIKED)
+
+            val brain = engine.getBrainSnapshot()
+            assertThat(brain.rejectionPatterns.getValue("phonk").count).isEqualTo(2)
+            assertThat(brain.consecutiveSkips).isEqualTo(0)
+            assertThat(brain.channelScores.getValue(NeuroLearningBenchmark.phonk(5).channelId)).isWithin(1e-9).of(0.25)
+            engine.shutdown()
+        }
+
+    @Test
+    fun `not interested does not raise boredom`() =
+        runTest {
+            val engine = NeuroLearningBenchmark.engine()
+            repeat(4) { engine.markNotInterested(NeuroLearningBenchmark.phonk(it)) }
+
+            assertThat(engine.getBrainSnapshot().consecutiveSkips).isEqualTo(0)
+            engine.shutdown()
+        }
+
+    @Test
+    fun `a hidden video never opens a related lane`() =
+        runTest {
+            val engine = NeuroLearningBenchmark.engine()
+            val hidden = NeuroLearningBenchmark.comedy(0)
+            engine.markNotInterested(hidden)
+            val seeds =
+                listOf(hidden, NeuroLearningBenchmark.comedy(1)).map {
+                    GraphSeedInput(
+                        id = it.id,
+                        title = it.title,
+                        channelId = "ch-${it.id}",
+                        source = GraphSeedSource.LIKED,
+                        engagementWeight = 1.0,
+                        timestamp = now,
+                        durationSec = 600,
+                        percentWatched = 0.0,
+                    )
+                }
+
+            assertThat(engine.selectRelatedSeeds(seeds, maxSeeds = 4)).containsExactly(NeuroLearningBenchmark.comedy(1).id)
+            engine.shutdown()
+        }
+}

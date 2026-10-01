@@ -1117,32 +1117,7 @@ class FlowNeuroEngine internal constructor(
             }
 
             // 3. Update rejection pattern memory BEFORE vector adjustment
-            val updatedPatterns = currentUserBrain.rejectionPatterns.toMutableMap()
-            val rejectionKeys = NeuroScoring.extractRejectionKeys(videoVector)
-
-            rejectionKeys.forEach { key ->
-                val existing = updatedPatterns[key]
-                updatedPatterns[key] =
-                    RejectionSignal(
-                        count = (existing?.count ?: 0) + 1,
-                        lastRejectedAt = now,
-                    )
-            }
-
-            // Prune expired patterns
-            val patternExpiry = now - (NeuroScoring.REJECTION_EXPIRY_DAYS * 86_400_000L)
-            updatedPatterns.entries.removeAll { (_, signal) ->
-                signal.lastRejectedAt < patternExpiry
-            }
-            // Size cap
-            if (updatedPatterns.size > NeuroScoring.REJECTION_MEMORY_MAX) {
-                val sorted = updatedPatterns.entries.sortedBy { it.value.lastRejectedAt }
-                val toRemove =
-                    sorted.take(
-                        updatedPatterns.size - NeuroScoring.REJECTION_MEMORY_MAX,
-                    )
-                toRemove.forEach { updatedPatterns.remove(it.key) }
-            }
+            val updatedPatterns = NeuroScoring.recordRejection(currentUserBrain.rejectionPatterns, videoVector, now)
 
             // 4. Aggressive vector adjustment — scales with rejection count
             val aggressionFactor =
@@ -1176,20 +1151,12 @@ class FlowNeuroEngine internal constructor(
                     NeuroScoring.NOT_INTERESTED_TIME_RATE,
                 )
 
-            // 7. Consecutive skips
-            val newSkips =
-                (
-                    currentUserBrain.consecutiveSkips +
-                        NeuroScoring.NOT_INTERESTED_SKIP_INCREMENT
-                ).coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
-
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
                     timeVectors = currentUserBrain.timeVectors + (bucket to newBucketVec),
                     channelScores = newChannelScores,
                     totalInteractions = currentUserBrain.totalInteractions + 1,
-                    consecutiveSkips = newSkips,
                     suppressedVideoIds = newSuppressedVideos,
                     suppressedChannels = newSuppressedChannels,
                     rejectionPatterns = updatedPatterns,
@@ -1363,6 +1330,7 @@ class FlowNeuroEngine internal constructor(
                         .keys
                 topicScores = currentUserBrain.globalVector.topics
             }
+            val hidden = brainSnapshot.suppressedVideoIds.keys
 
             // Map seed topic keys to interest communities so the spread-first pick
             // allocates one related seed per MAJOR interest (mma, android, anime…)
@@ -1384,9 +1352,9 @@ class FlowNeuroEngine internal constructor(
             // cooled down unless that would starve the selection.
             val selected =
                 GraphSeedSelector.selectWithLongTerm(
-                    candidates = candidates,
+                    candidates = candidates.filterNot { it.id in hidden },
                     maxSeeds = maxSeeds,
-                    longTermCandidates = longTermCandidates,
+                    longTermCandidates = longTermCandidates.filterNot { it.id in hidden },
                     communityMass = clusters.associate { it.representative to it.mass },
                     communityOf = communityOf,
                     now = now,
@@ -2070,8 +2038,12 @@ class FlowNeuroEngine internal constructor(
                 currentUserBrain.channelScores[video.channelId] ?: 0.5
             val outcome = if (learningRate > 0) 1.0 else 0.0
             val newChScore =
-                (currentChScore * NeuroScoring.CHANNEL_EMA_DECAY) +
-                    (outcome * NeuroScoring.CHANNEL_EMA_ALPHA)
+                if (interactionType == InteractionType.DISLIKED) {
+                    (currentChScore * NeuroScoring.DISLIKE_CHANNEL_FACTOR).coerceAtLeast(0.01)
+                } else {
+                    (currentChScore * NeuroScoring.CHANNEL_EMA_DECAY) +
+                        (outcome * NeuroScoring.CHANNEL_EMA_ALPHA)
+                }
             var newChannelScores =
                 currentUserBrain.channelScores +
                     (video.channelId to newChScore)
@@ -2087,7 +2059,8 @@ class FlowNeuroEngine internal constructor(
                         .filter { it.key in keepSet }
             }
 
-            // 4. Consecutive skips
+            // 4. Consecutive skips. Boredom is passive skipping; an explicit rejection says what the
+            // viewer does not want, which is no reason to make the next feed more random (#907).
             val newSkips =
                 when (interactionType) {
                     InteractionType.CLICK, InteractionType.LIKED,
@@ -2096,10 +2069,20 @@ class FlowNeuroEngine internal constructor(
                         0
                     }
 
-                    InteractionType.SKIPPED, InteractionType.DISLIKED -> {
+                    InteractionType.SKIPPED -> {
                         (currentUserBrain.consecutiveSkips + 1)
                             .coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
                     }
+
+                    InteractionType.DISLIKED -> {
+                        currentUserBrain.consecutiveSkips
+                    }
+                }
+            val newRejectionPatterns =
+                if (interactionType == InteractionType.DISLIKED) {
+                    NeuroScoring.recordRejection(currentUserBrain.rejectionPatterns, videoVector, System.currentTimeMillis())
+                } else {
+                    currentUserBrain.rejectionPatterns
                 }
 
             // 5. Topic co-occurrence
@@ -2355,6 +2338,7 @@ class FlowNeuroEngine internal constructor(
                     shortsVector = newShortsVector,
                     topicEvidence = newTopicEvidence,
                     tagAffinities = newTagAffinities,
+                    rejectionPatterns = newRejectionPatterns,
                 )
 
             scheduleDebouncedSave()

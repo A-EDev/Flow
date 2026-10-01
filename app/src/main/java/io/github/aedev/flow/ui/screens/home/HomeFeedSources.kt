@@ -59,13 +59,21 @@ class HomeFeedSources
 
         suspend fun historySeedInputs(): List<GraphSeedInput> =
             graphSeedInputsFromHistory(viewHistory.getRecentVideoHistory(HISTORY_SEED_MAX, includeShorts = false))
+                .withoutDisliked()
 
         internal suspend fun gatherSavedSeedSources(): SavedSeedSources {
             val historySeeds =
                 runCatching {
                     graphSeedInputsFromHistory(viewHistory.getRecentVideoHistory(HISTORY_SEED_MAX, includeShorts = false))
+                        .withoutDisliked()
                 }.getOrElse { emptyList() }
-            return SavedSeedSources(historySeeds, likedSeedInputs(), playlistSeedInputs())
+            return SavedSeedSources(historySeeds, likedSeedInputs(), playlistSeedInputs().withoutDisliked())
+        }
+
+        /** A disliked video must never open a related lane, however much of it was watched (#907). */
+        private suspend fun List<GraphSeedInput>.withoutDisliked(): List<GraphSeedInput> {
+            val disliked = runCatching { likedVideosRepository.dislikedVideoIds() }.getOrElse { emptySet() }
+            return if (disliked.isEmpty()) this else filterNot { it.id in disliked }
         }
 
         /** Seeds for lasting interests: likes, saved playlists and the watches older than the recent window. */
@@ -77,7 +85,7 @@ class HomeFeedSources
                         max = LONG_TERM_HISTORY_MAX,
                     ).drop(HISTORY_SEED_MAX)
                 }.getOrElse { emptyList() }
-            return (likedSeedInputs() + playlistSeedInputs() + olderHistory).distinctBy { it.id }
+            return (likedSeedInputs() + playlistSeedInputs() + olderHistory).distinctBy { it.id }.withoutDisliked()
         }
 
         private suspend fun likedSeedInputs(): List<GraphSeedInput> =
