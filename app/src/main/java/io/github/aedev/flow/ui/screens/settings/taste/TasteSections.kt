@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ClearAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Upload
@@ -22,9 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.info
 import io.github.aedev.flow.ui.components.settings.nav
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.TasteIndex
 
 private const val STRONG_CHANNEL = 0.65f
@@ -37,6 +40,7 @@ internal class TasteActions(
     val onForgetChannel: (String) -> Unit,
     val onClearChannelMemory: () -> Unit,
     val onOpenHidden: () -> Unit,
+    val onOpenFavouriteArtists: () -> Unit,
     val onOpenRecap: () -> Unit,
     val onExportVideo: () -> Unit,
     val onImportVideo: () -> Unit,
@@ -61,6 +65,11 @@ internal fun SettingsListScope.tasteContent(
     group(key = "taste.more") {
         nav(TasteIndex.recap, onClick = actions.onOpenRecap, icon = Icons.Outlined.Insights)
         nav(TasteIndex.hidden, onClick = actions.onOpenHidden, value = hiddenLabel, icon = Icons.Outlined.VisibilityOff)
+        nav(
+            DestinationIndex.entry(SettingsDestination.FAVOURITE_ARTISTS),
+            onClick = actions.onOpenFavouriteArtists,
+            icon = Icons.Outlined.LibraryMusic,
+        )
     }
     state.engine?.let { engineDetails(it, noQueriesLabel) }
     data(actions)

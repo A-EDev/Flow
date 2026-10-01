@@ -3962,4 +3962,13 @@
     <string name="settings_speed_per_channel_title">Remember speed per channel</string>
     <string name="settings_speed_per_channel_summary">Each channel starts at the speed you last chose</string>
     <string name="music_collection_suggestions">Suggestions</string>
+    <string name="favourite_artists_title">Favourite artists</string>
+    <string name="favourite_artists_summary">Pick artists to shape your music</string>
+    <string name="favourite_artists_search">Search artists</string>
+    <string name="favourite_artists_picked">Your picks</string>
+    <string name="favourite_artists_popular">Popular now</string>
+    <string name="favourite_artists_results">Results</string>
+    <string name="favourite_artists_none">No artists found</string>
+    <string name="favourite_artists_add">Add %1$s</string>
+    <string name="favourite_artists_remove">Remove %1$s</string>
 </resources>

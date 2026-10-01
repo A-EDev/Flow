@@ -25,6 +25,7 @@ import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
+import io.github.aedev.flow.ui.screens.settings.taste.FavouriteArtistsScreen
 import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
 import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
 import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
@@ -56,6 +57,10 @@ internal fun SettingsDetail(
 
         SettingsDestination.HIDDEN_CONTENT -> {
             HiddenContentScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.FAVOURITE_ARTISTS -> {
+            FavouriteArtistsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.THEME -> {

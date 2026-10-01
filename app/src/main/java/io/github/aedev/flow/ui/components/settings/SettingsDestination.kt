@@ -17,6 +17,7 @@ enum class SettingsDestination(
     HOME("home", R.string.settings_title),
     TASTE("taste", R.string.taste_title),
     HIDDEN_CONTENT("hidden_content", R.string.taste_hidden_title, TASTE),
+    FAVOURITE_ARTISTS("favourite_artists", R.string.favourite_artists_title, TASTE),
     APPEARANCE("appearance", R.string.appearance_title),
     THEME("theme", R.string.settings_item_theme, APPEARANCE),
     CUSTOM_THEME("custom_theme", R.string.settings_custom_themes_title, THEME),

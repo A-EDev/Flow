@@ -248,4 +248,32 @@ class MusicBrainLearnTest {
         val afterCooldown = now + MusicBrainParams.DISLIKE_COOLDOWN_MS + 1_000
         assertThat(MusicBrainLearn.hiddenArtistKeys(brain, afterCooldown)).isEmpty()
     }
+
+    @Test
+    fun `a picked artist ranks like a liked one without counting a play`() {
+        val brain = MusicBrain()
+        MusicBrainLearn.blockArtist(brain, "UCpicked")
+
+        MusicBrainLearn.setFavouriteArtist(brain, "UCpicked", "Picked", favourite = true)
+
+        val affinity = brain.artistAffinity.getValue("UCpicked")
+        assertThat(affinity.score).isAtLeast(MusicBrainParams.LIKE_SCORE_FLOOR)
+        assertThat(affinity.plays).isEqualTo(0)
+        assertThat(brain.totalPlays).isEqualTo(0)
+        assertThat(brain.isArtistBlocked("UCpicked")).isFalse()
+        assertThat(brain.topArtists(1).single().first).isEqualTo("UCpicked")
+    }
+
+    @Test
+    fun `unpicking forgets an artist only when they were never played`() {
+        val brain = MusicBrain()
+        MusicBrainLearn.setFavouriteArtist(brain, "UCpicked", "Picked", favourite = true)
+        MusicBrainLearn.setFavouriteArtist(brain, "UCpicked", "Picked", favourite = false)
+        assertThat(brain.artistAffinity).doesNotContainKey("UCpicked")
+
+        MusicBrainLearn.applyMusicSignal(brain, signal(artistKey = "UCplayed"), listOf(1.0), now, coArtist = null)
+        MusicBrainLearn.setFavouriteArtist(brain, "UCplayed", "Played", favourite = true)
+        MusicBrainLearn.setFavouriteArtist(brain, "UCplayed", "Played", favourite = false)
+        assertThat(brain.artistAffinity).containsKey("UCplayed")
+    }
 }
