@@ -40,7 +40,7 @@ internal class NeuroStorage(
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 16
+        private const val SCHEMA_VERSION = 17
     }
 
     // ── Serializable models ──
@@ -110,6 +110,7 @@ internal class NeuroStorage(
         val staleQueries: Map<String, Long> = emptyMap(),
         val clusterRotation: Map<String, Long> = emptyMap(),
         val tagAffinities: Map<String, Double> = emptyMap(),
+        val timeBucketCounts: Map<String, Int> = emptyMap(),
     )
 
     // ── DataStore setup ──
@@ -223,6 +224,7 @@ internal class NeuroStorage(
             staleQueries = staleQueries,
             clusterRotation = clusterRotation,
             tagAffinities = tagAffinities,
+            timeBucketCounts = timeBucketCounts.mapKeys { it.key.name },
         )
 
     // ── Persistence operations ──
@@ -657,6 +659,11 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
         staleQueries = staleQueries,
         clusterRotation = clusterRotation,
         tagAffinities = tagAffinities,
+        timeBucketCounts =
+            timeBucketCounts
+                .mapNotNull { (name, count) ->
+                    TimeBucket.entries.firstOrNull { it.name == name }?.let { it to count }
+                }.toMap(),
         schemaVersion = schemaVersion,
     )
 }

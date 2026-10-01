@@ -180,7 +180,7 @@ class NeuroLearningFixesTest {
 
         val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
 
-        assertThat(updated.schemaVersion).isEqualTo(16)
+        assertThat(updated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
         assertThat(updated.globalVector.topics.keys).containsExactly("woodworking", "minecraft", "claude")
         assertThat(updated.topicEvidence.keys).containsExactly("woodworking", "minecraft", "claude")
     }

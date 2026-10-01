@@ -39,14 +39,24 @@ internal object NeuroVectorMath {
     /** Topics above this score are developing — decay slowly */
     const val DEVELOPING_TOPIC_THRESHOLD = 0.10
 
-    /** Established interests: half-life ~1400 interactions */
+    /** Established interests: half-life ~346 full-strength events */
     const val ESTABLISHED_DECAY_RATE = 0.998
 
-    /** Developing interests: half-life ~330 interactions */
+    /** Developing interests: half-life ~99 full-strength events */
     const val DEVELOPING_DECAY_RATE = 0.993
 
-    /** Emerging/noisy topics: half-life ~46 interactions*/
+    /** Emerging/noisy topics: half-life ~23 full-strength events */
     const val EMERGING_DECAY_RATE = 0.97
+
+    /**
+     * The learning rate of a full long-form watch. An event decays the rest of the vector in
+     * proportion to its rate against this one, so a Short (1 % of a watch) can no longer erase as
+     * much as a watch does (#907).
+     */
+    const val DECAY_REFERENCE_RATE = 0.15
+
+    /** Slower decay prunes less, so the vector needs a hard size bound of its own. */
+    const val MAX_GLOBAL_TOPICS = 300
 
     const val NEGATIVE_PROPORTIONAL_EXPONENT = 1.5
     const val NEGATIVE_FLOOR_FACTOR = 0.3
@@ -135,10 +145,14 @@ internal object NeuroVectorMath {
         return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
     }
 
+    /** How strongly an event of [rate] decays everything it does not touch, from 0 to 1. */
+    fun decayStrength(rate: Double): Double = (abs(rate) / DECAY_REFERENCE_RATE).coerceIn(0.0, 1.0)
+
     fun adjustVector(
         current: ContentVector,
         target: ContentVector,
         baseRate: Double,
+        decayStrength: Double = 1.0,
     ): ContentVector {
         val newTopics = current.topics.toMutableMap()
         val isNegative = baseRate < 0
@@ -177,7 +191,7 @@ internal object NeuroVectorMath {
                         entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
                         else -> EMERGING_DECAY_RATE
                     }
-                entry.setValue(entry.value * tieredDecay)
+                entry.setValue(entry.value * tieredDecay.pow(decayStrength))
             }
             if (!isCurrentTarget && entry.value < TOPIC_PRUNE_THRESHOLD) {
                 iterator.remove()
@@ -307,6 +321,21 @@ internal object NeuroVectorMath {
             if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
         }
         return current.copy(topics = planted)
+    }
+
+    /** Keeps the [max] strongest topics; [protected] keys always stay. */
+    fun capTopics(
+        vector: ContentVector,
+        max: Int,
+        protected: Set<String> = emptySet(),
+    ): ContentVector {
+        if (vector.topics.size <= max) return vector
+        val kept =
+            vector.topics.entries
+                .sortedByDescending { it.value }
+                .filterIndexed { index, entry -> index < max || NeuroScoring.stripDomainTag(entry.key) in protected }
+                .associate { it.key to it.value }
+        return vector.copy(topics = kept)
     }
 
     fun normalizeTopicVector(topics: MutableMap<String, Double>): Map<String, Double> {

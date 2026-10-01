@@ -1761,8 +1761,9 @@ class FlowNeuroEngine internal constructor(
             val boredomFactor =
                 (brain.consecutiveSkips / 20.0)
                     .coerceIn(0.0, 0.5)
-            val wPersonality = 0.4 - (boredomFactor * 0.5)
-            val wContext = 0.4 - (boredomFactor * 0.5)
+            val tasteWeight = 0.8 - boredomFactor
+            val wContext = tasteWeight * 0.5 * NeuroScoring.timeBucketConfidence(brain, bucket)
+            val wPersonality = tasteWeight - wContext
             val wNovelty = 0.2 + boredomFactor
 
             // Onboarding warmup factor
@@ -1955,6 +1956,7 @@ class FlowNeuroEngine internal constructor(
         if (video.isShort) {
             learningRate *= NeuroScoring.SHORTS_LEARNING_PENALTY
         }
+        val decayStrength = NeuroVectorMath.decayStrength(learningRate)
 
         withBrainLock {
             // Maturity-scaled learning: slow down positive learning as brain matures.
@@ -1997,6 +1999,7 @@ class FlowNeuroEngine internal constructor(
                     currentUserBrain.globalVector,
                     learningVector,
                     learningRate,
+                    decayStrength,
                 )
 
             // 1a. Acquisition floor: a real watch, like, or save is proof of interest —
@@ -2015,6 +2018,12 @@ class FlowNeuroEngine internal constructor(
                         NeuroScoring.TOPIC_ACQUISITION_TOP_K,
                     )
             }
+            newGlobal =
+                NeuroVectorMath.capTopics(
+                    newGlobal,
+                    NeuroVectorMath.MAX_GLOBAL_TOPICS,
+                    currentUserBrain.preferredTopics.mapTo(HashSet()) { tokenizer.normalizeLemma(it) },
+                )
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =
@@ -2047,7 +2056,14 @@ class FlowNeuroEngine internal constructor(
                     currentBucketVec,
                     learningVector,
                     learningRate,
+                    decayStrength,
                 )
+            val newBucketCounts =
+                if (learningRate > 0 && !video.isShort) {
+                    currentUserBrain.timeBucketCounts + (bucket to (currentUserBrain.timeBucketCounts[bucket] ?: 0) + 1)
+                } else {
+                    currentUserBrain.timeBucketCounts
+                }
 
             // 3. Channel score
             val currentChScore =
@@ -2325,6 +2341,7 @@ class FlowNeuroEngine internal constructor(
                     timeVectors =
                         currentUserBrain.timeVectors +
                             (bucket to newBucketVec),
+                    timeBucketCounts = newBucketCounts,
                     channelScores = newChannelScores,
                     topicAffinities = newAffinities,
                     totalInteractions = currentUserBrain.totalInteractions + 1,
@@ -2382,6 +2399,7 @@ class FlowNeuroEngine internal constructor(
                             currentUserBrain.globalVector,
                             ContentVector(topics = nameTokens.associateWith { 0.5 }),
                             0.08,
+                            NeuroVectorMath.decayStrength(0.08),
                         )
                     } else {
                         currentUserBrain.globalVector

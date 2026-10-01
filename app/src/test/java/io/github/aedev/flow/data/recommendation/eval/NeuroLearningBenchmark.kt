@@ -312,6 +312,7 @@ internal object NeuroLearningBenchmark {
         runBlocking {
             val engine = engine()
             engine.longHistory()
+            engine.resetSession()
             val before = engine.shareInTop(Family.COMEDY)
             val profileBefore = engine.shareInTop(profile)
             val keysBefore = comedyKeys(engine.getBrainSnapshot())
@@ -319,6 +320,7 @@ internal object NeuroLearningBenchmark {
             for (i in 0 until 100) engine.watch(other(i, isShort = true), percent = 0.8f)
             engine.watch(guitar(0), 1f)
             engine.watch(guitar(1), 1f)
+            engine.resetSession()
             val brain = engine.getBrainSnapshot()
             Retention(
                 profileBefore = profileBefore,
@@ -418,6 +420,7 @@ internal object NeuroLearningBenchmark {
             val brain =
                 global.copy(
                     timeVectors = bucketBrain.timeVectors,
+                    timeBucketCounts = bucketBrain.timeBucketCounts,
                 )
             val engine = engine(brain)
             ThinBucket(
@@ -437,7 +440,7 @@ internal object NeuroLearningBenchmark {
             appendLine(
                 "NEURO LEARNING BENCHMARK (position-weighted top-$TOP_N shares over $RANK_RUNS ranks; known = cosine of global vector to the family)",
             )
-            appendLine("RETENTION (120 long-form watches, then 100 Shorts and 2 guitar playalongs)")
+            appendLine("RETENTION (120 long-form watches, then 100 Shorts and 2 guitar playalongs; measured next session)")
             appendLine("  profileShare before       = %.3f".format(retention.profileBefore))
             appendLine("  profileShare after        = %.3f".format(retention.profileAfter))
             appendLine("  comedyShare before        = %.3f".format(retention.comedyBefore))

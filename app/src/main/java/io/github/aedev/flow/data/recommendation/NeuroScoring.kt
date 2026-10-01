@@ -935,6 +935,14 @@ internal object NeuroScoring {
         }
     }
 
+    /** Events a time bucket needs before its vector weighs as much as the whole profile. */
+    const val TIME_BUCKET_CONFIDENT_EVENTS = 30
+
+    fun timeBucketConfidence(
+        brain: UserBrain,
+        bucket: TimeBucket,
+    ): Double = ((brain.timeBucketCounts[bucket] ?: 0).toDouble() / TIME_BUCKET_CONFIDENT_EVENTS).coerceIn(0.0, 1.0)
+
     // ── Topic affinity key ──
 
     fun makeAffinityKey(

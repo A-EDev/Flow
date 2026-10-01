@@ -75,6 +75,11 @@ data class UserBrain(
     val timeVectors: Map<TimeBucket, ContentVector> =
         TimeBucket.entries
             .associateWith { ContentVector() },
+    /**
+     * Positive long-form events learned per time bucket. Device-local, never synced: a bucket that
+     * has seen a handful of videos must not weigh as much as the whole profile.
+     */
+    val timeBucketCounts: Map<TimeBucket, Int> = emptyMap(),
     val globalVector: ContentVector = ContentVector(),
     val channelScores: Map<String, Double> = emptyMap(),
     val topicAffinities: Map<String, Double> = emptyMap(),
@@ -122,7 +127,7 @@ data class UserBrain(
     val tagAffinities: Map<String, Double> = emptyMap(),
     /** Reels used as related-chain seeds recently (videoId → lastUsedAt), for rotation. */
     val recentShortsSeeds: Map<String, Long> = emptyMap(),
-    val schemaVersion: Int = 16,
+    val schemaVersion: Int = 17,
 )
 
 // ── Interaction Types ──

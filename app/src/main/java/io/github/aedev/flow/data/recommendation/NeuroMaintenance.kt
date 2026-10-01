@@ -23,10 +23,14 @@ package io.github.aedev.flow.data.recommendation
  *
  * V16 removes the single words that multi-word searches planted at the
  * acquisition floor ("lofi hip hop" became lofi, hip and hop at one weight).
+ *
+ * V17 estimates how many events each time bucket has seen, from how many topics it holds, so an
+ * existing bucket keeps its weight in ranking only as far as it has earned it.
  */
 internal object NeuroMaintenance {
-    const val TARGET_SCHEMA_VERSION = 16
+    const val TARGET_SCHEMA_VERSION = 17
     private const val V15_SCHEMA_VERSION = 15
+    private const val V16_SCHEMA_VERSION = 16
 
     private const val REHYDRATE_MAX_TOPICS = 40
     private const val REHYDRATE_MAX_WEIGHT = 0.30
@@ -41,8 +45,18 @@ internal object NeuroMaintenance {
         if (brain.schemaVersion >= TARGET_SCHEMA_VERSION) return brain
         var updated = brain
         if (updated.schemaVersion < V15_SCHEMA_VERSION) updated = runV15(updated, tokenizer)
-        updated = scrubSearchWordPlants(updated, tokenizer)
+        if (updated.schemaVersion < V16_SCHEMA_VERSION) updated = scrubSearchWordPlants(updated, tokenizer)
+        updated = estimateTimeBucketCounts(updated)
         return updated.copy(schemaVersion = TARGET_SCHEMA_VERSION)
+    }
+
+    private fun estimateTimeBucketCounts(brain: UserBrain): UserBrain {
+        val estimated =
+            brain.timeVectors
+                .filterKeys { it !in brain.timeBucketCounts }
+                .mapValues { (_, vector) -> vector.topics.size.coerceAtMost(NeuroScoring.TIME_BUCKET_CONFIDENT_EVENTS) }
+                .filterValues { it > 0 }
+        return if (estimated.isEmpty()) brain else brain.copy(timeBucketCounts = brain.timeBucketCounts + estimated)
     }
 
     private fun runV15(
