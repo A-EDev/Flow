@@ -51,6 +51,7 @@ internal object DestinationIndex {
             SettingsDestination.MUSIC_HOME -> R.string.settings_music_home_summary
             SettingsDestination.TOPICS -> R.string.settings_topics_summary
             SettingsDestination.INTEGRATIONS -> R.string.settings_integrations_summary
+            SettingsDestination.SCROBBLING -> R.string.scrobbling_summary
             SettingsDestination.BACKUP -> R.string.settings_backup_summary
             SettingsDestination.SYNC -> R.string.sync_devices_subtitle
             SettingsDestination.HISTORY -> R.string.settings_history_summary

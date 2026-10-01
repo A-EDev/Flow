@@ -198,6 +198,9 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var musicBrain: MusicBrainEngine
 
     @Inject
+    lateinit var scrobbler: io.github.aedev.flow.data.scrobble.Scrobbler
+
+    @Inject
     lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
 
     @Inject
@@ -510,6 +513,7 @@ class Media3MusicService : MediaLibraryService() {
                         if (learnTrack?.videoId != learnMediaId) learnTrack = resolveLearnTrack(learnMediaId)
                         refreshLearnDuration()
                         learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
+                        announceNowPlaying()
                     } else {
                         closePlayingSegment()
                     }
@@ -544,6 +548,17 @@ class Media3MusicService : MediaLibraryService() {
     private var learnDurationMs = 0L
     private var learnPlayedMs = 0L
     private var learnPlayingSinceMs = -1L
+    private var learnStartedAtMs = 0L
+    private var learnAnnounced = false
+
+    /** Once per listen, when it really starts playing rather than when the item merely loads. */
+    private fun announceNowPlaying() {
+        val track = learnTrack?.takeIf { it.videoId == learnMediaId } ?: return
+        if (learnAnnounced) return
+        learnAnnounced = true
+        val durationMs = if (track.duration > 0) track.duration.toLong() * 1000 else learnDurationMs
+        scrobbler.onNowPlaying(track, durationMs)
+    }
 
     private fun closePlayingSegment() {
         if (learnPlayingSinceMs >= 0) {
@@ -580,9 +595,12 @@ class Media3MusicService : MediaLibraryService() {
                 .playContextGenre
         learnDurationMs = 0L
         learnPlayedMs = 0L
+        learnStartedAtMs = System.currentTimeMillis()
+        learnAnnounced = false
         learnPlayingSinceMs =
             if (::player.isInitialized && player.isPlaying) android.os.SystemClock.elapsedRealtime() else -1L
         refreshLearnDuration()
+        if (learnPlayingSinceMs >= 0) announceNowPlaying()
     }
 
     private fun finalizeListenSession() {
@@ -592,6 +610,7 @@ class Media3MusicService : MediaLibraryService() {
         val pinnedDurationMs = learnDurationMs
         val playedMs = learnPlayedMs
         val pinnedGenre = learnGenre
+        val startedAtMs = learnStartedAtMs
         learnMediaId = null
         learnTrack = null
         learnGenre = null
@@ -617,6 +636,7 @@ class Media3MusicService : MediaLibraryService() {
         // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
         // this service's scope is already cancelled, and the session must still land.
         musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre, playedMs)
+        scrobbler.onListened(track, durationMs, playedMs, startedAtMs)
         widgetContentSync.get().run {
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.ON_REPEAT)
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.WEEK)

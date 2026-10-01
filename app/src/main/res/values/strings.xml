@@ -3994,4 +3994,46 @@
         <item quantity="one">%d artist</item>
         <item quantity="other">%d artists</item>
     </plurals>
+    <string name="scrobbling_title">Scrobbling</string>
+    <string name="scrobbling_summary">Send what you listen to Last.fm, Libre.fm or ListenBrainz</string>
+    <string name="settings_keywords_scrobbling">scrobble scrobbling last.fm lastfm libre.fm librefm listenbrainz</string>
+    <string name="scrobbling_lastfm">Last.fm</string>
+    <string name="scrobbling_librefm">Libre.fm</string>
+    <string name="scrobbling_listenbrainz">ListenBrainz</string>
+    <string name="scrobbling_account">Account</string>
+    <string name="scrobbling_signed_in_as">Signed in as %1$s</string>
+    <string name="scrobbling_signed_in">Signed in</string>
+    <string name="scrobbling_not_signed_in">Not signed in</string>
+    <string name="scrobbling_needs_key">Add your own API key below to sign in</string>
+    <string name="scrobbling_own_key">Use your own API key</string>
+    <string name="scrobbling_own_key_summary">Changing it signs you out of Last.fm</string>
+    <string name="scrobbling_own_key_values">API key and secret</string>
+    <string name="scrobbling_own_key_missing">Not set</string>
+    <string name="scrobbling_options">Options</string>
+    <string name="scrobbling_now_playing">Show now playing</string>
+    <string name="scrobbling_now_playing_summary">Services see the song while it plays</string>
+    <string name="scrobbling_local">Scrobble files on this device</string>
+    <string name="scrobbling_local_summary">Uses each file\'s artist and title tags</string>
+    <string name="scrobbling_send_now">Send waiting listens</string>
+    <plurals name="scrobbling_waiting">
+        <item quantity="one">%d waiting</item>
+        <item quantity="other">%d waiting</item>
+    </plurals>
+    <string name="scrobbling_sign_in_title">Sign in to %1$s</string>
+    <string name="scrobbling_user_name">Username</string>
+    <string name="scrobbling_password">Password</string>
+    <string name="scrobbling_password_note">Your password is sent once and never stored.</string>
+    <string name="scrobbling_token">User token</string>
+    <string name="scrobbling_token_note">Copy it from listenbrainz.org/settings.</string>
+    <string name="scrobbling_sign_in">Sign in</string>
+    <string name="scrobbling_sign_in_failed">Sign in failed</string>
+    <string name="scrobbling_sign_out_title">Sign out of %1$s?</string>
+    <string name="scrobbling_sign_out_body">Listens waiting to be sent are dropped.</string>
+    <string name="scrobbling_sign_out">Sign out</string>
+    <string name="scrobbling_own_key_dialog_title">Your Last.fm API key</string>
+    <string name="scrobbling_own_key_dialog_body">Create one for free at last.fm/api/account/create.</string>
+    <string name="scrobbling_api_key">API key</string>
+    <string name="scrobbling_secret">Shared secret</string>
+    <string name="scrobbling_show_secret">Show</string>
+    <string name="scrobbling_hide_secret">Hide</string>
 </resources>

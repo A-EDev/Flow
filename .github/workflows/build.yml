@@ -133,6 +133,8 @@ jobs:
           NIGHTLY_STORE_PASSWORD: ${{ secrets.NIGHTLY_STORE_PASSWORD }}
           NIGHTLY_KEY_ALIAS: ${{ secrets.NIGHTLY_KEY_ALIAS }}
           NIGHTLY_KEY_PASSWORD: ${{ secrets.NIGHTLY_KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
 
       - name: Build release APKs
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -143,6 +145,8 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
 
       # Guards the IzzyOnDroid/F-Droid update path: a wrong or missing key here
       # is unrecoverable for installed users, so fail the build rather than

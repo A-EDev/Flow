@@ -26,6 +26,7 @@ import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
+import io.github.aedev.flow.ui.screens.settings.scrobbling.ScrobblingScreen
 import io.github.aedev.flow.ui.screens.settings.taste.FavouriteArtistsScreen
 import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
 import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
@@ -125,7 +126,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.INTEGRATIONS -> {
-            IntegrationsScreen(onBack = onBack, highlight = target.highlight)
+            IntegrationsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.SCROBBLING -> {
+            ScrobblingScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.BACKUP -> {
