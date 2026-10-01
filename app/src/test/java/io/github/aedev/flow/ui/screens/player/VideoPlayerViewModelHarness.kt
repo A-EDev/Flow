@@ -162,6 +162,8 @@ internal class VideoPlayerViewModelHarness(
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.rememberPlaybackSpeed } returns flowOf(false)
         every { playerPreferences.playbackSpeed } returns flowOf(1f)
+        every { playerPreferences.musicAtNormalSpeed } returns flowOf(false)
+        every { playerPreferences.speedPerChannel } returns flowOf(false)
 
         coEvery { viewHistory.getLatestUnfinishedVideo() } returns null
         every { viewHistory.getPlaybackPosition(any()) } returns flowOf(0L)

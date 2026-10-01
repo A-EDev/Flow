@@ -156,7 +156,7 @@ class PlaybackSessionApplierTest {
                 playbackPreparer.applyAutoplayCandidates(VIDEO_ID, related)
                 secondaryMetadata.loadRelatedVideos(VIDEO_ID, related, CURRENT_TOKEN)
                 secondaryMetadata.loadChannelMetadata(VIDEO_ID, null, "UC_innertube", any(), CURRENT_TOKEN)
-                playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any())
+                playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any(), any())
             }
             verify { GlobalPlayerState.setCurrentVideo(match { it.id == VIDEO_ID && it.title == "InnerTube title" }) }
         }
@@ -164,7 +164,7 @@ class PlaybackSessionApplierTest {
     @Test
     fun `a VOD whose preparation throws asks the premiere check first and then writes the error`() =
         runTest(testDispatcher) {
-            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any()) } throws
+            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any(), any()) } throws
                 RuntimeException("prepare failed")
 
             applier().apply(vodStep(), load())
@@ -179,7 +179,7 @@ class PlaybackSessionApplierTest {
     fun `a VOD failure the premiere check claims leaves the error alone`() =
         runTest(testDispatcher) {
             tryEnterUpcomingResult = true
-            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any()) } throws
+            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any(), any()) } throws
                 RuntimeException("prepare failed")
 
             applier().apply(vodStep(), load())
@@ -265,7 +265,7 @@ class PlaybackSessionApplierTest {
             assertThat(uiState.value.localFilePath).isEqualTo("/tmp/a.mp4")
             assertThat(uiState.value.localFileVideoId).isEqualTo(VIDEO_ID)
             coVerify(exactly = 1) {
-                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, any(), emptyList(), any())
+                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, any(), emptyList(), any(), any(), any())
             }
         }
 
@@ -296,7 +296,9 @@ class PlaybackSessionApplierTest {
 
             coVerify(exactly = 0) { secondaryMetadata.loadWatchInfo(any(), any(), any()) }
             coVerify(exactly = 0) { secondaryMetadata.loadRelatedVideos(any(), any(), any(), any()) }
-            coVerify(exactly = 1) { playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", null, 0L, any(), emptyList(), any()) }
+            coVerify(exactly = 1) {
+                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", null, 0L, any(), emptyList(), any(), any(), any())
+            }
         }
 
     @Test

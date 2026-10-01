@@ -35,6 +35,8 @@ class PlaybackSettingsViewModel
         val skipSilence = preferences.skipSilenceEnabled.asState(false)
         val playDuringCalls = preferences.playDuringCalls.asState(false)
         val rememberSpeed = preferences.rememberPlaybackSpeed.asState(false)
+        val musicNormalSpeed = preferences.musicAtNormalSpeed.asState(false)
+        val speedPerChannel = preferences.speedPerChannel.asState(false)
 
         val customSpeeds = preferences.customSpeedsEnabled.asState(false)
         val customSpeedPresets =
@@ -107,6 +109,10 @@ class PlaybackSettingsViewModel
         fun setPlayDuringCalls(value: Boolean) = write { preferences.setPlayDuringCalls(value) }
 
         fun setRememberSpeed(value: Boolean) = write { preferences.setRememberPlaybackSpeed(value) }
+
+        fun setMusicNormalSpeed(value: Boolean) = write { preferences.setMusicAtNormalSpeed(value) }
+
+        fun setSpeedPerChannel(value: Boolean) = write { preferences.setSpeedPerChannel(value) }
 
         fun setCustomSpeeds(value: Boolean) = write { preferences.setCustomSpeedsEnabled(value) }
 

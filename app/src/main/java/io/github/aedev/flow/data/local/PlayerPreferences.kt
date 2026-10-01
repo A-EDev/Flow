@@ -35,6 +35,7 @@ private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePr
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
 private const val PLAYLIST_SORT_SEPARATOR = "|"
+private const val CHANNEL_SPEED_SEPARATOR = "|"
 const val CONTENT_LANGUAGE_FOLLOW_APP = "app"
 const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
@@ -294,6 +295,9 @@ class PlayerPreferences(
 
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
+        val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
+        val SPEED_PER_CHANNEL = booleanPreferencesKey("speed_per_channel")
+        val CHANNEL_PLAYBACK_SPEEDS = stringSetPreferencesKey("channel_playback_speeds")
 
         // Subscription check interval
         val SUBSCRIPTION_CHECK_INTERVAL_MINUTES = intPreferencesKey("subscription_check_interval_minutes")
@@ -1883,6 +1887,52 @@ class PlayerPreferences(
     suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    /** Music videos start at 1x whatever speed would otherwise apply. */
+    val musicAtNormalSpeed: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_AT_NORMAL_SPEED] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicAtNormalSpeed(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_AT_NORMAL_SPEED] = enabled
+        }
+    }
+
+    val speedPerChannel: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SPEED_PER_CHANNEL] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setSpeedPerChannel(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPEED_PER_CHANNEL] = enabled
+        }
+    }
+
+    suspend fun channelPlaybackSpeed(channelId: String): Float? =
+        context.playerPreferencesDataStore.data
+            .first()[Keys.CHANNEL_PLAYBACK_SPEEDS]
+            .orEmpty()
+            .firstOrNull { it.startsWith("$channelId$CHANNEL_SPEED_SEPARATOR") }
+            ?.substringAfter(CHANNEL_SPEED_SEPARATOR)
+            ?.toFloatOrNull()
+
+    suspend fun setChannelPlaybackSpeed(
+        channelId: String,
+        speed: Float,
+    ) {
+        withContext(kotlinx.coroutines.NonCancellable) {
+            context.playerPreferencesDataStore.edit { preferences ->
+                val others =
+                    preferences[Keys.CHANNEL_PLAYBACK_SPEEDS]
+                        .orEmpty()
+                        .filterNot { it.startsWith("$channelId$CHANNEL_SPEED_SEPARATOR") }
+                preferences[Keys.CHANNEL_PLAYBACK_SPEEDS] = others.toSet() + "$channelId$CHANNEL_SPEED_SEPARATOR$speed"
+            }
         }
     }
 

@@ -22,6 +22,7 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -59,6 +60,9 @@ class PlaybackPreparerTest {
         every { playerManager.isReachedByQueueAdvance(any()) } returns false
         every { playerPreferences.rememberPlaybackSpeed } returns flowOf(false)
         every { playerPreferences.playbackSpeed } returns flowOf(1f)
+        every { playerPreferences.musicAtNormalSpeed } returns flowOf(false)
+        every { playerPreferences.speedPerChannel } returns flowOf(false)
+        every { playerManager.playerState } returns MutableStateFlow(fakePlayerState(playbackSpeed = 1.5f))
         every { playerPreferences.autoplayEnabled } returns flowOf(true)
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.Q_1080P)
@@ -381,6 +385,105 @@ class PlaybackPreparerTest {
                 )
             }
         }
+
+    @Test
+    fun `a music video starts at 1x and the remembered speed returns on the next video`() =
+        runTest(testDispatcher) {
+            every { playerPreferences.rememberPlaybackSpeed } returns flowOf(true)
+            every { playerPreferences.playbackSpeed } returns flowOf(1.75f)
+            every { playerPreferences.musicAtNormalSpeed } returns flowOf(true)
+
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = "UC1", knownMusic = true))
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = "UC1"))
+
+            verifyOrder {
+                playerManager.setPlaybackSpeed(1.0f)
+                playerManager.setPlaybackSpeed(1.75f)
+            }
+        }
+
+    @Test
+    fun `without a remembered speed the session speed comes back after a music video`() =
+        runTest(testDispatcher) {
+            every { playerPreferences.musicAtNormalSpeed } returns flowOf(true)
+
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = null, knownMusic = true))
+            prepareVod(PlaybackSpeedContext.Unknown)
+
+            verifyOrder {
+                playerManager.setPlaybackSpeed(1.0f)
+                playerManager.setPlaybackSpeed(1.5f)
+            }
+        }
+
+    @Test
+    fun `nothing changes for music while the option is off`() =
+        runTest(testDispatcher) {
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = null, knownMusic = true))
+
+            verify(exactly = 0) { playerManager.setPlaybackSpeed(any()) }
+        }
+
+    @Test
+    fun `a channel's own speed wins over music and the remembered speed`() =
+        runTest(testDispatcher) {
+            every { playerPreferences.rememberPlaybackSpeed } returns flowOf(true)
+            every { playerPreferences.playbackSpeed } returns flowOf(2f)
+            every { playerPreferences.musicAtNormalSpeed } returns flowOf(true)
+            every { playerPreferences.speedPerChannel } returns flowOf(true)
+            coEvery { playerPreferences.channelPlaybackSpeed("UC1") } returns 1.25f
+
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = "UC1", knownMusic = true))
+
+            verify { playerManager.setPlaybackSpeed(1.25f) }
+            verify(exactly = 0) { playerManager.setPlaybackSpeed(1.0f) }
+        }
+
+    @Test
+    fun `a late music category only acts when it calls for an override`() =
+        runTest(testDispatcher) {
+            preparer.applyLateMusicSignal(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = null))
+            verify(exactly = 0) { playerManager.setPlaybackSpeed(any()) }
+
+            every { playerPreferences.musicAtNormalSpeed } returns flowOf(true)
+            preparer.applyLateMusicSignal(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = null))
+            verify { playerManager.setPlaybackSpeed(1.0f) }
+        }
+
+    @Test
+    fun `a cached Music category is enough to start at 1x`() =
+        runTest(testDispatcher) {
+            every { playerPreferences.musicAtNormalSpeed } returns flowOf(true)
+            preparer =
+                PlaybackPreparer(context, playerManager, playerPreferences, offlineSubtitleStore, localSubtitles) { "Music" }
+
+            prepareVod(PlaybackSpeedContext(videoId = VIDEO_ID, channelId = null))
+
+            verify { playerManager.setPlaybackSpeed(1.0f) }
+        }
+
+    private suspend fun prepareVod(speedContext: PlaybackSpeedContext) {
+        every { playerManager.isPreparedForPlayback(any()) } returns false
+        preparer.prepareVodStreams(
+            videoId = VIDEO_ID,
+            videoStream = null,
+            audioStream = null,
+            videoStreams = emptyList(),
+            audioStreams = emptyList(),
+            subtitles = emptyList(),
+            durationSeconds = 600L,
+            savedPositionMs = 0L,
+            resumeOverrideRequested = false,
+            isAdaptiveMode = false,
+            sabrInfo = null,
+            itVideoFormats = emptyList(),
+            itAudioFormats = emptyList(),
+            preferredVideoCodec = "auto",
+            preferredLiveQualityHeight = 1080,
+            isCurrent = { true },
+            speedContext = speedContext,
+        )
+    }
 
     private fun sabrInfo(videoHeight: Int) =
         SabrStreamInfo(
