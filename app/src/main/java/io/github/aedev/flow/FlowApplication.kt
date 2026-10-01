@@ -264,7 +264,8 @@ class FlowApplication :
                 val youtubeRepository = YouTubeRepository.getInstance(playerPreferences)
                 val repaired =
                     repository.repairVideoThumbnailSubscriptions { channelId ->
-                        withTimeoutOrNull(6_000L) {
+                        // Startup's own fetches hold the InnerTube connections for a while; nothing waits on this.
+                        withTimeoutOrNull(20_000L) {
                             youtubeRepository.fetchChannelAvatarById(channelId)
                         }.orEmpty()
                     }

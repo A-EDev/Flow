@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.InterestChip
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.repository.needsChannelMetadata
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.innertube.YouTubeSearchParams
@@ -83,6 +84,7 @@ class HomeChipFeeds
         private var loadJob: Job? = null
         private val enrichPermits = Semaphore(ENRICH_CONCURRENCY)
         private val enrichInFlight = ConcurrentHashMap.newKeySet<String>()
+        private val enrichAttempts = ConcurrentHashMap<String, Int>()
 
         @Volatile
         private var interests: List<InterestChip> = emptyList()
@@ -231,7 +233,7 @@ class HomeChipFeeds
                 subscriptions
                     .getAllSubscriptions()
                     .first()
-                    .filter { it.channelThumbnail.isNotEmpty() }
+                    .filter { it.channelThumbnail.isNotEmpty() && !ThumbnailUrlResolver.isUnusableChannelAvatar(it.channelThumbnail) }
                     .associate { it.channelId to it.channelThumbnail }
             return videos.enrichAvatars(avatars)
         }
@@ -244,19 +246,27 @@ class HomeChipFeeds
         fun enrichVisible(video: Video) {
             val chip = chipFor(chipsState.value.selected) ?: return
             val needsDetails = chip == HomeChip.Watched && video.uploadDate.isBlank()
-            val needsChannel = video.channelThumbnailUrl.isBlank() || !video.channelId.startsWith("UC")
+            val needsChannel = video.needsChannelMetadata()
             if (!needsDetails && !needsChannel) return
-            if (!enrichInFlight.add(video.id)) return
+            if ((enrichAttempts[video.id] ?: 0) >= ENRICH_ATTEMPTS || !enrichInFlight.add(video.id)) return
+            enrichAttempts.merge(video.id, 1, Int::plus)
             scope.launch(network) {
                 val enriched =
-                    enrichPermits.withPermit {
-                        runCatching {
+                    try {
+                        enrichPermits.withPermit {
                             if (needsDetails) {
                                 repository.refreshVideoMetadata(video)?.also { homeFeedCache.saveVideoMetadata(listOf(it)) }
                             } else {
                                 repository.enrichMissingChannelMetadata(listOf(video), limit = 1).firstOrNull()
                             }
-                        }.getOrNull()
+                        }
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (error: Exception) {
+                        Log.d(TAG, "Filling ${video.id} failed: ${error.message}")
+                        null
+                    } finally {
+                        enrichInFlight.remove(video.id)
                     }
                 if (enriched == null || enriched == video) return@launch
                 chipsState.update { state ->
@@ -480,6 +490,9 @@ class HomeChipFeeds
         private companion object {
             const val TAG = "HomeChipFeeds"
             const val ENRICH_CONCURRENCY = 3
+
+            // A failed fill is tried once more when the card is next shown, then left alone.
+            const val ENRICH_ATTEMPTS = 2
             const val LIKED_SEED_STRENGTH = 2.0
             const val SELECTED_KEY = "home_selected_chip"
             const val RECENT_SEED_MS = 14L * 24L * 60L * 60L * 1000L

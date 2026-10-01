@@ -97,19 +97,36 @@ class YouTubeRepository
             val avatarUrl: String,
         )
 
-        /**
-         * Fetch channel avatar by channelId, with in-memory caching.
-         * Returns empty string on failure.
-         */
+        /** A channel's avatar from a UC id, an @handle or a channel URL, read from its InnerTube header; "" on failure. */
         suspend fun fetchChannelAvatarById(channelId: String): String =
             withContext(Dispatchers.IO) {
-                if (channelId.isBlank()) return@withContext ""
-                channelAvatarCache[channelId]?.let { return@withContext it }
-                val info = getChannelInfo(channelId) ?: return@withContext ""
-                val url = info.avatars.maxByOrNull { it.height }?.url ?: ""
-                if (url.isNotEmpty()) channelAvatarCache.put(channelId, url)
+                val reference = channelId.trim()
+                if (reference.isBlank()) return@withContext ""
+                channelAvatarCache[reference]?.let { return@withContext it }
+                val browseId = channelBrowseId(reference) ?: return@withContext ""
+                val url =
+                    YouTube
+                        .channelLanding(browseId)
+                        .getOrNull()
+                        ?.header
+                        ?.avatarUrl
+                        .orEmpty()
+                if (url.isNotEmpty()) channelAvatarCache.put(reference, url)
                 url
             }
+
+        // A handle is not a browse id (InnerTube answers 400), so it is resolved to its UC id first.
+        private suspend fun channelBrowseId(reference: String): String? {
+            if (reference.startsWith("UC")) return reference
+            CHANNEL_ID_IN_URL.find(reference)?.let { return it.groupValues[1] }
+            val url =
+                when {
+                    reference.startsWith("http") -> reference
+                    reference.startsWith("@") -> "https://www.youtube.com/$reference"
+                    else -> "https://www.youtube.com/@$reference"
+                }
+            return YouTube.resolveChannelId(url).getOrNull()
+        }
 
         /**
          * Enrich a list of [Video] objects that are missing [Video.channelThumbnailUrl]
@@ -159,14 +176,8 @@ class YouTubeRepository
             supervisorScope {
                 val candidates =
                     videos
-                        .filter { video ->
-                            video.id.isNotBlank() &&
-                                (
-                                    video.channelId.isBlank() ||
-                                        !video.channelId.startsWith("UC") ||
-                                        video.channelThumbnailUrl.isBlank()
-                                )
-                        }.take(limit)
+                        .filter { video -> video.id.isNotBlank() && video.needsChannelMetadata() }
+                        .take(limit)
                 if (candidates.isEmpty()) return@supervisorScope videos
 
                 val semaphore = kotlinx.coroutines.sync.Semaphore(4)
@@ -1075,6 +1086,7 @@ class YouTubeRepository
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
             private const val WATCH_NEXT_CACHE_SIZE = 3
             private const val VIDEO_CATEGORY_CACHE_SIZE = 500
+            private val CHANNEL_ID_IN_URL = Regex("""/channel/(UC[\w-]{22})""")
 
             @Volatile
             private var instance: YouTubeRepository? = null
@@ -1096,6 +1108,13 @@ internal fun selectCommentAuthorThumbnail(
     ThumbnailUrlResolver
         .resolveChannelAvatar(embeddedAvatar)
         .ifBlank { ThumbnailUrlResolver.resolveChannelAvatar(resolvedChannelAvatar) }
+
+/** No real channel id, or no avatar that can be shown (blank, a video frame or a channel page URL). */
+internal fun Video.needsChannelMetadata(): Boolean =
+    channelId.isBlank() ||
+        !channelId.startsWith("UC") ||
+        channelThumbnailUrl.isBlank() ||
+        ThumbnailUrlResolver.isUnusableChannelAvatar(channelThumbnailUrl)
 
 internal fun mergeWatchMetadata(
     video: Video,

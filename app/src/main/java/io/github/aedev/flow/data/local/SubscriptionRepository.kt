@@ -231,10 +231,10 @@ class SubscriptionRepository private constructor(
         val subscriptions = getAllSubscriptions().first()
         val repairs =
             subscriptions
-                .filter { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it.channelThumbnail) }
+                .filter { ThumbnailUrlResolver.isUnusableChannelAvatar(it.channelThumbnail) }
                 .mapNotNull { subscription ->
                     val avatar = fetchChannelThumbnail(subscription.channelId).trim()
-                    if (avatar.isNotEmpty() && !ThumbnailUrlResolver.isYoutubeVideoThumbnail(avatar)) {
+                    if (avatar.isNotEmpty() && !ThumbnailUrlResolver.isUnusableChannelAvatar(avatar)) {
                         subscription.channelId to subscription.copy(channelThumbnail = avatar)
                     } else {
                         null
@@ -256,9 +256,9 @@ class SubscriptionRepository private constructor(
     private fun ChannelSubscription.withPreservedThumbnail(preferences: Preferences): ChannelSubscription {
         val existing = preferences[channelKey(channelId)]?.let { deserializeChannel(it) }
         return if (
-            ThumbnailUrlResolver.isYoutubeVideoThumbnail(channelThumbnail) &&
+            ThumbnailUrlResolver.isUnusableChannelAvatar(channelThumbnail) &&
             existing?.channelThumbnail?.isNotBlank() == true &&
-            !ThumbnailUrlResolver.isYoutubeVideoThumbnail(existing.channelThumbnail)
+            !ThumbnailUrlResolver.isUnusableChannelAvatar(existing.channelThumbnail)
         ) {
             copy(channelThumbnail = existing.channelThumbnail)
         } else {

@@ -25,6 +25,7 @@ import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.repository.needsChannelMetadata
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.data.subscriptions.HomeSubscriptionUploads
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
@@ -32,6 +33,7 @@ import io.github.aedev.flow.ui.screens.home.chips.ChipFeedContext
 import io.github.aedev.flow.ui.screens.home.chips.HomeChipFeeds
 import io.github.aedev.flow.ui.screens.home.chips.HomeChipsState
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -532,8 +534,10 @@ class HomeViewModel
                                 subscriptionRepository
                                     .getAllSubscriptions()
                                     .first()
-                                    .filter { it.channelThumbnail.isNotEmpty() }
-                                    .associate { it.channelId to it.channelThumbnail }
+                                    .filter {
+                                        it.channelThumbnail.isNotEmpty() &&
+                                            !ThumbnailUrlResolver.isUnusableChannelAvatar(it.channelThumbnail)
+                                    }.associate { it.channelId to it.channelThumbnail }
                             }.getOrElse { emptyMap() }
 
                         // Extract shorts from all sources for the shelf, ranked by FlowNeuro
@@ -1111,11 +1115,7 @@ class HomeViewModel
 
         fun enrichChannelMetadataIfMissing(video: Video) {
             val videoId = video.id
-            val needsMetadata =
-                video.channelId.isBlank() ||
-                    !video.channelId.startsWith("UC") ||
-                    video.channelThumbnailUrl.isBlank()
-            if (!needsMetadata || !channelMetadataEnrichmentInFlight.add(videoId)) return
+            if (!video.needsChannelMetadata() || !channelMetadataEnrichmentInFlight.add(videoId)) return
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 try {
