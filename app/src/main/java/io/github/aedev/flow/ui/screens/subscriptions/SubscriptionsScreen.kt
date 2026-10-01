@@ -83,6 +83,7 @@ fun SubscriptionsScreen(
     val feedGridState = rememberLazyGridState()
 
     var isManagingSubs by remember { mutableStateOf(false) }
+    var manageStartsOnMusic by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSortMenu by remember { mutableStateOf(false) }
     var showGroupsDialog by remember { mutableStateOf(false) }
@@ -218,7 +219,10 @@ fun SubscriptionsScreen(
                                 contentDescription = stringResource(R.string.toggle_view_mode),
                             )
                         }
-                        IconButton(onClick = { isManagingSubs = true }) {
+                        IconButton(onClick = {
+                            manageStartsOnMusic = false
+                            isManagingSubs = true
+                        }) {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = stringResource(R.string.search_subscriptions),
@@ -250,6 +254,7 @@ fun SubscriptionsScreen(
                         onChannelClick = onChannelClick,
                         onNotificationChange = viewModel::updateNotificationState,
                         onShortsExcludeChange = viewModel::setShortsChannelExcluded,
+                        startOnMusic = manageStartsOnMusic,
                         onUnsubscribe = { channel ->
                             scope.launch {
                                 unsubscribeWithUndo(
@@ -276,7 +281,14 @@ fun SubscriptionsScreen(
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onChannelClick = onChannelClick,
-                        onViewAllClick = { isManagingSubs = true },
+                        onViewAllClick = {
+                            manageStartsOnMusic = false
+                            isManagingSubs = true
+                        },
+                        onMusicSubscriptionsClick = {
+                            manageStartsOnMusic = true
+                            isManagingSubs = true
+                        },
                         onGroupSelected = viewModel::selectGroup,
                         onManageGroups = { showGroupsDialog = true },
                         onRetryFailedChannels = viewModel::retryFailedChannels,

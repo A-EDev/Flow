@@ -64,8 +64,9 @@ internal fun SubscriptionsManageContent(
     onShortsExcludeChange: (String, Boolean) -> Unit,
     onUnsubscribe: (Channel) -> Unit,
     modifier: Modifier = Modifier,
+    startOnMusic: Boolean = false,
 ) {
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(if (startOnMusic) 1 else 0) }
 
     val activeList =
         remember(channels, selectedTabIndex) {
