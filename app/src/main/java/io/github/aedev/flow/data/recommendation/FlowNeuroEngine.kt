@@ -565,8 +565,7 @@ class FlowNeuroEngine internal constructor(
     }
 
     /**
-     * Updates the channel memory. Fetched uploads are [bookkeeping]; a viewer's "remove" or "clear"
-     * saves as promptly as learning does.
+     * Updates the channel memory, saving on the [bookkeeping] delay or as promptly as learning.
      */
     suspend fun updateChannelMemory(
         bookkeeping: Boolean,

@@ -33,14 +33,19 @@ class ChannelMemoryTest {
         title = id,
         thumbnailUrl = "",
         channelName = "Channel $channel",
-        channelId = channel,
+        channelId = id(channel),
         isShort = isShort,
     )
 
     private fun like(
         channel: String,
         at: Long = now - day,
-    ) = LikedVideoInfo(videoId = "liked-$channel-$at", title = "", thumbnail = "", channelName = "", likedAt = at, channelId = channel)
+    ) = LikedVideoInfo(videoId = "liked-$channel-$at", title = "", thumbnail = "", channelName = "", likedAt = at, channelId = id(channel))
+
+    /** Real channel ids start with UC; "local" and "" are the placeholders downloads carry. */
+    private fun id(channel: String) = if (channel == "local" || channel.isEmpty()) channel else "UC$channel"
+
+    private fun List<RememberedChannel>.ids() = map { it.channelId.removePrefix("UC") }
 
     private fun remembered(
         history: List<VideoHistoryEntry>,
@@ -55,7 +60,14 @@ class ChannelMemoryTest {
         val history =
             listOf(watch("A", "a1"), watch("A", "a2"), watch("B", "b1"), watch("C", "c1"))
 
-        assertThat(remembered(history, likes = listOf(like("B"))).map { it.channelId }).containsExactly("A", "B")
+        assertThat(remembered(history, likes = listOf(like("B"))).ids()).containsExactly("A", "B")
+    }
+
+    @Test
+    fun `placeholder channels of downloaded files are never remembered`() {
+        val history = listOf(watch("local", "f1"), watch("local", "f2"), watch("", "f3"), watch("", "f4"))
+
+        assertThat(remembered(history)).isEmpty()
     }
 
     @Test
@@ -72,7 +84,7 @@ class ChannelMemoryTest {
                 watch("D", "d2", percent = 40, lengthMinutes = 20),
             )
 
-        assertThat(remembered(history).map { it.channelId }).containsExactly("D")
+        assertThat(remembered(history).ids()).containsExactly("D")
     }
 
     @Test
@@ -105,36 +117,36 @@ class ChannelMemoryTest {
     fun `subscribed and blocked channels are never remembered`() {
         val history = listOf("A", "B", "C").flatMap { c -> listOf(watch(c, "${c}1"), watch(c, "${c}2")) }
 
-        val kept = remembered(history, exclusions = ChannelMemoryExclusions(subscribed = setOf("A"), blocked = setOf("B")))
+        val kept = remembered(history, exclusions = ChannelMemoryExclusions(subscribed = setOf(id("A")), blocked = setOf(id("B"))))
 
-        assertThat(kept.map { it.channelId }).containsExactly("C")
+        assertThat(kept.ids()).containsExactly("C")
     }
 
     @Test
     fun `a rejection excludes the channel until the viewer watches it again`() {
         val history = listOf(watch("A", "a1", at = now - 3 * day), watch("A", "a2", at = now - 3 * day))
-        val rejectedAfter = ChannelMemory.recordRejection(ChannelMemoryState(), "A", "A", now - day)
-        val rejectedBefore = ChannelMemory.recordRejection(ChannelMemoryState(), "A", "A", now - 5 * day)
+        val rejectedAfter = ChannelMemory.recordRejection(ChannelMemoryState(), id("A"), "A", now - day)
+        val rejectedBefore = ChannelMemory.recordRejection(ChannelMemoryState(), id("A"), "A", now - 5 * day)
 
         assertThat(remembered(history, state = rejectedAfter)).isEmpty()
-        assertThat(remembered(history, state = rejectedBefore).map { it.channelId }).containsExactly("A")
+        assertThat(remembered(history, state = rejectedBefore).ids()).containsExactly("A")
     }
 
     @Test
     fun `a recent not interested on the channel excludes it like a rejection`() {
         val history = listOf(watch("A", "a1", at = now - 3 * day), watch("A", "a2", at = now - 3 * day))
 
-        val recent = ChannelMemoryExclusions(notInterestedAt = mapOf("A" to now - day))
-        val expired = ChannelMemoryExclusions(notInterestedAt = mapOf("A" to now - 20 * day))
+        val recent = ChannelMemoryExclusions(notInterestedAt = mapOf(id("A") to now - day))
+        val expired = ChannelMemoryExclusions(notInterestedAt = mapOf(id("A") to now - 20 * day))
 
         assertThat(remembered(history, exclusions = recent)).isEmpty()
-        assertThat(remembered(history, exclusions = expired).map { it.channelId }).containsExactly("A")
+        assertThat(remembered(history, exclusions = expired).ids()).containsExactly("A")
     }
 
     @Test
     fun `a removed channel comes back only through new watches`() {
         val old = listOf(watch("A", "a1", at = now - 5 * day), watch("A", "a2", at = now - 5 * day))
-        val forgotten = ChannelMemory.forget(ChannelMemoryState(), "A", now - 2 * day)
+        val forgotten = ChannelMemory.forget(ChannelMemoryState(), id("A"), now - 2 * day)
 
         assertThat(remembered(old, state = forgotten)).isEmpty()
         assertThat(remembered(old + watch("A", "a3") + watch("A", "a4"), state = forgotten)).isNotEmpty()

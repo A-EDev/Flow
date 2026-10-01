@@ -82,7 +82,8 @@ class ChannelMemoryRepository
             }
             if (fetched.isEmpty()) return emptyList()
 
-            FlowNeuroEngine.updateChannelMemory(bookkeeping = true) { state ->
+            // Saved like learning, not bookkeeping: these uploads cost a network round to fetch again.
+            FlowNeuroEngine.updateChannelMemory(bookkeeping = false) { state ->
                 fetched.entries.fold(state) { acc, (channel, videos) ->
                     ChannelMemory.recordUploads(acc, channel.channelId, channel.name, videos, now)
                 }

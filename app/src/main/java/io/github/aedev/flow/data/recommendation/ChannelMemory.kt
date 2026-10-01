@@ -98,13 +98,13 @@ internal object ChannelMemory {
         val watches =
             history
                 .asSequence()
-                .filter { it.channelId.isNotBlank() && !it.isShort && !it.isLocal && !it.isMusic }
+                .filter { isYouTubeChannel(it.channelId) && !it.isShort && !it.isLocal && !it.isMusic }
                 .filter { it.timestamp > since(it.channelId) }
                 .filter { GraphSeedSelector.isRealWatch(it.duration / 1000L, it.progressPercentage.toDouble()) }
                 .groupBy { it.channelId }
         val likesByChannel =
             likes
-                .filter { !it.isMusic && !it.channelId.isNullOrBlank() }
+                .filter { !it.isMusic && isYouTubeChannel(it.channelId) }
                 .filter { it.likedAt > since(it.channelId!!) }
                 .groupingBy { it.channelId!! }
                 .eachCount()
@@ -120,6 +120,10 @@ internal object ChannelMemory {
             )
         }
     }
+
+    // Downloads and recovered files can carry a placeholder channel such as "local", which would
+    // merge unrelated videos into one fake channel.
+    private fun isYouTubeChannel(channelId: String?): Boolean = channelId != null && channelId.startsWith("UC")
 
     fun qualifies(engagement: ChannelEngagement): Boolean =
         engagement.realWatches >= ChannelMemoryParams.MIN_REAL_WATCHES ||
