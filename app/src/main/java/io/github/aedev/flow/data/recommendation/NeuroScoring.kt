@@ -1007,6 +1007,31 @@ internal object NeuroScoring {
         return updated
     }
 
+    /** Fewer fresh discovery queries than this and the recently used ones fill in behind them. */
+    const val MIN_ROTATED_QUERIES = 4
+
+    /**
+     * Queries not used recently first. When too few are fresh, the recent ones follow instead of
+     * being dropped: keeping only the fresh ones shrank a refresh's discovery to two searches and
+     * the feed to half its size after a few refreshes in a row.
+     */
+    fun rotateQueries(
+        candidates: List<String>,
+        recentQueryTokens: List<Set<String>>,
+        tokenize: (String) -> Set<String>,
+    ): List<String> {
+        val fresh =
+            candidates.filter { query ->
+                val tokens = tokenize(query)
+                if (tokens.isEmpty()) return@filter true
+                recentQueryTokens.none { recent ->
+                    if (recent.isEmpty()) return@none false
+                    tokens.intersect(recent).size.toDouble() / tokens.union(recent).size > QUERY_OVERLAP_THRESHOLD
+                }
+            }
+        return if (fresh.size >= MIN_ROTATED_QUERIES) fresh else fresh + candidates.filterNot { it in fresh }
+    }
+
     /** Events a time bucket needs before its vector weighs as much as the whole profile. */
     const val TIME_BUCKET_CONFIDENT_EVENTS = 30
 

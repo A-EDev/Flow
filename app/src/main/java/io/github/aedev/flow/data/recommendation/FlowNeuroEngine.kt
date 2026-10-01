@@ -1266,21 +1266,7 @@ class FlowNeuroEngine internal constructor(
 
                 // ── Query rotation: filter queries too similar to recently used ones ──
                 if (brain.recentQueryTokens.isNotEmpty() && candidates.size > 3) {
-                    val rotated =
-                        candidates.filter { query ->
-                            val tokens = tokenizer.tokenize(query).toSet()
-                            if (tokens.isEmpty()) return@filter true
-                            brain.recentQueryTokens.none { recent ->
-                                if (recent.isEmpty()) return@none false
-                                val intersection = tokens.intersect(recent).size
-                                val union = tokens.union(recent).size
-                                intersection.toDouble() / union >
-                                    NeuroScoring.QUERY_OVERLAP_THRESHOLD
-                            }
-                        }
-                    if (rotated.size >= candidates.size / 3) {
-                        candidates = rotated
-                    }
+                    candidates = NeuroScoring.rotateQueries(candidates, brain.recentQueryTokens) { tokenizer.tokenize(it).toSet() }
                 }
 
                 // ── Skip queries whose recent RESULTS were mostly already shown ──
