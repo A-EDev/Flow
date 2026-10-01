@@ -65,7 +65,7 @@ class HomeFeedCacheRepositoryTest {
                 cached("r3", HomeFeedCacheRepository.SOURCE_RELATED),
                 cached("d1", HomeFeedCacheRepository.SOURCE_DISCOVERY),
                 cached("d2", HomeFeedCacheRepository.SOURCE_DISCOVERY),
-                cached("v1", HomeFeedCacheRepository.SOURCE_VIRAL),
+                cached("s1", HomeFeedCacheRepository.SOURCE_SUBS),
             )
 
         val page = selectReservePageFromCache(rows, maxRelated = 2, maxDiscovery = 1)

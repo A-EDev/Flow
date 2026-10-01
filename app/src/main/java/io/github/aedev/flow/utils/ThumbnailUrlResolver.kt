@@ -6,6 +6,7 @@ object ThumbnailUrlResolver {
     private val youtubeVideoThumbnailPattern =
         Regex("""(?:https?:)?//(?:i\d*\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
     private val googleCdnSizePattern = Regex("""w\d+-h\d+""")
+    private val youtubePagePattern = Regex("""^(?:https?:)?//(?:www\.|m\.)?youtube\.com/""", RegexOption.IGNORE_CASE)
     private val googleCdnParamStartPattern = Regex("""=(?:w|s|h)""")
 
     fun buildHighQualityYoutubeThumbnail(videoId: String): String {
@@ -208,6 +209,15 @@ object ThumbnailUrlResolver {
 
         val fallback = buildFallbackYoutubeThumbnail(resolvedVideoId)
         return fallback.takeIf { it.isNotEmpty() && it != raw }
+    }
+
+    /**
+     * A stored channel avatar that cannot be shown as one: a video thumbnail, or a YouTube page
+     * (some imported subscriptions carry the channel's own URL in the avatar field).
+     */
+    fun isUnusableChannelAvatar(rawUrl: String?): Boolean {
+        val raw = rawUrl?.trim().orEmpty()
+        return isYoutubeVideoThumbnail(raw) || youtubePagePattern.containsMatchIn(raw)
     }
 
     fun isYoutubeVideoThumbnail(rawUrl: String?): Boolean {

@@ -40,7 +40,7 @@ internal class NeuroStorage(
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 16
+        private const val SCHEMA_VERSION = 17
     }
 
     // ── Serializable models ──
@@ -110,6 +110,31 @@ internal class NeuroStorage(
         val staleQueries: Map<String, Long> = emptyMap(),
         val clusterRotation: Map<String, Long> = emptyMap(),
         val tagAffinities: Map<String, Double> = emptyMap(),
+        val timeBucketCounts: Map<String, Int> = emptyMap(),
+        val channelMemory: Map<String, SerializableChannelMemoryEntry> = emptyMap(),
+        val channelMemoryClearedAt: Long = 0L,
+        val interestChipMasses: Map<String, Double> = emptyMap(),
+        val interestChipsComputedAt: Long = 0L,
+    )
+
+    @Serializable
+    data class SerializableRememberedUpload(
+        val videoId: String = "",
+        val title: String = "",
+        val thumbnailUrl: String = "",
+        val durationSec: Int = 0,
+        val publishedAt: Long = 0L,
+        val uploadDate: String = "",
+        val viewCount: Long = 0L,
+    )
+
+    @Serializable
+    data class SerializableChannelMemoryEntry(
+        val name: String = "",
+        val lastFetchedAt: Long = 0L,
+        val uploads: List<SerializableRememberedUpload> = emptyList(),
+        val rejectedAt: Long = 0L,
+        val forgottenAt: Long = 0L,
     )
 
     // ── DataStore setup ──
@@ -223,6 +248,31 @@ internal class NeuroStorage(
             staleQueries = staleQueries,
             clusterRotation = clusterRotation,
             tagAffinities = tagAffinities,
+            timeBucketCounts = timeBucketCounts.mapKeys { it.key.name },
+            channelMemory = channelMemory.entries.mapValues { (_, entry) -> entry.toSerializable() },
+            channelMemoryClearedAt = channelMemory.clearedAt,
+            interestChipMasses = interestChips.masses,
+            interestChipsComputedAt = interestChips.computedAt,
+        )
+
+    private fun ChannelMemoryEntry.toSerializable() =
+        SerializableChannelMemoryEntry(
+            name = name,
+            lastFetchedAt = lastFetchedAt,
+            uploads =
+                uploads.map {
+                    SerializableRememberedUpload(
+                        it.videoId,
+                        it.title,
+                        it.thumbnailUrl,
+                        it.durationSec,
+                        it.publishedAt,
+                        it.uploadDate,
+                        it.viewCount,
+                    )
+                },
+            rejectedAt = rejectedAt,
+            forgottenAt = forgottenAt,
         )
 
     // ── Persistence operations ──
@@ -657,6 +707,37 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
         staleQueries = staleQueries,
         clusterRotation = clusterRotation,
         tagAffinities = tagAffinities,
+        timeBucketCounts =
+            timeBucketCounts
+                .mapNotNull { (name, count) ->
+                    TimeBucket.entries.firstOrNull { it.name == name }?.let { it to count }
+                }.toMap(),
+        channelMemory =
+            ChannelMemoryState(
+                entries =
+                    channelMemory.mapValues { (_, entry) ->
+                        ChannelMemoryEntry(
+                            name = entry.name,
+                            lastFetchedAt = entry.lastFetchedAt,
+                            uploads =
+                                entry.uploads.map {
+                                    RememberedUpload(
+                                        it.videoId,
+                                        it.title,
+                                        it.thumbnailUrl,
+                                        it.durationSec,
+                                        it.publishedAt,
+                                        it.uploadDate,
+                                        it.viewCount,
+                                    )
+                                },
+                            rejectedAt = entry.rejectedAt,
+                            forgottenAt = entry.forgottenAt,
+                        )
+                    },
+                clearedAt = channelMemoryClearedAt,
+            ),
+        interestChips = InterestChipSet(interestChipMasses, interestChipsComputedAt),
         schemaVersion = schemaVersion,
     )
 }

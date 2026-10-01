@@ -26,6 +26,7 @@ internal fun VideoCardStacked(
     onClick: () -> Unit,
     showChannel: Boolean,
     useInternalPadding: Boolean,
+    reason: String?,
     modifier: Modifier = Modifier,
 ) {
     val state = rememberVideoCardState(video)
@@ -100,6 +101,7 @@ internal fun VideoCardStacked(
                 )
 
                 MembersOnlyLabel(video)
+                reason?.let { CardReasonLabel(it) }
             }
 
             VideoCardSideActions(

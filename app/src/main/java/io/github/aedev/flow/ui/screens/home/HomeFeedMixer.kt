@@ -7,7 +7,9 @@ internal enum class FeedSource {
     SUBS,
     RELATED,
     DISCOVERY,
-    VIRAL,
+
+    /** New uploads from channels the viewer keeps watching without subscribing; see ChannelMemory. */
+    CHANNEL_MEMORY,
 }
 
 internal data class FeedCandidate(
@@ -49,13 +51,14 @@ internal fun homeFeedQuotas(
             subCount <= 0 -> (slots * 0.45).toInt()
             else -> (slots * 0.25).toInt()
         }.coerceAtLeast(0)
-    val viral = (slots - subs - related - discovery).coerceAtLeast(0)
+    // The remainder, about an eighth of the page: the share the retired trending lane used to get.
+    val channelMemory = (slots - subs - related - discovery).coerceAtLeast(0)
 
     return mapOf(
         FeedSource.SUBS to subs,
         FeedSource.RELATED to related,
         FeedSource.DISCOVERY to discovery,
-        FeedSource.VIRAL to viral,
+        FeedSource.CHANNEL_MEMORY to channelMemory,
     )
 }
 
@@ -109,12 +112,18 @@ private fun addUniqueCandidate(
     return true
 }
 
+/**
+ * Round-robin over the lanes up to each quota, then lanes with leftovers fill what the others could
+ * not. [CHANNEL_MEMORY] never takes more than its quota, and a channel in [singleChannels] (one the
+ * memory lane serves) appears at most once.
+ */
 internal fun blendFeedSources(
     lanes: Map<FeedSource, List<Video>>,
     quotas: Map<FeedSource, Int>,
     targetSize: Int,
     channelCounts: MutableMap<String, Int> = mutableMapOf(),
     usedVideoIds: MutableSet<String> = mutableSetOf(),
+    singleChannels: Set<String> = emptySet(),
 ): FeedMixResult {
     val target = targetSize.coerceAtLeast(0)
     if (target == 0) return FeedMixResult(emptyList(), emptyMap())
@@ -123,33 +132,36 @@ internal fun blendFeedSources(
         FeedSource.entries.associateWith { source ->
             java.util.ArrayDeque(lanes[source].orEmpty().map { FeedCandidate(it, source) })
         }
-    val quotaOrder = listOf(FeedSource.SUBS, FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.VIRAL)
-    val scarcityOrder = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.SUBS, FeedSource.VIRAL)
+    val quotaOrder = listOf(FeedSource.SUBS, FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY)
+    val scarcityOrder = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.SUBS)
     val addedBySource = mutableMapOf<FeedSource, Int>()
     val out = mutableListOf<FeedCandidate>()
+
+    fun take(candidate: FeedCandidate?): Boolean {
+        val cap = if (candidate != null && candidate.video.channelId in singleChannels) 1 else 2
+        return addUniqueCandidate(candidate, out, channelCounts, usedVideoIds, cap).also { added ->
+            if (added) addedBySource[candidate!!.source] = (addedBySource[candidate.source] ?: 0) + 1
+        }
+    }
 
     while (out.size < target && queues.any { it.value.isNotEmpty() }) {
         var addedThisRound = false
         for (source in quotaOrder) {
             if (out.size >= target) break
-            val added = addedBySource[source] ?: 0
-            val quota = quotas[source] ?: 0
-            if (added < quota && addUniqueCandidate(queues[source]?.pollFirst(), out, channelCounts, usedVideoIds)) {
-                addedBySource[source] = added + 1
+            if ((addedBySource[source] ?: 0) < (quotas[source] ?: 0) && take(queues[source]?.pollFirst())) {
                 addedThisRound = true
             }
         }
 
         if (!addedThisRound) {
+            // A rejected head (duplicate or capped channel) must not end the refill while the lane
+            // still holds usable videos behind it.
             val forced =
                 scarcityOrder.any { source ->
-                    if (out.size >= target) {
-                        true
-                    } else {
-                        addUniqueCandidate(queues[source]?.pollFirst(), out, channelCounts, usedVideoIds).also { added ->
-                            if (added) addedBySource[source] = (addedBySource[source] ?: 0) + 1
-                        }
-                    }
+                    val queue = queues.getValue(source)
+                    var added = false
+                    while (!added && queue.isNotEmpty()) added = take(queue.pollFirst())
+                    added
                 }
             if (!forced) break
         }

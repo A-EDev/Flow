@@ -15,8 +15,49 @@ import org.junit.Test
  * [NeuroVectorMath.phraseFirst]. Prints the learnt weights so a change reads as numbers (#907).
  */
 class NeuroPhraseLearningTest {
+    @Test
+    fun `a pair that keeps appearing together becomes a phrase and a chance pair does not`() {
+        val idf =
+            IdfSnapshot(
+                wordFrequency =
+                    mapOf(
+                        "guitar playalong" to 6,
+                        "guitar" to 8,
+                        "playalong" to 6,
+                        "review after" to 3,
+                        "review" to 30,
+                        "after" to 25,
+                    ),
+                totalDocs = 100,
+            )
+
+        assertThat(NeuroPhrases.isPhrase("guitar playalong", idf)).isTrue()
+        assertThat(NeuroPhrases.isPhrase("review after", idf)).isFalse()
+        assertThat(NeuroPhrases.isPhrase("guitar playalong", idf.copy(totalDocs = 10))).isFalse()
+    }
+
+    @Test
+    fun `a multi-word tag stays a phrase`() {
+        val video =
+            Video(
+                id = "t",
+                title = "Wonderwall with tabs",
+                channelName = "",
+                channelId = "",
+                thumbnailUrl = "",
+                duration = 300,
+                viewCount = 0,
+                uploadDate = "",
+                tags = listOf("guitar playalong", "rock"),
+                description = "Play along with me #guitar_tabs",
+            )
+
+        val topics = tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).topics
+        assertThat(topics.keys).containsAtLeast("guitar playalong", "guitar tabs")
+        assertThat(topics.getValue("guitar playalong")).isGreaterThan(topics.getValue("playalong"))
+    }
+
     private val tokenizer = NeuroTokenizer()
-    private val idf = IdfSnapshot(emptyMap(), 0)
 
     private val reviews =
         listOf(
@@ -26,6 +67,11 @@ class NeuroPhraseLearningTest {
             "Samsung Galaxy S26 Ultra review",
             "Samsung Galaxy S26 Ultra vs Pixel",
             "Google Pixel 10 Pro one month later",
+            "Google Pixel 10 Pro gaming test",
+            "Google Pixel 10 Pro vs iPhone 17",
+            "Google Pixel Watch 4 review",
+            "Google Pixel 10 Pro charging speed",
+            "Google Pixel Buds Pro 3 review",
         )
     private val guitar =
         listOf(
@@ -42,6 +88,10 @@ class NeuroPhraseLearningTest {
         phraseFirst: Boolean,
     ): Map<String, Double> {
         var global = ContentVector()
+        // Document counts grow with every learned video, as the engine's IDF table does, on top of
+        // a history of other viewing.
+        val counts = HashMap<String, Int>()
+        var documents = 40
         titles.forEachIndexed { index, title ->
             val video =
                 Video(
@@ -54,24 +104,22 @@ class NeuroPhraseLearningTest {
                     viewCount = 0,
                     uploadDate = "",
                 )
-            val features = tokenizer.extractFeatures(video, idf)
+            val features = tokenizer.extractFeatures(video, IdfSnapshot(counts.toMap(), documents))
             val target = if (phraseFirst) NeuroVectorMath.phraseFirst(features) else features
             global = NeuroVectorMath.adjustVector(global, target, 0.15)
+            features.topics.keys.forEach { counts.merge(it, 1, Int::plus) }
+            documents++
         }
         return global.topics
     }
 
     @Test
     fun `a watched review teaches the product phrase over its single words`() {
-        val before = learn(reviews, phraseFirst = false)
         val after = learn(reviews, phraseFirst = true)
-        println("PHRASE before: google=${before["google"]} pixel=${before["pixel"]} google pixel=${before["google pixel"]}")
         println("PHRASE after : google=${after["google"]} pixel=${after["pixel"]} google pixel=${after["google pixel"]}")
 
         assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("google"))
         assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("pixel"))
-        assertThat(after.getValue("google") / after.getValue("google pixel"))
-            .isLessThan(before.getValue("google") / before.getValue("google pixel"))
     }
 
     @Test

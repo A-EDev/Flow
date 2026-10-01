@@ -33,7 +33,9 @@ internal class NeuroTokenizer {
         const val IDF_MAX_WEIGHT = 1.0
         const val CHANNEL_KEYWORD_WEIGHT = 0.6
         const val TITLE_KEYWORD_WEIGHT = 0.5
-        const val BIGRAM_WEIGHT = 0.75
+
+        /** A title pair not yet known to be a phrase: counted, so it can become one, but barely weighted. */
+        const val BIGRAM_CANDIDATE_WEIGHT = 0.2
         const val BIGRAM_PRIORITY_WEIGHT = 1.2
         const val DESCRIPTION_MIN_LENGTH = 20
         const val DESCRIPTION_TAKE_WORDS = 15
@@ -49,7 +51,11 @@ internal class NeuroTokenizer {
         const val CHAPTER_TIMESTAMP_MIN = 3
 
         // ── Tag Processing Constants ──
-        const val TAG_MAX_INGEST = 8
+        const val TAG_MAX_INGEST = 15
+        const val TAG_PHRASE_MAX_WORDS = 3
+        const val TAG_PHRASE_WORD_SHARE = 0.5
+        const val HASHTAG_MAX = 5
+        private val HASHTAG_REGEX = Regex("""#([\p{L}\p{N}_]{3,40})""")
         const val TAG_VERIFIED_WEIGHT = 0.65
         const val TAG_UNVERIFIED_WEIGHT = 0.10
         const val TAG_MIN_LENGTH = 3
@@ -411,6 +417,20 @@ internal class NeuroTokenizer {
             "than",
             "well",
             "even",
+            "else",
+            "did",
+            "does",
+            "done",
+            "doing",
+            "why",
+            "these",
+            "those",
+            "here",
+            "they",
+            "them",
+            "their",
+            "made",
+            "tried",
             // Filler adverbs that leaked into topic vectors as junk unigrams and
             // bigram halves ("laptops right" from "laptops right now").
             "right",
@@ -711,11 +731,10 @@ internal class NeuroTokenizer {
     fun normalizeLemma(word: String): String = lemmaMap[word.lowercase()] ?: word.lowercase()
 
     fun tokenize(text: String): List<String> =
-        text
-            .lowercase()
-            .split(WHITESPACE_REGEX)
-            .map { word -> word.trim { !it.isLetterOrDigit() } }
-            .filter { it.length > 2 }
+        NeuroText
+            .words(NeuroText.fold(text))
+            .map { word -> word.trim { !NeuroText.isWordChar(it) } }
+            .filter(NeuroText::isTopicSized)
             .map { normalizeLemma(it) }
             .filter { !stopWords.contains(it) && !YEAR_TAG_REGEX.matches(it) }
 
@@ -728,14 +747,14 @@ internal class NeuroTokenizer {
      */
     fun isNoiseTopic(topic: String): Boolean {
         val base = topic.substringBefore(':').lowercase().trim()
-        if (base.length < 3) return true
+        if (!NeuroText.isTopicSized(base)) return true
         if (base.all { it.isDigit() } || YEAR_TAG_REGEX.matches(base)) return true
         val parts = base.split(' ').filter { it.isNotBlank() }
         if (parts.isEmpty()) return true
         // Degenerate bigrams like "code code" are tokenizer echoes, not topics.
         if (parts.size > 1 && parts.distinct().size < parts.size) return true
         return parts.any { part ->
-            part in stopWords || normalizeLemma(part) in stopWords || part.length < 3
+            part in stopWords || normalizeLemma(part) in stopWords || !NeuroText.isTopicSized(part)
         }
     }
 
@@ -787,7 +806,8 @@ internal class NeuroTokenizer {
                         polysemousWords.contains(titleWords[i + 1]) ||
                         // Also treat domain-disambiguable words as meaningful for bigram protection
                         titleWords[i] in domainDisambiguation ||
-                        titleWords[i + 1] in domainDisambiguation
+                        titleWords[i + 1] in domainDisambiguation ||
+                        NeuroPhrases.isPhrase(bigram, idfSnapshot)
 
                 if (isMeaningful) {
                     topics[bigram] =
@@ -802,7 +822,7 @@ internal class NeuroTokenizer {
                     topics[bigram] =
                         calculateIdfWeight(
                             bigram,
-                            BIGRAM_WEIGHT,
+                            BIGRAM_CANDIDATE_WEIGHT,
                             idfSnapshot,
                         )
                 }
@@ -844,7 +864,8 @@ internal class NeuroTokenizer {
         }
 
         // ── Tag Processing ──
-        if (video.tags.isNotEmpty()) {
+        val tags = topicTags(video)
+        if (tags.isNotEmpty()) {
             val descWords =
                 if (!video.description.isNullOrBlank()) {
                     tokenize(
@@ -859,7 +880,7 @@ internal class NeuroTokenizer {
 
             val tagTopics =
                 processTags(
-                    video.tags,
+                    tags,
                     titleWords,
                     descWords,
                     idfSnapshot,
@@ -987,6 +1008,19 @@ internal class NeuroTokenizer {
         )
     }
 
+    /** The creator's tags, then the description's hashtags, which the description reader skips. */
+    fun topicTags(video: Video): List<String> {
+        val description = video.description
+        if (description.isNullOrBlank() || '#' !in description) return video.tags
+        val hashtags =
+            HASHTAG_REGEX
+                .findAll(description)
+                .map { it.groupValues[1].replace('_', ' ') }
+                .take(HASHTAG_MAX)
+                .toList()
+        return (video.tags + hashtags).distinct()
+    }
+
     fun extractDescriptionKeywords(
         description: String?,
         idfSnapshot: IdfSnapshot,
@@ -1043,8 +1077,8 @@ internal class NeuroTokenizer {
 
         val tagContextWords =
             tags.take(TAG_MAX_INGEST).flatMap { t ->
-                t
-                    .lowercase()
+                NeuroText
+                    .fold(t)
                     .split(WHITESPACE_REGEX)
                     .map { it.trim { c -> !c.isLetterOrDigit() } }
                     .filter { it.length > 1 }
@@ -1052,9 +1086,9 @@ internal class NeuroTokenizer {
         val fullDisambiguationContext = tagContextWords + titleWords + descriptionWords
 
         tags.take(TAG_MAX_INGEST).forEach { rawTag ->
-            val cleaned = rawTag.trim().lowercase()
+            val cleaned = NeuroText.fold(rawTag).trim()
 
-            if (cleaned.length < TAG_MIN_LENGTH ||
+            if ((cleaned.length < TAG_MIN_LENGTH && cleaned !in NeuroText.SHORT_TOPICS) ||
                 cleaned.length > TAG_MAX_LENGTH
             ) {
                 return@forEach
@@ -1076,6 +1110,13 @@ internal class NeuroTokenizer {
                     TAG_UNVERIFIED_WEIGHT
                 }
 
+            // A creator's multi-word tag is a phrase they chose; keep it whole ("guitar playalong").
+            val isPhrase = tagTokens.size in 2..TAG_PHRASE_MAX_WORDS
+            if (isPhrase) {
+                val phrase = tagTokens.joinToString(" ")
+                result[phrase] = (result[phrase] ?: 0.0) + calculateIdfWeight(phrase, baseWeight, idfSnapshot)
+            }
+            val wordWeight = if (isPhrase) baseWeight * TAG_PHRASE_WORD_SHARE else baseWeight
             tagTokens.forEach { token ->
                 val resolved =
                     if (token in domainDisambiguation) {
@@ -1084,7 +1125,7 @@ internal class NeuroTokenizer {
                         token
                     }
 
-                val idfWeighted = calculateIdfWeight(resolved, baseWeight, idfSnapshot)
+                val idfWeighted = calculateIdfWeight(resolved, wordWeight, idfSnapshot)
 
                 result[resolved] = (result[resolved] ?: 0.0) + idfWeighted
             }
@@ -2334,442 +2375,13 @@ internal class NeuroTokenizer {
     // ══════════════════════════════════════════════
     // CHANNEL NAME INTELLIGENCE
     // Channel names contain a mix of:
-    // - Personal names ("John", "Sarah", "Mr Beast")
+    // - Personal names ("John", "Sarah", "Mr Beast"), dropped by allow-listing topic words
     // - Topic keywords ("Tech", "Gaming", "Cooking")
     // - Branding suffixes ("TV", "HQ", "Official")
     //
     // Only the topic keywords should enter the topic vector.
     // Personal names and branding are noise.
     // ══════════════════════════════════════════════
-
-    private val commonFirstNames =
-        hashSetOf(
-            // English male
-            "adam",
-            "alan",
-            "alex",
-            "alexander",
-            "andrew",
-            "anthony",
-            "austin",
-            "ben",
-            "benjamin",
-            "brandon",
-            "brian",
-            "bruce",
-            "caleb",
-            "cameron",
-            "carl",
-            "charles",
-            "charlie",
-            "chris",
-            "christian",
-            "colin",
-            "connor",
-            "corey",
-            "craig",
-            "dan",
-            "daniel",
-            "dave",
-            "david",
-            "dean",
-            "derek",
-            "devon",
-            "dominic",
-            "don",
-            "donald",
-            "drew",
-            "dustin",
-            "dylan",
-            "ed",
-            "edward",
-            "eli",
-            "elijah",
-            "eric",
-            "erik",
-            "ethan",
-            "evan",
-            "felix",
-            "frank",
-            "fred",
-            "gary",
-            "george",
-            "grant",
-            "greg",
-            "gregory",
-            "harry",
-            "henry",
-            "howard",
-            "hunter",
-            "ian",
-            "isaac",
-            "jack",
-            "jackson",
-            "jacob",
-            "jake",
-            "james",
-            "jamie",
-            "jared",
-            "jason",
-            "jeff",
-            "jeffrey",
-            "jeremy",
-            "jerry",
-            "jesse",
-            "jim",
-            "jimmy",
-            "joe",
-            "joel",
-            "john",
-            "johnny",
-            "jon",
-            "jonathan",
-            "jordan",
-            "jose",
-            "joseph",
-            "josh",
-            "joshua",
-            "juan",
-            "julian",
-            "justin",
-            "keith",
-            "ken",
-            "kevin",
-            "kyle",
-            "lance",
-            "larry",
-            "leo",
-            "liam",
-            "logan",
-            "louis",
-            "lucas",
-            "luke",
-            "marcus",
-            "mark",
-            "martin",
-            "mason",
-            "matt",
-            "matthew",
-            "max",
-            "michael",
-            "mike",
-            "miles",
-            "nathan",
-            "nicholas",
-            "nick",
-            "noah",
-            "nolan",
-            "oliver",
-            "oscar",
-            "owen",
-            "patrick",
-            "paul",
-            "peter",
-            "phil",
-            "philip",
-            "preston",
-            "quentin",
-            "ralph",
-            "randy",
-            "ray",
-            "raymond",
-            "richard",
-            "rick",
-            "robert",
-            "robin",
-            "roger",
-            "ron",
-            "ronald",
-            "ross",
-            "roy",
-            "russell",
-            "ryan",
-            "sam",
-            "samuel",
-            "scott",
-            "sean",
-            "seth",
-            "shane",
-            "simon",
-            "spencer",
-            "stephen",
-            "steve",
-            "steven",
-            "stuart",
-            "ted",
-            "terry",
-            "thomas",
-            "tim",
-            "timothy",
-            "todd",
-            "tom",
-            "tommy",
-            "tony",
-            "travis",
-            "trevor",
-            "troy",
-            "tyler",
-            "victor",
-            "vincent",
-            "wade",
-            "walter",
-            "warren",
-            "wayne",
-            "will",
-            "william",
-            "zach",
-            "zachary",
-            // English female
-            "alice",
-            "amanda",
-            "amber",
-            "amy",
-            "andrea",
-            "angela",
-            "anna",
-            "ashley",
-            "barbara",
-            "beth",
-            "betty",
-            "brenda",
-            "brittany",
-            "carmen",
-            "carol",
-            "caroline",
-            "catherine",
-            "charlotte",
-            "chelsea",
-            "christina",
-            "christine",
-            "claire",
-            "courtney",
-            "crystal",
-            "cynthia",
-            "daisy",
-            "dana",
-            "danielle",
-            "deborah",
-            "diana",
-            "donna",
-            "dorothy",
-            "elizabeth",
-            "ellen",
-            "emily",
-            "emma",
-            "erica",
-            "eva",
-            "faith",
-            "fiona",
-            "florence",
-            "grace",
-            "hailey",
-            "hannah",
-            "heather",
-            "helen",
-            "holly",
-            "irene",
-            "isabel",
-            "isabella",
-            "jackie",
-            "jane",
-            "janet",
-            "janice",
-            "jasmine",
-            "jennifer",
-            "jenny",
-            "jessica",
-            "joan",
-            "joanne",
-            "julia",
-            "julie",
-            "karen",
-            "kate",
-            "katherine",
-            "kathleen",
-            "katie",
-            "kayla",
-            "kelly",
-            "kim",
-            "kimberly",
-            "kristen",
-            "kristin",
-            "laura",
-            "lauren",
-            "leah",
-            "lillian",
-            "lily",
-            "linda",
-            "lisa",
-            "liz",
-            "lori",
-            "lucy",
-            "lynn",
-            "madeline",
-            "madison",
-            "maria",
-            "marie",
-            "martha",
-            "mary",
-            "megan",
-            "melissa",
-            "michelle",
-            "miranda",
-            "molly",
-            "monica",
-            "nancy",
-            "natalie",
-            "natasha",
-            "nicole",
-            "olivia",
-            "paige",
-            "pamela",
-            "patricia",
-            "rachel",
-            "rebecca",
-            "renee",
-            "rita",
-            "robin",
-            "rosa",
-            "rose",
-            "ruth",
-            "sabrina",
-            "samantha",
-            "sandra",
-            "sara",
-            "sarah",
-            "sharon",
-            "sophia",
-            "stephanie",
-            "susan",
-            "tamara",
-            "tanya",
-            "tara",
-            "teresa",
-            "tiffany",
-            "tina",
-            "tracy",
-            "valerie",
-            "vanessa",
-            "veronica",
-            "victoria",
-            "virginia",
-            "wendy",
-            "whitney",
-        )
-
-    private val commonLastNames =
-        hashSetOf(
-            "smith",
-            "johnson",
-            "williams",
-            "brown",
-            "jones",
-            "garcia",
-            "miller",
-            "davis",
-            "rodriguez",
-            "martinez",
-            "hernandez",
-            "lopez",
-            "gonzalez",
-            "wilson",
-            "anderson",
-            "thomas",
-            "taylor",
-            "moore",
-            "jackson",
-            "martin",
-            "lee",
-            "perez",
-            "thompson",
-            "white",
-            "harris",
-            "sanchez",
-            "clark",
-            "ramirez",
-            "lewis",
-            "robinson",
-            "walker",
-            "young",
-            "allen",
-            "king",
-            "wright",
-            "scott",
-            "torres",
-            "nguyen",
-            "hill",
-            "flores",
-            "green",
-            "adams",
-            "nelson",
-            "baker",
-            "hall",
-            "rivera",
-            "campbell",
-            "mitchell",
-            "carter",
-            "roberts",
-            "turner",
-            "phillips",
-            "parker",
-            "evans",
-            "edwards",
-            "collins",
-            "stewart",
-            "morris",
-            "murphy",
-            "cook",
-            "rogers",
-            "morgan",
-            "peterson",
-            "cooper",
-            "reed",
-            "bailey",
-            "bell",
-            "gomez",
-            "kelly",
-            "howard",
-            "ward",
-            "cox",
-            "diaz",
-            "richardson",
-            "wood",
-            "watson",
-            "brooks",
-            "bennett",
-            "gray",
-            "james",
-            "reyes",
-            "cruz",
-            "hughes",
-            "price",
-            "myers",
-            "long",
-            "foster",
-            "sanders",
-            "ross",
-            "morales",
-            "powell",
-            "sullivan",
-            "russell",
-            "ortiz",
-            "jenkins",
-            "gutierrez",
-            "perry",
-            "butler",
-            "barnes",
-            "fisher",
-            "henderson",
-            "coleman",
-            "simmons",
-            "patterson",
-            "jordan",
-            "reynolds",
-            "hamilton",
-            "graham",
-            "kim",
-            "gonzales",
-        )
 
     private val channelBranding =
         hashSetOf(
@@ -3034,7 +2646,8 @@ internal class NeuroTokenizer {
      */
     fun tokenizeChannelName(channelName: String): List<String> {
         val rawOriginal =
-            channelName
+            NeuroText
+                .fold(channelName)
                 .split(WHITESPACE_REGEX)
                 .map { word -> word.trim { !it.isLetterOrDigit() } }
                 .filter { it.length > 1 }
@@ -3074,15 +2687,15 @@ internal class NeuroTokenizer {
     private fun buildContextWordList(video: Video): List<String> {
         val words = mutableListOf<String>()
 
-        video.title
-            .lowercase()
+        NeuroText
+            .fold(video.title)
             .split(WHITESPACE_REGEX)
             .map { it.trim { c -> !c.isLetterOrDigit() } }
             .filter { it.length > 1 }
             .forEach { words.add(it) }
 
-        video.channelName
-            .lowercase()
+        NeuroText
+            .fold(video.channelName)
             .split(WHITESPACE_REGEX)
             .map { it.trim { c -> !c.isLetterOrDigit() } }
             .filter { it.length > 1 }
@@ -3093,7 +2706,7 @@ internal class NeuroTokenizer {
                 .lines()
                 .take(3)
                 .joinToString(" ")
-                .lowercase()
+                .let(NeuroText::fold)
                 .split(WHITESPACE_REGEX)
                 .map { it.trim { c -> !c.isLetterOrDigit() } }
                 .filter { it.length > 2 }
@@ -3101,10 +2714,11 @@ internal class NeuroTokenizer {
         }
 
         // Tags provide critical disambiguation context
-        if (video.tags.isNotEmpty()) {
-            video.tags.take(TAG_MAX_INGEST).forEach { tag ->
-                tag
-                    .lowercase()
+        val tags = topicTags(video)
+        if (tags.isNotEmpty()) {
+            tags.take(TAG_MAX_INGEST).forEach { tag ->
+                NeuroText
+                    .fold(tag)
                     .split(WHITESPACE_REGEX)
                     .map { it.trim { c -> !c.isLetterOrDigit() } }
                     .filter { it.length > 1 }

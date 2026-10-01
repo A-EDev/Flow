@@ -24,6 +24,7 @@ internal fun VideoCardRow(
     onClick: () -> Unit,
     showChannel: Boolean,
     thumbnailWidth: Dp,
+    reason: String?,
     modifier: Modifier = Modifier,
 ) {
     val state = rememberVideoCardState(video)
@@ -96,6 +97,7 @@ internal fun VideoCardRow(
             )
 
             MembersOnlyLabel(video)
+            reason?.let { CardReasonLabel(it) }
         }
 
         VideoCardSideActions(

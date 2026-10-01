@@ -37,6 +37,9 @@ internal object NeuroScoring {
     const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
     const val CHANNEL_EMA_ALPHA = 0.05
     const val CHANNEL_EMA_DECAY = 1.0 - CHANNEL_EMA_ALPHA
+
+    /** A thumbs-down halves the channel's score; the EMA step moved it by 2.5 % (#907). */
+    const val DISLIKE_CHANNEL_FACTOR = 0.5
     const val MAX_CHANNEL_SCORES = 500
     const val CHANNEL_KEEP_LOW = 50
     const val CHANNEL_KEEP_HIGH = 200
@@ -107,7 +110,6 @@ internal object NeuroScoring {
     const val CHANNEL_PROFILE_MIN_VIDEOS = 3
     const val NOT_INTERESTED_GLOBAL_RATE = -0.35
     const val NOT_INTERESTED_TIME_RATE = -0.25
-    const val NOT_INTERESTED_SKIP_INCREMENT = 3
     const val PERSONA_STABILITY_THRESHOLD = 3
     const val PERSONA_MAX_STABILITY = 10
     const val EXPLORATION_SCORE_THRESHOLD = 0.1
@@ -183,11 +185,20 @@ internal object NeuroScoring {
     const val QUERY_OVERLAP_THRESHOLD = 0.4
 
     // ── Rejection Pattern Memory ──
-    const val REJECTION_EXPIRY_DAYS = 14L
+
+    /** A rejection's weight halves every month instead of vanishing after two weeks. */
+    const val REJECTION_HALF_LIFE_DAYS = 30.0
+    const val REJECTION_FORGET_BELOW = 0.5
     const val REJECTION_MEMORY_MAX = 200
     const val REJECTION_PENALTY_1 = 0.50
     const val REJECTION_PENALTY_2 = 0.20
     const val REJECTION_PENALTY_3_PLUS = 0.05
+    private const val REJECTION_RECORD_KEYS = 2
+    private const val REJECTION_MATCH_TOPICS = 6
+    private const val REJECTION_WORD_PREFIX = "~"
+
+    /** A "~" pattern counts once a second rejection repeats it. */
+    private const val REJECTION_REPEATED = 1.5
 
     private val REJECTION_BROAD_TOPICS =
         hashSetOf(
@@ -706,8 +717,8 @@ internal object NeuroScoring {
         normalizeLemma: (String) -> String,
     ): Boolean {
         if (matchers.isEmpty()) return false
-        val titleLower = title.lowercase()
-        val channelLower = channelName.lowercase()
+        val titleLower = NeuroText.fold(title)
+        val channelLower = NeuroText.fold(channelName)
         if (matchers.phrases.any { titleLower.contains(it) || channelLower.contains(it) }) return true
         if (matchers.tokens.isEmpty()) return false
         return sequenceOf(titleLower, channelLower)
@@ -858,28 +869,88 @@ internal object NeuroScoring {
 
     // ── Rejection Pattern Memory Functions ──
 
+    /**
+     * What a rejection is remembered by. Only the pair of the two strongest topics counts at once:
+     * one rejected video says little about any single topic, and IDF weighting makes a title's rare
+     * words ("late", "drives") its strongest. The two strongest specific topics and the words of the
+     * top four are remembered as "~" patterns, which count once a second rejection repeats them, so
+     * the topic rejected videos share ("phonk") is what builds up (#907).
+     */
     fun extractRejectionKeys(videoVector: ContentVector): List<String> {
         val topTopics =
             videoVector.topics.entries
                 .sortedByDescending { it.value }
-                .take(3)
+                .take(4)
                 .map { stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
-
+                .filter(NeuroText::isTopicSized)
+                .distinct()
         if (topTopics.isEmpty()) return emptyList()
 
         val keys = mutableListOf<String>()
-
-        topTopics.firstOrNull { it !in REJECTION_BROAD_TOPICS }?.let {
-            keys.add(it)
-        }
-
-        if (topTopics.size >= 2) {
-            val sorted = listOf(topTopics[0], topTopics[1]).sorted()
-            keys.add("${sorted[0]}|${sorted[1]}")
-        }
-
+        if (topTopics.size >= 2) keys += makeAffinityKey(topTopics[0], topTopics[1])
+        val specific = topTopics.filter { it !in REJECTION_BROAD_TOPICS }.take(REJECTION_RECORD_KEYS)
+        val words =
+            topTopics
+                .flatMap { it.split(' ') }
+                .filter { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS }
+        (specific + words).distinct().mapTo(keys) { REJECTION_WORD_PREFIX + it }
         return keys
+    }
+
+    /**
+     * The terms a candidate can be recognised by: its strongest topics and the words of its phrases.
+     * A rejected "phonk" must catch "phonk mix" and "drift phonk", not only a title whose single
+     * strongest key is exactly "phonk" (#907).
+     */
+    private fun rejectionTerms(videoVector: ContentVector): Set<String> {
+        val top =
+            videoVector.topics.entries
+                .sortedByDescending { it.value }
+                .take(REJECTION_MATCH_TOPICS)
+                .map { stripDomainTag(it.key) }
+        val terms = HashSet<String>(top)
+        top.filter { ' ' in it }.forEach { phrase ->
+            phrase.split(' ').filterTo(terms) { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS }
+        }
+        return terms
+    }
+
+    private fun matchesRejection(
+        key: String,
+        terms: Set<String>,
+    ): Boolean {
+        val pair = key.indexOf('|')
+        return when {
+            pair >= 0 -> key.substring(0, pair) in terms && key.substring(pair + 1) in terms
+            key.startsWith(REJECTION_WORD_PREFIX) -> key.substring(REJECTION_WORD_PREFIX.length) in terms
+            else -> key in terms
+        }
+    }
+
+    /** The rejection count left after [now] - lastRejectedAt of monthly halving. */
+    fun effectiveRejections(
+        signal: RejectionSignal,
+        now: Long,
+    ): Double {
+        val ageDays = (now - signal.lastRejectedAt).coerceAtLeast(0L) / 86_400_000.0
+        return signal.count * 0.5.pow(ageDays / REJECTION_HALF_LIFE_DAYS)
+    }
+
+    private fun strongestRejection(
+        videoVector: ContentVector,
+        rejectionPatterns: Map<String, RejectionSignal>,
+        now: Long,
+    ): Double {
+        val terms = rejectionTerms(videoVector)
+        var strongest = 0.0
+        rejectionPatterns.forEach { (key, signal) ->
+            if (matchesRejection(key, terms)) {
+                val effective = effectiveRejections(signal, now)
+                val counts = !key.startsWith(REJECTION_WORD_PREFIX) || effective >= REJECTION_REPEATED
+                if (counts) strongest = maxOf(strongest, effective)
+            }
+        }
+        return strongest
     }
 
     fun calculateRejectionPatternPenalty(
@@ -888,24 +959,11 @@ internal object NeuroScoring {
         now: Long,
     ): Double {
         if (rejectionPatterns.isEmpty()) return 1.0
-
-        val videoKeys = extractRejectionKeys(videoVector)
-        if (videoKeys.isEmpty()) return 1.0
-
-        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
-        var maxCount = 0
-
-        videoKeys.forEach { key ->
-            val signal = rejectionPatterns[key] ?: return@forEach
-            if ((now - signal.lastRejectedAt) < expiryMs) {
-                maxCount = maxOf(maxCount, signal.count)
-            }
-        }
-
+        val strength = strongestRejection(videoVector, rejectionPatterns, now)
         return when {
-            maxCount >= 3 -> REJECTION_PENALTY_3_PLUS
-            maxCount == 2 -> REJECTION_PENALTY_2
-            maxCount == 1 -> REJECTION_PENALTY_1
+            strength >= 2.5 -> REJECTION_PENALTY_3_PLUS
+            strength >= 1.5 -> REJECTION_PENALTY_2
+            strength >= REJECTION_FORGET_BELOW -> REJECTION_PENALTY_1
             else -> 1.0
         }
     }
@@ -916,24 +974,71 @@ internal object NeuroScoring {
         now: Long,
     ): Double {
         if (rejectionPatterns.isEmpty()) return 0.5
-
-        val videoKeys = extractRejectionKeys(videoVector)
-        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
-        var maxCount = 0
-
-        videoKeys.forEach { key ->
-            val signal = rejectionPatterns[key] ?: return@forEach
-            if ((now - signal.lastRejectedAt) < expiryMs) {
-                maxCount = maxOf(maxCount, signal.count)
-            }
-        }
-
+        val strength = strongestRejection(videoVector, rejectionPatterns, now)
         return when {
-            maxCount >= 2 -> 0.10
-            maxCount >= 1 -> 0.25
+            strength >= 1.5 -> 0.10
+            strength >= REJECTION_FORGET_BELOW -> 0.25
             else -> 0.50
         }
     }
+
+    /**
+     * Adds one rejection of [videoVector]'s patterns and forgets the ones whose weight has decayed
+     * away. Both "Not interested" and a thumbs-down write here (#907).
+     */
+    fun recordRejection(
+        rejectionPatterns: Map<String, RejectionSignal>,
+        videoVector: ContentVector,
+        now: Long,
+    ): Map<String, RejectionSignal> {
+        val updated = rejectionPatterns.toMutableMap()
+        val keys = extractRejectionKeys(videoVector)
+        keys.distinct().forEach { key ->
+            val left = updated[key]?.let { effectiveRejections(it, now) } ?: 0.0
+            updated[key] = RejectionSignal(count = (left + 1).roundToInt().coerceAtLeast(1), lastRejectedAt = now)
+        }
+        updated.entries.removeAll { effectiveRejections(it.value, now) < REJECTION_FORGET_BELOW }
+        if (updated.size > REJECTION_MEMORY_MAX) {
+            updated.entries
+                .sortedBy { it.value.lastRejectedAt }
+                .take(updated.size - REJECTION_MEMORY_MAX)
+                .forEach { updated.remove(it.key) }
+        }
+        return updated
+    }
+
+    /** Fewer fresh discovery queries than this and the recently used ones fill in behind them. */
+    const val MIN_ROTATED_QUERIES = 4
+
+    /**
+     * Queries not used recently first. When too few are fresh, the recent ones follow instead of
+     * being dropped: keeping only the fresh ones shrank a refresh's discovery to two searches and
+     * the feed to half its size after a few refreshes in a row.
+     */
+    fun rotateQueries(
+        candidates: List<String>,
+        recentQueryTokens: List<Set<String>>,
+        tokenize: (String) -> Set<String>,
+    ): List<String> {
+        val fresh =
+            candidates.filter { query ->
+                val tokens = tokenize(query)
+                if (tokens.isEmpty()) return@filter true
+                recentQueryTokens.none { recent ->
+                    if (recent.isEmpty()) return@none false
+                    tokens.intersect(recent).size.toDouble() / tokens.union(recent).size > QUERY_OVERLAP_THRESHOLD
+                }
+            }
+        return if (fresh.size >= MIN_ROTATED_QUERIES) fresh else fresh + candidates.filterNot { it in fresh }
+    }
+
+    /** Events a time bucket needs before its vector weighs as much as the whole profile. */
+    const val TIME_BUCKET_CONFIDENT_EVENTS = 30
+
+    fun timeBucketConfidence(
+        brain: UserBrain,
+        bucket: TimeBucket,
+    ): Double = ((brain.timeBucketCounts[bucket] ?: 0).toDouble() / TIME_BUCKET_CONFIDENT_EVENTS).coerceIn(0.0, 1.0)
 
     // ── Topic affinity key ──
 
@@ -1033,7 +1138,7 @@ internal object NeuroScoring {
                 .sortedByDescending { it.value }
                 .take(4)
                 .map { stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
+                .filter(NeuroText::isTopicSized)
                 .distinct()
 
         if (topTopics.isEmpty()) return 1.0
@@ -1077,6 +1182,27 @@ internal object NeuroScoring {
         return (EXPLORE_BETA_C * std * exploreWeight).coerceAtMost(EXPLORE_MAX_BONUS)
     }
 
+    /** Boost for the candidate's topic pairs the viewer watches together, capped per video. */
+    fun affinityBoost(
+        videoVector: ContentVector,
+        p: ScoringParams,
+    ): Double {
+        val videoTopics =
+            videoVector.topics.keys
+                .map { stripDomainTag(it) }
+                .distinct()
+        var boost = 0.0
+        val neighbours = p.affinityNeighbours
+        for (i in videoTopics.indices) {
+            val ofTopic = neighbours[videoTopics[i]] ?: continue
+            for (j in i + 1 until videoTopics.size) {
+                val affinity = ofTopic[videoTopics[j]] ?: continue
+                boost += affinity * AFFINITY_BOOST_PER_PAIR
+            }
+        }
+        return boost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
+    }
+
     /**
      * Deterministic per-candidate score: the full factor pipeline minus the
      * exploration jitter (which stays in the caller so this stays pure).
@@ -1091,13 +1217,13 @@ internal object NeuroScoring {
 
         val personalityScore =
             if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
-                val globalSim = NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
-                val shortsSim = NeuroVectorMath.calculateCosineSimilarity(brain.shortsVector, videoVector)
+                val globalSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
+                val shortsSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedShorts, videoVector)
                 globalSim * 0.4 + shortsSim * 0.6
             } else {
-                NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
+                NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
             }
-        val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.timeContextVector, videoVector)
+        val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.preparedContext, videoVector)
         // Smooth ramp instead of a cliff at the gate: two near-identical candidates
         // straddling the threshold no longer get wildly different novelty credit.
         val noveltyScore =
@@ -1115,21 +1241,7 @@ internal object NeuroScoring {
 
         totalScore *= calculateTopicProbationPenalty(videoVector, brain, p.lemmatizedPreferred)
 
-        if (brain.topicAffinities.isNotEmpty()) {
-            val videoTopics =
-                videoVector.topics.keys
-                    .map { stripDomainTag(it) }
-                    .distinct()
-            var affinityBoost = 0.0
-            for (i in videoTopics.indices) {
-                for (j in i + 1 until videoTopics.size) {
-                    val key = makeAffinityKey(videoTopics[i], videoTopics[j])
-                    val affinity = brain.topicAffinities[key] ?: 0.0
-                    affinityBoost += affinity * AFFINITY_BOOST_PER_PAIR
-                }
-            }
-            totalScore += affinityBoost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
-        }
+        if (brain.topicAffinities.isNotEmpty()) totalScore += affinityBoost(videoVector, p)
 
         totalScore += calculateChannelSignal(video, brain, p.userSubs)
 

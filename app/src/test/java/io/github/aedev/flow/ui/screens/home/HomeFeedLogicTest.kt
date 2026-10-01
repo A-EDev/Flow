@@ -199,7 +199,7 @@ class HomeFeedLogicTest {
                 14,
                 FeedSource.DISCOVERY,
                 18,
-                FeedSource.VIRAL,
+                FeedSource.CHANNEL_MEMORY,
                 8,
             )
 
@@ -211,7 +211,7 @@ class HomeFeedLogicTest {
                 12,
                 FeedSource.DISCOVERY,
                 10,
-                FeedSource.VIRAL,
+                FeedSource.CHANNEL_MEMORY,
                 4,
             )
 
@@ -223,7 +223,7 @@ class HomeFeedLogicTest {
                 10,
                 FeedSource.DISCOVERY,
                 10,
-                FeedSource.VIRAL,
+                FeedSource.CHANNEL_MEMORY,
                 4,
             )
     }
@@ -237,14 +237,14 @@ class HomeFeedLogicTest {
                         FeedSource.SUBS to listOf(vc("s1", "S")),
                         FeedSource.RELATED to listOf(vc("r1", "R")),
                         FeedSource.DISCOVERY to listOf(vc("d1", "D")),
-                        FeedSource.VIRAL to listOf(vc("v1", "V")),
+                        FeedSource.CHANNEL_MEMORY to listOf(vc("v1", "V")),
                     ),
                 quotas =
                     mapOf(
                         FeedSource.SUBS to 1,
                         FeedSource.RELATED to 1,
                         FeedSource.DISCOVERY to 1,
-                        FeedSource.VIRAL to 1,
+                        FeedSource.CHANNEL_MEMORY to 1,
                     ),
                 targetSize = 4,
             )
@@ -258,13 +258,13 @@ class HomeFeedLogicTest {
                 1,
                 FeedSource.DISCOVERY,
                 1,
-                FeedSource.VIRAL,
+                FeedSource.CHANNEL_MEMORY,
                 1,
             )
     }
 
     @Test
-    fun `blendFeedSources relaxes scarce quota in related discovery subs viral order`() {
+    fun `blendFeedSources relaxes scarce quota in related discovery subs order`() {
         val result =
             blendFeedSources(
                 lanes =
@@ -272,7 +272,7 @@ class HomeFeedLogicTest {
                         FeedSource.SUBS to listOf(vc("s1", "S"), vc("s2", "S")),
                         FeedSource.RELATED to listOf(vc("r1", "R1"), vc("r2", "R2")),
                         FeedSource.DISCOVERY to listOf(vc("d1", "D1"), vc("d2", "D2")),
-                        FeedSource.VIRAL to listOf(vc("v1", "V1"), vc("v2", "V2")),
+                        FeedSource.CHANNEL_MEMORY to listOf(vc("v1", "V1"), vc("v2", "V2")),
                     ),
                 quotas = FeedSource.entries.associateWith { 0 },
                 targetSize = 3,
@@ -282,6 +282,54 @@ class HomeFeedLogicTest {
             .containsExactly(FeedSource.RELATED, FeedSource.RELATED, FeedSource.DISCOVERY)
             .inOrder()
         assertThat(result.videos.map { it.id }).containsExactly("r1", "r2", "d1").inOrder()
+    }
+
+    @Test
+    fun `the channel memory lane never takes more than its quota`() {
+        val result =
+            blendFeedSources(
+                lanes =
+                    mapOf(
+                        FeedSource.RELATED to listOf(vc("r1", "R1")),
+                        FeedSource.CHANNEL_MEMORY to (1..10).map { vc("m$it", "M$it") },
+                    ),
+                quotas = mapOf(FeedSource.RELATED to 5, FeedSource.CHANNEL_MEMORY to 2),
+                targetSize = 10,
+            )
+
+        assertThat(result.sourceCounts[FeedSource.CHANNEL_MEMORY]).isEqualTo(2)
+        assertThat(result.videos.map { it.id }).containsExactly("r1", "m1", "m2")
+    }
+
+    @Test
+    fun `a channel memory channel appears once per page whatever lane brings it`() {
+        val result =
+            blendFeedSources(
+                lanes =
+                    mapOf(
+                        FeedSource.RELATED to listOf(vc("r1", "M1"), vc("r2", "M1"), vc("r3", "R")),
+                        FeedSource.CHANNEL_MEMORY to listOf(vc("m1", "M1")),
+                    ),
+                quotas = mapOf(FeedSource.RELATED to 3, FeedSource.CHANNEL_MEMORY to 1),
+                targetSize = 10,
+                singleChannels = setOf("M1"),
+            )
+
+        assertThat(result.videos.count { it.channelId == "M1" }).isEqualTo(1)
+    }
+
+    @Test
+    fun `a rejected head does not stop the refill while the lane has usable videos`() {
+        val usedIds = mutableSetOf("r1", "r2")
+        val result =
+            blendFeedSources(
+                lanes = mapOf(FeedSource.RELATED to listOf(vc("r1", "A"), vc("r2", "B"), vc("r3", "C"), vc("r4", "D"))),
+                quotas = FeedSource.entries.associateWith { 0 },
+                targetSize = 2,
+                usedVideoIds = usedIds,
+            )
+
+        assertThat(result.videos.map { it.id }).containsExactly("r3", "r4").inOrder()
     }
 
     @Test

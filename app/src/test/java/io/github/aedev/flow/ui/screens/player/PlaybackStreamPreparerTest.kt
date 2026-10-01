@@ -148,7 +148,7 @@ class PlaybackStreamPreparerTest {
     }
 
     @Test
-    fun `the category joins the tags when the client returned a microformat`() {
+    fun `the category leads the tags when the client returned a microformat`() {
         val identity =
             preparer
                 .assembleVod(
@@ -157,7 +157,7 @@ class PlaybackStreamPreparerTest {
                     step = vodStep(keywords = listOf("storage"), category = "Science & Technology"),
                 ).identity
 
-        assertThat(identity.enrichedVideo.tags).containsExactly("storage", "Science & Technology").inOrder()
+        assertThat(identity.enrichedVideo.tags).containsExactly("Science & Technology", "storage").inOrder()
     }
 
     @Test

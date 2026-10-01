@@ -108,6 +108,7 @@ fun NavGraphBuilder.flowAppGraph(
             onOpenShortsFeed = {
                 navController.openShorts(ShortsQueueSource.Feed)
             },
+            onPlayMix = { videos, title -> playerViewModel.playPlaylist(videos, 0, title, false) },
             viewModel = homeViewModel,
         )
     }

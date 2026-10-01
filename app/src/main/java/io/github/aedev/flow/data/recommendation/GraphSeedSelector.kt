@@ -4,6 +4,20 @@ internal object GraphSeedSelector {
     private const val DAY_MS = 24L * 60L * 60L * 1000L
     private const val MIN_LONG_WATCH_SECONDS = 180
 
+    private val tokenizer by lazy { NeuroTokenizer() }
+
+    // Every seed of one selection reads the same topic map; index it once, not once per title word.
+    @Volatile
+    private var baseIndex: Pair<Map<String, Double>, Map<String, Double>>? = null
+
+    private fun byBase(topicScores: Map<String, Double>): Map<String, Double> {
+        baseIndex?.let { (source, index) -> if (source === topicScores) return index }
+        val index = HashMap<String, Double>(topicScores.size)
+        topicScores.forEach { (key, score) -> index.putIfAbsent(NeuroScoring.stripDomainTag(key), score) }
+        baseIndex = topicScores to index
+        return index
+    }
+
     fun select(
         candidates: List<GraphSeedInput>,
         maxSeeds: Int,
@@ -14,7 +28,6 @@ internal object GraphSeedSelector {
         communityOf: ((String) -> String)? = null,
     ): List<String> {
         if (candidates.isEmpty() || maxSeeds <= 0) return emptyList()
-        val tokenizer = NeuroTokenizer()
         val ranked =
             candidates
                 .asSequence()
@@ -63,7 +76,6 @@ internal object GraphSeedSelector {
         val recent = fresh.ifEmpty { pick(candidates) }
         if (longTermCandidates.isEmpty() || maxSeeds < 2) return recent
         val kept = recent.take(maxSeeds - 1)
-        val tokenizer = NeuroTokenizer()
         val covered = candidates.filter { it.id in kept }.mapTo(HashSet()) { communityOf(clusterKey(it.title, tokenizer, topicScores)) }
         val longTerm =
             selectLongTermSeed(
@@ -93,7 +105,6 @@ internal object GraphSeedSelector {
         topicScores: Map<String, Double> = emptyMap(),
     ): String? {
         if (candidates.isEmpty() || communityMass.isEmpty()) return null
-        val tokenizer = NeuroTokenizer()
         return candidates
             .asSequence()
             .filter { it.id !in excludedIds && it.isEligible(excludedChannelIds) }
@@ -111,13 +122,21 @@ internal object GraphSeedSelector {
         now: Long = System.currentTimeMillis(),
     ): Double = seed.score(now)
 
-    fun clusterKey(seed: GraphSeedInput): String = clusterKey(seed.title, NeuroTokenizer())
+    fun clusterKey(seed: GraphSeedInput): String = clusterKey(seed.title, tokenizer)
 
     private fun GraphSeedInput.isEligible(excludedChannelIds: Set<String>): Boolean {
         if (id.isBlank() || isShort) return false
         if (channelId.isNotBlank() && channelId in excludedChannelIds) return false
         if (source != GraphSeedSource.WATCH_HISTORY) return true
 
+        return isRealWatch(durationSec.toLong(), percentWatched)
+    }
+
+    /** A watch that proves interest: most of the video, or a good part of a long one. */
+    fun isRealWatch(
+        durationSec: Long,
+        percentWatched: Double,
+    ): Boolean {
         val watchedSeconds = durationSec * (percentWatched / 100.0)
         return percentWatched >= 70.0 ||
             (percentWatched >= 35.0 && watchedSeconds >= MIN_LONG_WATCH_SECONDS)
@@ -168,8 +187,7 @@ internal object GraphSeedSelector {
                     .map { tokenizer.normalizeLemma(it) }
                     .mapNotNull { lemma ->
                         val score =
-                            topicScores[lemma]
-                                ?: topicScores.entries.firstOrNull { NeuroScoring.stripDomainTag(it.key) == lemma }?.value
+                            topicScores[lemma] ?: byBase(topicScores)[lemma]
                         score?.let { lemma to it }
                     }.maxByOrNull { it.second }
             if (best != null && best.second >= 0.05) return best.first

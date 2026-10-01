@@ -48,7 +48,7 @@ class HomeFeedAssemblyTest {
     private suspend fun lanes(
         subs: List<Video> = emptyList(),
         discovery: List<Video> = emptyList(),
-        viral: List<Video> = emptyList(),
+        memory: List<Video> = emptyList(),
         related: List<GraphCandidate> = emptyList(),
         rss: List<Video> = emptyList(),
         watched: Set<String> = emptySet(),
@@ -59,7 +59,7 @@ class HomeFeedAssemblyTest {
     ) = buildHomeFeedLanes(
         rawSubs = subs,
         rawDiscovery = discovery,
-        rawViral = viral,
+        rawMemory = memory,
         rawRelated = related,
         rssFeed = rss,
         watched = watched,
@@ -265,13 +265,13 @@ class HomeFeedAssemblyTest {
                 lanes(
                     subs = listOf(video("s1"), video("s2")),
                     discovery = listOf(video("d1")),
-                    viral = listOf(video("v1")),
+                    memory = listOf(video("v1")),
                     watched = setOf("s1", "d1", "v1"),
                 )
 
             assertThat(result.bestSubs.map { it.id }).containsExactly("s2")
             assertThat(result.bestDiscovery).isEmpty()
-            assertThat(result.bestViral).isEmpty()
+            assertThat(result.bestMemory).isEmpty()
         }
 
     @Test
@@ -334,7 +334,7 @@ class HomeFeedAssemblyTest {
                 lanes(
                     subs = (1..30).map { video("s$it", channelId = "sc$it") },
                     discovery = (1..30).map { video("d$it", channelId = "dc$it") },
-                    viral = (1..30).map { video("v$it", channelId = "vc$it") },
+                    memory = (1..30).map { video("v$it", channelId = "vc$it") },
                 )
 
             val mix = assembleHomeFeed(built, onScreenIds = emptySet(), subCount = 50, totalInteractions = 100)
