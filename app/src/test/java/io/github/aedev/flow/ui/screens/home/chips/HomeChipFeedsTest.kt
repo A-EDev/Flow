@@ -30,6 +30,8 @@ class HomeChipFeedsTest {
             viewHistory = mockk(relaxed = true),
             likedVideos = mockk(relaxed = true),
             videoStats = mockk(relaxed = true),
+            homeFeedCache = mockk(relaxed = true),
+            videoDao = mockk(relaxed = true),
         )
 
     private fun context() =

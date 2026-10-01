@@ -146,6 +146,42 @@ class HomeFeedCacheRepository(
         dao.trimRelatedSeeds(RELATED_SEED_CAP)
     }
 
+    /**
+     * Metadata fetched by id for videos known only from history (views, upload date, avatar), so a
+     * card fetched once stays complete for a week without asking again.
+     */
+    suspend fun loadVideoMetadata(
+        ids: Collection<String>,
+        now: Long = System.currentTimeMillis(),
+    ): Map<String, Video> {
+        if (ids.isEmpty()) return emptyMap()
+        val wanted = ids.toHashSet()
+        return dao
+            .getFreshBucket(BUCKET_VIDEO_META, now)
+            .filter { it.videoId in wanted }
+            .associate { it.videoId to it.toCachedHomeVideo().video }
+    }
+
+    suspend fun saveVideoMetadata(
+        videos: List<Video>,
+        now: Long = System.currentTimeMillis(),
+    ) {
+        if (videos.isEmpty()) return
+        dao.insertAll(
+            videos.distinctBy { it.id }.map {
+                it.toEntity(
+                    bucket = BUCKET_VIDEO_META,
+                    source = BUCKET_VIDEO_META,
+                    relatedSeedId = null,
+                    orderIndex = 0,
+                    cachedAt = now,
+                    expiresAt = now + VIDEO_META_TTL_MS,
+                )
+            },
+        )
+        dao.trimBucket(BUCKET_VIDEO_META, VIDEO_META_CAP)
+    }
+
     suspend fun deleteVideo(videoId: String) {
         if (videoId.isNotBlank()) dao.deleteVideo(videoId)
     }
@@ -281,6 +317,9 @@ class HomeFeedCacheRepository(
         private const val BUCKET_RESERVE = "RESERVE"
         private const val BUCKET_RELATED = "RELATED"
         private const val BUCKET_SHORTS_RESERVE = "SHORTS_RESERVE"
+        private const val BUCKET_VIDEO_META = "VIDEO_META"
+        private const val VIDEO_META_CAP = 600
+        private const val VIDEO_META_TTL_MS = 7L * 24L * 60L * 60L * 1000L
 
         private const val LAST_FEED_CAP = 60
         private const val RESERVE_CAP = 200

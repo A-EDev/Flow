@@ -238,6 +238,7 @@ fun HomeScreen(
                                 onVideoClick = onVideoClick,
                                 onPlayMix = { mix -> onPlayMix(mix.videos, context.getString(R.string.home_mix_title, mix.seed.title)) },
                                 onRefresh = viewModel::refreshSelectedChip,
+                                onEnrichVideo = viewModel::enrichChipVideo,
                             )
                         }
 

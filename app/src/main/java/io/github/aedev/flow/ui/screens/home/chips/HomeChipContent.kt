@@ -38,6 +38,7 @@ internal fun HomeChipContent(
     onVideoClick: (Video) -> Unit,
     onPlayMix: (HomeMix) -> Unit,
     onRefresh: () -> Unit,
+    onEnrichVideo: (Video) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (val feed = state.feed) {
@@ -59,7 +60,7 @@ internal fun HomeChipContent(
                 isListView = isListView,
                 gridState = gridState,
                 onVideoClick = onVideoClick,
-                onEnrichChannelMetadata = {},
+                onEnrichChannelMetadata = onEnrichVideo,
                 onContinueWatchingClick = {},
                 onContinueWatchingRemove = {},
                 onShortClick = { _, _ -> },

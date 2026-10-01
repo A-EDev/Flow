@@ -142,6 +142,18 @@ class HomeChipPoliciesTest {
     }
 
     @Test
+    fun `filling in a card keeps the result's original expiry`() {
+        val cache = ChipResultCache()
+        cache.put(HomeChip.Watched, ChipFeed.Videos(listOf(video("a"))), now)
+        val filled = ChipFeed.Videos(listOf(video("a").copy(viewCount = 99)))
+
+        cache.replace(HomeChip.Watched, filled)
+
+        assertThat(cache.get(HomeChip.Watched, now + 1)).isEqualTo(filled)
+        assertThat(cache.get(HomeChip.Watched, now + HomeChip.Watched.ttlMs)).isNull()
+    }
+
+    @Test
     fun `an empty result hides its chip until it expires`() {
         val cache = ChipResultCache()
         cache.put(HomeChip.RecentlyUploaded, ChipFeed.Empty, now)

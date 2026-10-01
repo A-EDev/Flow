@@ -155,6 +155,8 @@ class HomeViewModel
 
         fun refreshSelectedChip() = chipFeeds.refreshSelected()
 
+        fun enrichChipVideo(video: Video) = chipFeeds.enrichVisible(video)
+
         init {
             chipFeeds.attach(
                 scope = viewModelScope,

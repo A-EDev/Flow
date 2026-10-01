@@ -80,6 +80,23 @@ interface HomeFeedCacheDao {
     @Query(
         """
         DELETE FROM home_feed_cache
+        WHERE bucket = :bucket
+        AND cacheKey NOT IN (
+            SELECT cacheKey FROM home_feed_cache
+            WHERE bucket = :bucket
+            ORDER BY cachedAt DESC
+            LIMIT :maxRows
+        )
+    """,
+    )
+    suspend fun trimBucket(
+        bucket: String,
+        maxRows: Int,
+    )
+
+    @Query(
+        """
+        DELETE FROM home_feed_cache
         WHERE bucket = 'RELATED' AND relatedSeedId = :seedId
         AND cacheKey NOT IN (
             SELECT cacheKey FROM home_feed_cache

@@ -181,6 +181,15 @@ internal class ChipResultCache {
         entries[chip.key] = feed to now
     }
 
+    /** Swaps in an updated result without renewing its time to live. */
+    @Synchronized
+    fun replace(
+        chip: HomeChip,
+        feed: ChipFeed,
+    ) {
+        entries[chip.key]?.let { entries[chip.key] = feed to it.second }
+    }
+
     /** Chips whose fresh result was empty: hidden until it expires. */
     @Synchronized
     fun emptyKeys(
