@@ -19,6 +19,7 @@ internal object SettingsIndex {
             BufferIndex.all +
             QualityIndex.all +
             ContentIndex.all +
+            MusicHomeIndex.all +
             TopicsIndex.all +
             IntegrationsIndex.all +
             BackupIndex.all +

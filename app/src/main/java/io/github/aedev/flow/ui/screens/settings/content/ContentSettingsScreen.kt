@@ -10,12 +10,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.WatchedThreshold
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.choice
+import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.screens.settings.index.ContentIndex
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 
 /**
  * What shows up in the feeds. How it is laid out lives in Appearance, and what the players do in
@@ -25,6 +29,7 @@ import io.github.aedev.flow.ui.screens.settings.index.ContentIndex
 internal fun ContentSettingsScreen(
     onBack: (() -> Unit)?,
     highlight: String?,
+    onNavigate: (SettingsTarget) -> Unit,
     viewModel: ContentSettingsViewModel = hiltViewModel(),
 ) {
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
@@ -47,6 +52,12 @@ internal fun ContentSettingsScreen(
             switch(ContentIndex.homeShortsShelf, viewModel.homeShortsShelf, viewModel::setHomeShortsShelf, enabled = shortsContent)
             switch(ContentIndex.homeSubscriptions, viewModel.homeSubscriptions, viewModel::setHomeSubscriptions)
             switch(ContentIndex.hideWatchedHome, viewModel.hideWatchedHome, viewModel::setHideWatchedHome)
+        }
+        group(key = "content.music", header = R.string.screen_title_music) {
+            nav(
+                DestinationIndex.entry(SettingsDestination.MUSIC_HOME),
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.MUSIC_HOME)) },
+            )
         }
         group(key = "content.subscriptions", header = R.string.settings_section_subscriptions) {
             switch(ContentIndex.subsVideos, viewModel.subsVideos, viewModel::setSubsVideos)

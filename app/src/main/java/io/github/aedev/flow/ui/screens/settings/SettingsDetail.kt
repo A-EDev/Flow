@@ -14,6 +14,7 @@ import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemesScr
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
 import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.content.MusicHomeSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.diagnostics.DiagnosticsScreen
 import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.history.HistorySettingsScreen
@@ -84,7 +85,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.CONTENT -> {
-            ContentSettingsScreen(onBack = onBack, highlight = target.highlight)
+            ContentSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.MUSIC_HOME -> {
+            MusicHomeSettingsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.DATE_TIME -> {

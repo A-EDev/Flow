@@ -48,6 +48,7 @@ internal object DestinationIndex {
             SettingsDestination.EQUALIZER -> R.string.eq_settings_summary
             SettingsDestination.QUALITY -> R.string.settings_quality_summary
             SettingsDestination.CONTENT -> R.string.settings_content_summary
+            SettingsDestination.MUSIC_HOME -> R.string.settings_music_home_summary
             SettingsDestination.TOPICS -> R.string.settings_topics_summary
             SettingsDestination.INTEGRATIONS -> R.string.settings_integrations_summary
             SettingsDestination.BACKUP -> R.string.settings_backup_summary

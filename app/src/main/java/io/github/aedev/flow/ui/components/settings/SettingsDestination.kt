@@ -32,6 +32,7 @@ enum class SettingsDestination(
     EQUALIZER("equalizer", R.string.equalizer, PLAYBACK),
     QUALITY("quality", R.string.quality),
     CONTENT("content", R.string.settings_content_title),
+    MUSIC_HOME("music_home", R.string.settings_music_home_title, CONTENT),
     TOPICS("topics", R.string.settings_topics_title),
     INTEGRATIONS("integrations", R.string.settings_integrations_title),
     BACKUP("backup", R.string.settings_backup_title),

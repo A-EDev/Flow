@@ -3977,4 +3977,13 @@
     <string name="settings_auto_download_likes_title">Download liked songs</string>
     <string name="settings_auto_download_likes_summary">Songs you like are saved for offline</string>
     <string name="recap_top_albums">Top albums</string>
+    <string name="music_home_your_subscriptions">Your subscriptions</string>
+    <string name="music_home_shelf_rotation">Time of day mix</string>
+    <string name="music_home_shelf_similar">Daily mixes and similar artists</string>
+    <string name="music_home_shelf_genres">Genre mixes</string>
+    <string name="music_home_shelf_more">More from YouTube Music</string>
+    <string name="music_home_shelf_charts">Charts</string>
+    <string name="settings_music_home_title">Music home</string>
+    <string name="settings_music_home_summary">Choose the sections the music home shows</string>
+    <string name="settings_music_home_sections">Sections</string>
 </resources>
