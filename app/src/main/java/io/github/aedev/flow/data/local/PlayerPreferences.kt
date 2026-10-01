@@ -297,6 +297,7 @@ class PlayerPreferences(
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
         val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
+        val RECAP_SOURCE = stringPreferencesKey("recap_source")
         val SPEED_PER_CHANNEL = booleanPreferencesKey("speed_per_channel")
         val CHANNEL_PLAYBACK_SPEEDS = stringSetPreferencesKey("channel_playback_speeds")
 
@@ -1888,6 +1889,15 @@ class PlayerPreferences(
     suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    /** The Everything, Videos or Music tab the recap was last left on. */
+    val recapSource: Flow<String?> = context.playerPreferencesDataStore.data.map { preferences -> preferences[Keys.RECAP_SOURCE] }
+
+    suspend fun setRecapSource(source: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.RECAP_SOURCE] = source
         }
     }
 

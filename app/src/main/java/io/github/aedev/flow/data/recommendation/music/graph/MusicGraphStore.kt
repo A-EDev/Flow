@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.music.model.RelatedMusic
+import io.github.aedev.flow.data.stats.TrackAlbum
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -234,6 +235,34 @@ class MusicGraphStore
                     .chunked(SQL_CHUNK)
                     .flatMap { dao.trackEdgesFrom(it, type) }
                     .groupBy({ it.fromId }, { it.track.toTrack() })
+            }
+
+        /** The album of each of [trackIds] the graph has seen on one, for the recap's top albums. */
+        suspend fun albumsOfTracks(trackIds: Collection<String>): Map<String, TrackAlbum> =
+            withContext(Dispatchers.IO) {
+                val tracks =
+                    trackIds
+                        .distinct()
+                        .chunked(SQL_CHUNK)
+                        .flatMap { dao.tracks(it) }
+                        .filter { !it.albumId.isNullOrBlank() && it.albumTitle.isNotBlank() }
+                val albums =
+                    tracks
+                        .mapNotNull { it.albumId }
+                        .distinct()
+                        .chunked(SQL_CHUNK)
+                        .flatMap { dao.albums(it) }
+                        .associateBy { it.browseId }
+                tracks.associate { track ->
+                    val album = albums[track.albumId]
+                    track.videoId to
+                        TrackAlbum(
+                            id = track.albumId.orEmpty(),
+                            title = album?.title?.takeIf(String::isNotBlank) ?: track.albumTitle,
+                            artist = album?.artistName?.takeIf(String::isNotBlank) ?: track.artist,
+                            imageUrl = album?.thumbnailUrl?.takeIf(String::isNotBlank) ?: track.thumbnailUrl,
+                        )
+                }
             }
 
         suspend fun albumIdsNeedingTracks(albumIds: List<String>): List<String> =

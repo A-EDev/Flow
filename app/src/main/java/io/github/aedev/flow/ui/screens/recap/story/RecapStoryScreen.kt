@@ -86,12 +86,13 @@ private const val PREVIOUS_ZONE = 0.3f
 @Composable
 internal fun RecapStoryScreen(
     period: RecapPeriod,
+    source: RecapSource,
     onClose: () -> Unit,
     viewModel: RecapViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(period) { viewModel.openAt(period, RecapSource.ALL) }
-    val summary = state.summary?.takeIf { it.period == period && state.source == RecapSource.ALL }
+    LaunchedEffect(period, source) { viewModel.openAt(period, source) }
+    val summary = state.summary?.takeIf { it.period == period && state.source == source }
     val locale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0] ?: Locale.getDefault()
 
     if (summary == null) {

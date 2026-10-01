@@ -1,9 +1,11 @@
 package io.github.aedev.flow.ui.screens.recap
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
+import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
 import io.github.aedev.flow.data.stats.RecapImageResolver
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.VideoMonthRecord
@@ -36,6 +38,8 @@ class RecapViewModelTest {
     private val musicBrain: MusicBrainEngine = mockk()
     private val searchHistory: SearchHistoryRepository = mockk()
     private val images: RecapImageResolver = mockk()
+    private val musicGraph: MusicGraphStore = mockk()
+    private val preferences: PlayerPreferences = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -49,12 +53,14 @@ class RecapViewModelTest {
         every { searchHistory.isAutoDeleteHistoryEnabledFlow() } returns flowOf(false)
         coEvery { images.localImages() } returns emptyMap()
         coEvery { images.fetchMissing(any()) } returns emptyMap()
+        coEvery { musicGraph.albumsOfTracks(any()) } returns emptyMap()
+        every { preferences.recapSource } returns flowOf(null)
     }
 
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = RecapViewModel(videoStats, musicBrain, mockk(relaxed = true), searchHistory, images)
+    private fun viewModel() = RecapViewModel(videoStats, musicBrain, mockk(relaxed = true), searchHistory, images, musicGraph, preferences)
 
     @Test
     fun `a period asked for while the ledgers load wins over the newest month`() =
@@ -74,6 +80,15 @@ class RecapViewModelTest {
             gate.complete(Unit)
             val state = withTimeout(TIMEOUT_MS) { viewModel().state.first { !it.loading } }
             assertThat(state.period).isEqualTo(RecapPeriod.Month(september))
+        }
+
+    @Test
+    fun `the recap opens on the tab it was last left on`() =
+        runBlocking {
+            every { preferences.recapSource } returns flowOf(RecapSource.MUSIC.name)
+            gate.complete(Unit)
+            val state = withTimeout(TIMEOUT_MS) { viewModel().state.first { !it.loading } }
+            assertThat(state.source).isEqualTo(RecapSource.MUSIC)
         }
 
     private companion object {

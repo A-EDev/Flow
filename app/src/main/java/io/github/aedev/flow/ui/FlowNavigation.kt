@@ -188,7 +188,7 @@ fun NavGraphBuilder.flowAppGraph(
                 io.github.aedev.flow.R.string.library_downloads_label,
             )
         LibraryScreen(
-            onOpenRecap = { period -> navController.navigate(period?.let(RecapRoutes::story) ?: RecapRoutes.stats()) },
+            onOpenRecap = { period -> navController.navigate(period?.let { RecapRoutes.story(it) } ?: RecapRoutes.stats()) },
             onNavigateToHistory = {
                 navController.navigate("history")
             },
@@ -323,21 +323,33 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "recap"
         RecapScreen(
             onBack = { navController.popBackStack() },
-            onPlayStory = { period -> navController.navigate(RecapRoutes.story(period)) },
+            onPlayStory = { period, source -> navController.navigate(RecapRoutes.story(period, source)) },
             startAt = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD)),
         )
     }
 
     composable(
         route = RecapRoutes.STORY,
-        arguments = listOf(navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType }),
+        arguments =
+            listOf(
+                navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType },
+                navArgument(RecapRoutes.ARG_SOURCE) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
     ) { backStackEntry ->
         currentRoute.value = "recap_story"
         val period = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD))
         if (period == null) {
             LaunchedEffect(Unit) { navController.popBackStack() }
         } else {
-            RecapStoryScreen(period = period, onClose = { navController.popBackStack() })
+            RecapStoryScreen(
+                period = period,
+                source = RecapRoutes.decodeSource(backStackEntry.arguments?.getString(RecapRoutes.ARG_SOURCE)),
+                onClose = { navController.popBackStack() },
+            )
         }
     }
 

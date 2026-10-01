@@ -45,6 +45,7 @@ internal object RecapAggregates {
         video: VideoStatsSnapshot,
         music: MusicStatsStorage.SerializableStats,
         queriesSince: YearMonth? = null,
+        trackAlbums: Map<String, TrackAlbum> = emptyMap(),
     ): RecapSummary {
         val videoMonths = video.months.inPeriod(period)
         val musicMonths = music.months.inPeriod(period)
@@ -52,7 +53,7 @@ internal object RecapAggregates {
         val previousMusic = period.previous()?.let { music.months.inPeriod(it) }
 
         val videoRecap = videoRecap(videoMonths, previousVideo.orEmpty(), queriesSince)
-        val musicRecap = musicRecap(musicMonths)
+        val musicRecap = musicRecap(musicMonths, trackAlbums)
         val combined = combine(videoRecap.activity, musicRecap.activity)
         val previousTotal =
             if (previousVideo.isNullOrEmpty() && previousMusic.isNullOrEmpty()) {
@@ -134,7 +135,7 @@ internal object RecapAggregates {
         fun channelItem(
             id: String,
             count: Int,
-        ) = RankedItem(id, channel(id), count, channelMs[id] ?: 0L, imageUrl = channelAvatars[id].orEmpty())
+        ) = RankedItem(id, channel(id), count, channelMs[id] ?: 0L, imageUrl = channelAvatars[id].orEmpty(), kind = RankedKind.CHANNEL)
 
         fun videoItem(
             id: String,
@@ -145,6 +146,7 @@ internal object RecapAggregates {
             count = count,
             detail = videoChannels[id]?.let(::channel).orEmpty(),
             imageUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+            kind = RankedKind.VIDEO,
         )
 
         val topics = months.sumCounts { it.topicViews }
@@ -186,7 +188,10 @@ internal object RecapAggregates {
         )
     }
 
-    private fun musicRecap(months: List<Pair<YearMonth, MusicStatsStorage.SerializableMonth>>): MusicRecap {
+    private fun musicRecap(
+        months: List<Pair<YearMonth, MusicStatsStorage.SerializableMonth>>,
+        trackAlbums: Map<String, TrackAlbum>,
+    ): MusicRecap {
         val artistNames = HashMap<String, String>()
         val trackTitles = HashMap<String, String>()
         val trackArt = HashMap<String, String>()
@@ -203,7 +208,7 @@ internal object RecapAggregates {
         fun artistItem(
             key: String,
             count: Int,
-        ) = RankedItem(key, artist(key), count, imageUrl = artistArt[key].orEmpty())
+        ) = RankedItem(key, artist(key), count, imageUrl = artistArt[key].orEmpty(), kind = RankedKind.ARTIST)
 
         fun trackItem(
             id: String,
@@ -213,7 +218,10 @@ internal object RecapAggregates {
             name = trackTitles[id].orEmpty().ifBlank { id },
             count = count,
             imageUrl = ThumbnailUrlResolver.resolveMusicThumbnail(id, trackArt[id], TRACK_ART_SIZE),
+            kind = RankedKind.TRACK,
         )
+
+        val trackPlays = months.sumCounts { it.trackPlays }
 
         fun datedArtists(pick: (MusicStatsStorage.SerializableMonth) -> Map<String, Long>) =
             months
@@ -235,7 +243,8 @@ internal object RecapAggregates {
                     hourCounts = { it.hourPlays },
                 ),
             topArtists = artistPlays.ranked(TOP_COUNT, ::artistItem),
-            topTracks = months.sumCounts { it.trackPlays }.ranked(TOP_COUNT, ::trackItem),
+            topTracks = trackPlays.ranked(TOP_COUNT, ::trackItem),
+            topAlbums = topAlbums(trackPlays, trackAlbums),
             topGenres = months.sumCounts { it.genrePlays }.ranked(TOP_COUNT) { id, count -> RankedItem(id, id, count) },
             discoveredArtists =
                 months
@@ -249,6 +258,24 @@ internal object RecapAggregates {
             dislikedArtists = datedArtists { it.dislikedArtists },
             blockedArtists = datedArtists { it.blockedArtists },
         )
+    }
+
+    /** Plays of every track the music graph places on an album, summed per album. */
+    private fun topAlbums(
+        trackPlays: Map<String, Int>,
+        trackAlbums: Map<String, TrackAlbum>,
+    ): List<RankedItem> {
+        val albums = HashMap<String, TrackAlbum>()
+        val plays = HashMap<String, Int>()
+        trackPlays.forEach { (trackId, count) ->
+            val album = trackAlbums[trackId] ?: return@forEach
+            albums.putIfAbsent(album.id, album)
+            plays[album.id] = (plays[album.id] ?: 0) + count
+        }
+        return plays.ranked(TOP_COUNT) { id, count ->
+            val album = albums.getValue(id)
+            RankedItem(id, album.title, count, detail = album.artist, imageUrl = album.imageUrl, kind = RankedKind.ALBUM)
+        }
     }
 
     /**

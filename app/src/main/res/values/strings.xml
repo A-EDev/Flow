@@ -3976,4 +3976,5 @@
     <string name="favourite_artists_remove">Remove %1$s</string>
     <string name="settings_auto_download_likes_title">Download liked songs</string>
     <string name="settings_auto_download_likes_summary">Songs you like are saved for offline</string>
+    <string name="recap_top_albums">Top albums</string>
 </resources>

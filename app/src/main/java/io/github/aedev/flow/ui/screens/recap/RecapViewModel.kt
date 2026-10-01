@@ -4,15 +4,18 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.local.dao.ChannelVideoCount
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
+import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
 import io.github.aedev.flow.data.stats.RecapAggregates
 import io.github.aedev.flow.data.stats.RecapImageResolver
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
+import io.github.aedev.flow.data.stats.TrackAlbum
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.stats.VideoStatsSnapshot
 import io.github.aedev.flow.data.stats.withImages
@@ -59,6 +62,8 @@ class RecapViewModel
         private val watchHistoryDao: WatchHistoryDao,
         private val searchHistory: SearchHistoryRepository,
         private val images: RecapImageResolver,
+        private val musicGraph: MusicGraphStore,
+        private val preferences: PlayerPreferences,
     ) : ViewModel() {
         private val _state = MutableStateFlow(RecapUiState())
         val state: StateFlow<RecapUiState> = _state.asStateFlow()
@@ -67,6 +72,7 @@ class RecapViewModel
         private var music = MusicStatsStorage.SerializableStats()
         private var queriesSince: YearMonth? = null
         private var portraits: Map<String, String> = emptyMap()
+        private var trackAlbums: Map<String, TrackAlbum> = emptyMap()
         private var historyLoaded = false
         private var loaded = false
 
@@ -81,19 +87,25 @@ class RecapViewModel
                     music = runCatching { musicBrain.listeningStats() }.getOrDefault(MusicStatsStorage.SerializableStats())
                     queriesSince = searchQueryCutoff()
                     portraits = runCatching { images.localImages() }.getOrDefault(emptyMap())
+                    val trackIds = music.months.values.flatMap { it.trackPlays.keys }
+                    trackAlbums = runCatching { musicGraph.albumsOfTracks(trackIds) }.getOrDefault(emptyMap())
                 }
+                val rememberedSource = RecapRoutes.decodeSource(runCatching { preferences.recapSource.first() }.getOrNull())
                 val months = RecapAggregates.availableMonths(video, music)
                 val newest = months.firstOrNull()?.let { RecapPeriod.Month(it) } ?: RecapPeriod.Month(YearMonth.now())
                 _state.update { it.copy(months = months) }
                 loaded = true
-                val (period, source) = requested ?: (newest to _state.value.source)
+                val (period, source) = requested ?: (newest to rememberedSource)
                 show(period, source)
             }
         }
 
         fun selectPeriod(period: RecapPeriod) = show(period, _state.value.source)
 
-        fun selectSource(source: RecapSource) = show(_state.value.period, source)
+        fun selectSource(source: RecapSource) {
+            viewModelScope.launch { preferences.setRecapSource(source.name) }
+            show(_state.value.period, source)
+        }
 
         /** Opens on [period] rather than the newest month, for a recap opened from its own card. */
         fun openAt(
@@ -114,7 +126,7 @@ class RecapViewModel
                     val summary =
                         withContext(Dispatchers.Default) {
                             RecapAggregates
-                                .summarize(period, video.forSource(source), music.forSource(source), queriesSince)
+                                .summarize(period, video.forSource(source), music.forSource(source), queriesSince, trackAlbums)
                                 .withImages(portraits)
                         }
                     val history = if (period == RecapPeriod.AllTime && source != RecapSource.MUSIC) channelHistory() else emptyList()
