@@ -1151,6 +1151,27 @@ internal object NeuroScoring {
         return (EXPLORE_BETA_C * std * exploreWeight).coerceAtMost(EXPLORE_MAX_BONUS)
     }
 
+    /** Boost for the candidate's topic pairs the viewer watches together, capped per video. */
+    fun affinityBoost(
+        videoVector: ContentVector,
+        p: ScoringParams,
+    ): Double {
+        val videoTopics =
+            videoVector.topics.keys
+                .map { stripDomainTag(it) }
+                .distinct()
+        var boost = 0.0
+        val neighbours = p.affinityNeighbours
+        for (i in videoTopics.indices) {
+            val ofTopic = neighbours[videoTopics[i]] ?: continue
+            for (j in i + 1 until videoTopics.size) {
+                val affinity = ofTopic[videoTopics[j]] ?: continue
+                boost += affinity * AFFINITY_BOOST_PER_PAIR
+            }
+        }
+        return boost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
+    }
+
     /**
      * Deterministic per-candidate score: the full factor pipeline minus the
      * exploration jitter (which stays in the caller so this stays pure).
@@ -1165,13 +1186,13 @@ internal object NeuroScoring {
 
         val personalityScore =
             if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
-                val globalSim = NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
-                val shortsSim = NeuroVectorMath.calculateCosineSimilarity(brain.shortsVector, videoVector)
+                val globalSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
+                val shortsSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedShorts, videoVector)
                 globalSim * 0.4 + shortsSim * 0.6
             } else {
-                NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
+                NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
             }
-        val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.timeContextVector, videoVector)
+        val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.preparedContext, videoVector)
         // Smooth ramp instead of a cliff at the gate: two near-identical candidates
         // straddling the threshold no longer get wildly different novelty credit.
         val noveltyScore =
@@ -1189,21 +1210,7 @@ internal object NeuroScoring {
 
         totalScore *= calculateTopicProbationPenalty(videoVector, brain, p.lemmatizedPreferred)
 
-        if (brain.topicAffinities.isNotEmpty()) {
-            val videoTopics =
-                videoVector.topics.keys
-                    .map { stripDomainTag(it) }
-                    .distinct()
-            var affinityBoost = 0.0
-            for (i in videoTopics.indices) {
-                for (j in i + 1 until videoTopics.size) {
-                    val key = makeAffinityKey(videoTopics[i], videoTopics[j])
-                    val affinity = brain.topicAffinities[key] ?: 0.0
-                    affinityBoost += affinity * AFFINITY_BOOST_PER_PAIR
-                }
-            }
-            totalScore += affinityBoost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
-        }
+        if (brain.topicAffinities.isNotEmpty()) totalScore += affinityBoost(videoVector, p)
 
         totalScore += calculateChannelSignal(video, brain, p.userSubs)
 

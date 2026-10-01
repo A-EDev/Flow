@@ -6,6 +6,18 @@ internal object GraphSeedSelector {
 
     private val tokenizer by lazy { NeuroTokenizer() }
 
+    // Every seed of one selection reads the same topic map; index it once, not once per title word.
+    @Volatile
+    private var baseIndex: Pair<Map<String, Double>, Map<String, Double>>? = null
+
+    private fun byBase(topicScores: Map<String, Double>): Map<String, Double> {
+        baseIndex?.let { (source, index) -> if (source === topicScores) return index }
+        val index = HashMap<String, Double>(topicScores.size)
+        topicScores.forEach { (key, score) -> index.putIfAbsent(NeuroScoring.stripDomainTag(key), score) }
+        baseIndex = topicScores to index
+        return index
+    }
+
     fun select(
         candidates: List<GraphSeedInput>,
         maxSeeds: Int,
@@ -167,8 +179,7 @@ internal object GraphSeedSelector {
                     .map { tokenizer.normalizeLemma(it) }
                     .mapNotNull { lemma ->
                         val score =
-                            topicScores[lemma]
-                                ?: topicScores.entries.firstOrNull { NeuroScoring.stripDomainTag(it.key) == lemma }?.value
+                            topicScores[lemma] ?: byBase(topicScores)[lemma]
                         score?.let { lemma to it }
                     }.maxByOrNull { it.second }
             if (best != null && best.second >= 0.05) return best.first

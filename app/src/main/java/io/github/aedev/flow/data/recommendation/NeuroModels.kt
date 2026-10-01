@@ -315,4 +315,22 @@ internal data class ScoringParams(
     val candidatePoolSize: Int,
     val now: Long,
     val exploreWeight: Double = 0.0,
-)
+) {
+    val preparedGlobal by lazy { NeuroVectorMath.PreparedVector(brain.globalVector) }
+    val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }
+    val preparedContext by lazy { NeuroVectorMath.PreparedVector(timeContextVector) }
+
+    /** brain.topicAffinities as topic → (other topic → weight), built once per rank(). */
+    val affinityNeighbours: Map<String, Map<String, Double>> by lazy {
+        val neighbours = HashMap<String, HashMap<String, Double>>()
+        brain.topicAffinities.forEach { (key, weight) ->
+            val bar = key.indexOf('|')
+            if (bar <= 0) return@forEach
+            val a = key.substring(0, bar)
+            val b = key.substring(bar + 1)
+            neighbours.getOrPut(a) { HashMap() }[b] = weight
+            neighbours.getOrPut(b) { HashMap() }[a] = weight
+        }
+        neighbours
+    }
+}

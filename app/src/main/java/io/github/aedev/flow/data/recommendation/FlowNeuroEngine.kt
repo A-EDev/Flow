@@ -14,7 +14,9 @@
 
 package io.github.aedev.flow.data.recommendation
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
@@ -64,6 +66,9 @@ class FlowNeuroEngine internal constructor(
         private const val FEATURE_CACHE_MAX = 150
         private const val SESSION_TOPIC_HISTORY_MAX = 50
         private const val SAVE_DEBOUNCE_MS = 5000L
+
+        /** Impressions, rotation and cooldown state change on every scroll and feed load; none needs a fast save. */
+        private const val BOOKKEEPING_SAVE_DEBOUNCE_MS = 30_000L
 
         // ── Suppression constants ──
 
@@ -428,6 +433,7 @@ class FlowNeuroEngine internal constructor(
             }
 
             contentStore.load()
+            appContext.registerComponentCallbacks(trimCallbacks)
 
             resetSessionInternal()
             isInitialized = true
@@ -437,6 +443,7 @@ class FlowNeuroEngine internal constructor(
     fun shutdown() {
         pendingSaveJob?.cancel()
         saveScope.cancel()
+        appContext.unregisterComponentCallbacks(trimCallbacks)
     }
 
     /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
@@ -489,17 +496,54 @@ class FlowNeuroEngine internal constructor(
 
     fun getSessionDurationMinutes(): Long = (System.currentTimeMillis() - sessionStartTime) / 60_000L
 
-    private fun scheduleDebouncedSave() {
-        pendingSaveJob?.cancel()
-        pendingSaveJob =
-            saveScope.launch {
-                delay(SAVE_DEBOUNCE_MS)
-                brainMutex.withLock {
-                    storage.save(currentUserBrain)
-                }
-                contentStore.persistIfDirty()
-            }
+    private val saveLock = Any()
+    private var pendingSaveIsLearning = false
+
+    /**
+     * Saves the brain once events stop arriving. A learning event saves after [SAVE_DEBOUNCE_MS];
+     * bookkeeping waits [BOOKKEEPING_SAVE_DEBOUNCE_MS] and never postpones a learning save already
+     * pending, which writes the bookkeeping too. The whole brain is re-encoded on every save.
+     */
+    private fun scheduleDebouncedSave(bookkeeping: Boolean = false) {
+        synchronized(saveLock) {
+            val pending = pendingSaveJob
+            if (bookkeeping && pending?.isActive == true && pendingSaveIsLearning) return
+            pending?.cancel()
+            pendingSaveIsLearning = !bookkeeping
+            pendingSaveJob = launchSave(if (bookkeeping) BOOKKEEPING_SAVE_DEBOUNCE_MS else SAVE_DEBOUNCE_MS)
+        }
     }
+
+    /** Writes a pending save now: the app is leaving the screen and may not come back to finish it. */
+    private fun flushPendingSave() {
+        synchronized(saveLock) {
+            val pending = pendingSaveJob ?: return
+            if (!pending.isActive) return
+            pending.cancel()
+            pendingSaveJob = launchSave(0L)
+        }
+    }
+
+    private fun launchSave(delayMs: Long): Job =
+        saveScope.launch {
+            delay(delayMs)
+            brainMutex.withLock {
+                storage.save(currentUserBrain)
+            }
+            contentStore.persistIfDirty()
+        }
+
+    private val trimCallbacks =
+        object : ComponentCallbacks2 {
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) flushPendingSave()
+            }
+
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated in Java")
+            override fun onLowMemory() = flushPendingSave()
+        }
 
     // =================================================
     // BLOCKED TOPICS & CHANNELS API
@@ -1292,7 +1336,7 @@ class FlowNeuroEngine internal constructor(
                         recentQueryTokens = updatedRecentTokens,
                         clusterRotation = updatedRotation,
                     )
-                scheduleDebouncedSave()
+                scheduleDebouncedSave(bookkeeping = true)
 
                 Log.d(TAG, "Discovery queries (${candidates.size}): ${candidates.take(6)}")
 
@@ -1377,7 +1421,7 @@ class FlowNeuroEngine internal constructor(
                             updated
                         }
                     currentUserBrain = currentUserBrain.copy(recentRelatedSeeds = capped)
-                    scheduleDebouncedSave()
+                    scheduleDebouncedSave(bookkeeping = true)
                 }
             }
             selected
@@ -1416,7 +1460,7 @@ class FlowNeuroEngine internal constructor(
                             .take(NeuroScoring.RECENT_RELATED_SEEDS_MAX)
                             .associate { it.key to it.value }
                     currentUserBrain = currentUserBrain.copy(recentShortsSeeds = capped)
-                    scheduleDebouncedSave()
+                    scheduleDebouncedSave(bookkeeping = true)
                 }
             }
             selected
@@ -1536,7 +1580,7 @@ class FlowNeuroEngine internal constructor(
             }
             profiles?.let {
                 currentUserBrain = currentUserBrain.copy(channelTopicProfiles = capChannelProfiles(it))
-                scheduleDebouncedSave()
+                scheduleDebouncedSave(bookkeeping = true)
             }
         }
     }
@@ -1586,7 +1630,7 @@ class FlowNeuroEngine internal constructor(
                 updated.remove(key)
             }
             currentUserBrain = currentUserBrain.copy(staleQueries = updated)
-            scheduleDebouncedSave()
+            scheduleDebouncedSave(bookkeeping = true)
         }
     }
 
@@ -1817,6 +1861,10 @@ class FlowNeuroEngine internal constructor(
 
     suspend fun recordFeedImpressions(ids: List<String>) {
         if (ids.isEmpty()) return
+        withContext(Dispatchers.Default) { recordFeedImpressionsLocked(ids) }
+    }
+
+    private suspend fun recordFeedImpressionsLocked(ids: List<String>) {
         val now = System.currentTimeMillis()
 
         withBrainLock {
@@ -1861,7 +1909,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             currentUserBrain = currentUserBrain.copy(feedHistory = pruned)
-            scheduleDebouncedSave()
+            scheduleDebouncedSave(bookkeeping = true)
         }
     }
 
@@ -2486,7 +2534,7 @@ class FlowNeuroEngine internal constructor(
                 toRemove.forEach { updated.remove(it.key) }
             }
             currentUserBrain = currentUserBrain.copy(seenShortsHistory = updated)
-            scheduleDebouncedSave()
+            scheduleDebouncedSave(bookkeeping = true)
         }
     }
 

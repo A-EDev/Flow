@@ -77,11 +77,16 @@ class NeuroRankCostBenchmarkTest {
             val (a, b) = listOf(words[random.nextInt(words.size)], words[random.nextInt(words.size)]).sorted()
             if (a != b) affinities["$a|$b"] = random.nextDouble() * 0.5
         }
+        // A mature brain's IDF table: every word and pair it has ever learned from.
+        val idf = HashMap<String, Int>()
+        while (idf.size < 15_000) idf["w${idf.size}"] = 1 + random.nextInt(40)
         return UserBrain(
             schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION,
             totalInteractions = 2_000,
             globalVector = ContentVector(topics = topics),
             topicAffinities = affinities,
+            idfWordFrequency = idf,
+            idfTotalDocuments = 3_000,
         )
     }
 
@@ -115,7 +120,7 @@ class NeuroRankCostBenchmarkTest {
             }.sorted()
         engine.shutdown()
         val report =
-            "RANK COST (600 candidates, 200-topic brain, 500 affinities; JVM, 20 runs after 5 warm-ups)\n" +
+            "RANK COST (600 candidates, 200-topic brain, 500 affinities, 15k IDF words; JVM, 20 runs after 5 warm-ups)\n" +
                 "  median ms = %.1f\n".format(timings[timings.size / 2]) +
                 "  p90 ms    = %.1f\n".format(timings[(timings.size * 9) / 10])
         println(report)

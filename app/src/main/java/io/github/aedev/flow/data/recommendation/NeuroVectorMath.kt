@@ -66,6 +66,92 @@ internal object NeuroVectorMath {
     const val COMPRESSION_CEILING = 0.5
     const val COMPRESSION_FACTOR = 0.7
 
+    /**
+     * A vector indexed once for many [calculateCosineSimilarity] calls against it. rank() scores
+     * hundreds of candidates against the same user vectors; building these lookups per candidate
+     * was most of its cost.
+     */
+    class PreparedVector(
+        val vector: ContentVector,
+    ) {
+        internal val baseToTagged = HashMap<String, Pair<String, Double>>(vector.topics.size)
+        internal val untagged = HashMap<String, Double>(vector.topics.size)
+        internal val magnitudeSquared: Double
+
+        init {
+            for ((k, v) in vector.topics) {
+                if (k.contains(':')) {
+                    baseToTagged.putIfAbsent(k.substringBefore(':'), k to v)
+                } else {
+                    untagged[k] = v
+                }
+            }
+            var sum = 0.0
+            vector.topics.values.forEach { sum += it * it }
+            magnitudeSquared = sum
+        }
+    }
+
+    /** Same result as [calculateCosineSimilarity] with [user] as the first argument. */
+    fun calculateCosineSimilarity(
+        user: PreparedVector,
+        content: ContentVector,
+    ): Double {
+        // The index covers the larger side; when the content is not the smaller one, fall back so
+        // the migration matches run in the same direction as before.
+        if (user.vector.topics.size <= content.topics.size) return calculateCosineSimilarity(user.vector, content)
+        val userVector = user.vector
+        val scalarScore = scalarSimilarity(userVector, content)
+        if (content.topics.isEmpty()) return scalarScore * SCALAR_ONLY_DAMP
+
+        var dotProduct = 0.0
+        var hasIntersection = false
+        for ((key, smallVal) in content.topics) {
+            val exactMatch = userVector.topics[key]
+            if (exactMatch != null) {
+                dotProduct += smallVal * exactMatch
+                hasIntersection = true
+                continue
+            }
+            if (!key.contains(":")) {
+                val taggedMatch = user.baseToTagged[key]
+                if (taggedMatch != null) {
+                    dotProduct += smallVal * taggedMatch.second * 0.3
+                    hasIntersection = true
+                }
+            } else {
+                val untaggedMatch = user.untagged[key.substringBefore(":")]
+                if (untaggedMatch != null) {
+                    dotProduct += smallVal * untaggedMatch * 0.3
+                    hasIntersection = true
+                }
+            }
+        }
+        if (!hasIntersection) return scalarScore * SCALAR_ONLY_DAMP
+
+        var magnitudeB = 0.0
+        content.topics.values.forEach { magnitudeB += it * it }
+        val topicSim =
+            if (user.magnitudeSquared > 0 && magnitudeB > 0) {
+                dotProduct / (sqrt(user.magnitudeSquared) * sqrt(magnitudeB))
+            } else {
+                0.0
+            }
+        return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
+    }
+
+    private fun scalarSimilarity(
+        user: ContentVector,
+        content: ContentVector,
+    ): Double {
+        val durationSim = 1.0 - abs(user.duration - content.duration)
+        val pacingSim = 1.0 - abs(user.pacing - content.pacing)
+        val complexitySim = 1.0 - abs(user.complexity - content.complexity)
+        return (durationSim * DURATION_SIMILARITY_WEIGHT) +
+            (pacingSim * PACING_SIMILARITY_WEIGHT) +
+            (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
+    }
+
     fun calculateCosineSimilarity(
         user: ContentVector,
         content: ContentVector,
