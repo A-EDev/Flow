@@ -39,7 +39,7 @@ class NeuroLearningBenchmarkTest {
         assertThat(rejection.noveltyAfterNotInterested).isAtMost(0.21)
         // Phrases become the interest, and refresh queries are specific.
         assertThat(phrases.phraseWeight).isGreaterThan(phrases.wordWeight)
-        assertThat(phrases.singleWordQueryShare).isAtMost(0.4)
+        assertThat(phrases.queries).containsNoneOf("guitar", "comedy")
         // A thin time bucket does not outweigh the profile.
         assertThat(thinBucket.guitarShare).isAtMost(0.15)
     }
