@@ -154,6 +154,10 @@ class Media3MusicService : MediaLibraryService() {
     private var radioSeedId: String? = null
     private var radioContinuation: String? = null
     private var radioEndpoint: WatchEndpoint? = null
+
+    @Volatile private var radioAnchors: List<String> = emptyList()
+
+    @Volatile private var usedRadioAnchors: Set<String> = emptySet()
     private var radioTopUpJob: Job? = null
     private var radioAutoplayEnabled = true
     private var loudnessNormalizationEnabled = true
@@ -1213,6 +1217,8 @@ class Media3MusicService : MediaLibraryService() {
         radioSeedId = currentId
         radioContinuation = null
         radioEndpoint = null
+        radioAnchors = emptyList()
+        usedRadioAnchors = emptySet()
         radioResumeWhenAppended = false
         explicitRadioRequest = context.explicit
         startRadio(currentId)
@@ -1244,8 +1250,8 @@ class Media3MusicService : MediaLibraryService() {
                             .distinctBy { it.videoId }
 
                     if (mapped.isEmpty()) {
-                        // Related fallback carries no continuation — the pool later
-                        // reseeds from its own tail instead.
+                        // Related fallback carries no continuation; the pool later
+                        // reseeds from the related tracks closest to the seed.
                         radioContinuation = null
                         radioEndpoint = null
                         mapped =
@@ -1257,6 +1263,9 @@ class Media3MusicService : MediaLibraryService() {
                         radioContinuation = page?.continuation
                         radioEndpoint = page?.endpoint
                     }
+
+                    radioAnchors = MusicRadioPlanner.radioAnchors(seedId, mapped)
+                    usedRadioAnchors = setOf(seedId)
 
                     // Ordered once, here: the pool IS the up-next list the user reads, so the
                     // queue must be able to take it from the head without re-sequencing.
@@ -1346,13 +1355,15 @@ class Media3MusicService : MediaLibraryService() {
                         if (endpoint != null && continuation != null) {
                             YouTube.next(endpoint, continuation).getOrNull()
                         } else {
-                            // Continuation exhausted: grow the tree from the newest tail.
-                            val tailId =
-                                (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
-                                    ?.videoId
-                                    ?.takeUnless(LocalMediaIds::isLocal)
+                            val anchorId =
+                                MusicRadioPlanner
+                                    .nextAnchor(radioAnchors, usedRadioAnchors)
+                                    ?.also { usedRadioAnchors = usedRadioAnchors + it }
+                                    ?: (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
+                                        ?.videoId
+                                        ?.takeUnless(LocalMediaIds::isLocal)
                                     ?: return@launch
-                            YouTube.next(WatchEndpoint(playlistId = "RDAMVM$tailId")).getOrNull()
+                            YouTube.next(WatchEndpoint(playlistId = "RDAMVM$anchorId")).getOrNull()
                         }
                     if (page == null) return@launch
                     radioContinuation = page.continuation
