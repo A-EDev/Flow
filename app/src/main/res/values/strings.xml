@@ -3986,4 +3986,12 @@
     <string name="settings_music_home_title">Music home</string>
     <string name="settings_music_home_summary">Choose the sections the music home shows</string>
     <string name="settings_music_home_sections">Sections</string>
+    <string name="onboarding_step_artists">Artists</string>
+    <string name="onboarding_artists_title">Pick some artists</string>
+    <string name="onboarding_artists_subtitle">Your music picks start from them. Skip it if you like.</string>
+    <string name="onboarding_artists_search_placeholder">Search artists</string>
+    <plurals name="onboarding_ready_artists">
+        <item quantity="one">%d artist</item>
+        <item quantity="other">%d artists</item>
+    </plurals>
 </resources>
