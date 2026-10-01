@@ -193,6 +193,9 @@ internal object NeuroScoring {
     const val REJECTION_PENALTY_1 = 0.50
     const val REJECTION_PENALTY_2 = 0.20
     const val REJECTION_PENALTY_3_PLUS = 0.05
+    private const val REJECTION_RECORD_KEYS = 2
+    private const val REJECTION_MATCH_TOPICS = 6
+    private const val REJECTION_WORD_PREFIX = "~"
 
     private val REJECTION_BROAD_TOPICS =
         hashSetOf(
@@ -863,28 +866,61 @@ internal object NeuroScoring {
 
     // ── Rejection Pattern Memory Functions ──
 
+    /**
+     * What a rejection is remembered by: the two strongest specific topics, the pair of the two
+     * strongest topics, and the words of those topics. A word key only counts once a second
+     * rejection repeats it, so one "phonk driving" rejection never penalizes "driving" (#907).
+     */
     fun extractRejectionKeys(videoVector: ContentVector): List<String> {
         val topTopics =
             videoVector.topics.entries
                 .sortedByDescending { it.value }
-                .take(3)
+                .take(4)
                 .map { stripDomainTag(it.key) }
                 .filter(NeuroText::isTopicSized)
-
+                .distinct()
         if (topTopics.isEmpty()) return emptyList()
 
-        val keys = mutableListOf<String>()
-
-        topTopics.firstOrNull { it !in REJECTION_BROAD_TOPICS }?.let {
-            keys.add(it)
-        }
-
-        if (topTopics.size >= 2) {
-            val sorted = listOf(topTopics[0], topTopics[1]).sorted()
-            keys.add("${sorted[0]}|${sorted[1]}")
-        }
-
+        val specific = topTopics.filter { it !in REJECTION_BROAD_TOPICS }.take(REJECTION_RECORD_KEYS)
+        val keys = specific.toMutableList()
+        if (topTopics.size >= 2) keys += makeAffinityKey(topTopics[0], topTopics[1])
+        specific
+            .filter { ' ' in it }
+            .flatMap { it.split(' ') }
+            .filter { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS && it !in specific }
+            .distinct()
+            .mapTo(keys) { REJECTION_WORD_PREFIX + it }
         return keys
+    }
+
+    /**
+     * The terms a candidate can be recognised by: its strongest topics and the words of its phrases.
+     * A rejected "phonk" must catch "phonk mix" and "drift phonk", not only a title whose single
+     * strongest key is exactly "phonk" (#907).
+     */
+    private fun rejectionTerms(videoVector: ContentVector): Set<String> {
+        val top =
+            videoVector.topics.entries
+                .sortedByDescending { it.value }
+                .take(REJECTION_MATCH_TOPICS)
+                .map { stripDomainTag(it.key) }
+        val terms = HashSet<String>(top)
+        top.filter { ' ' in it }.forEach { phrase ->
+            phrase.split(' ').filterTo(terms) { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS }
+        }
+        return terms
+    }
+
+    private fun matchesRejection(
+        key: String,
+        terms: Set<String>,
+    ): Boolean {
+        val pair = key.indexOf('|')
+        return when {
+            pair >= 0 -> key.substring(0, pair) in terms && key.substring(pair + 1) in terms
+            key.startsWith(REJECTION_WORD_PREFIX) -> key.substring(REJECTION_WORD_PREFIX.length) in terms
+            else -> key in terms
+        }
     }
 
     /** The rejection count left after [now] - lastRejectedAt of monthly halving. */
@@ -900,10 +936,17 @@ internal object NeuroScoring {
         videoVector: ContentVector,
         rejectionPatterns: Map<String, RejectionSignal>,
         now: Long,
-    ): Double =
-        extractRejectionKeys(videoVector).maxOfOrNull { key ->
-            rejectionPatterns[key]?.let { effectiveRejections(it, now) } ?: 0.0
-        } ?: 0.0
+    ): Double {
+        val terms = rejectionTerms(videoVector)
+        var strongest = 0.0
+        rejectionPatterns.forEach { (key, signal) ->
+            if (matchesRejection(key, terms)) {
+                val effective = effectiveRejections(signal, now)
+                strongest = maxOf(strongest, if (key.startsWith(REJECTION_WORD_PREFIX)) effective - 1.0 else effective)
+            }
+        }
+        return strongest
+    }
 
     fun calculateRejectionPatternPenalty(
         videoVector: ContentVector,

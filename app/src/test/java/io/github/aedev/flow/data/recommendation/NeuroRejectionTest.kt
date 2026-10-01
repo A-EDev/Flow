@@ -39,6 +39,25 @@ class NeuroRejectionTest {
     }
 
     @Test
+    fun `a rejected word catches the phrases it appears in`() {
+        val patterns = NeuroScoring.recordRejection(emptyMap(), ContentVector(topics = mapOf("phonk" to 0.9)), now)
+        val styled = ContentVector(topics = mapOf("phonk mix" to 0.7, "mix aggressive" to 0.6, "aggressive" to 0.3))
+
+        assertThat(NeuroScoring.calculateRejectionPatternPenalty(styled, patterns, now)).isEqualTo(NeuroScoring.REJECTION_PENALTY_1)
+    }
+
+    @Test
+    fun `one rejected phrase does not penalize its generic words until a second rejection repeats them`() {
+        val rejected = ContentVector(topics = mapOf("phonk driving" to 0.8, "driving night" to 0.6))
+        val roadTrip = ContentVector(topics = mapOf("driving" to 0.8, "road trip" to 0.6))
+        val once = NeuroScoring.recordRejection(emptyMap(), rejected, now)
+        val twice = NeuroScoring.recordRejection(once, rejected, now)
+
+        assertThat(NeuroScoring.calculateRejectionPatternPenalty(roadTrip, once, now)).isEqualTo(1.0)
+        assertThat(NeuroScoring.calculateRejectionPatternPenalty(roadTrip, twice, now)).isEqualTo(NeuroScoring.REJECTION_PENALTY_1)
+    }
+
+    @Test
     fun `faded rejections are forgotten`() {
         val patterns = mapOf("gaming" to RejectionSignal(count = 1, lastRejectedAt = now - 45 * day))
 

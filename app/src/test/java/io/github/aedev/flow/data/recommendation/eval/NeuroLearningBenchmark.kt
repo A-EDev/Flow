@@ -339,8 +339,10 @@ internal object NeuroLearningBenchmark {
     data class Rejection(
         val phonkAfterWatches: Double,
         val phonkAfterDislikes: Double,
+        val profileAfterDislikes: Double,
         val noveltyAfterDislikes: Double,
         val phonkAfterNotInterested: Double,
+        val profileAfterNotInterested: Double,
         val noveltyAfterNotInterested: Double,
     )
 
@@ -359,6 +361,7 @@ internal object NeuroLearningBenchmark {
             val afterWatches = disliking.shareInTop(Family.PHONK, n = 40)
             for (i in 3 until 6) disliking.onVideoInteraction(phonk(i), InteractionType.DISLIKED)
             val afterDislikes = disliking.shareInTop(Family.PHONK, n = 40)
+            val profileAfterDislikes = disliking.shareInTop(profile)
             val dislikeNovelty = noveltyWeight(disliking.getBrainSnapshot())
             disliking.shutdown()
 
@@ -367,8 +370,10 @@ internal object NeuroLearningBenchmark {
             Rejection(
                 phonkAfterWatches = afterWatches,
                 phonkAfterDislikes = afterDislikes,
+                profileAfterDislikes = profileAfterDislikes,
                 noveltyAfterDislikes = dislikeNovelty,
                 phonkAfterNotInterested = hiding.shareInTop(Family.PHONK, n = 40),
+                profileAfterNotInterested = hiding.shareInTop(profile),
                 noveltyAfterNotInterested = noveltyWeight(hiding.getBrainSnapshot()),
             ).also { hiding.shutdown() }
         }
@@ -452,8 +457,10 @@ internal object NeuroLearningBenchmark {
             appendLine("REJECTION (3 phonk watches; phonk share of top 40)")
             appendLine("  phonk after watches       = %.3f".format(rejection.phonkAfterWatches))
             appendLine("  phonk after 3 thumbs-down = %.3f".format(rejection.phonkAfterDislikes))
+            appendLine("  profileShare (top 20)     = %.3f".format(rejection.profileAfterDislikes))
             appendLine("  novelty weight            = %.2f".format(rejection.noveltyAfterDislikes))
             appendLine("  phonk after 4 not-interested = %.3f".format(rejection.phonkAfterNotInterested))
+            appendLine("  profileShare (top 20)     = %.3f".format(rejection.profileAfterNotInterested))
             appendLine("  novelty weight            = %.2f".format(rejection.noveltyAfterNotInterested))
             appendLine("PHRASES (10 guitar playalongs + 10 comedy)")
             appendLine("  'guitar playalong' weight = %.3f".format(phrases.phraseWeight))
