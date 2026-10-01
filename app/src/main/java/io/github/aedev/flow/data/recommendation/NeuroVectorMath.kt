@@ -303,7 +303,7 @@ internal object NeuroVectorMath {
             source.topics.entries
                 .sortedByDescending { it.value }
                 .map { it.key }
-                .filter { it.length >= 3 }
+                .filter { NeuroText.isTopicSized(NeuroScoring.stripDomainTag(it)) }
         val phrases = ranked.filter { ' ' in NeuroScoring.stripDomainTag(it) }.take(topK)
         val phraseWords = phrases.flatMap { NeuroScoring.stripDomainTag(it).split(' ') }.toSet()
         val words = ranked.filter { ' ' !in it && NeuroScoring.stripDomainTag(it) !in phraseWords }

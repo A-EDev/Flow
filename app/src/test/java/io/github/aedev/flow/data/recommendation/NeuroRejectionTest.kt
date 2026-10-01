@@ -60,6 +60,16 @@ class NeuroRejectionTest {
         }
 
     @Test
+    fun `a thumbs-down on a styled title is remembered as its topic`() =
+        runTest {
+            val engine = NeuroLearningBenchmark.engine()
+            engine.onVideoInteraction(NeuroLearningBenchmark.phonk(0), InteractionType.DISLIKED)
+
+            assertThat(engine.getBrainSnapshot().rejectionPatterns).containsKey("phonk")
+            engine.shutdown()
+        }
+
+    @Test
     fun `not interested does not raise boredom`() =
         runTest {
             val engine = NeuroLearningBenchmark.engine()

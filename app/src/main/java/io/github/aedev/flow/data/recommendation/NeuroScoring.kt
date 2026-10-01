@@ -711,8 +711,8 @@ internal object NeuroScoring {
         normalizeLemma: (String) -> String,
     ): Boolean {
         if (matchers.isEmpty()) return false
-        val titleLower = title.lowercase()
-        val channelLower = channelName.lowercase()
+        val titleLower = NeuroText.fold(title)
+        val channelLower = NeuroText.fold(channelName)
         if (matchers.phrases.any { titleLower.contains(it) || channelLower.contains(it) }) return true
         if (matchers.tokens.isEmpty()) return false
         return sequenceOf(titleLower, channelLower)
@@ -869,7 +869,7 @@ internal object NeuroScoring {
                 .sortedByDescending { it.value }
                 .take(3)
                 .map { stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
+                .filter(NeuroText::isTopicSized)
 
         if (topTopics.isEmpty()) return emptyList()
 
@@ -1064,7 +1064,7 @@ internal object NeuroScoring {
                 .sortedByDescending { it.value }
                 .take(4)
                 .map { stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
+                .filter(NeuroText::isTopicSized)
                 .distinct()
 
         if (topTopics.isEmpty()) return 1.0

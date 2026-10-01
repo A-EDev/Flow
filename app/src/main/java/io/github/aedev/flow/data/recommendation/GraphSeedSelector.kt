@@ -4,6 +4,8 @@ internal object GraphSeedSelector {
     private const val DAY_MS = 24L * 60L * 60L * 1000L
     private const val MIN_LONG_WATCH_SECONDS = 180
 
+    private val tokenizer by lazy { NeuroTokenizer() }
+
     fun select(
         candidates: List<GraphSeedInput>,
         maxSeeds: Int,
@@ -14,7 +16,6 @@ internal object GraphSeedSelector {
         communityOf: ((String) -> String)? = null,
     ): List<String> {
         if (candidates.isEmpty() || maxSeeds <= 0) return emptyList()
-        val tokenizer = NeuroTokenizer()
         val ranked =
             candidates
                 .asSequence()
@@ -63,7 +64,6 @@ internal object GraphSeedSelector {
         val recent = fresh.ifEmpty { pick(candidates) }
         if (longTermCandidates.isEmpty() || maxSeeds < 2) return recent
         val kept = recent.take(maxSeeds - 1)
-        val tokenizer = NeuroTokenizer()
         val covered = candidates.filter { it.id in kept }.mapTo(HashSet()) { communityOf(clusterKey(it.title, tokenizer, topicScores)) }
         val longTerm =
             selectLongTermSeed(
@@ -93,7 +93,6 @@ internal object GraphSeedSelector {
         topicScores: Map<String, Double> = emptyMap(),
     ): String? {
         if (candidates.isEmpty() || communityMass.isEmpty()) return null
-        val tokenizer = NeuroTokenizer()
         return candidates
             .asSequence()
             .filter { it.id !in excludedIds && it.isEligible(excludedChannelIds) }
@@ -111,7 +110,7 @@ internal object GraphSeedSelector {
         now: Long = System.currentTimeMillis(),
     ): Double = seed.score(now)
 
-    fun clusterKey(seed: GraphSeedInput): String = clusterKey(seed.title, NeuroTokenizer())
+    fun clusterKey(seed: GraphSeedInput): String = clusterKey(seed.title, tokenizer)
 
     private fun GraphSeedInput.isEligible(excludedChannelIds: Set<String>): Boolean {
         if (id.isBlank() || isShort) return false

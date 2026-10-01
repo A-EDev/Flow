@@ -508,7 +508,7 @@ class FlowNeuroEngine internal constructor(
     suspend fun getBlockedTopics(): Set<String> = withBrainLock { currentUserBrain.blockedTopics }
 
     suspend fun addBlockedTopic(topic: String) {
-        val normalized = topic.trim().lowercase()
+        val normalized = NeuroText.fold(topic).trim()
         if (normalized.isBlank()) return
         withBrainLock {
             val lemma = tokenizer.normalizeLemma(normalized)
@@ -808,7 +808,7 @@ class FlowNeuroEngine internal constructor(
                 .sortedByDescending { it.value }
                 .take(5)
                 .map { NeuroScoring.stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
+                .filter(NeuroText::isTopicSized)
                 .distinct()
 
         if (topics.isEmpty()) return current
@@ -858,7 +858,7 @@ class FlowNeuroEngine internal constructor(
                 .sortedByDescending { it.value }
                 .take(5)
                 .map { NeuroScoring.stripDomainTag(it.key) }
-                .filter { it.length >= 3 }
+                .filter(NeuroText::isTopicSized)
                 .distinct()
         if (topics.isEmpty()) return current
 

@@ -25,7 +25,8 @@ package io.github.aedev.flow.data.recommendation
  * acquisition floor ("lofi hip hop" became lofi, hip and hop at one weight).
  *
  * V17 estimates how many events each time bucket has seen, from how many topics it holds, so an
- * existing bucket keeps its weight in ranking only as far as it has earned it.
+ * existing bucket keeps its weight in ranking only as far as it has earned it. It also re-keys
+ * every topic through [NeuroText.fold], so "𝙥𝙝𝙤𝙣𝙠" learned before folding merges into "phonk".
  */
 internal object NeuroMaintenance {
     const val TARGET_SCHEMA_VERSION = 17
@@ -47,8 +48,45 @@ internal object NeuroMaintenance {
         if (updated.schemaVersion < V15_SCHEMA_VERSION) updated = runV15(updated, tokenizer)
         if (updated.schemaVersion < V16_SCHEMA_VERSION) updated = scrubSearchWordPlants(updated, tokenizer)
         updated = estimateTimeBucketCounts(updated)
+        updated = refoldKeys(updated)
         return updated.copy(schemaVersion = TARGET_SCHEMA_VERSION)
     }
+
+    private fun refoldTopic(key: String): String =
+        if (key.all { it.code < 0x80 }) {
+            key
+        } else {
+            key.split('|').map(NeuroText::fold).let { parts ->
+                if (parts.size == 2) NeuroScoring.makeAffinityKey(parts[0], parts[1]) else parts.joinToString("|")
+            }
+        }
+
+    private fun <V : Any> Map<String, V>.refold(merge: (V, V) -> V): Map<String, V> {
+        if (keys.all { it.all { c -> c.code < 0x80 } }) return this
+        val folded = LinkedHashMap<String, V>(size)
+        forEach { (key, value) -> folded.merge(refoldTopic(key), value, merge) }
+        return folded
+    }
+
+    private fun ContentVector.refold() = copy(topics = topics.refold(::maxOf))
+
+    internal fun refoldKeys(brain: UserBrain): UserBrain =
+        brain.copy(
+            globalVector = brain.globalVector.refold(),
+            shortsVector = brain.shortsVector.refold(),
+            timeVectors = brain.timeVectors.mapValues { it.value.refold() },
+            topicAffinities = brain.topicAffinities.refold(::maxOf),
+            tagAffinities = brain.tagAffinities.refold(::maxOf),
+            channelTopicProfiles = brain.channelTopicProfiles.mapValues { it.value.refold(::maxOf) },
+            topicEvidence = brain.topicEvidence.refold { a, b -> if (a.positiveScore >= b.positiveScore) a else b },
+            rejectionPatterns =
+                brain.rejectionPatterns.refold { a, b ->
+                    RejectionSignal(maxOf(a.count, b.count), maxOf(a.lastRejectedAt, b.lastRejectedAt))
+                },
+            idfWordFrequency = brain.idfWordFrequency.refold(Int::plus),
+            preferredTopics = brain.preferredTopics.mapTo(LinkedHashSet(), ::refoldTopic),
+            blockedTopics = brain.blockedTopics.mapTo(LinkedHashSet(), ::refoldTopic),
+        )
 
     private fun estimateTimeBucketCounts(brain: UserBrain): UserBrain {
         val estimated =

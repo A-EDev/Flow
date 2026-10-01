@@ -989,7 +989,7 @@ internal class NeuroDiscovery(
                     q.query
                         .lowercase()
                         .split(NeuroTokenizer.WHITESPACE_REGEX)
-                        .filter { it.length > 2 }
+                        .filter(NeuroText::isTopicSized)
                         .map { tokenizer.normalizeLemma(it) }
                 }.toSet()
 
@@ -999,7 +999,7 @@ internal class NeuroDiscovery(
                 .map { it.trim() }
                 .filter { pref ->
                     val lemma = tokenizer.normalizeLemma(pref)
-                    lemma.length >= 3 &&
+                    NeuroText.isTopicSized(lemma) &&
                         lemma !in existingTokens &&
                         !blocked.any { b -> lemma.contains(b) }
                 }.shuffled()
@@ -1099,14 +1099,14 @@ internal class NeuroDiscovery(
     }
 
     private fun isSubstantialTopic(topic: String): Boolean {
-        if (topic.length < 3) return false
+        if (!NeuroText.isTopicSized(topic)) return false
         val lower = topic.lowercase()
         if (lower in queryNoiseWords) return false
         if (yearRegex.matches(lower)) return false
         if (lower.all { it.isDigit() }) return false
         // Strip domain tags for checking: "metal:music" → "metal"
         val base = if (lower.contains(":")) lower.substringBefore(":") else lower
-        if (base.length < 3) return false
+        if (!NeuroText.isTopicSized(base)) return false
         return true
     }
 
@@ -1171,7 +1171,7 @@ internal class NeuroDiscovery(
                 query.query
                     .lowercase()
                     .split(NeuroTokenizer.WHITESPACE_REGEX)
-                    .filter { it.length > 2 }
+                    .filter(NeuroText::isTopicSized)
                     .map { tokenizer.normalizeLemma(it) }
                     .toSet()
 
@@ -1321,7 +1321,7 @@ internal class NeuroDiscovery(
             query
                 .lowercase()
                 .split(NeuroTokenizer.WHITESPACE_REGEX)
-                .filter { it.length > 2 }
+                .filter(NeuroText::isTopicSized)
                 .map { tokenizer.normalizeLemma(it) }
                 .filter { it !in fillerWords }
 
