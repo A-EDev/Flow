@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.QueuePlayNext
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +51,7 @@ import io.github.aedev.flow.ui.components.shared.quickactions.actionRow
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
+import io.github.aedev.flow.utils.YouTubeLink
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -122,7 +124,7 @@ fun MusicQuickActionsSheet(
                 }
                 QuickActionsGroup(
                     title = stringResource(R.string.playback_header),
-                    rows = playbackRows(track, viewModel, onAudioEffectsClick, onSleepTimerClick, close),
+                    rows = playbackRows(track, viewModel, quickActions, onAudioEffectsClick, onSleepTimerClick, close),
                 )
                 // A file on the device has no artist page, feed or online details to offer.
                 if (isDeviceFile) return@QuickActionsSheet
@@ -213,11 +215,13 @@ private fun SongPrimaryActions(
 private fun playbackRows(
     track: MusicTrack,
     viewModel: MusicPlayerViewModel,
+    quickActions: QuickActionsViewModel,
     onAudioEffectsClick: (() -> Unit)?,
     onSleepTimerClick: (() -> Unit)?,
     onDismiss: () -> Unit,
-): List<QuickActionRow> =
-    buildList {
+): List<QuickActionRow> {
+    val navigator = LocalMediaNavigator.current
+    return buildList {
         if (viewModel.canStartRadio(track)) {
             add(
                 actionRow("radio", Icons.Outlined.Radio, stringResource(R.string.start_radio), stringResource(R.string.start_radio_desc)) {
@@ -248,6 +252,19 @@ private fun playbackRows(
                 onDismiss()
             },
         )
+        if (!LocalMediaIds.isLocal(track.videoId)) {
+            add(
+                actionRow(
+                    "watch_video",
+                    Icons.Outlined.SmartDisplay,
+                    stringResource(R.string.music_watch_video),
+                    stringResource(R.string.music_watch_video_desc),
+                ) {
+                    quickActions.watchVideo(track) { navigator.openLink(YouTubeLink.Video(it, isMusic = false)) }
+                    onDismiss()
+                },
+            )
+        }
         onAudioEffectsClick?.let { open ->
             add(
                 actionRow("audio_effects", Icons.Outlined.GraphicEq, stringResource(R.string.audio_effects)) {
@@ -265,6 +282,7 @@ private fun playbackRows(
             )
         }
     }
+}
 
 /** The artist, avatars stacked like a collaboration card when there are several, then the album. */
 @Composable

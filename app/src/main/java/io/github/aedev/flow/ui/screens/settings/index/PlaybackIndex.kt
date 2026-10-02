@@ -404,6 +404,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_music,
             destination = page,
         )
+    val pauseMusicWhenMuted =
+        SettingEntry(
+            key = "playback.pause_music_when_muted",
+            title = R.string.settings_pause_music_muted_title,
+            summary = R.string.settings_pause_music_muted_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
     val musicVideoSwitch =
         SettingEntry(
             key = "playback.music_video_switch",
@@ -472,6 +480,7 @@ internal object PlaybackIndex {
             shortsPip,
             shortsContinueIntoFeed,
             endlessRadio,
+            pauseMusicWhenMuted,
             musicVideoSwitch,
             lyricsProviders,
         )

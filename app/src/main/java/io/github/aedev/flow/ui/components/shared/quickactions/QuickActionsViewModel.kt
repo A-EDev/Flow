@@ -10,6 +10,8 @@ import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.video.MusicVideoVersions
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.VideoDownloadOptions
@@ -55,6 +57,7 @@ class QuickActionsViewModel
         private val downloadOptions: VideoDownloadOptionsLoader,
         private val likedMedia: LikedMediaUseCase,
         private val playerManager: Provider<EnhancedPlayerManager>,
+        private val musicVideos: MusicVideoVersions,
     ) : ViewModel() {
         val watchLaterIds: StateFlow<Set<String>> =
             playlistRepository
@@ -279,6 +282,22 @@ class QuickActionsViewModel
                 throw e
             } catch (e: Exception) {
                 emit(R.string.quick_action_failed)
+            }
+        }
+
+        /** Opens [track] as a video: itself when it is one, its official music video otherwise. */
+        fun watchVideo(
+            track: MusicTrack,
+            open: (videoId: String) -> Unit,
+        ) {
+            viewModelScope.launch {
+                try {
+                    musicVideos.videoFor(track)?.let { open(it.videoId) } ?: emit(R.string.music_video_unavailable)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(R.string.music_video_failed)
+                }
             }
         }
 
