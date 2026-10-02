@@ -109,4 +109,16 @@ class AudioscrobblerClientTest {
             assertThat(sent.single()["method"]).isEqualTo("user.getTopArtists")
             assertThat(sent.single()["period"]).isEqualTo("12month")
         }
+
+    @Test
+    fun `similar tracks are read as artist and title pairs`() =
+        runBlocking {
+            val reply = """{"similartracks":{"track":[{"name":"Near","artist":{"name":"Other"}},{"name":"","artist":{"name":"Skip"}}]}}"""
+
+            val similar = client(reply).similarTracks("Artist", "Song", keys, limit = 15).getOrThrow()
+
+            assertThat(similar).containsExactly("Other" to "Near")
+            assertThat(sent.single()["method"]).isEqualTo("track.getSimilar")
+            assertThat(sent.single()["autocorrect"]).isEqualTo("1")
+        }
 }

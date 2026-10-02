@@ -36,6 +36,7 @@ enum class MusicHomeShelf(
     POPULAR_ARTISTS(R.string.section_popular_artists),
     MIXED_FOR_YOU(R.string.section_mixed_for_you),
     MOODS_AND_GENRES(R.string.section_mood_and_genres),
+    LASTFM_DISCOVER(R.string.music_home_lastfm_discover),
     ;
 
     companion object {

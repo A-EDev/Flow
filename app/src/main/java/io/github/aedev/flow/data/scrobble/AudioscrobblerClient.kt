@@ -142,6 +142,54 @@ class AudioscrobblerClient(
             }
         }
 
+    /** Songs Last.fm listeners play alongside [artist]'s [title], closest first. */
+    suspend fun similarTracks(
+        artist: String,
+        title: String,
+        keys: AudioscrobblerKeys,
+        limit: Int,
+    ): Result<List<Pair<String, String>>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url =
+                    baseUrl
+                        .toHttpUrl()
+                        .newBuilder()
+                        .addQueryParameter("method", "track.getSimilar")
+                        .addQueryParameter("artist", artist)
+                        .addQueryParameter("track", title)
+                        .addQueryParameter("autocorrect", "1")
+                        .addQueryParameter("limit", limit.toString())
+                        .addQueryParameter("api_key", keys.apiKey)
+                        .addQueryParameter("format", "json")
+                        .build()
+                val body =
+                    read(
+                        Request
+                            .Builder()
+                            .url(url)
+                            .get()
+                            .build(),
+                    )
+                body.errorCode()?.let { throw IOException(body.errorMessage() ?: "Error $it") }
+                body["similartracks"]
+                    ?.jsonObject
+                    ?.get("track")
+                    ?.jsonArray
+                    ?.mapNotNull { element ->
+                        val track = element.jsonObject
+                        val name = track["name"]?.jsonPrimitive?.content
+                        val by =
+                            track["artist"]
+                                ?.jsonObject
+                                ?.get("name")
+                                ?.jsonPrimitive
+                                ?.content
+                        if (name.isNullOrBlank() || by.isNullOrBlank()) null else by to name
+                    }.orEmpty()
+            }
+        }
+
     private suspend fun send(
         params: Map<String, String>,
         keys: AudioscrobblerKeys,

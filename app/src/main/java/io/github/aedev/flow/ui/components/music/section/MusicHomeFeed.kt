@@ -188,6 +188,8 @@ fun LazyListScope.musicHomeFeed(
         }
     }
 
+    lastFmDiscovery(library, downloaded, onSongClick, onTrackMenu)
+
     sectionOrder.filter { shown(MusicHomeShelf.of(it)) }.forEach { sectionType ->
         when (sectionType) {
             HomeSectionType.DAILY_DISCOVER -> {

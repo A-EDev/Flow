@@ -71,9 +71,20 @@ fun EnhancedMusicScreen(
     val ownPlaylists by libraryViewModel.playlists.collectAsStateWithLifecycle()
     val musicSubscriptions by libraryViewModel.subscriptions.collectAsStateWithLifecycle()
     val hiddenShelves by libraryViewModel.hiddenShelves.collectAsStateWithLifecycle()
+    val lastFmSignedIn by libraryViewModel.lastFmSignedIn.collectAsStateWithLifecycle()
+    val discovery by libraryViewModel.discovery.collectAsStateWithLifecycle()
     val library =
-        remember(ownPlaylists, musicSubscriptions, hiddenShelves, onPlaylistClick, onAllPlaylistsClick) {
-            MusicHomeLibrary(ownPlaylists, musicSubscriptions, hiddenShelves, onPlaylistClick, onAllPlaylistsClick)
+        remember(ownPlaylists, musicSubscriptions, hiddenShelves, onPlaylistClick, onAllPlaylistsClick, lastFmSignedIn, discovery) {
+            MusicHomeLibrary(
+                playlists = ownPlaylists,
+                subscriptions = musicSubscriptions,
+                hidden = hiddenShelves,
+                onPlaylistClick = onPlaylistClick,
+                onAllPlaylistsClick = onAllPlaylistsClick,
+                discoveryAvailable = lastFmSignedIn,
+                discovery = discovery,
+                onDiscoveryShown = libraryViewModel::loadDiscovery,
+            )
         }
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()

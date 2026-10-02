@@ -4050,4 +4050,6 @@
     </plurals>
     <string name="scrobbling_import_none">No new artists to add</string>
     <string name="scrobbling_import_failed">Could not read your top artists</string>
+    <string name="music_home_lastfm_discover">Discover with Last.fm</string>
+    <string name="music_home_lastfm_discover_subtitle">Picked by Last.fm listeners from your on repeat</string>
 </resources>

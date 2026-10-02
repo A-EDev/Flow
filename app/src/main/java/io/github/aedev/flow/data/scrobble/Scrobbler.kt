@@ -165,6 +165,18 @@ class Scrobbler
 
         suspend fun signOut(service: ScrobbleService) = store.setAccount(service, null)
 
+        /** Last.fm only: Libre.fm and ListenBrainz have no similar-track data to read. */
+        suspend fun similarTracks(
+            artist: String,
+            title: String,
+            limit: Int,
+        ): Result<List<Pair<String, String>>> {
+            val settings = store.current()
+            if (ScrobbleService.LASTFM !in settings.accounts) return Result.failure(IllegalStateException("Not signed in"))
+            val keys = lastFmKeys(settings) ?: return Result.failure(IllegalStateException("No API key"))
+            return lastFm.similarTracks(artist, title, keys, limit)
+        }
+
         suspend fun topArtists(
             service: ScrobbleService,
             limit: Int,
