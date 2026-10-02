@@ -96,9 +96,9 @@ internal object NeuroText {
     /** Long enough to be a topic: three letters, a known short name, or two characters of an unspaced script. */
     fun isTopicSized(word: String): Boolean =
         when {
-            word.length >= 3 -> !isGrammarKana(word)
+            word.length >= 3 -> !isGrammarKana(word) && !ChineseFunctionWords.contains(word)
             word in SHORT_TOPICS -> true
-            word.length == 2 -> word.all(::isUnspaced) && !isGrammarKana(word)
+            word.length == 2 -> word.all(::isUnspaced) && !isGrammarKana(word) && !ChineseFunctionWords.contains(word)
             else -> false
         }
 
