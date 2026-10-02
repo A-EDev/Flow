@@ -60,6 +60,7 @@ internal fun PlayerAppearanceScreen(
     val musicBackground by viewModel.musicBackground.collectAsStateWithLifecycle()
     val hideMusicArtwork by viewModel.hideMusicArtwork.collectAsStateWithLifecycle()
     val artworkControlColors by viewModel.artworkControlColors.collectAsStateWithLifecycle()
+    val animatedArtwork by viewModel.animatedArtwork.collectAsStateWithLifecycle()
     val plainControlColors by viewModel.plainControlColors.collectAsStateWithLifecycle()
     val adaptiveSize by viewModel.adaptivePlayerSize.collectAsStateWithLifecycle()
     val ambientMode by viewModel.ambientMode.collectAsStateWithLifecycle()
@@ -153,6 +154,14 @@ internal fun PlayerAppearanceScreen(
         group(key = "player_appearance.music", header = R.string.settings_section_music_player) {
             nav(PlayerAppearanceIndex.musicBackground, value = backgroundLabel, onClick = { sheet = PreviewSheet.BACKGROUND })
             switch(PlayerAppearanceIndex.hideMusicArtwork, hideMusicArtwork, viewModel::setHideMusicArtwork)
+            switch(PlayerAppearanceIndex.animatedArtwork, animatedArtwork, viewModel::setAnimatedArtwork)
+            if (animatedArtwork) {
+                switch(
+                    PlayerAppearanceIndex.animatedArtworkWifiOnly,
+                    viewModel.animatedArtworkWifiOnly,
+                    viewModel::setAnimatedArtworkWifiOnly,
+                )
+            }
             switch(PlayerAppearanceIndex.artworkControlColors, artworkControlColors, viewModel::setArtworkControlColors)
             if (!artworkControlColors) {
                 toggleGroup(

@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -229,6 +230,16 @@ internal fun FullMusicPlayerContent(
         LaunchedEffect(isPlayerSheetExpanded) {
             if (!isPlayerSheetExpanded) showLyricsSheet = false
         }
+        val queueCoversArtwork by remember(queueState) { derivedStateOf { queueState.fraction() > QUEUE_COVERS_ARTWORK } }
+        val animatedArtwork =
+            rememberAnimatedArtwork(
+                track = uiState.currentTrack,
+                visible =
+                    isPlayerSheetExpanded && videoPlayer == null && !hideArtwork && !immersiveBackground &&
+                        !showLyricsSheet && !queueCoversArtwork,
+                playing = uiState.isPlaying,
+                shown = artworkDragPreview == null && previewDirection == null,
+            )
 
         val slots =
             NowPlayingSlots(
@@ -276,6 +287,7 @@ internal fun FullMusicPlayerContent(
                                         )
                                     }
                                 },
+                            overlay = animatedArtwork,
                         )
                     }
                 },
@@ -464,6 +476,9 @@ internal fun FullMusicPlayerContent(
         }
     }
 }
+
+// Past this the queue sheet hides the artwork, so nothing behind it needs to move.
+private const val QUEUE_COVERS_ARTWORK = 0.95f
 
 /** Upright tablets keep the phone column, centred at this width. */
 private val PortraitLargeMaxWidth = 600.dp

@@ -109,13 +109,6 @@ class MusicVideoMatchingTest {
         assertThat(MusicVideoMatching.pick(blindingLights, results)).isNull()
     }
 
-    @Test
-    fun `titles match across case, accents and the artist prefix`() {
-        assertThat(MusicVideoMatching.baseTitle("The Weeknd - BLINDING LIGHTS [4K]", listOf("The Weeknd")))
-            .isEqualTo(MusicVideoMatching.baseTitle("Blinding Lights", listOf("The Weeknd")))
-        assertThat(MusicVideoMatching.baseTitle("Café del Mar", emptyList())).isEqualTo("cafe del mar")
-    }
-
     private companion object {
         const val OMV = "MUSIC_VIDEO_TYPE_OMV"
         const val UGC = "MUSIC_VIDEO_TYPE_UGC"

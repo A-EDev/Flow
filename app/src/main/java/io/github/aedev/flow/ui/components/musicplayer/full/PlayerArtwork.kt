@@ -59,7 +59,8 @@ private fun rememberArtworkRequest(thumbnailUrl: String?): ImageRequest {
  * Artwork behaves like a pager: the neighbouring track's cover slides in with the drag, and a
  * long-press preview drives the same offset. A committed swipe leaves the neighbour centered
  * until the track actually changes, so the handoff to the new "current" cover is seamless.
- * An [underlay] sits beneath the cover and shows through once the cover is hidden.
+ * An [underlay] sits beneath the cover and shows through once the cover is hidden; an [overlay]
+ * draws over it. Both stay inside the swipe area, so swiping still skips.
  */
 @Composable
 fun PlayerArtwork(
@@ -75,6 +76,7 @@ fun PlayerArtwork(
     modifier: Modifier = Modifier,
     onDragPreviewChange: (SkipDirection?) -> Unit = {},
     underlay: (@Composable () -> Unit)? = null,
+    overlay: (@Composable () -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
@@ -243,6 +245,7 @@ fun PlayerArtwork(
                     contentScale = ContentScale.Crop,
                 )
             }
+            overlay?.invoke()
             if (isLoading) {
                 Box(
                     modifier =

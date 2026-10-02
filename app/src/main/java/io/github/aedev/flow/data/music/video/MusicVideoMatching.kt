@@ -1,6 +1,8 @@
 package io.github.aedev.flow.data.music.video
 
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.musicArtistKey
+import io.github.aedev.flow.data.music.model.musicTitleKey
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_OMV
 import io.github.aedev.flow.utils.foldForSearch
@@ -11,10 +13,7 @@ import io.github.aedev.flow.utils.foldForSearch
  * same title, never a live take, remix, cover or a static "official audio" upload.
  */
 internal object MusicVideoMatching {
-    private val Brackets = Regex("""\s*[(\[][^)\]]*[)\]]""")
-    private val Featuring = Regex("""\s+(feat\.?|ft\.?|featuring)\s.*$""")
     private val NonWord = Regex("""[^\p{L}\p{N}]+""")
-    private const val TOPIC_SUFFIX = " - topic"
 
     // An official upload of the same title in one of these forms is a different recording or no video.
     private val OtherVersions =
@@ -49,7 +48,7 @@ internal object MusicVideoMatching {
     ): Boolean =
         candidate.musicVideoType == MUSIC_VIDEO_TYPE_OMV &&
             sameArtist(song, candidate) &&
-            baseTitle(candidate.title, song.artistNames()) == baseTitle(song.title, song.artistNames()) &&
+            musicTitleKey(candidate.title, song.artistNames()) == musicTitleKey(song.title, song.artistNames()) &&
             OtherVersions.none { it.isWordIn(candidate.title) && !it.isWordIn(song.title) } &&
             plausibleLength(song.duration, candidate.duration)
 
@@ -59,31 +58,11 @@ internal object MusicVideoMatching {
     ): Boolean {
         val songIds = (song.artists.mapNotNull { it.id } + song.channelId).filter(String::isNotBlank).toSet()
         if (candidate.artists.any { it.id != null && it.id in songIds }) return true
-        val names = song.artistNames().map(::nameKey).toSet()
-        return candidate.artists.any { nameKey(it.name) in names }
+        val names = song.artistNames().map(::musicArtistKey).toSet()
+        return candidate.artists.any { musicArtistKey(it.name) in names }
     }
 
     private fun MusicTrack.artistNames(): List<String> = artists.map { it.name }.ifEmpty { listOf(artist) }
-
-    private fun nameKey(name: String): String = name.foldForSearch().removeSuffix(TOPIC_SUFFIX).trim()
-
-    /** "The Weeknd - Blinding Lights (Official Video)" and "Blinding Lights" both become "blinding lights". */
-    internal fun baseTitle(
-        title: String,
-        artists: List<String>,
-    ): String {
-        var folded =
-            title
-                .foldForSearch()
-                .replace(Brackets, "")
-                .replace(Featuring, "")
-                .trim()
-        for (artist in artists.map(::nameKey)) {
-            val prefix = "$artist - "
-            if (artist.isNotEmpty() && folded.startsWith(prefix)) folded = folded.removePrefix(prefix)
-        }
-        return folded.replace(NonWord, " ").trim()
-    }
 
     private fun String.isWordIn(title: String): Boolean = " ${title.foldForSearch().replace(NonWord, " ")} ".contains(" $this ")
 
