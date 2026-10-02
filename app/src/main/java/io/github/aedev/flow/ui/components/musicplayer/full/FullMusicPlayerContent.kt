@@ -234,8 +234,9 @@ internal fun FullMusicPlayerContent(
         val animatedArtwork =
             rememberAnimatedArtwork(
                 track = uiState.currentTrack,
+                // Immersive mode plays it as the background, so hiding the artwork box does not hide it there.
                 visible =
-                    isPlayerSheetExpanded && videoPlayer == null && !hideArtwork && !immersiveBackground &&
+                    isPlayerSheetExpanded && videoPlayer == null && (immersiveBackground || !hideArtwork) &&
                         !showLyricsSheet && !queueCoversArtwork,
                 playing = uiState.isPlaying,
                 shown = artworkDragPreview == null && previewDirection == null,
@@ -287,7 +288,7 @@ internal fun FullMusicPlayerContent(
                                         )
                                     }
                                 },
-                            overlay = animatedArtwork,
+                            overlay = animatedArtwork.takeUnless { immersiveBackground },
                         )
                     }
                 },
@@ -365,6 +366,7 @@ internal fun FullMusicPlayerContent(
             paletteBaseColor = palette.base,
             paletteAccentColor = palette.accent,
             artworkAtStart = layout == MusicPlayerLayout.WIDE || layout == MusicPlayerLayout.SPLIT,
+            animatedArtwork = animatedArtwork.takeIf { immersiveBackground },
         )
 
         val pullUpQueue = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
