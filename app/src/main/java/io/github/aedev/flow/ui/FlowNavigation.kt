@@ -7,6 +7,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -24,6 +25,7 @@ import io.github.aedev.flow.data.music.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
@@ -158,9 +160,14 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("subscriptions") {
+    composable("subscriptions") { backStackEntry ->
         currentRoute.value = "subscriptions"
+        val openMusic by backStackEntry.savedStateHandle
+            .getStateFlow(OPEN_MUSIC_SUBSCRIPTIONS, false)
+            .collectAsStateWithLifecycle()
         SubscriptionsScreen(
+            openMusicSubscriptions = openMusic,
+            onMusicSubscriptionsOpened = { backStackEntry.savedStateHandle[OPEN_MUSIC_SUBSCRIPTIONS] = false },
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) {
                     playerViewModel.playVideo(it)
@@ -577,6 +584,11 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = mediaNavigator::openMusicPlaylist,
             onAllPlaylistsClick = {
                 navController.navigate("playlists?kind=${io.github.aedev.flow.ui.components.shared.MediaKind.Music.name}")
+            },
+            onAllSubscriptionsClick = {
+                currentRoute.value = FlowTab.Subscriptions.route
+                navController.navigateToTab(FlowTab.Subscriptions, defaultStartRoute)
+                navController.currentBackStackEntry?.savedStateHandle?.set(OPEN_MUSIC_SUBSCRIPTIONS, true)
             },
             onMoodsClick = { item ->
                 if (item != null) {

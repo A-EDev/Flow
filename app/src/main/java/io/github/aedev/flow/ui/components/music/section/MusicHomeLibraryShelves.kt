@@ -18,6 +18,7 @@ class MusicHomeLibrary(
     val hidden: Set<MusicHomeShelf> = emptySet(),
     val onPlaylistClick: (String) -> Unit = {},
     val onAllPlaylistsClick: () -> Unit = {},
+    val onAllSubscriptionsClick: () -> Unit = {},
     val discoveryAvailable: Boolean = false,
     val discovery: List<MusicTrack> = emptyList(),
     val onDiscoveryShown: () -> Unit = {},
@@ -49,6 +50,7 @@ internal fun LazyListScope.yourLibrary(
                 name = { it.name },
                 thumbnailUrl = { it.thumbnailUrl },
                 onArtistClick = { onArtistClick(it.channelId) },
+                action = MusicSectionAction.Navigate(library.onAllSubscriptionsClick),
             )
         }
     }

@@ -64,6 +64,7 @@ fun EnhancedMusicScreen(
     onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
     onPlaylistClick: (String) -> Unit = {},
     onAllPlaylistsClick: () -> Unit = {},
+    onAllSubscriptionsClick: () -> Unit = {},
     viewModel: MusicViewModel = sharedMusicViewModel(),
     libraryViewModel: MusicHomeLibraryViewModel = hiltViewModel(),
 ) {
@@ -74,13 +75,23 @@ fun EnhancedMusicScreen(
     val lastFmSignedIn by libraryViewModel.lastFmSignedIn.collectAsStateWithLifecycle()
     val discovery by libraryViewModel.discovery.collectAsStateWithLifecycle()
     val library =
-        remember(ownPlaylists, musicSubscriptions, hiddenShelves, onPlaylistClick, onAllPlaylistsClick, lastFmSignedIn, discovery) {
+        remember(
+            ownPlaylists,
+            musicSubscriptions,
+            hiddenShelves,
+            onPlaylistClick,
+            onAllPlaylistsClick,
+            onAllSubscriptionsClick,
+            lastFmSignedIn,
+            discovery,
+        ) {
             MusicHomeLibrary(
                 playlists = ownPlaylists,
                 subscriptions = musicSubscriptions,
                 hidden = hiddenShelves,
                 onPlaylistClick = onPlaylistClick,
                 onAllPlaylistsClick = onAllPlaylistsClick,
+                onAllSubscriptionsClick = onAllSubscriptionsClick,
                 discoveryAvailable = lastFmSignedIn,
                 discovery = discovery,
                 onDiscoveryShown = libraryViewModel::loadDiscovery,
