@@ -89,6 +89,7 @@ class PlaybackSettingsViewModel
         val shortsContinueIntoFeed = preferences.shortsQueueContinuesIntoFeed.asState(true)
 
         val endlessRadio = preferences.musicEndlessRadioEnabled.asState(true)
+        val musicVideoSwitch = preferences.musicVideoSwitch.asState(false)
         val lyricsProviders =
             combine(preferences.lyricsProviderOrder, preferences.allLyricsProviderEnabledStates()) { order, enabled ->
                 lyricsRegistry.getOrderedProviders(order).map { LyricsProviderState(it.name, enabled[it.name] ?: true) }
@@ -205,6 +206,8 @@ class PlaybackSettingsViewModel
         fun setShortsContinueIntoFeed(value: Boolean) = write { preferences.setShortsQueueContinuesIntoFeed(value) }
 
         fun setEndlessRadio(value: Boolean) = write { preferences.setMusicEndlessRadioEnabled(value) }
+
+        fun setMusicVideoSwitch(value: Boolean) = write { preferences.setMusicVideoSwitch(value) }
 
         fun setLyricsProviderEnabled(
             name: String,

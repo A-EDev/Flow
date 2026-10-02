@@ -404,6 +404,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_music,
             destination = page,
         )
+    val musicVideoSwitch =
+        SettingEntry(
+            key = "playback.music_video_switch",
+            title = R.string.settings_music_video_switch_title,
+            summary = R.string.settings_music_video_switch_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
     val lyricsProviders =
         SettingEntry(
             key = "playback.lyrics_providers",
@@ -464,6 +472,7 @@ internal object PlaybackIndex {
             shortsPip,
             shortsContinueIntoFeed,
             endlessRadio,
+            musicVideoSwitch,
             lyricsProviders,
         )
 }

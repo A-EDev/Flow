@@ -20,6 +20,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -58,13 +59,18 @@ import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
+import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.factory.LoadControlFactory
+import io.github.aedev.flow.player.musicvideo.MusicMediaSourceFactory
+import io.github.aedev.flow.player.musicvideo.MusicVideoFormats
+import io.github.aedev.flow.player.musicvideo.MusicVideoSwitch
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
+import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -202,6 +208,9 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var scrobbler: io.github.aedev.flow.data.scrobble.Scrobbler
 
     @Inject
+    lateinit var videoSwitch: MusicVideoSwitch
+
+    @Inject
     lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
 
     @Inject
@@ -280,6 +289,7 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
         observeEqualizer()
+        videoSwitch.attach(lifecycleScope, prefs.musicVideoSwitch)
 
         lifecycleScope.launch {
             prefs.playDuringCalls
@@ -348,7 +358,12 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun initializePlayer() {
-        val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
+        val mediaSourceFactory =
+            MusicMediaSourceFactory(
+                audio = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory()),
+                videoDataSource = DefaultDataSource.Factory(this, YouTubeHttpDataSource.Factory()),
+                maxVideoHeight = { MusicVideoFormats.maxHeight(NetworkState.isOnWifi(this)) },
+            )
 
         val renderersFactory =
             object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
@@ -384,6 +399,7 @@ class Media3MusicService : MediaLibraryService() {
         audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
 
         player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
+        setVideoDecoding(false)
 
         player.addListener(
             object : Player.Listener {
@@ -399,8 +415,14 @@ class Media3MusicService : MediaLibraryService() {
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
-                    finalizeListenSession()
-                    startListenSession(mediaItem?.mediaId)
+                    // The Song/Video switch trading versions mid-song is still the same listen.
+                    val versionSwap =
+                        videoSwitch.consumeSwap(mediaItem?.mediaId) &&
+                            reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+                    if (!versionSwap) {
+                        finalizeListenSession()
+                        startListenSession(mediaItem?.mediaId)
+                    }
                     applyLoudnessGain()
 
                     if (
@@ -420,14 +442,14 @@ class Media3MusicService : MediaLibraryService() {
                             // fresh radio. In-app skips also arrive as PLAYLIST_CHANGED
                             // (playTrack rebuilds the playlist), so the discriminator is
                             // whether the queue CONTENTS changed — never the current track.
-                            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED && !versionSwap) {
                                 onQueueContextChanged(videoId)
                             } else {
                                 maybeExtendRadio()
                             }
                         }
 
-                        if (!videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
+                        if (!versionSwap && !videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
@@ -507,12 +529,23 @@ class Media3MusicService : MediaLibraryService() {
                     updateLocks(isPlaybackActive())
                 }
 
+                // A music video is decoded only while the player shows it: a collapsed player,
+                // a closed app or a locked screen drops the surface and with it the picture. A
+                // surface handed over from the app's process reports its size as unknown (-1).
+                override fun onSurfaceSizeChanged(
+                    width: Int,
+                    height: Int,
+                ) {
+                    setVideoDecoding(width != 0 && height != 0)
+                }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
                     if (isPlaying) {
-                        if (learnMediaId == null) learnMediaId = player.currentMediaItem?.mediaId
-                        if (learnTrack?.videoId != learnMediaId) learnTrack = resolveLearnTrack(learnMediaId)
+                        val playingId = player.currentMediaItem?.mediaId
+                        if (learnMediaId == null) learnMediaId = playingId?.let(videoSwitch::listenId)
+                        if (learnTrack?.videoId != learnMediaId) learnTrack = listenTrack(playingId)
                         refreshLearnDuration()
                         learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
                         announceNowPlaying()
@@ -607,11 +640,25 @@ class Media3MusicService : MediaLibraryService() {
             ?: manager.automixItems.value.firstOrNull { it.videoId == mediaId }
     }
 
+    /** The track a listen of [mediaId] counts toward: the song when it plays as its swapped-in video. */
+    private fun listenTrack(mediaId: String?): MusicTrack? = mediaId?.let(videoSwitch::songFor) ?: resolveLearnTrack(mediaId)
+
+    private fun setVideoDecoding(enabled: Boolean) {
+        val parameters = player.trackSelectionParameters
+        val disabled = C.TRACK_TYPE_VIDEO in parameters.disabledTrackTypes
+        if (disabled != enabled) return
+        player.trackSelectionParameters =
+            parameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !enabled)
+                .build()
+    }
+
     private fun startListenSession(mediaId: String?) {
-        learnMediaId = mediaId
+        learnMediaId = mediaId?.let(videoSwitch::listenId)
         // Pin the track now: by finalize time a new playlist may have replaced the
         // queue and the outgoing track would no longer resolve.
-        learnTrack = resolveLearnTrack(mediaId)
+        learnTrack = listenTrack(mediaId)
         // Pin the genre context too — it belongs to the queue this track started in.
         learnGenre =
             io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -1245,10 +1292,12 @@ class Media3MusicService : MediaLibraryService() {
      * Decides whether this PLAYLIST_CHANGED is a real new queue (reseed the
      * radio) or just an in-queue skip routed through playTrack (extend only).
      */
-    private fun onQueueContextChanged(currentId: String) {
+    private fun onQueueContextChanged(playingId: String) {
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
-        val queueIds = manager.queue.value.map { it.videoId }
-        val explicitSeedId = manager.pendingRadioSeedId
+        // A swapped-in video belongs to its song's queue context and seeds the radio as that song.
+        val currentId = videoSwitch.listenId(playingId)
+        val queueIds = manager.queue.value.map { videoSwitch.listenId(it.videoId) }
+        val explicitSeedId = manager.pendingRadioSeedId?.let(videoSwitch::listenId)
         manager.pendingRadioSeedId = null
 
         val context =
@@ -1369,7 +1418,7 @@ class Media3MusicService : MediaLibraryService() {
         val remaining = player.mediaItemCount - player.currentMediaItemIndex - 1
         if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
-        val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
+        val queueIds = manager.queue.value.mapTo(HashSet()) { videoSwitch.listenId(it.videoId) }
         val batch = MusicRadioPlanner.nextBatch(manager.automixItems.value, queueIds, RADIO_APPEND_BATCH)
         if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
             radioResumeWhenAppended = true
@@ -1381,7 +1430,7 @@ class Media3MusicService : MediaLibraryService() {
         }
         if (batch.isNotEmpty()) {
             // Our own growth must not read as a new queue on the next skip.
-            lastQueueIds = manager.queue.value.map { it.videoId }
+            lastQueueIds = manager.queue.value.map { videoSwitch.listenId(it.videoId) }
             Log.d(TAG, "Radio appended ${batch.size} tracks to the queue")
         }
         // A dead-ended queue with nothing appendable needs a fetch regardless of

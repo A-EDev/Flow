@@ -296,6 +296,7 @@ class PlayerPreferences(
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
         val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
+        val MUSIC_VIDEO_SWITCH = booleanPreferencesKey("music_video_switch")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
         val RECAP_SOURCE = stringPreferencesKey("recap_source")
         val HIDDEN_MUSIC_HOME_SHELVES = stringSetPreferencesKey("hidden_music_home_shelves")
@@ -1937,6 +1938,17 @@ class PlayerPreferences(
     suspend fun setMusicAtNormalSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_AT_NORMAL_SPEED] = enabled
+        }
+    }
+
+    val musicVideoSwitch: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_VIDEO_SWITCH] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicVideoSwitch(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_VIDEO_SWITCH] = enabled
         }
     }
 

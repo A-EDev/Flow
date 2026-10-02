@@ -18,6 +18,8 @@ import io.github.aedev.flow.data.local.AudioSettingsPersistence
 import io.github.aedev.flow.data.local.QueuePersistence
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.player.musicvideo.MusicVideoItems
+import io.github.aedev.flow.player.musicvideo.MusicVideoPlanner
 import io.github.aedev.flow.service.Media3MusicService
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutionException
 import kotlin.math.pow
 
@@ -446,8 +449,39 @@ object EnhancedMusicPlayerManager {
         )
     }
 
+    // Queue entries the Song/Video switch set to play with their picture; every rebuild keeps it.
+    private val videoIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    fun showsVideo(videoId: String): Boolean = videoId in videoIds
+
     /** A device file plays from its MediaStore URI; everything else resolves through `music://`. */
-    private fun streamUri(videoId: String): Uri = LocalMediaIds.audioUri(videoId) ?: Uri.parse("music://$videoId")
+    private fun streamUri(videoId: String): Uri = LocalMediaIds.audioUri(videoId) ?: MusicVideoItems.streamUri(videoId, showsVideo(videoId))
+
+    /**
+     * Puts [track] in place of the queue entry at [index] while that entry is still [expectedId].
+     * The playing entry keeps its place in the song, within [track]'s length. Main thread only.
+     */
+    fun replaceQueueTrack(
+        index: Int,
+        expectedId: String,
+        track: MusicTrack,
+        showsVideo: Boolean,
+    ): Boolean {
+        val p = player ?: return false
+        val queue = _queue.value
+        if (queue.getOrNull(index)?.videoId != expectedId) return false
+        if (index >= p.mediaItemCount || p.getMediaItemAt(index).mediaId != expectedId) return false
+
+        videoIds -= expectedId
+        if (showsVideo) videoIds += track.videoId
+        _queue.value = queue.toMutableList().also { it[index] = track }
+        val isCurrent = p.currentMediaItemIndex == index
+        val positionMs = p.currentPosition
+        p.replaceMediaItem(index, buildMediaItem(track))
+        if (isCurrent) p.seekTo(index, MusicVideoPlanner.positionWithin(positionMs, track.duration))
+        triggerQueueSave()
+        return true
+    }
 
     private fun buildMediaItem(
         track: MusicTrack,
@@ -599,7 +633,7 @@ object EnhancedMusicPlayerManager {
             activeQueue.map { t ->
                 val localUri = localUriOverrides[t.videoId]
                 val uri =
-                    localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
+                    localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty() && !showsVideo(t.videoId)) {
                         Uri.parse(audioUrl)
                     } else {
                         streamUri(t.videoId)
