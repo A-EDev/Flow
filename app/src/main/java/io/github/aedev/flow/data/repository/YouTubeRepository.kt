@@ -577,6 +577,8 @@ class YouTubeRepository
             videoCategoryCache.remember(videoId, category)
         }
 
+        fun cachedVideoCategory(videoId: String): String? = videoCategoryCache.cached(videoId)
+
         /**
          * The creator-declared category for [videoId], e.g. "Science & Technology".
          *

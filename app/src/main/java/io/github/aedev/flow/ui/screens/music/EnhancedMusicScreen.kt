@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.audioMusicOnly
@@ -38,6 +40,7 @@ import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
+import io.github.aedev.flow.ui.components.music.section.MusicHomeLibrary
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
@@ -59,9 +62,41 @@ fun EnhancedMusicScreen(
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
+    onPlaylistClick: (String) -> Unit = {},
+    onAllPlaylistsClick: () -> Unit = {},
+    onAllSubscriptionsClick: () -> Unit = {},
     viewModel: MusicViewModel = sharedMusicViewModel(),
+    libraryViewModel: MusicHomeLibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val ownPlaylists by libraryViewModel.playlists.collectAsStateWithLifecycle()
+    val musicSubscriptions by libraryViewModel.subscriptions.collectAsStateWithLifecycle()
+    val hiddenShelves by libraryViewModel.hiddenShelves.collectAsStateWithLifecycle()
+    val lastFmSignedIn by libraryViewModel.lastFmSignedIn.collectAsStateWithLifecycle()
+    val discovery by libraryViewModel.discovery.collectAsStateWithLifecycle()
+    val library =
+        remember(
+            ownPlaylists,
+            musicSubscriptions,
+            hiddenShelves,
+            onPlaylistClick,
+            onAllPlaylistsClick,
+            onAllSubscriptionsClick,
+            lastFmSignedIn,
+            discovery,
+        ) {
+            MusicHomeLibrary(
+                playlists = ownPlaylists,
+                subscriptions = musicSubscriptions,
+                hidden = hiddenShelves,
+                onPlaylistClick = onPlaylistClick,
+                onAllPlaylistsClick = onAllPlaylistsClick,
+                onAllSubscriptionsClick = onAllSubscriptionsClick,
+                discoveryAvailable = lastFmSignedIn,
+                discovery = discovery,
+                onDiscoveryShown = libraryViewModel::loadDiscovery,
+            )
+        }
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
@@ -195,6 +230,7 @@ fun EnhancedMusicScreen(
                                 quickPickTracks = quickPickTracks,
                                 speedDialTracks = speedDialTracks,
                                 popularArtists = popularArtists,
+                                library = library,
                                 quickPicksGridState = quickPicksGridState,
                                 onSongClick = onSongClick,
                                 onVideoClick = onVideoClick,

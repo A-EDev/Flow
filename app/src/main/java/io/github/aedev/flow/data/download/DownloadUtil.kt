@@ -19,8 +19,10 @@ import io.github.aedev.flow.di.PlayerCache
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.datasource.GoogleVideoRequestPolicy
 import io.github.aedev.flow.player.error.StreamDenialClassifier
+import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -127,7 +129,19 @@ class DownloadUtil
 
                     buildPlaybackDataSpec(dataSpec, streamUrl, userAgent)
                 }
-            return LocalCopyDataSource.Factory(DefaultDataSource.Factory(context), resolvingFactory, ::downloadedSongUri)
+            val localFirst = LocalCopyDataSource.Factory(DefaultDataSource.Factory(context), resolvingFactory, ::downloadedSongUri)
+            return RefusedStreamRetryDataSource.Factory(localFirst, ::onStreamRefused)
+        }
+
+        private fun onStreamRefused(
+            mediaId: String,
+            url: String,
+        ) {
+            val kind = ClientGateTracker.reportDenied(url)
+            if (kind == StreamDenialKind.TOKEN_REJECTED) WebPoTokenSession.reportTokenRejected()
+            songUrlCache.remove(mediaId)
+            MusicPlayerUtils.forceRefreshForVideo(mediaId)
+            Log.w(TAG, "[Player] $mediaId refused (${StreamDenialClassifier.clientOf(url)}, $kind), resolving a fresh url")
         }
 
         /** The saved file of a finished song download, while it is still there. */

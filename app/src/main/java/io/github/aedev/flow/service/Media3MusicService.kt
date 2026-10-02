@@ -20,6 +20,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -43,33 +44,42 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.download.LegacySongDownloads
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.scrobble.ScrobbleRules
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.MusicLoadErrorPolicy
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
+import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.factory.LoadControlFactory
+import io.github.aedev.flow.player.musicvideo.MusicMediaSourceFactory
+import io.github.aedev.flow.player.musicvideo.MusicVideoFormats
+import io.github.aedev.flow.player.musicvideo.MusicVideoSwitch
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
+import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -154,6 +164,10 @@ class Media3MusicService : MediaLibraryService() {
     private var radioSeedId: String? = null
     private var radioContinuation: String? = null
     private var radioEndpoint: WatchEndpoint? = null
+
+    @Volatile private var radioAnchors: List<String> = emptyList()
+
+    @Volatile private var usedRadioAnchors: Set<String> = emptySet()
     private var radioTopUpJob: Job? = null
     private var radioAutoplayEnabled = true
     private var loudnessNormalizationEnabled = true
@@ -192,6 +206,14 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var musicBrain: MusicBrainEngine
+
+    @Inject
+    lateinit var scrobbler: io.github.aedev.flow.data.scrobble.Scrobbler
+
+    @Inject
+    lateinit var videoSwitch: MusicVideoSwitch
+
+    private val prefs by lazy { PlayerPreferences(this) }
 
     @Inject
     lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
@@ -241,9 +263,6 @@ class Media3MusicService : MediaLibraryService() {
             }
         }
 
-        val prefs =
-            io.github.aedev.flow.data.local
-                .PlayerPreferences(this@Media3MusicService)
         lifecycleScope.launch {
             prefs.musicEndlessRadioEnabled.collect { enabled ->
                 val wasEnabled = radioAutoplayEnabled
@@ -272,6 +291,10 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
         observeEqualizer()
+        // The service, not a saved queue, owns repeat: it outlives the app's process and is saved
+        // the moment it changes, so a restart or a new song keeps it.
+        lifecycleScope.launch { player.repeatMode = prefs.musicRepeatMode.first() }
+        videoSwitch.attach(lifecycleScope, prefs.musicVideoSwitch)
 
         lifecycleScope.launch {
             prefs.playDuringCalls
@@ -340,7 +363,14 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun initializePlayer() {
-        val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
+        val mediaSourceFactory =
+            MusicMediaSourceFactory(
+                audio =
+                    DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
+                        .setLoadErrorHandlingPolicy(MusicLoadErrorPolicy { !connectivityObserver.checkCurrentConnectivity() }),
+                videoDataSource = DefaultDataSource.Factory(this, YouTubeHttpDataSource.Factory()),
+                maxVideoHeight = { MusicVideoFormats.maxHeight(NetworkState.isOnWifi(this)) },
+            )
 
         val renderersFactory =
             object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
@@ -376,6 +406,7 @@ class Media3MusicService : MediaLibraryService() {
         audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
 
         player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
+        setVideoDecoding(false)
 
         player.addListener(
             object : Player.Listener {
@@ -385,14 +416,21 @@ class Media3MusicService : MediaLibraryService() {
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     updateNotification()
+                    lifecycleScope.launch { prefs.setMusicRepeatMode(repeatMode) }
                 }
 
                 override fun onMediaItemTransition(
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
-                    finalizeListenSession()
-                    startListenSession(mediaItem?.mediaId)
+                    // The Song/Video switch trading versions mid-song is still the same listen.
+                    val versionSwap =
+                        videoSwitch.consumeSwap(mediaItem?.mediaId) &&
+                            reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+                    if (!versionSwap) {
+                        finalizeListenSession()
+                        startListenSession(mediaItem?.mediaId)
+                    }
                     applyLoudnessGain()
 
                     if (
@@ -412,14 +450,14 @@ class Media3MusicService : MediaLibraryService() {
                             // fresh radio. In-app skips also arrive as PLAYLIST_CHANGED
                             // (playTrack rebuilds the playlist), so the discriminator is
                             // whether the queue CONTENTS changed — never the current track.
-                            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED && !versionSwap) {
                                 onQueueContextChanged(videoId)
                             } else {
                                 maybeExtendRadio()
                             }
                         }
 
-                        if (!videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
+                        if (!versionSwap && !videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
@@ -479,6 +517,7 @@ class Media3MusicService : MediaLibraryService() {
                     }
                     if (playbackState == Player.STATE_READY) {
                         refreshLearnDuration()
+                        if (player.isPlaying) scheduleScrobbleCheck()
                         applyLoudnessGain()
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
@@ -498,14 +537,27 @@ class Media3MusicService : MediaLibraryService() {
                     updateLocks(isPlaybackActive())
                 }
 
+                // A music video is decoded only while the player shows it: a collapsed player,
+                // a closed app or a locked screen drops the surface and with it the picture. A
+                // surface handed over from the app's process reports its size as unknown (-1).
+                override fun onSurfaceSizeChanged(
+                    width: Int,
+                    height: Int,
+                ) {
+                    setVideoDecoding(width != 0 && height != 0)
+                }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
                     if (isPlaying) {
-                        if (learnMediaId == null) learnMediaId = player.currentMediaItem?.mediaId
-                        if (learnTrack?.videoId != learnMediaId) learnTrack = resolveLearnTrack(learnMediaId)
+                        val playingId = player.currentMediaItem?.mediaId
+                        if (learnMediaId == null) learnMediaId = playingId?.let(videoSwitch::listenId)
+                        if (learnTrack?.videoId != learnMediaId) learnTrack = listenTrack(playingId)
                         refreshLearnDuration()
                         learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
+                        announceNowPlaying()
+                        scheduleScrobbleCheck()
                     } else {
                         closePlayingSegment()
                     }
@@ -540,8 +592,39 @@ class Media3MusicService : MediaLibraryService() {
     private var learnDurationMs = 0L
     private var learnPlayedMs = 0L
     private var learnPlayingSinceMs = -1L
+    private var learnStartedAtMs = 0L
+    private var learnAnnounced = false
+    private var learnScrobbled = false
+    private var scrobbleCheck: Job? = null
+
+    /** Queues the scrobble the moment the listen counts, so a process killed later in the song cannot lose it. */
+    private fun scheduleScrobbleCheck() {
+        scrobbleCheck?.cancel()
+        if (learnScrobbled || learnPlayingSinceMs < 0) return
+        val track = learnTrack?.takeIf { it.videoId == learnMediaId } ?: return
+        val durationMs = if (track.duration > 0) track.duration.toLong() * 1000 else learnDurationMs
+        val thresholdMs = ScrobbleRules.thresholdMs(durationMs) ?: return
+        val playedMs = learnPlayedMs + (android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs)
+        scrobbleCheck =
+            lifecycleScope.launch {
+                delay((thresholdMs - playedMs).coerceAtLeast(0L))
+                if (learnMediaId != track.videoId || learnScrobbled) return@launch
+                learnScrobbled = true
+                scrobbler.onListened(track, durationMs, thresholdMs, learnStartedAtMs)
+            }
+    }
+
+    /** Once per listen, when it really starts playing rather than when the item merely loads. */
+    private fun announceNowPlaying() {
+        val track = learnTrack?.takeIf { it.videoId == learnMediaId } ?: return
+        if (learnAnnounced) return
+        learnAnnounced = true
+        val durationMs = if (track.duration > 0) track.duration.toLong() * 1000 else learnDurationMs
+        scrobbler.onNowPlaying(track, durationMs)
+    }
 
     private fun closePlayingSegment() {
+        scrobbleCheck?.cancel()
         if (learnPlayingSinceMs >= 0) {
             learnPlayedMs += android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs
             learnPlayingSinceMs = -1L
@@ -565,20 +648,41 @@ class Media3MusicService : MediaLibraryService() {
             ?: manager.automixItems.value.firstOrNull { it.videoId == mediaId }
     }
 
+    /** The track a listen of [mediaId] counts toward: the song when it plays as its swapped-in video. */
+    private fun listenTrack(mediaId: String?): MusicTrack? = mediaId?.let(videoSwitch::songFor) ?: resolveLearnTrack(mediaId)
+
+    private fun setVideoDecoding(enabled: Boolean) {
+        val parameters = player.trackSelectionParameters
+        val disabled = C.TRACK_TYPE_VIDEO in parameters.disabledTrackTypes
+        if (disabled != enabled) return
+        player.trackSelectionParameters =
+            parameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !enabled)
+                .build()
+    }
+
     private fun startListenSession(mediaId: String?) {
-        learnMediaId = mediaId
+        learnMediaId = mediaId?.let(videoSwitch::listenId)
         // Pin the track now: by finalize time a new playlist may have replaced the
         // queue and the outgoing track would no longer resolve.
-        learnTrack = resolveLearnTrack(mediaId)
+        learnTrack = listenTrack(mediaId)
         // Pin the genre context too — it belongs to the queue this track started in.
         learnGenre =
             io.github.aedev.flow.player.EnhancedMusicPlayerManager
                 .playContextGenre
         learnDurationMs = 0L
         learnPlayedMs = 0L
+        learnStartedAtMs = System.currentTimeMillis()
+        learnAnnounced = false
+        learnScrobbled = false
         learnPlayingSinceMs =
             if (::player.isInitialized && player.isPlaying) android.os.SystemClock.elapsedRealtime() else -1L
         refreshLearnDuration()
+        if (learnPlayingSinceMs >= 0) {
+            announceNowPlaying()
+            scheduleScrobbleCheck()
+        }
     }
 
     private fun finalizeListenSession() {
@@ -588,6 +692,9 @@ class Media3MusicService : MediaLibraryService() {
         val pinnedDurationMs = learnDurationMs
         val playedMs = learnPlayedMs
         val pinnedGenre = learnGenre
+        val startedAtMs = learnStartedAtMs
+        val alreadyScrobbled = learnScrobbled
+        learnScrobbled = false
         learnMediaId = null
         learnTrack = null
         learnGenre = null
@@ -613,6 +720,7 @@ class Media3MusicService : MediaLibraryService() {
         // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
         // this service's scope is already cancelled, and the session must still land.
         musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre, playedMs)
+        if (!alreadyScrobbled) scrobbler.onListened(track, durationMs, playedMs, startedAtMs)
         widgetContentSync.get().run {
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.ON_REPEAT)
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.WEEK)
@@ -1192,10 +1300,12 @@ class Media3MusicService : MediaLibraryService() {
      * Decides whether this PLAYLIST_CHANGED is a real new queue (reseed the
      * radio) or just an in-queue skip routed through playTrack (extend only).
      */
-    private fun onQueueContextChanged(currentId: String) {
+    private fun onQueueContextChanged(playingId: String) {
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
-        val queueIds = manager.queue.value.map { it.videoId }
-        val explicitSeedId = manager.pendingRadioSeedId
+        // A swapped-in video belongs to its song's queue context and seeds the radio as that song.
+        val currentId = videoSwitch.listenId(playingId)
+        val queueIds = manager.queue.value.map { videoSwitch.listenId(it.videoId) }
+        val explicitSeedId = manager.pendingRadioSeedId?.let(videoSwitch::listenId)
         manager.pendingRadioSeedId = null
 
         val context =
@@ -1213,6 +1323,8 @@ class Media3MusicService : MediaLibraryService() {
         radioSeedId = currentId
         radioContinuation = null
         radioEndpoint = null
+        radioAnchors = emptyList()
+        usedRadioAnchors = emptySet()
         radioResumeWhenAppended = false
         explicitRadioRequest = context.explicit
         startRadio(currentId)
@@ -1244,8 +1356,8 @@ class Media3MusicService : MediaLibraryService() {
                             .distinctBy { it.videoId }
 
                     if (mapped.isEmpty()) {
-                        // Related fallback carries no continuation — the pool later
-                        // reseeds from its own tail instead.
+                        // Related fallback carries no continuation; the pool later
+                        // reseeds from the related tracks closest to the seed.
                         radioContinuation = null
                         radioEndpoint = null
                         mapped =
@@ -1257,6 +1369,9 @@ class Media3MusicService : MediaLibraryService() {
                         radioContinuation = page?.continuation
                         radioEndpoint = page?.endpoint
                     }
+
+                    radioAnchors = MusicRadioPlanner.radioAnchors(seedId, mapped)
+                    usedRadioAnchors = setOf(seedId)
 
                     // Ordered once, here: the pool IS the up-next list the user reads, so the
                     // queue must be able to take it from the head without re-sequencing.
@@ -1311,7 +1426,7 @@ class Media3MusicService : MediaLibraryService() {
         val remaining = player.mediaItemCount - player.currentMediaItemIndex - 1
         if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
-        val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
+        val queueIds = manager.queue.value.mapTo(HashSet()) { videoSwitch.listenId(it.videoId) }
         val batch = MusicRadioPlanner.nextBatch(manager.automixItems.value, queueIds, RADIO_APPEND_BATCH)
         if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
             radioResumeWhenAppended = true
@@ -1323,7 +1438,7 @@ class Media3MusicService : MediaLibraryService() {
         }
         if (batch.isNotEmpty()) {
             // Our own growth must not read as a new queue on the next skip.
-            lastQueueIds = manager.queue.value.map { it.videoId }
+            lastQueueIds = manager.queue.value.map { videoSwitch.listenId(it.videoId) }
             Log.d(TAG, "Radio appended ${batch.size} tracks to the queue")
         }
         // A dead-ended queue with nothing appendable needs a fetch regardless of
@@ -1346,13 +1461,15 @@ class Media3MusicService : MediaLibraryService() {
                         if (endpoint != null && continuation != null) {
                             YouTube.next(endpoint, continuation).getOrNull()
                         } else {
-                            // Continuation exhausted: grow the tree from the newest tail.
-                            val tailId =
-                                (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
-                                    ?.videoId
-                                    ?.takeUnless(LocalMediaIds::isLocal)
+                            val anchorId =
+                                MusicRadioPlanner
+                                    .nextAnchor(radioAnchors, usedRadioAnchors)
+                                    ?.also { usedRadioAnchors = usedRadioAnchors + it }
+                                    ?: (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
+                                        ?.videoId
+                                        ?.takeUnless(LocalMediaIds::isLocal)
                                     ?: return@launch
-                            YouTube.next(WatchEndpoint(playlistId = "RDAMVM$tailId")).getOrNull()
+                            YouTube.next(WatchEndpoint(playlistId = "RDAMVM$anchorId")).getOrNull()
                         }
                     if (page == null) return@launch
                     radioContinuation = page.continuation

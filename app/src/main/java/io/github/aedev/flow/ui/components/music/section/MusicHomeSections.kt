@@ -213,6 +213,7 @@ fun <T> MusicArtistShelf(
     thumbnailUrl: (T) -> String?,
     onArtistClick: (T) -> Unit,
     modifier: Modifier = Modifier,
+    action: MusicSectionAction? = null,
     subtitle: @Composable (T) -> String? = { null },
 ) {
     val artistShape = flowArtistShape()
@@ -222,6 +223,7 @@ fun <T> MusicArtistShelf(
         items = artists,
         key = key,
         modifier = modifier,
+        action = action,
     ) { artist ->
         MusicCollectionCard(
             title = name(artist),

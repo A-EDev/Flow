@@ -19,8 +19,10 @@ import io.github.aedev.flow.data.local.dao.ChannelVideoCount
 import io.github.aedev.flow.data.stats.LedgerAction
 import io.github.aedev.flow.data.stats.MusicRecap
 import io.github.aedev.flow.data.stats.RankedItem
+import io.github.aedev.flow.data.stats.RankedKind
 import io.github.aedev.flow.data.stats.VideoRecap
 import io.github.aedev.flow.data.stats.ViewFormat
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowArtistShape
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
@@ -60,8 +62,10 @@ private fun RankedRows(
     portraits: Boolean = false,
     value: @Composable (RankedItem) -> String,
 ) {
+    val navigator = LocalMediaNavigator.current
     Column(verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap)) {
         items.forEachIndexed { index, item ->
+            val link = item.link()
             StatRankRow(
                 rank = index + 1,
                 title = item.name.ifBlank { stringResource(R.string.recap_unnamed_item) },
@@ -70,6 +74,7 @@ private fun RankedRows(
                 shape = flowRowGroupShape(index, items.size),
                 imageUrl = item.imageUrl,
                 imageShape = if (portraits) flowArtistShape() else MaterialTheme.shapes.medium,
+                onClick = link?.let { { navigator.openLink(it) } },
             )
         }
     }
@@ -243,7 +248,9 @@ private fun sponsorLabel(category: String): String = sponsorCategoryLabelRes(cat
 internal fun HistoryCard(channels: List<ChannelVideoCount>) {
     StatCard(title = stringResource(R.string.recap_history_title), subtitle = stringResource(R.string.recap_history_subtitle)) {
         RankedRows(
-            channels.take(RANKED_ROWS).map { RankedItem(it.channelId, it.channelName.ifBlank { it.channelId }, it.videos) },
+            channels.take(RANKED_ROWS).map {
+                RankedItem(it.channelId, it.channelName.ifBlank { it.channelId }, it.videos, kind = RankedKind.CHANNEL)
+            },
         ) { pluralStringResource(R.plurals.recap_videos_count, it.count, it.count) }
     }
 }

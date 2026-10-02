@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -50,6 +52,7 @@ import io.github.aedev.flow.ui.components.musicplayer.sheet.AudioSettingsSheet
 import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
+import io.github.aedev.flow.ui.screens.music.MusicVideoSwitchViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
@@ -65,6 +68,7 @@ internal fun FullMusicPlayerContent(
     // The transport, seek bar, like and download and the action row draw with this scheme.
     controlScheme: ColorScheme = MaterialTheme.colorScheme,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
+    videoSwitch: MusicVideoSwitchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val positionState = viewModel.currentPositionMs.collectAsState()
@@ -80,6 +84,12 @@ internal fun FullMusicPlayerContent(
     var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
+    val videoSwitchEnabled by videoSwitch.isEnabled.collectAsState()
+    val videoMode by videoSwitch.videoMode.collectAsState()
+    val videoLoading by videoSwitch.isLoading.collectAsState()
+    var videoShowing by remember { mutableStateOf(false) }
+    // The surface mounts only on the open player: mounting it is what makes the service decode video.
+    val videoPlayer = musicPlayer?.takeIf { videoSwitchEnabled && videoMode && isPlayerSheetExpanded }
 
     val previousTrack = uiState.queue.getOrNull(uiState.currentQueueIndex - 1)
     val nextTrack = uiState.queue.getOrNull(uiState.currentQueueIndex + 1)
@@ -143,7 +153,8 @@ internal fun FullMusicPlayerContent(
     }
 
     LaunchedEffect(track.videoId) {
-        viewModel.fetchRelatedContent(track.videoId)
+        // A song swapped for its video keeps the song's related list rather than fetching another.
+        viewModel.fetchRelatedContent(videoSwitch.listenId(track.videoId))
         val managerTrack = EnhancedMusicPlayerManager.currentTrack.value
         val isManagerPlaying = EnhancedMusicPlayerManager.isPlaying()
 
@@ -219,6 +230,17 @@ internal fun FullMusicPlayerContent(
         LaunchedEffect(isPlayerSheetExpanded) {
             if (!isPlayerSheetExpanded) showLyricsSheet = false
         }
+        val queueCoversArtwork by remember(queueState) { derivedStateOf { queueState.fraction() > QUEUE_COVERS_ARTWORK } }
+        val animatedArtwork =
+            rememberAnimatedArtwork(
+                track = uiState.currentTrack,
+                // Immersive mode plays it as the background, so hiding the artwork box does not hide it there.
+                visible =
+                    isPlayerSheetExpanded && videoPlayer == null && (immersiveBackground || !hideArtwork) &&
+                        !showLyricsSheet && !queueCoversArtwork,
+                playing = uiState.isPlaying,
+                shown = artworkDragPreview == null && previewDirection == null,
+            )
 
         val slots =
             NowPlayingSlots(
@@ -227,6 +249,12 @@ internal fun FullMusicPlayerContent(
                         playingFrom = uiState.playingFrom,
                         modifier = modifier,
                         contentColor = colorScheme.onSurface,
+                        modeSwitch =
+                            if (videoSwitchEnabled) {
+                                { PlayerModeSwitch(showsVideo = videoMode, onSelect = videoSwitch::select) }
+                            } else {
+                                null
+                            },
                     )
                 },
                 artwork = { modifier ->
@@ -241,14 +269,26 @@ internal fun FullMusicPlayerContent(
                             nextThumbnailUrl = nextTrack?.highResThumbnailUrl,
                             previewDirection = previewDirection,
                             // Spinners in the warm, collapsed tree animate at alpha 0 otherwise.
-                            isLoading = uiState.isLoading && isPlayerSheetExpanded,
-                            hideArtwork = hideArtwork || immersiveBackground,
+                            isLoading = (uiState.isLoading || videoLoading) && isPlayerSheetExpanded,
+                            hideArtwork = hideArtwork || immersiveBackground || videoShowing,
                             hiddenArtworkColor =
-                                if (immersiveBackground) Color.Unspecified else colorScheme.surfaceContainerHigh,
+                                if (immersiveBackground || videoShowing) Color.Unspecified else colorScheme.surfaceContainerHigh,
                             onSkipPrevious = { viewModel.skipToPrevious() },
                             onSkipNext = { viewModel.skipToNext() },
                             modifier = Modifier.fillMaxSize(),
                             onDragPreviewChange = { artworkDragPreview = it },
+                            underlay =
+                                videoPlayer?.let { player ->
+                                    {
+                                        PlayerVideo(
+                                            player = player,
+                                            cornerRadius = PlayerArtworkCornerRadius,
+                                            onShowingChange = { videoShowing = it },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                },
+                            overlay = animatedArtwork.takeUnless { immersiveBackground },
                         )
                     }
                 },
@@ -326,6 +366,7 @@ internal fun FullMusicPlayerContent(
             paletteBaseColor = palette.base,
             paletteAccentColor = palette.accent,
             artworkAtStart = layout == MusicPlayerLayout.WIDE || layout == MusicPlayerLayout.SPLIT,
+            animatedArtwork = animatedArtwork.takeIf { immersiveBackground },
         )
 
         val pullUpQueue = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
@@ -437,6 +478,9 @@ internal fun FullMusicPlayerContent(
         }
     }
 }
+
+// Past this the queue sheet hides the artwork, so nothing behind it needs to move.
+private const val QUEUE_COVERS_ARTWORK = 0.95f
 
 /** Upright tablets keep the phone column, centred at this width. */
 private val PortraitLargeMaxWidth = 600.dp

@@ -28,6 +28,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -94,8 +95,12 @@ internal fun PlayerSettingsSheetHost(
         onSpeedSelected = { speed ->
             EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
             screenState.normalSpeed = speed
-            if (rememberPlaybackSpeed) {
-                scope.launch { playerPreferences.setPlaybackSpeed(speed) }
+            val channelId = uiState.cachedVideo?.channelId
+            scope.launch {
+                if (rememberPlaybackSpeed) playerPreferences.setPlaybackSpeed(speed)
+                if (!channelId.isNullOrBlank() && playerPreferences.speedPerChannel.first()) {
+                    playerPreferences.setChannelPlaybackSpeed(channelId, speed)
+                }
             }
         },
         selectedSubtitleUrl = playerState.selectedSubtitleUrl,

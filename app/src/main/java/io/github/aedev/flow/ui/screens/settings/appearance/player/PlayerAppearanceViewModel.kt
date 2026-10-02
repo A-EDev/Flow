@@ -33,6 +33,8 @@ class PlayerAppearanceViewModel
         val musicBackground = preferences.musicPlayerBackgroundStyle.asState(MusicPlayerBackgroundStyle.BLUR_GRADIENT)
         val hideMusicArtwork = preferences.hideMusicPlayerArtwork.asState(false)
         val artworkControlColors = preferences.musicArtworkControlColors.asState(true)
+        val animatedArtwork = preferences.animatedArtwork.asState(false)
+        val animatedArtworkWifiOnly = preferences.animatedArtworkWifiOnly.asState(true)
         val plainControlColors = preferences.musicPlainControlColors.asState(MusicPlainControlColors.MONOCHROME)
         val adaptivePlayerSize = preferences.adaptivePlayerSizeEnabled.asState(true)
         val ambientMode = preferences.videoAmbientModeEnabled.asState(false)
@@ -62,6 +64,10 @@ class PlayerAppearanceViewModel
         fun setHideMusicArtwork(value: Boolean) = write { preferences.setHideMusicPlayerArtwork(value) }
 
         fun setArtworkControlColors(value: Boolean) = write { preferences.setMusicArtworkControlColors(value) }
+
+        fun setAnimatedArtwork(value: Boolean) = write { preferences.setAnimatedArtwork(value) }
+
+        fun setAnimatedArtworkWifiOnly(value: Boolean) = write { preferences.setAnimatedArtworkWifiOnly(value) }
 
         fun setPlainControlColors(value: MusicPlainControlColors) = write { preferences.setMusicPlainControlColors(value) }
 

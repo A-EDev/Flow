@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.settings.integrations
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.ThumbDownOffAlt
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -16,8 +17,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.IntegrationsIndex
 
 /**
@@ -29,6 +34,7 @@ import io.github.aedev.flow.ui.screens.settings.index.IntegrationsIndex
 internal fun IntegrationsScreen(
     onBack: (() -> Unit)?,
     highlight: String?,
+    onNavigate: (SettingsTarget) -> Unit,
     viewModel: IntegrationsViewModel = hiltViewModel(),
 ) {
     val sponsorBlock by viewModel.sponsorBlock.collectAsStateWithLifecycle()
@@ -60,6 +66,13 @@ internal fun IntegrationsScreen(
             onEditUserId = { dialog = IntegrationsDialog.USER_ID },
             onPickColour = { colourCategory = it },
         )
+        group(key = "integrations.scrobbling.group", header = R.string.scrobbling_title) {
+            nav(
+                DestinationIndex.entry(SettingsDestination.SCROBBLING),
+                icon = Icons.Outlined.GraphicEq,
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.SCROBBLING)) },
+            )
+        }
         group(key = "integrations.dearrow.group", header = R.string.player_settings_dearrow) {
             switch(IntegrationsIndex.deArrow, viewModel.deArrow, viewModel::setDeArrow, icon = Icons.Outlined.AutoFixHigh)
             switch(IntegrationsIndex.deArrowBadge, viewModel.deArrowBadge, viewModel::setDeArrowBadge, enabled = deArrow)

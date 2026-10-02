@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player
 
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 
@@ -117,6 +118,27 @@ internal object MusicRadioPlanner {
             ).take(room)
         return if (fresh.isEmpty()) existing else existing + fresh
     }
+
+    const val MAX_RADIO_ANCHORS = 8
+
+    /**
+     * The tracks a station refills from once YouTube's continuation runs out: the seed and the
+     * songs YouTube placed closest to it. Refilling from the newest tail instead chains each mix
+     * off the last one, and a few hops later the station has wandered off the seed's genre.
+     */
+    fun radioAnchors(
+        seedId: String,
+        firstPage: List<MusicTrack>,
+    ): List<String> =
+        (listOf(seedId) + firstPage.map { it.videoId })
+            .filterNot(LocalMediaIds::isLocal)
+            .distinct()
+            .take(MAX_RADIO_ANCHORS)
+
+    fun nextAnchor(
+        anchors: List<String>,
+        used: Set<String>,
+    ): String? = anchors.firstOrNull { it !in used }
 
     /** What the queue takes next: the head of the list the user is looking at, in that order. */
     fun nextBatch(

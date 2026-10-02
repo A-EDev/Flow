@@ -34,6 +34,7 @@ internal object DestinationIndex {
             SettingsDestination.HOME -> null
             SettingsDestination.TASTE -> R.string.taste_summary
             SettingsDestination.HIDDEN_CONTENT -> R.string.taste_hidden_summary
+            SettingsDestination.FAVOURITE_ARTISTS -> R.string.favourite_artists_summary
             SettingsDestination.APPEARANCE -> R.string.settings_appearance_summary
             SettingsDestination.THEME -> R.string.settings_theme_summary
             SettingsDestination.CUSTOM_THEME -> R.string.settings_custom_theme_summary
@@ -47,8 +48,10 @@ internal object DestinationIndex {
             SettingsDestination.EQUALIZER -> R.string.eq_settings_summary
             SettingsDestination.QUALITY -> R.string.settings_quality_summary
             SettingsDestination.CONTENT -> R.string.settings_content_summary
+            SettingsDestination.MUSIC_HOME -> R.string.settings_music_home_summary
             SettingsDestination.TOPICS -> R.string.settings_topics_summary
             SettingsDestination.INTEGRATIONS -> R.string.settings_integrations_summary
+            SettingsDestination.SCROBBLING -> R.string.scrobbling_summary
             SettingsDestination.BACKUP -> R.string.settings_backup_summary
             SettingsDestination.SYNC -> R.string.sync_devices_subtitle
             SettingsDestination.HISTORY -> R.string.settings_history_summary

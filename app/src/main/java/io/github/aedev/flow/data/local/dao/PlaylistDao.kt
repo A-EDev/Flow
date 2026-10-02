@@ -20,7 +20,26 @@ data class PlaylistVideoWithMeta(
 @Dao
 interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlaylist(playlist: PlaylistEntity)
+    suspend fun insertPlaylistRow(playlist: PlaylistEntity)
+
+    /** Re-saving or syncing a playlist keeps the place the viewer dragged it to. */
+    @Transaction
+    suspend fun insertPlaylist(playlist: PlaylistEntity) {
+        val keptPosition = if (playlist.position != 0) playlist.position else getPlaylist(playlist.id)?.position ?: 0
+        insertPlaylistRow(playlist.copy(position = keptPosition))
+    }
+
+    @Query("UPDATE playlists SET position = :position WHERE id = :id")
+    suspend fun updatePlaylistPosition(
+        id: String,
+        position: Int,
+    )
+
+    /** Stores [orderedIds] as the custom order, starting at 1 so playlists added later lead the list. */
+    @Transaction
+    suspend fun reorderPlaylists(orderedIds: List<String>) {
+        orderedIds.forEachIndexed { index, id -> updatePlaylistPosition(id, index + 1) }
+    }
 
     @Query(
         "SELECT playlists.*, COUNT(playlist_video_cross_ref.videoId) as video_count FROM playlists LEFT JOIN playlist_video_cross_ref ON playlists.id = playlist_video_cross_ref.playlistId GROUP BY playlists.id ORDER BY createdAt DESC",

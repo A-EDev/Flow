@@ -73,6 +73,22 @@ internal object PlaybackIndex {
             section = R.string.settings_section_speed,
             destination = page,
         )
+    val musicNormalSpeed =
+        SettingEntry(
+            key = "playback.music_normal_speed",
+            title = R.string.settings_music_normal_speed_title,
+            summary = R.string.settings_music_normal_speed_summary,
+            section = R.string.settings_section_speed,
+            destination = page,
+        )
+    val speedPerChannel =
+        SettingEntry(
+            key = "playback.speed_per_channel",
+            title = R.string.settings_speed_per_channel_title,
+            summary = R.string.settings_speed_per_channel_summary,
+            section = R.string.settings_section_speed,
+            destination = page,
+        )
     val customSpeeds =
         SettingEntry(
             key = "playback.custom_speeds",
@@ -388,6 +404,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_music,
             destination = page,
         )
+    val musicVideoSwitch =
+        SettingEntry(
+            key = "playback.music_video_switch",
+            title = R.string.settings_music_video_switch_title,
+            summary = R.string.settings_music_video_switch_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
     val lyricsProviders =
         SettingEntry(
             key = "playback.lyrics_providers",
@@ -407,6 +431,8 @@ internal object PlaybackIndex {
             skipSilence,
             playDuringCalls,
             rememberSpeed,
+            musicNormalSpeed,
+            speedPerChannel,
             customSpeeds,
             speedPresets,
             speedSlider,
@@ -446,6 +472,7 @@ internal object PlaybackIndex {
             shortsPip,
             shortsContinueIntoFeed,
             endlessRadio,
+            musicVideoSwitch,
             lyricsProviders,
         )
 }

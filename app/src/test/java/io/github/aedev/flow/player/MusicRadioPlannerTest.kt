@@ -251,4 +251,20 @@ class MusicRadioPlannerTest {
 
         assertThat(counts.values).containsExactly(2, 1)
     }
+
+    @Test
+    fun `a station refills from the seed's nearest songs before anything else`() {
+        val anchors = MusicRadioPlanner.radioAnchors("seed", listOf(track("n1"), track("n2"), track("seed"), track("local_x")))
+
+        assertThat(anchors).containsExactly("seed", "n1", "n2").inOrder()
+        assertThat(MusicRadioPlanner.nextAnchor(anchors, setOf("seed"))).isEqualTo("n1")
+        assertThat(MusicRadioPlanner.nextAnchor(anchors, setOf("seed", "n1", "n2"))).isNull()
+    }
+
+    @Test
+    fun `anchors stop at the cap`() {
+        val page = (1..20).map { track("t$it") }
+
+        assertThat(MusicRadioPlanner.radioAnchors("seed", page)).hasSize(MusicRadioPlanner.MAX_RADIO_ANCHORS)
+    }
 }

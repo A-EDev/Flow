@@ -25,7 +25,7 @@ private val PillContentSpacing = 4.dp
 
 /**
  * Marks a subscription as a music channel. Sized down inside list rows and up in the
- * quick-access header, which is the only difference between the two placements.
+ * quick-access header, where [onClick] opens the music subscriptions.
  */
 @Composable
 internal fun SubscriptionMusicPill(
@@ -33,13 +33,9 @@ internal fun SubscriptionMusicPill(
     contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
     iconSize: Dp = 12.dp,
     textStyle: TextStyle = MaterialTheme.typography.labelSmall,
+    onClick: (() -> Unit)? = null,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
+    val content: @Composable () -> Unit = {
         Row(
             modifier = Modifier.padding(contentPadding),
             horizontalArrangement = Arrangement.spacedBy(PillContentSpacing),
@@ -55,5 +51,23 @@ internal fun SubscriptionMusicPill(
                 style = textStyle,
             )
         }
+    }
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            modifier = modifier,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            content = content,
+        )
+    } else {
+        Surface(
+            modifier = modifier,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            content = content,
+        )
     }
 }

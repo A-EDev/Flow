@@ -58,6 +58,14 @@ internal object AppearanceIndex {
             section = R.string.settings_section_layout,
             destination = page,
         )
+    val separatePlaylists =
+        SettingEntry(
+            key = "appearance.separate_playlists",
+            title = R.string.settings_separate_playlists_title,
+            summary = R.string.settings_separate_playlists_summary,
+            section = R.string.settings_section_layout,
+            destination = page,
+        )
     val appLogo =
         SettingEntry(
             key = "appearance.app_logo",
@@ -107,6 +115,7 @@ internal object AppearanceIndex {
             homeColumns,
             musicArtworkSize,
             libraryPreviews,
+            separatePlaylists,
             appLogo,
             groupBadges,
             cardLikeButtons,

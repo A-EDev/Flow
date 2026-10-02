@@ -44,6 +44,8 @@ internal fun SettingsListScope.playbackSections(
     }
     group(key = "playback.speed", header = R.string.settings_section_speed) {
         switch(PlaybackIndex.rememberSpeed, viewModel.rememberSpeed, viewModel::setRememberSpeed)
+        switch(PlaybackIndex.musicNormalSpeed, viewModel.musicNormalSpeed, viewModel::setMusicNormalSpeed)
+        switch(PlaybackIndex.speedPerChannel, viewModel.speedPerChannel, viewModel::setSpeedPerChannel)
         switch(PlaybackIndex.customSpeeds, viewModel.customSpeeds, viewModel::setCustomSpeeds)
         if (state.customSpeeds) {
             row(PlaybackIndex.speedPresets.key) { shape -> SpeedPresetEditor(viewModel = viewModel, shape = shape) }
@@ -98,6 +100,7 @@ internal fun SettingsListScope.playbackSections(
     shortsPlayerSection(viewModel, state, openDialog)
     group(key = "playback.music", header = R.string.settings_section_music) {
         switch(PlaybackIndex.endlessRadio, viewModel.endlessRadio, viewModel::setEndlessRadio)
+        switch(PlaybackIndex.musicVideoSwitch, viewModel.musicVideoSwitch, viewModel::setMusicVideoSwitch)
         choice(PlaybackIndex.lyricsProviders, onClick = { openDialog(PlaybackDialog.LYRICS) }) {
             val providers by viewModel.lyricsProviders.collectAsStateWithLifecycle()
             pluralStringResource(

@@ -35,6 +35,8 @@ class PlaybackSettingsViewModel
         val skipSilence = preferences.skipSilenceEnabled.asState(false)
         val playDuringCalls = preferences.playDuringCalls.asState(false)
         val rememberSpeed = preferences.rememberPlaybackSpeed.asState(false)
+        val musicNormalSpeed = preferences.musicAtNormalSpeed.asState(false)
+        val speedPerChannel = preferences.speedPerChannel.asState(false)
 
         val customSpeeds = preferences.customSpeedsEnabled.asState(false)
         val customSpeedPresets =
@@ -87,6 +89,7 @@ class PlaybackSettingsViewModel
         val shortsContinueIntoFeed = preferences.shortsQueueContinuesIntoFeed.asState(true)
 
         val endlessRadio = preferences.musicEndlessRadioEnabled.asState(true)
+        val musicVideoSwitch = preferences.musicVideoSwitch.asState(false)
         val lyricsProviders =
             combine(preferences.lyricsProviderOrder, preferences.allLyricsProviderEnabledStates()) { order, enabled ->
                 lyricsRegistry.getOrderedProviders(order).map { LyricsProviderState(it.name, enabled[it.name] ?: true) }
@@ -107,6 +110,10 @@ class PlaybackSettingsViewModel
         fun setPlayDuringCalls(value: Boolean) = write { preferences.setPlayDuringCalls(value) }
 
         fun setRememberSpeed(value: Boolean) = write { preferences.setRememberPlaybackSpeed(value) }
+
+        fun setMusicNormalSpeed(value: Boolean) = write { preferences.setMusicAtNormalSpeed(value) }
+
+        fun setSpeedPerChannel(value: Boolean) = write { preferences.setSpeedPerChannel(value) }
 
         fun setCustomSpeeds(value: Boolean) = write { preferences.setCustomSpeedsEnabled(value) }
 
@@ -199,6 +206,8 @@ class PlaybackSettingsViewModel
         fun setShortsContinueIntoFeed(value: Boolean) = write { preferences.setShortsQueueContinuesIntoFeed(value) }
 
         fun setEndlessRadio(value: Boolean) = write { preferences.setMusicEndlessRadioEnabled(value) }
+
+        fun setMusicVideoSwitch(value: Boolean) = write { preferences.setMusicVideoSwitch(value) }
 
         fun setLyricsProviderEnabled(
             name: String,

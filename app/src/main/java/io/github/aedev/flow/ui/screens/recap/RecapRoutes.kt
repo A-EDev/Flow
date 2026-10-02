@@ -6,13 +6,19 @@ import io.github.aedev.flow.data.stats.RecapPeriod
 /** Routes for the recap surfaces, with the period carried as "2026-09", "2026" or "all". */
 object RecapRoutes {
     const val STATS = "recap?period={period}"
-    const val STORY = "recap/story/{period}"
+    const val STORY = "recap/story/{period}?source={source}"
     const val ARG_PERIOD = "period"
+    const val ARG_SOURCE = "source"
     private const val ALL = "all"
 
     fun stats(period: RecapPeriod? = null): String = period?.let { "recap?period=${encode(it)}" } ?: "recap"
 
-    fun story(period: RecapPeriod): String = "recap/story/${encode(period)}"
+    fun story(
+        period: RecapPeriod,
+        source: RecapSource = RecapSource.ALL,
+    ): String = "recap/story/${encode(period)}?source=${source.name}"
+
+    fun decodeSource(value: String?): RecapSource = RecapSource.entries.firstOrNull { it.name == value } ?: RecapSource.ALL
 
     fun encode(period: RecapPeriod): String =
         when (period) {

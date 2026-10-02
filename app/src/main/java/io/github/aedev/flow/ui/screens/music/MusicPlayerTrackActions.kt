@@ -5,15 +5,18 @@ import android.widget.Toast
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -27,6 +30,8 @@ internal class MusicPlayerTrackActions(
     private val likedVideosRepository: LikedVideosRepository,
     private val downloadManager: DownloadManager,
     private val musicBrain: MusicBrainEngine,
+    private val playerPreferences: PlayerPreferences,
+    private val scrobbler: Scrobbler,
 ) {
     fun toggleLike() {
         val currentTrack = uiState.value.currentTrack ?: return
@@ -36,6 +41,7 @@ internal class MusicPlayerTrackActions(
         // the video player is liked without being a favorite, and flipping the list missed it.
         val like = !uiState.value.isLiked
         uiState.update { it.copy(isLiked = like) }
+        scrobbler.onLikeChanged(currentTrack, like)
         scope.launch(PerformanceDispatcher.diskIO) {
             if (like) {
                 playlistRepository.addToFavorites(currentTrack)
@@ -51,6 +57,7 @@ internal class MusicPlayerTrackActions(
                     ),
                 )
                 musicBrain.onExplicitLike(currentTrack)
+                if (playerPreferences.autoDownloadLikedMusic.first()) downloadManager.downloadTrack(currentTrack)
             } else {
                 playlistRepository.removeFromFavorites(currentTrack.videoId)
                 likedVideosRepository.removeLikeState(currentTrack.videoId)

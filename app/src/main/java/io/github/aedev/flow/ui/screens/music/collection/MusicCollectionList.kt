@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -86,6 +87,8 @@ internal fun MusicCollectionList(
     onCollectionMenu: (MusicPlaylist) -> Unit,
     modifier: Modifier = Modifier,
     header: (@Composable () -> Unit)? = null,
+    suggestions: CollectionSuggestions? = null,
+    onReachedEnd: () -> Unit = {},
 ) {
     LazyColumn(
         state = listState,
@@ -150,6 +153,7 @@ internal fun MusicCollectionList(
         }
         if (tracks.isNotEmpty() || footer.isLoadingMore) {
             item(key = "collection-footer", contentType = "footer") {
+                LaunchedEffect(footer.isLoadingMore) { if (!footer.isLoadingMore) onReachedEnd() }
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -167,6 +171,7 @@ internal fun MusicCollectionList(
                 }
             }
         }
+        suggestions?.let { collectionSuggestions(it) }
     }
 }
 

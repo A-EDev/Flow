@@ -46,6 +46,7 @@ object MusicPlayerUtils {
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
         val usedClient: YouTubeClient,
+        val videoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     )
 
     private data class AudioSelectionPreferences(
@@ -85,6 +86,13 @@ object MusicPlayerUtils {
                 ?: return null
         return gainDb.toFloat().coerceIn(MIN_LOUDNESS_GAIN_DB, 0f)
     }
+
+    /** The resolved playback of [videoId] while it is still fresh, without waiting on a request. */
+    fun cachedPlayback(videoId: String): PlaybackData? =
+        resultCache[videoId]
+            ?.takeIf { System.currentTimeMillis() < it.expiryMs && !it.isFromGatedClient() }
+            ?.result
+            ?.getOrNull()
 
     suspend fun playerResponseForPlayback(videoId: String): Result<PlaybackData> =
         withContext(Dispatchers.IO) {
@@ -160,6 +168,7 @@ object MusicPlayerUtils {
                 streamUrl = streamUrl,
                 streamExpiresInSeconds = response.streamingData?.expiresInSeconds ?: 21600,
                 usedClient = extraction.usedClient,
+                videoFormats = extraction.videoFormats,
             )
         }
 

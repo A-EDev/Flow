@@ -23,6 +23,9 @@ internal fun NavBackStackEntry.flowTab(): FlowTab? = flowTabForDestination(desti
 /** The tab a route handed in from outside the graph (a widget, a shortcut) names, if any. */
 internal fun flowTabForRoute(route: String): FlowTab? = FlowTab.entries.firstOrNull { it.route == route }
 
+/** Set on the Subscriptions entry to open its management view on the Music tab once. */
+internal const val OPEN_MUSIC_SUBSCRIPTIONS = "open_music_subscriptions"
+
 /** Switches tabs the way the bar does: one copy per tab, each keeping its own saved state. */
 internal fun NavController.navigateToTab(
     tab: FlowTab,

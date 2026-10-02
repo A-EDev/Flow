@@ -15,6 +15,9 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.paging.ChannelSearch
 import io.github.aedev.flow.data.recommendation.OnboardingCompleter
+import io.github.aedev.flow.data.recommendation.music.FavouriteArtistCatalog
+import io.github.aedev.flow.data.recommendation.music.FavouriteArtistPicker
+import io.github.aedev.flow.data.recommendation.music.FavouriteArtistsStore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,11 +54,16 @@ class OnboardingViewModel
         private val channelSearch: ChannelSearch,
         private val completer: OnboardingCompleter,
         private val preferences: PlayerPreferences,
+        favouriteArtists: FavouriteArtistsStore,
+        artistCatalog: FavouriteArtistCatalog,
     ) : ViewModel() {
         private val _state = MutableStateFlow(restore())
         val state: StateFlow<OnboardingUiState> = _state.asStateFlow()
 
         val importOperation: StateFlow<BackupOperation> = backup.operation
+
+        /** Picks are saved as they are made, the same as in Settings, so nothing waits for Done. */
+        val artists = FavouriteArtistPicker(viewModelScope, favouriteArtists, artistCatalog)
 
         val newVideoAlerts: StateFlow<Boolean> =
             preferences.notifNewVideosEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)

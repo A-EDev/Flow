@@ -233,6 +233,10 @@ internal fun stepCopy(
             StepCopy(stringResource(R.string.onboarding_channels_title), stringResource(R.string.onboarding_channels_subtitle))
         }
 
+        OnboardingStep.ARTISTS -> {
+            StepCopy(stringResource(R.string.onboarding_artists_title), stringResource(R.string.onboarding_artists_subtitle))
+        }
+
         OnboardingStep.ALERTS -> {
             StepCopy(stringResource(R.string.onboarding_alerts_title), stringResource(R.string.onboarding_alerts_subtitle))
         }

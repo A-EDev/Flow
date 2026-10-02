@@ -7,6 +7,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -24,6 +25,7 @@ import io.github.aedev.flow.data.music.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
@@ -158,9 +160,14 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("subscriptions") {
+    composable("subscriptions") { backStackEntry ->
         currentRoute.value = "subscriptions"
+        val openMusic by backStackEntry.savedStateHandle
+            .getStateFlow(OPEN_MUSIC_SUBSCRIPTIONS, false)
+            .collectAsStateWithLifecycle()
         SubscriptionsScreen(
+            openMusicSubscriptions = openMusic,
+            onMusicSubscriptionsOpened = { backStackEntry.savedStateHandle[OPEN_MUSIC_SUBSCRIPTIONS] = false },
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) {
                     playerViewModel.playVideo(it)
@@ -188,12 +195,12 @@ fun NavGraphBuilder.flowAppGraph(
                 io.github.aedev.flow.R.string.library_downloads_label,
             )
         LibraryScreen(
-            onOpenRecap = { period -> navController.navigate(period?.let(RecapRoutes::story) ?: RecapRoutes.stats()) },
+            onOpenRecap = { period -> navController.navigate(period?.let { RecapRoutes.story(it) } ?: RecapRoutes.stats()) },
             onNavigateToHistory = {
                 navController.navigate("history")
             },
-            onNavigateToPlaylists = {
-                navController.navigate("playlists")
+            onNavigateToPlaylists = { kind ->
+                navController.navigate(if (kind == null) "playlists" else "playlists?kind=${kind.name}")
             },
             onNavigateToLikedVideos = {
                 navController.navigate("playlist/${PlaylistRepository.LIKED_VIDEOS_ID}")
@@ -323,21 +330,33 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "recap"
         RecapScreen(
             onBack = { navController.popBackStack() },
-            onPlayStory = { period -> navController.navigate(RecapRoutes.story(period)) },
+            onPlayStory = { period, source -> navController.navigate(RecapRoutes.story(period, source)) },
             startAt = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD)),
         )
     }
 
     composable(
         route = RecapRoutes.STORY,
-        arguments = listOf(navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType }),
+        arguments =
+            listOf(
+                navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType },
+                navArgument(RecapRoutes.ARG_SOURCE) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
     ) { backStackEntry ->
         currentRoute.value = "recap_story"
         val period = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD))
         if (period == null) {
             LaunchedEffect(Unit) { navController.popBackStack() }
         } else {
-            RecapStoryScreen(period = period, onClose = { navController.popBackStack() })
+            RecapStoryScreen(
+                period = period,
+                source = RecapRoutes.decodeSource(backStackEntry.arguments?.getString(RecapRoutes.ARG_SOURCE)),
+                onClose = { navController.popBackStack() },
+            )
         }
     }
 
@@ -415,9 +434,25 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Playlists Screen
-    composable("playlists") {
+    composable(
+        route = "playlists?kind={kind}",
+        arguments =
+            listOf(
+                navArgument("kind") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
         currentRoute.value = "playlists"
+        val fixedKind =
+            backStackEntry.arguments?.getString("kind")?.let { name ->
+                io.github.aedev.flow.ui.components.shared.MediaKind.entries
+                    .firstOrNull { it.name == name }
+            }
         PlaylistsScreen(
+            fixedKind = fixedKind,
             onBackClick = { navController.popBackStack() },
             onVideoPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -546,6 +581,15 @@ fun NavGraphBuilder.flowAppGraph(
             onAlbumClick = { albumId ->
                 mediaNavigator.openAlbum(albumId)
             },
+            onPlaylistClick = mediaNavigator::openMusicPlaylist,
+            onAllPlaylistsClick = {
+                navController.navigate("playlists?kind=${io.github.aedev.flow.ui.components.shared.MediaKind.Music.name}")
+            },
+            onAllSubscriptionsClick = {
+                currentRoute.value = FlowTab.Subscriptions.route
+                navController.navigateToTab(FlowTab.Subscriptions, defaultStartRoute)
+                navController.currentBackStackEntry?.savedStateHandle?.set(OPEN_MUSIC_SUBSCRIPTIONS, true)
+            },
             onMoodsClick = { item ->
                 if (item != null) {
                     // Navigate to browse screen with browseId and params for proper content fetching
@@ -602,6 +646,11 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = { playlistId ->
                 mediaNavigator.openMusicPlaylist(playlistId)
             },
+            onMoodClick = { item ->
+                val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
+                navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
+            },
+            onMoodsSeeAll = { navController.navigate("moodsAndGenres") },
         )
     }
 

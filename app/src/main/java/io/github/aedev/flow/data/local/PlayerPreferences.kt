@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.data.model.SponsorBlockCategories
+import io.github.aedev.flow.data.playlist.PlaylistListOrder
 import io.github.aedev.flow.data.video.downloader.work.RetagResult
 import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
@@ -34,6 +35,7 @@ private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePr
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
 private const val PLAYLIST_SORT_SEPARATOR = "|"
+private const val CHANNEL_SPEED_SEPARATOR = "|"
 const val CONTENT_LANGUAGE_FOLLOW_APP = "app"
 const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
@@ -161,6 +163,10 @@ class PlayerPreferences(
         val VIDEO_NOTES_ENABLED = booleanPreferencesKey("video_notes_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val LIBRARY_SHELF_PREVIEWS_ENABLED = booleanPreferencesKey("library_shelf_previews_enabled")
+        val SEPARATE_PLAYLIST_KINDS = booleanPreferencesKey("separate_playlist_kinds")
+        val PLAYLIST_LIST_ORDER = stringPreferencesKey("playlist_list_order")
+        val PLAYLISTS_COMPACT_LAYOUT = booleanPreferencesKey("playlists_compact_layout")
+        val PLAYLISTS_SHOW_MUSIC = booleanPreferencesKey("playlists_show_music")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_SUBSCRIPTIONS_ENABLED = booleanPreferencesKey("home_subscriptions_enabled")
         val SHOW_WATCH_PROGRESS = booleanPreferencesKey("show_watch_progress")
@@ -289,6 +295,16 @@ class PlayerPreferences(
 
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
+        val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
+        val MUSIC_VIDEO_SWITCH = booleanPreferencesKey("music_video_switch")
+        val ANIMATED_ARTWORK = booleanPreferencesKey("animated_artwork")
+        val MUSIC_REPEAT_MODE = intPreferencesKey("music_repeat_mode")
+        val ANIMATED_ARTWORK_WIFI_ONLY = booleanPreferencesKey("animated_artwork_wifi_only")
+        val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
+        val RECAP_SOURCE = stringPreferencesKey("recap_source")
+        val HIDDEN_MUSIC_HOME_SHELVES = stringSetPreferencesKey("hidden_music_home_shelves")
+        val SPEED_PER_CHANNEL = booleanPreferencesKey("speed_per_channel")
+        val CHANNEL_PLAYBACK_SPEEDS = stringSetPreferencesKey("channel_playback_speeds")
 
         // Subscription check interval
         val SUBSCRIPTION_CHECK_INTERVAL_MINUTES = intPreferencesKey("subscription_check_interval_minutes")
@@ -908,6 +924,52 @@ class PlayerPreferences(
     suspend fun setLibraryShelfPreviewsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.LIBRARY_SHELF_PREVIEWS_ENABLED] = enabled
+        }
+    }
+
+    /** Library lists video and music playlists as two separate entries instead of one. */
+    val separatePlaylistKinds: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SEPARATE_PLAYLIST_KINDS] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setSeparatePlaylistKinds(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SEPARATE_PLAYLIST_KINDS] = enabled
+        }
+    }
+
+    val playlistListOrder: Flow<PlaylistListOrder> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> PlaylistListOrder.fromStorageValue(preferences[Keys.PLAYLIST_LIST_ORDER]) }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistListOrder(order: PlaylistListOrder) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLIST_LIST_ORDER] = order.storageValue
+        }
+    }
+
+    val playlistsCompactLayout: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYLISTS_COMPACT_LAYOUT] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistsCompactLayout(compact: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLISTS_COMPACT_LAYOUT] = compact
+        }
+    }
+
+    /** The Videos/Music choice on the playlists page, kept between visits. */
+    val playlistsShowMusic: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYLISTS_SHOW_MUSIC] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setPlaylistsShowMusic(showMusic: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLISTS_SHOW_MUSIC] = showMusic
         }
     }
 
@@ -1832,6 +1894,132 @@ class PlayerPreferences(
     suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    val hiddenMusicHomeShelves: Flow<Set<String>> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.HIDDEN_MUSIC_HOME_SHELVES].orEmpty() }
+            .distinctUntilChanged()
+
+    suspend fun setMusicHomeShelfHidden(
+        shelf: String,
+        hidden: Boolean,
+    ) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            val current = preferences[Keys.HIDDEN_MUSIC_HOME_SHELVES].orEmpty()
+            preferences[Keys.HIDDEN_MUSIC_HOME_SHELVES] = if (hidden) current + shelf else current - shelf
+        }
+    }
+
+    /** The Everything, Videos or Music tab the recap was last left on. */
+    val recapSource: Flow<String?> = context.playerPreferencesDataStore.data.map { preferences -> preferences[Keys.RECAP_SOURCE] }
+
+    suspend fun setRecapSource(source: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.RECAP_SOURCE] = source
+        }
+    }
+
+    val autoDownloadLikedMusic: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.AUTO_DOWNLOAD_LIKED_MUSIC] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setAutoDownloadLikedMusic(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTO_DOWNLOAD_LIKED_MUSIC] = enabled
+        }
+    }
+
+    /** Music videos start at 1x whatever speed would otherwise apply. */
+    val musicAtNormalSpeed: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_AT_NORMAL_SPEED] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicAtNormalSpeed(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_AT_NORMAL_SPEED] = enabled
+        }
+    }
+
+    val musicVideoSwitch: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_VIDEO_SWITCH] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicVideoSwitch(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_VIDEO_SWITCH] = enabled
+        }
+    }
+
+    /** The music player's repeat mode, as Media3's own Player.REPEAT_MODE_* value. */
+    val musicRepeatMode: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_REPEAT_MODE] ?: 0 }
+            .distinctUntilChanged()
+
+    suspend fun setMusicRepeatMode(mode: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_REPEAT_MODE] = mode
+        }
+    }
+
+    val animatedArtwork: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.ANIMATED_ARTWORK] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setAnimatedArtwork(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ANIMATED_ARTWORK] = enabled
+        }
+    }
+
+    val animatedArtworkWifiOnly: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.ANIMATED_ARTWORK_WIFI_ONLY] ?: true }
+            .distinctUntilChanged()
+
+    suspend fun setAnimatedArtworkWifiOnly(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ANIMATED_ARTWORK_WIFI_ONLY] = enabled
+        }
+    }
+
+    val speedPerChannel: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SPEED_PER_CHANNEL] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setSpeedPerChannel(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPEED_PER_CHANNEL] = enabled
+        }
+    }
+
+    suspend fun channelPlaybackSpeed(channelId: String): Float? =
+        context.playerPreferencesDataStore.data
+            .first()[Keys.CHANNEL_PLAYBACK_SPEEDS]
+            .orEmpty()
+            .firstOrNull { it.startsWith("$channelId$CHANNEL_SPEED_SEPARATOR") }
+            ?.substringAfter(CHANNEL_SPEED_SEPARATOR)
+            ?.toFloatOrNull()
+
+    suspend fun setChannelPlaybackSpeed(
+        channelId: String,
+        speed: Float,
+    ) {
+        withContext(kotlinx.coroutines.NonCancellable) {
+            context.playerPreferencesDataStore.edit { preferences ->
+                val others =
+                    preferences[Keys.CHANNEL_PLAYBACK_SPEEDS]
+                        .orEmpty()
+                        .filterNot { it.startsWith("$channelId$CHANNEL_SPEED_SEPARATOR") }
+                preferences[Keys.CHANNEL_PLAYBACK_SPEEDS] = others.toSet() + "$channelId$CHANNEL_SPEED_SEPARATOR$speed"
+            }
         }
     }
 

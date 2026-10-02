@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -71,6 +72,8 @@ fun SubscriptionsScreen(
     onShortClick: (ShortsQueueSource) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
+    openMusicSubscriptions: Boolean = false,
+    onMusicSubscriptionsOpened: () -> Unit = {},
     viewModel: SubscriptionsViewModel = sharedSubscriptionsViewModel(),
 ) {
     val context = LocalContext.current
@@ -83,6 +86,13 @@ fun SubscriptionsScreen(
     val feedGridState = rememberLazyGridState()
 
     var isManagingSubs by remember { mutableStateOf(false) }
+    var manageShowsMusic by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(openMusicSubscriptions) {
+        if (!openMusicSubscriptions) return@LaunchedEffect
+        manageShowsMusic = true
+        isManagingSubs = true
+        onMusicSubscriptionsOpened()
+    }
     var searchQuery by remember { mutableStateOf("") }
     var showSortMenu by remember { mutableStateOf(false) }
     var showGroupsDialog by remember { mutableStateOf(false) }
@@ -218,7 +228,10 @@ fun SubscriptionsScreen(
                                 contentDescription = stringResource(R.string.toggle_view_mode),
                             )
                         }
-                        IconButton(onClick = { isManagingSubs = true }) {
+                        IconButton(onClick = {
+                            manageShowsMusic = false
+                            isManagingSubs = true
+                        }) {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = stringResource(R.string.search_subscriptions),
@@ -250,6 +263,8 @@ fun SubscriptionsScreen(
                         onChannelClick = onChannelClick,
                         onNotificationChange = viewModel::updateNotificationState,
                         onShortsExcludeChange = viewModel::setShortsChannelExcluded,
+                        showsMusic = manageShowsMusic,
+                        onShowsMusicChange = { manageShowsMusic = it },
                         onUnsubscribe = { channel ->
                             scope.launch {
                                 unsubscribeWithUndo(
@@ -276,7 +291,14 @@ fun SubscriptionsScreen(
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onChannelClick = onChannelClick,
-                        onViewAllClick = { isManagingSubs = true },
+                        onViewAllClick = {
+                            manageShowsMusic = false
+                            isManagingSubs = true
+                        },
+                        onMusicSubscriptionsClick = {
+                            manageShowsMusic = true
+                            isManagingSubs = true
+                        },
                         onGroupSelected = viewModel::selectGroup,
                         onManageGroups = { showGroupsDialog = true },
                         onRetryFailedChannels = viewModel::retryFailedChannels,

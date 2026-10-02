@@ -77,6 +77,7 @@ class DownloadSettingsViewModel
         val musicQuality = preferences.musicDownloadQuality.asState(MusicAudioQuality.HIGH)
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
+        val autoDownloadLikes = preferences.autoDownloadLikedMusic.asState(false)
         val subtitleFile = preferences.downloadSubtitleFile.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
@@ -137,6 +138,8 @@ class DownloadSettingsViewModel
         fun setMenuStyle(value: DownloadDialogStyle) = write { preferences.setDownloadDialogStyle(value) }
 
         // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
+        fun setAutoDownloadLikes(value: Boolean) = write { preferences.setAutoDownloadLikedMusic(value) }
+
         fun setWifiOnly(value: Boolean) =
             write {
                 preferences.setDownloadOverWifiOnly(value)

@@ -23,7 +23,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.data.playlist.PlaylistListOrder
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.MediaKind
 
 private val FilterRowPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -52,6 +54,9 @@ internal fun PlaylistLibraryFilterRow(
     onKindSelected: (MediaKind) -> Unit,
     selectedOwnership: PlaylistOwnershipFilter,
     onOwnershipSelected: (PlaylistOwnershipFilter) -> Unit,
+    selectedOrder: PlaylistListOrder,
+    onOrderSelected: (PlaylistListOrder) -> Unit,
+    showKinds: Boolean = true,
 ) {
     var ownershipExpanded by remember { mutableStateOf(false) }
 
@@ -61,7 +66,7 @@ internal fun PlaylistLibraryFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(
-            items = MediaKind.entries,
+            items = if (showKinds) MediaKind.entries else emptyList(),
             key = { it.name },
         ) { kind ->
             FlowFilterChip(
@@ -106,8 +111,29 @@ internal fun PlaylistLibraryFilterRow(
                 }
             }
         }
+
+        item(key = "order") {
+            FlowSortChip(
+                options = PlaylistListOrder.entries,
+                selected = selectedOrder,
+                default = PlaylistListOrder.NEWEST,
+                label = { it.label() },
+                onSelected = onOrderSelected,
+            )
+        }
     }
 }
+
+@Composable
+private fun PlaylistListOrder.label(): String =
+    stringResource(
+        when (this) {
+            PlaylistListOrder.NEWEST -> R.string.playlists_sort_newest
+            PlaylistListOrder.OLDEST -> R.string.playlists_sort_oldest
+            PlaylistListOrder.NAME -> R.string.playlists_sort_name
+            PlaylistListOrder.CUSTOM -> R.string.playlists_sort_custom
+        },
+    )
 
 @Composable
 private fun PlaylistOwnershipFilter.label(): String =

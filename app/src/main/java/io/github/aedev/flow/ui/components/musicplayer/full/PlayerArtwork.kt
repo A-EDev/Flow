@@ -38,6 +38,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import kotlinx.coroutines.launch
 
+internal val PlayerArtworkCornerRadius = 12.dp
+
 @Composable
 private fun rememberArtworkRequest(thumbnailUrl: String?): ImageRequest {
     val context = LocalContext.current
@@ -57,6 +59,8 @@ private fun rememberArtworkRequest(thumbnailUrl: String?): ImageRequest {
  * Artwork behaves like a pager: the neighbouring track's cover slides in with the drag, and a
  * long-press preview drives the same offset. A committed swipe leaves the neighbour centered
  * until the track actually changes, so the handoff to the new "current" cover is seamless.
+ * An [underlay] sits beneath the cover and shows through once the cover is hidden; an [overlay]
+ * draws over it. Both stay inside the swipe area, so swiping still skips.
  */
 @Composable
 fun PlayerArtwork(
@@ -71,6 +75,8 @@ fun PlayerArtwork(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
     onDragPreviewChange: (SkipDirection?) -> Unit = {},
+    underlay: (@Composable () -> Unit)? = null,
+    overlay: (@Composable () -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
@@ -80,7 +86,7 @@ fun PlayerArtwork(
     BoxWithConstraints(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(PlayerArtworkCornerRadius))
                 .then(if (invisibleSlot) Modifier else Modifier.background(Color.Black)),
     ) {
         val widthPx = with(density) { maxWidth.toPx() }
@@ -186,6 +192,8 @@ fun PlayerArtwork(
                         )
                     },
         ) {
+            // Drawn first so the cover hides it until it has a picture of its own to show.
+            underlay?.invoke()
             if (hideArtwork) {
                 // An unspecified color means the slot should stay fully invisible (immersive
                 // background), keeping only the gesture area and the loading overlay.
@@ -237,6 +245,7 @@ fun PlayerArtwork(
                     contentScale = ContentScale.Crop,
                 )
             }
+            overlay?.invoke()
             if (isLoading) {
                 Box(
                     modifier =
