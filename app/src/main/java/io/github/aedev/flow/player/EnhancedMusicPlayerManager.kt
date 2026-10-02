@@ -266,12 +266,7 @@ object EnhancedMusicPlayerManager {
                                 currentPosition = _currentPosition.value, // Use StateFlow, not player directly
                                 currentTrackId = _currentTrack.value?.videoId,
                                 shuffleEnabled = _shuffleEnabled.value,
-                                repeatMode =
-                                    when (_repeatMode.value) {
-                                        RepeatMode.OFF -> 0
-                                        RepeatMode.ALL -> 1
-                                        RepeatMode.ONE -> 2
-                                    },
+                                repeatMode = _repeatMode.value.savedCode,
                                 savedAt = System.currentTimeMillis(),
                                 automix = _automixItems.value,
                             )
@@ -327,12 +322,7 @@ object EnhancedMusicPlayerManager {
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
-                    _repeatMode.value =
-                        when (repeatMode) {
-                            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
-                            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
-                            else -> RepeatMode.OFF
-                        }
+                    _repeatMode.value = RepeatMode.fromPlayer(repeatMode)
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -763,12 +753,7 @@ object EnhancedMusicPlayerManager {
                 currentPosition = _currentPosition.value, // Use StateFlow for thread safety
                 currentTrackId = _currentTrack.value?.videoId,
                 shuffleEnabled = _shuffleEnabled.value,
-                repeatMode =
-                    when (_repeatMode.value) {
-                        RepeatMode.OFF -> 0
-                        RepeatMode.ALL -> 1
-                        RepeatMode.ONE -> 2
-                    },
+                repeatMode = _repeatMode.value.savedCode,
                 automix = _automixItems.value,
             )
         }
@@ -790,12 +775,10 @@ object EnhancedMusicPlayerManager {
             _queue.value = savedState.queue
             _currentQueueIndex.value = savedState.currentIndex.coerceIn(0, savedState.queue.size - 1)
             _shuffleEnabled.value = savedState.shuffleEnabled
-            _repeatMode.value =
-                when (savedState.repeatMode) {
-                    1 -> RepeatMode.ALL
-                    2 -> RepeatMode.ONE
-                    else -> RepeatMode.OFF
-                }
+            // The button reads this, but only the player repeats: a fresh service starts it at off.
+            val repeat = RepeatMode.fromSaved(savedState.repeatMode)
+            _repeatMode.value = repeat
+            player?.repeatMode = repeat.playerMode
             _automixItems.value = savedState.automix
 
             val currentTrack =
@@ -828,12 +811,7 @@ object EnhancedMusicPlayerManager {
                     currentPosition = _currentPosition.value, // Use StateFlow for thread safety
                     currentTrackId = _currentTrack.value?.videoId,
                     shuffleEnabled = _shuffleEnabled.value,
-                    repeatMode =
-                        when (_repeatMode.value) {
-                            RepeatMode.OFF -> 0
-                            RepeatMode.ALL -> 1
-                            RepeatMode.ONE -> 2
-                        },
+                    repeatMode = _repeatMode.value.savedCode,
                     automix = _automixItems.value,
                 )
             }
@@ -1199,8 +1177,19 @@ data class MusicPlayerState(
 private const val PRECISE_POSITION_INTERVAL_MS = 250L
 private const val COARSE_POSITION_INTERVAL_MS = 1_000L
 
-enum class RepeatMode {
-    OFF,
-    ALL,
-    ONE,
+/** [savedCode] is how a saved queue stores the mode; [playerMode] is Media3's own value for it. */
+enum class RepeatMode(
+    val savedCode: Int,
+    val playerMode: Int,
+) {
+    OFF(0, Player.REPEAT_MODE_OFF),
+    ALL(1, Player.REPEAT_MODE_ALL),
+    ONE(2, Player.REPEAT_MODE_ONE),
+    ;
+
+    companion object {
+        fun fromSaved(code: Int): RepeatMode = entries.firstOrNull { it.savedCode == code } ?: OFF
+
+        fun fromPlayer(mode: Int): RepeatMode = entries.firstOrNull { it.playerMode == mode } ?: OFF
+    }
 }
