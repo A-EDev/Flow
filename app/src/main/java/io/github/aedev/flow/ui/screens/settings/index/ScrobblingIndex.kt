@@ -35,8 +35,9 @@ internal object ScrobblingIndex {
     val ownKeyValues = entry("own_key_values", R.string.scrobbling_own_key_values, R.string.scrobbling_lastfm)
     val nowPlaying =
         entry("now_playing", R.string.scrobbling_now_playing, R.string.scrobbling_options, R.string.scrobbling_now_playing_summary)
+    val sendLikes = entry("send_likes", R.string.scrobbling_send_likes, R.string.scrobbling_options, R.string.scrobbling_send_likes_summary)
     val local = entry("local", R.string.scrobbling_local, R.string.scrobbling_options, R.string.scrobbling_local_summary)
     val sendNow = entry("send_now", R.string.scrobbling_send_now, R.string.scrobbling_options)
 
-    val all = ScrobbleService.entries.map(::account) + listOf(ownKey, ownKeyValues, nowPlaying, local, sendNow)
+    val all = ScrobbleService.entries.map(::account) + listOf(ownKey, ownKeyValues, nowPlaying, sendLikes, local, sendNow)
 }

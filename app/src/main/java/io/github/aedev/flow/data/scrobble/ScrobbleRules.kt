@@ -23,12 +23,7 @@ object ScrobbleRules {
         durationMs: Long,
         startedAtMs: Long,
     ): ScrobbleEntry? {
-        val artist =
-            (track.artists.firstOrNull()?.name ?: track.artist)
-                .removeSuffix(TOPIC_SUFFIX)
-                .trim()
-        val title = track.title.trim()
-        if (artist.isEmpty() || title.isEmpty()) return null
+        val (artist, title) = artistAndTitle(track) ?: return null
         return ScrobbleEntry(
             artist = artist,
             title = title,
@@ -41,6 +36,21 @@ object ScrobbleRules {
             timestampSec = startedAtMs / 1000,
             fromYouTube = !LocalMediaIds.isLocal(track.videoId),
         )
+    }
+
+    fun loveFor(
+        track: MusicTrack,
+        loved: Boolean,
+    ): LoveEntry? = artistAndTitle(track)?.let { (artist, title) -> LoveEntry(artist, title, loved) }
+
+    /** The first credited artist: joining every name makes Last.fm invent a new artist. */
+    private fun artistAndTitle(track: MusicTrack): Pair<String, String>? {
+        val artist =
+            (track.artists.firstOrNull()?.name ?: track.artist)
+                .removeSuffix(TOPIC_SUFFIX)
+                .trim()
+        val title = track.title.trim()
+        return if (artist.isEmpty() || title.isEmpty()) null else artist to title
     }
 
     private const val UNKNOWN_ALBUM = "Unknown Album"

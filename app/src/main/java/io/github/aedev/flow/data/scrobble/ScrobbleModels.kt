@@ -20,6 +20,14 @@ data class ScrobbleEntry(
     val fromYouTube: Boolean = true,
 )
 
+/** A like or unlike to mirror as a love on Last.fm and Libre.fm. */
+@Serializable
+data class LoveEntry(
+    val artist: String,
+    val title: String,
+    val loved: Boolean,
+)
+
 /** A signed-in account: the name to show and the key or token the service gave, kept sealed at rest. */
 data class ScrobbleAccount(
     val userName: String,

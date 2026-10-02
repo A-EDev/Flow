@@ -26,6 +26,7 @@ data class ScrobbleSettings(
     val ownKeys: AudioscrobblerKeys = AudioscrobblerKeys("", ""),
     val nowPlaying: Boolean = true,
     val scrobbleLocal: Boolean = false,
+    val sendLikes: Boolean = false,
     val pending: Map<ScrobbleService, Int> = emptyMap(),
 )
 
@@ -45,12 +46,15 @@ class ScrobbleStore
         private val ownSecretKey = stringPreferencesKey("lastfm_own_secret")
         private val nowPlayingKey = booleanPreferencesKey("now_playing")
         private val scrobbleLocalKey = booleanPreferencesKey("scrobble_local")
+        private val sendLikesKey = booleanPreferencesKey("send_likes")
 
         private fun nameKey(service: ScrobbleService) = stringPreferencesKey("${service.name}_user")
 
         private fun secretKey(service: ScrobbleService) = stringPreferencesKey("${service.name}_secret")
 
         private fun queueKey(service: ScrobbleService) = stringPreferencesKey("${service.name}_queue")
+
+        private fun lovesKey(service: ScrobbleService) = stringPreferencesKey("${service.name}_loves")
 
         val settings: Flow<ScrobbleSettings> =
             context.scrobbleDataStore.data
@@ -69,7 +73,8 @@ class ScrobbleStore
                             ),
                         nowPlaying = preferences[nowPlayingKey] ?: true,
                         scrobbleLocal = preferences[scrobbleLocalKey] ?: false,
-                        pending = ScrobbleService.entries.associateWith { preferences.queue(it).size },
+                        sendLikes = preferences[sendLikesKey] ?: false,
+                        pending = ScrobbleService.entries.associateWith { preferences.queue(it).size + preferences.loves(it).size },
                     )
                 }.flowOn(Dispatchers.IO)
 
@@ -85,6 +90,7 @@ class ScrobbleStore
                     preferences.remove(nameKey(service))
                     preferences.remove(secretKey(service))
                     preferences.remove(queueKey(service))
+                    preferences.remove(lovesKey(service))
                 } else {
                     preferences[nameKey(service)] = account.userName
                     preferences[secretKey(service)] = sealed
@@ -110,6 +116,35 @@ class ScrobbleStore
 
         suspend fun setScrobbleLocal(enabled: Boolean) {
             context.scrobbleDataStore.edit { it[scrobbleLocalKey] = enabled }
+        }
+
+        suspend fun setSendLikes(enabled: Boolean) {
+            context.scrobbleDataStore.edit { it[sendLikesKey] = enabled }
+        }
+
+        suspend fun enqueueLove(
+            service: ScrobbleService,
+            love: LoveEntry,
+        ) {
+            context.scrobbleDataStore.edit { preferences ->
+                preferences[lovesKey(service)] = json.encodeToString((preferences.loves(service) + love).takeLast(MAX_QUEUE))
+            }
+        }
+
+        suspend fun pendingLoves(service: ScrobbleService): List<LoveEntry> =
+            context.scrobbleDataStore.data
+                .first()
+                .loves(service)
+
+        suspend fun dropLove(
+            service: ScrobbleService,
+            love: LoveEntry,
+        ) {
+            context.scrobbleDataStore.edit { preferences ->
+                val loves = preferences.loves(service)
+                val index = loves.indexOf(love)
+                if (index >= 0) preferences[lovesKey(service)] = json.encodeToString(loves.filterIndexed { i, _ -> i != index })
+            }
         }
 
         suspend fun enqueue(
@@ -143,6 +178,11 @@ class ScrobbleStore
             val secret = KeystoreSecretBox.open(sealed).takeIf { it.isNotEmpty() } ?: return null
             return ScrobbleAccount(userName = this[nameKey(service)].orEmpty(), secret = secret)
         }
+
+        private fun Preferences.loves(service: ScrobbleService): List<LoveEntry> =
+            this[lovesKey(service)]
+                ?.let { runCatching { json.decodeFromString<List<LoveEntry>>(it) }.getOrNull() }
+                .orEmpty()
 
         private fun Preferences.queue(service: ScrobbleService): List<ScrobbleEntry> =
             this[queueKey(service)]

@@ -80,5 +80,7 @@ internal class ScrobblingViewModel
 
         fun setScrobbleLocal(enabled: Boolean) = write { store.setScrobbleLocal(enabled) }
 
+        fun setSendLikes(enabled: Boolean) = write { store.setSendLikes(enabled) }
+
         fun sendNow() = ScrobbleWorker.enqueue(context)
     }

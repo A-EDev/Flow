@@ -7,12 +7,14 @@ import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -29,6 +31,7 @@ class MusicPlayerTrackActionsTest {
     private val dispatcher = StandardTestDispatcher()
     private val downloadManager: DownloadManager = mockk(relaxed = true)
     private val preferences: PlayerPreferences = mockk(relaxed = true)
+    private val scrobbler: Scrobbler = mockk(relaxed = true)
     private val track = MusicTrack(videoId = "song1", title = "Song", artist = "Artist", thumbnailUrl = "", duration = 200)
 
     @Before
@@ -50,6 +53,7 @@ class MusicPlayerTrackActionsTest {
             downloadManager = downloadManager,
             musicBrain = mockk<MusicBrainEngine>(relaxed = true),
             playerPreferences = preferences,
+            scrobbler = scrobbler,
         )
 
     @Test
@@ -75,5 +79,18 @@ class MusicPlayerTrackActionsTest {
             advanceUntilIdle()
 
             coVerify(exactly = 0) { downloadManager.downloadTrack(any()) }
+        }
+
+    @Test
+    fun `a like and an unlike reach the scrobbler`() =
+        runTest(dispatcher) {
+            every { preferences.autoDownloadLikedMusic } returns flowOf(false)
+
+            actions(isLiked = false).toggleLike()
+            actions(isLiked = true).toggleLike()
+            advanceUntilIdle()
+
+            verify { scrobbler.onLikeChanged(track, true) }
+            verify { scrobbler.onLikeChanged(track, false) }
         }
 }

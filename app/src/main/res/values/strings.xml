@@ -4036,4 +4036,6 @@
     <string name="scrobbling_secret">Shared secret</string>
     <string name="scrobbling_show_secret">Show</string>
     <string name="scrobbling_hide_secret">Hide</string>
+    <string name="scrobbling_send_likes">Love liked songs</string>
+    <string name="scrobbling_send_likes_summary">Likes show as loved tracks on Last.fm and Libre.fm</string>
 </resources>

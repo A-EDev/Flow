@@ -43,4 +43,9 @@ class ScrobbleRulesTest {
     fun `nothing is sent without an artist`() {
         assertThat(ScrobbleRules.entryFor(track(artist = " "), 200_000, 0)).isNull()
     }
+
+    @Test
+    fun `a love uses the same artist as the scrobble`() {
+        assertThat(ScrobbleRules.loveFor(track(), loved = true)).isEqualTo(LoveEntry("Artist", "Song", loved = true))
+    }
 }

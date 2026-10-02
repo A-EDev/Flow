@@ -83,4 +83,16 @@ class AudioscrobblerClientTest {
         assertThat(outcomeOf(29)).isEqualTo(SendOutcome.Retry)
         assertThat(outcomeOf(6)).isEqualTo(SendOutcome.Sent)
     }
+
+    @Test
+    fun `a like becomes track love and an unlike track unlove`() =
+        runBlocking {
+            val client = client("{}")
+
+            assertThat(client.setLoved(LoveEntry("A", "Song", loved = true), ScrobbleAccount("u", "SK"), keys)).isEqualTo(SendOutcome.Sent)
+            client.setLoved(LoveEntry("A", "Song", loved = false), ScrobbleAccount("u", "SK"), keys)
+
+            assertThat(sent.map { it["method"] }).containsExactly("track.love", "track.unlove").inOrder()
+            assertThat(sent.first()["sk"]).isEqualTo("SK")
+        }
 }

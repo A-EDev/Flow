@@ -75,11 +75,28 @@ class Scrobbler
             }
         }
 
-        /** Sends every queued listen; false when something is left to retry. */
+        /** Mirrors a like or unlike as a love on the services that have one; ListenBrainz needs MusicBrainz ids instead. */
+        fun onLikeChanged(
+            track: MusicTrack,
+            liked: Boolean,
+        ) {
+            scope.launch {
+                val settings = store.current()
+                if (!settings.sendLikes || !settings.accepts(track)) return@launch
+                val love = ScrobbleRules.loveFor(track, liked) ?: return@launch
+                val services = settings.accounts.keys.filter { it != ScrobbleService.LISTENBRAINZ }
+                if (services.isEmpty()) return@launch
+                services.forEach { store.enqueueLove(it, love) }
+                ScrobbleWorker.enqueue(context)
+            }
+        }
+
+        /** Sends every queued listen and love; false when something is left to retry. */
         suspend fun flush(): Boolean {
             val settings = store.current()
             var done = true
             settings.accounts.forEach { (service, account) ->
+                if (!flushLoves(service, account, settings)) done = false
                 while (true) {
                     val batch = store.pending(service).take(batchSize(service))
                     if (batch.isEmpty()) break
@@ -102,6 +119,24 @@ class Scrobbler
                 }
             }
             return done
+        }
+
+        private suspend fun flushLoves(
+            service: ScrobbleService,
+            account: ScrobbleAccount,
+            settings: ScrobbleSettings,
+        ): Boolean {
+            if (service == ScrobbleService.LISTENBRAINZ) return true
+            val client = if (service == ScrobbleService.LIBREFM) libreFm else lastFm
+            val keys = if (service == ScrobbleService.LIBREFM) AudioscrobblerClient.LibreFmKeys else lastFmKeys(settings)
+            for (love in store.pendingLoves(service)) {
+                when (keys?.let { client.setLoved(love, account, it) } ?: SendOutcome.SignedOut) {
+                    SendOutcome.Sent -> store.dropLove(service, love)
+                    SendOutcome.Retry -> return false
+                    SendOutcome.SignedOut -> return true
+                }
+            }
+            return true
         }
 
         suspend fun signIn(

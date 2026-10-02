@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,7 @@ internal class MusicPlayerTrackActions(
     private val downloadManager: DownloadManager,
     private val musicBrain: MusicBrainEngine,
     private val playerPreferences: PlayerPreferences,
+    private val scrobbler: Scrobbler,
 ) {
     fun toggleLike() {
         val currentTrack = uiState.value.currentTrack ?: return
@@ -39,6 +41,7 @@ internal class MusicPlayerTrackActions(
         // the video player is liked without being a favorite, and flipping the list missed it.
         val like = !uiState.value.isLiked
         uiState.update { it.copy(isLiked = like) }
+        scrobbler.onLikeChanged(currentTrack, like)
         scope.launch(PerformanceDispatcher.diskIO) {
             if (like) {
                 playlistRepository.addToFavorites(currentTrack)

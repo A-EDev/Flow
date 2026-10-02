@@ -77,6 +77,7 @@ internal fun ScrobblingScreen(
         }
         group(key = "scrobbling.options", header = R.string.scrobbling_options) {
             switch(ScrobblingIndex.nowPlaying, settings.nowPlaying, viewModel::setNowPlaying)
+            switch(ScrobblingIndex.sendLikes, settings.sendLikes, viewModel::setSendLikes)
             switch(ScrobblingIndex.local, settings.scrobbleLocal, viewModel::setScrobbleLocal)
             if (waiting > 0) {
                 nav(

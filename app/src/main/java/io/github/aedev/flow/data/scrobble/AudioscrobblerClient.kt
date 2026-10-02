@@ -84,6 +84,21 @@ class AudioscrobblerClient(
         return send(params, keys)
     }
 
+    suspend fun setLoved(
+        love: LoveEntry,
+        account: ScrobbleAccount,
+        keys: AudioscrobblerKeys,
+    ): SendOutcome =
+        send(
+            mapOf(
+                "method" to if (love.loved) "track.love" else "track.unlove",
+                "artist" to love.artist,
+                "track" to love.title,
+                "sk" to account.secret,
+            ),
+            keys,
+        )
+
     private suspend fun send(
         params: Map<String, String>,
         keys: AudioscrobblerKeys,
