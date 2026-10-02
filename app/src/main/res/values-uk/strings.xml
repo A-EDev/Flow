@@ -3451,4 +3451,13 @@
     <string name="download_collection_delete_files">Видалити завантаження</string>
     <string name="download_collection_keep_files">Зберегти файли</string>
     <string name="import_no_likes">Уподобані не знайдено. Експортуйте дані розділу «Мої дії» для YouTube у форматі JSON за допомогою свого облікового запису Google англійською мовою.</string>
+    <string name="lyrics_source_local_file">Файл із текстом пісні</string>
+    <string name="lyrics_source_embedded">Вбудовані тексти пісень</string>
+    <string name="content_settings_video_card_progress_title">Показувати прогрес перегляду</string>
+    <string name="content_settings_video_card_progress_subtitle">Смуга на мініатюрах, що показує, скільки ви вже переглянули</string>
+    <string name="content_settings_home_subscriptions_title">Підписки на головній</string>
+    <string name="content_settings_home_subscriptions_subtitle">Переглядайте на головній сторінці відео з каналів, на які ви підписані</string>
+    <string name="settings_section_watch_history">Історія переглядів</string>
+    <string name="pause_watch_history_title">Призупинити історію переглядів</string>
+    <string name="pause_watch_history_subtitle">Перестати зберігати те, що ви дивитеся. Deep Flow також призупиняє навчання</string>
 </resources>
