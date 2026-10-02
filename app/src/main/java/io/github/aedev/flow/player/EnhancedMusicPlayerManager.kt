@@ -286,6 +286,8 @@ object EnhancedMusicPlayerManager {
     }
 
     private fun setupPlayerListener(controller: Player) {
+        // The service owns repeat; the button shows what the player will actually do.
+        _repeatMode.value = RepeatMode.fromPlayer(controller.repeatMode)
         controller.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -775,10 +777,6 @@ object EnhancedMusicPlayerManager {
             _queue.value = savedState.queue
             _currentQueueIndex.value = savedState.currentIndex.coerceIn(0, savedState.queue.size - 1)
             _shuffleEnabled.value = savedState.shuffleEnabled
-            // The button reads this, but only the player repeats: a fresh service starts it at off.
-            val repeat = RepeatMode.fromSaved(savedState.repeatMode)
-            _repeatMode.value = repeat
-            player?.repeatMode = repeat.playerMode
             _automixItems.value = savedState.automix
 
             val currentTrack =
@@ -1177,7 +1175,7 @@ data class MusicPlayerState(
 private const val PRECISE_POSITION_INTERVAL_MS = 250L
 private const val COARSE_POSITION_INTERVAL_MS = 1_000L
 
-/** [savedCode] is how a saved queue stores the mode; [playerMode] is Media3's own value for it. */
+/** [savedCode] is how a saved queue writes the mode; [playerMode] is Media3's own value for it. */
 enum class RepeatMode(
     val savedCode: Int,
     val playerMode: Int,
@@ -1188,8 +1186,6 @@ enum class RepeatMode(
     ;
 
     companion object {
-        fun fromSaved(code: Int): RepeatMode = entries.firstOrNull { it.savedCode == code } ?: OFF
-
         fun fromPlayer(mode: Int): RepeatMode = entries.firstOrNull { it.playerMode == mode } ?: OFF
     }
 }

@@ -4,30 +4,18 @@ import androidx.media3.common.Player
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-/**
- * A saved queue numbers repeat modes differently from Media3 (ALL is 1 there, ONE is 1 in Media3),
- * so a restored mode must be translated before the player gets it, or Repeat one comes back as
- * Repeat all.
- */
+/** The button and the player must name the same mode: Media3 numbers them differently from the saved queue. */
 class RepeatModeTest {
     @Test
-    fun `a saved mode restores to the player's own value for it`() {
-        assertThat(RepeatMode.fromSaved(0).playerMode).isEqualTo(Player.REPEAT_MODE_OFF)
-        assertThat(RepeatMode.fromSaved(1).playerMode).isEqualTo(Player.REPEAT_MODE_ALL)
-        assertThat(RepeatMode.fromSaved(2).playerMode).isEqualTo(Player.REPEAT_MODE_ONE)
-    }
-
-    @Test
-    fun `every mode survives a save and a restore`() {
+    fun `every mode reads back from the player's own value`() {
         RepeatMode.entries.forEach { mode ->
-            assertThat(RepeatMode.fromSaved(mode.savedCode)).isEqualTo(mode)
             assertThat(RepeatMode.fromPlayer(mode.playerMode)).isEqualTo(mode)
         }
+        assertThat(RepeatMode.fromPlayer(Player.REPEAT_MODE_ONE)).isEqualTo(RepeatMode.ONE)
     }
 
     @Test
-    fun `an unknown code is off`() {
-        assertThat(RepeatMode.fromSaved(7)).isEqualTo(RepeatMode.OFF)
+    fun `an unknown value is off`() {
         assertThat(RepeatMode.fromPlayer(7)).isEqualTo(RepeatMode.OFF)
     }
 }

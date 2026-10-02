@@ -44,6 +44,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.download.LegacySongDownloads
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -53,6 +54,7 @@ import io.github.aedev.flow.data.scrobble.ScrobbleRules
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.MusicLoadErrorPolicy
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
@@ -77,6 +79,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -210,6 +213,8 @@ class Media3MusicService : MediaLibraryService() {
     @Inject
     lateinit var videoSwitch: MusicVideoSwitch
 
+    private val prefs by lazy { PlayerPreferences(this) }
+
     @Inject
     lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
 
@@ -258,9 +263,6 @@ class Media3MusicService : MediaLibraryService() {
             }
         }
 
-        val prefs =
-            io.github.aedev.flow.data.local
-                .PlayerPreferences(this@Media3MusicService)
         lifecycleScope.launch {
             prefs.musicEndlessRadioEnabled.collect { enabled ->
                 val wasEnabled = radioAutoplayEnabled
@@ -289,6 +291,9 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
         observeEqualizer()
+        // The service, not a saved queue, owns repeat: it outlives the app's process and is saved
+        // the moment it changes, so a restart or a new song keeps it.
+        lifecycleScope.launch { player.repeatMode = prefs.musicRepeatMode.first() }
         videoSwitch.attach(lifecycleScope, prefs.musicVideoSwitch)
 
         lifecycleScope.launch {
@@ -360,7 +365,9 @@ class Media3MusicService : MediaLibraryService() {
     private fun initializePlayer() {
         val mediaSourceFactory =
             MusicMediaSourceFactory(
-                audio = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory()),
+                audio =
+                    DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
+                        .setLoadErrorHandlingPolicy(MusicLoadErrorPolicy { !connectivityObserver.checkCurrentConnectivity() }),
                 videoDataSource = DefaultDataSource.Factory(this, YouTubeHttpDataSource.Factory()),
                 maxVideoHeight = { MusicVideoFormats.maxHeight(NetworkState.isOnWifi(this)) },
             )
@@ -409,6 +416,7 @@ class Media3MusicService : MediaLibraryService() {
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     updateNotification()
+                    lifecycleScope.launch { prefs.setMusicRepeatMode(repeatMode) }
                 }
 
                 override fun onMediaItemTransition(

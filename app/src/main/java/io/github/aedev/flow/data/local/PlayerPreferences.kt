@@ -298,6 +298,7 @@ class PlayerPreferences(
         val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
         val MUSIC_VIDEO_SWITCH = booleanPreferencesKey("music_video_switch")
         val ANIMATED_ARTWORK = booleanPreferencesKey("animated_artwork")
+        val MUSIC_REPEAT_MODE = intPreferencesKey("music_repeat_mode")
         val ANIMATED_ARTWORK_WIFI_ONLY = booleanPreferencesKey("animated_artwork_wifi_only")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
         val RECAP_SOURCE = stringPreferencesKey("recap_source")
@@ -1951,6 +1952,18 @@ class PlayerPreferences(
     suspend fun setMusicVideoSwitch(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_VIDEO_SWITCH] = enabled
+        }
+    }
+
+    /** The music player's repeat mode, as Media3's own Player.REPEAT_MODE_* value. */
+    val musicRepeatMode: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_REPEAT_MODE] ?: 0 }
+            .distinctUntilChanged()
+
+    suspend fun setMusicRepeatMode(mode: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_REPEAT_MODE] = mode
         }
     }
 
