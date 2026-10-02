@@ -9,9 +9,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -38,6 +40,48 @@ class ListenBrainzClient(
                     }
                 if (body["valid"]?.jsonPrimitive?.boolean != true) throw IOException(body.message() ?: "Invalid token")
                 ScrobbleAccount(userName = body["user_name"]?.jsonPrimitive?.content.orEmpty(), secret = token)
+            }
+        }
+
+    /** The user's most listened artists over the past year; empty when ListenBrainz has no stats yet. */
+    suspend fun topArtists(
+        account: ScrobbleAccount,
+        limit: Int,
+    ): Result<List<String>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val request =
+                    Request
+                        .Builder()
+                        .url(
+                            BASE_URL
+                                .toHttpUrl()
+                                .newBuilder()
+                                .addPathSegments("stats/user")
+                                .addPathSegment(account.userName)
+                                .addPathSegment("artists")
+                                .addQueryParameter("range", "year")
+                                .addQueryParameter("count", limit.toString())
+                                .build(),
+                        ).header(AUTH, "Token ${account.secret}")
+                        .get()
+                        .build()
+                http().newCall(request).execute().use { response ->
+                    if (response.code == NO_CONTENT) return@use emptyList()
+                    if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                    Json
+                        .parseToJsonElement(response.body.string())
+                        .jsonObject["payload"]
+                        ?.jsonObject
+                        ?.get("artists")
+                        ?.jsonArray
+                        ?.mapNotNull {
+                            it.jsonObject["artist_name"]
+                                ?.jsonPrimitive
+                                ?.content
+                                ?.takeIf(String::isNotBlank)
+                        }.orEmpty()
+                }
             }
         }
 
@@ -89,6 +133,7 @@ class ListenBrainzClient(
         private const val PLAYING_NOW = "playing_now"
         private const val SINGLE = "single"
         private const val IMPORT = "import"
+        private const val NO_CONTENT = 204
         private const val UNAUTHORIZED = 401
         private const val TOO_MANY = 429
         private const val SERVER_ERROR = 500

@@ -19,8 +19,10 @@ class AudioscrobblerClientTest {
             OkHttpClient
                 .Builder()
                 .addInterceptor { chain ->
-                    val form = chain.request().body as FormBody
-                    sent += (0 until form.size).associate { form.name(it) to form.value(it) }
+                    val form = chain.request().body as? FormBody
+                    sent +=
+                        form?.let { (0 until it.size).associate { i -> it.name(i) to it.value(i) } }
+                            ?: chain.request().url.let { url -> url.queryParameterNames.associateWith { url.queryParameter(it).orEmpty() } }
                     Response
                         .Builder()
                         .request(chain.request())
@@ -94,5 +96,17 @@ class AudioscrobblerClientTest {
 
             assertThat(sent.map { it["method"] }).containsExactly("track.love", "track.unlove").inOrder()
             assertThat(sent.first()["sk"]).isEqualTo("SK")
+        }
+
+    @Test
+    fun `top artists are read by name in play order`() =
+        runBlocking {
+            val reply = """{"topartists":{"artist":[{"name":"First","playcount":"90"},{"name":"Second","playcount":"40"}]}}"""
+
+            val artists = client(reply).topArtists("listener", keys, limit = 20).getOrThrow()
+
+            assertThat(artists).containsExactly("First", "Second").inOrder()
+            assertThat(sent.single()["method"]).isEqualTo("user.getTopArtists")
+            assertThat(sent.single()["period"]).isEqualTo("12month")
         }
 }

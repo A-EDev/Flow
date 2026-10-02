@@ -6,9 +6,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -99,6 +101,47 @@ class AudioscrobblerClient(
             keys,
         )
 
+    /** The user's most played artists over the past year, most played first. */
+    suspend fun topArtists(
+        userName: String,
+        keys: AudioscrobblerKeys,
+        limit: Int,
+    ): Result<List<String>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url =
+                    baseUrl
+                        .toHttpUrl()
+                        .newBuilder()
+                        .addQueryParameter("method", "user.getTopArtists")
+                        .addQueryParameter("user", userName)
+                        .addQueryParameter("period", "12month")
+                        .addQueryParameter("limit", limit.toString())
+                        .addQueryParameter("api_key", keys.apiKey)
+                        .addQueryParameter("format", "json")
+                        .build()
+                val body =
+                    read(
+                        Request
+                            .Builder()
+                            .url(url)
+                            .get()
+                            .build(),
+                    )
+                body.errorCode()?.let { throw IOException(body.errorMessage() ?: "Error $it") }
+                body["topartists"]
+                    ?.jsonObject
+                    ?.get("artist")
+                    ?.jsonArray
+                    ?.mapNotNull {
+                        it.jsonObject["name"]
+                            ?.jsonPrimitive
+                            ?.content
+                            ?.takeIf(String::isNotBlank)
+                    }.orEmpty()
+            }
+        }
+
     private suspend fun send(
         params: Map<String, String>,
         keys: AudioscrobblerKeys,
@@ -121,18 +164,21 @@ class AudioscrobblerClient(
         signed.forEach { (name, value) -> form.add(name, value) }
         form.add("api_sig", audioscrobblerSignature(signed, keys.secret))
         form.add("format", "json")
-        val request =
+        return read(
             Request
                 .Builder()
                 .url(baseUrl)
                 .post(form.build())
-                .build()
+                .build(),
+        )
+    }
+
+    private fun read(request: Request): JsonObject =
         http().newCall(request).execute().use { response ->
             val text = response.body.string()
             if (text.isBlank()) throw IOException("HTTP ${response.code}")
-            return runCatching { Json.parseToJsonElement(text).jsonObject }.getOrElse { throw IOException("HTTP ${response.code}") }
+            runCatching { Json.parseToJsonElement(text).jsonObject }.getOrElse { throw IOException("HTTP ${response.code}") }
         }
-    }
 
     private fun JsonObject.errorCode(): Int? = this["error"]?.jsonPrimitive?.int
 

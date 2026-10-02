@@ -165,6 +165,28 @@ class Scrobbler
 
         suspend fun signOut(service: ScrobbleService) = store.setAccount(service, null)
 
+        suspend fun topArtists(
+            service: ScrobbleService,
+            limit: Int,
+        ): Result<List<String>> {
+            val settings = store.current()
+            val account = settings.accounts[service] ?: return Result.failure(IllegalStateException("Not signed in"))
+            return when (service) {
+                ScrobbleService.LASTFM -> {
+                    val keys = lastFmKeys(settings) ?: return Result.failure(IllegalStateException("No API key"))
+                    lastFm.topArtists(account.userName, keys, limit)
+                }
+
+                ScrobbleService.LIBREFM -> {
+                    libreFm.topArtists(account.userName, AudioscrobblerClient.LibreFmKeys, limit)
+                }
+
+                ScrobbleService.LISTENBRAINZ -> {
+                    listenBrainz.topArtists(account, limit)
+                }
+            }
+        }
+
         private suspend fun send(
             service: ScrobbleService,
             batch: List<ScrobbleEntry>,

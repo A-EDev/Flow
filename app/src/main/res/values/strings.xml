@@ -4038,4 +4038,16 @@
     <string name="scrobbling_hide_secret">Hide</string>
     <string name="scrobbling_send_likes">Love liked songs</string>
     <string name="scrobbling_send_likes_summary">Likes show as loved tracks on Last.fm and Libre.fm</string>
+    <string name="scrobbling_import">Import your top artists</string>
+    <string name="scrobbling_import_summary">Adds your most played artists to your favourites</string>
+    <string name="scrobbling_import_offer_title">Shape your music with %1$s?</string>
+    <string name="scrobbling_import_offer_body">Flow adds your 20 most played artists of the past year to your favourite artists. You can remove any of them later.</string>
+    <string name="scrobbling_import_action">Import</string>
+    <string name="scrobbling_import_later">Not now</string>
+    <plurals name="scrobbling_import_done">
+        <item quantity="one">Added %d artist to your favourites</item>
+        <item quantity="other">Added %d artists to your favourites</item>
+    </plurals>
+    <string name="scrobbling_import_none">No new artists to add</string>
+    <string name="scrobbling_import_failed">Could not read your top artists</string>
 </resources>

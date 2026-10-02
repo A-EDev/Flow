@@ -2,11 +2,15 @@ package io.github.aedev.flow.ui.screens.settings.scrobbling
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
@@ -33,6 +37,9 @@ internal fun ScrobblingScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val lastFmReady by viewModel.lastFmReady.collectAsStateWithLifecycle()
     val signIn by viewModel.signIn.collectAsStateWithLifecycle()
+    val importing by viewModel.importing.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) { viewModel.messages.collect { snackbarHostState.showSnackbar(it) } }
     var dialog by rememberSaveable { mutableStateOf<ScrobbleDialogKind?>(null) }
     var dialogService by rememberSaveable { mutableStateOf(ScrobbleService.LASTFM) }
     val waiting = settings.pending.values.sum()
@@ -55,10 +62,24 @@ internal fun ScrobblingScreen(
             needsKey = stringResource(R.string.scrobbling_needs_key),
         )
 
-    SettingsPage(title = stringResource(R.string.scrobbling_title), onBack = onBack, highlight = highlight) {
+    SettingsPage(
+        title = stringResource(R.string.scrobbling_title),
+        onBack = onBack,
+        highlight = highlight,
+        snackbarHostState = snackbarHostState,
+    ) {
         ScrobbleService.entries.forEach { service ->
             group(key = "scrobbling.${service.name}", header = service.headerRes()) {
                 account(service, settings, ready = service != ScrobbleService.LASTFM || lastFmReady, labels) { kind -> open(kind, service) }
+                if (service in settings.accounts) {
+                    nav(
+                        ScrobblingIndex.import(service),
+                        icon = Icons.Outlined.Download,
+                        enabled = importing == null,
+                        showChevron = false,
+                        onClick = { viewModel.importTaste(service) },
+                    )
+                }
                 if (service == ScrobbleService.LASTFM) {
                     switch(ScrobblingIndex.ownKey, settings.ownKeyEnabled, { viewModel.setOwnKeys(it, settings.ownKeys) })
                     if (settings.ownKeyEnabled) {
@@ -97,12 +118,16 @@ internal fun ScrobblingScreen(
                 service = dialogService,
                 state = signIn,
                 onSubmit = { user, secret -> viewModel.signIn(dialogService, user, secret) },
-                onDismiss = { dialog = null },
+                onDismiss = { dialog = if (signIn == SignInState.Done) ScrobbleDialogKind.OFFER_IMPORT else null },
             )
         }
 
         ScrobbleDialogKind.SIGN_OUT -> {
             SignOutDialog(dialogService, onConfirm = { viewModel.signOut(dialogService) }, onDismiss = { dialog = null })
+        }
+
+        ScrobbleDialogKind.OFFER_IMPORT -> {
+            ImportOfferDialog(dialogService, onImport = { viewModel.importTaste(dialogService) }, onDismiss = { dialog = null })
         }
 
         ScrobbleDialogKind.OWN_KEY -> {

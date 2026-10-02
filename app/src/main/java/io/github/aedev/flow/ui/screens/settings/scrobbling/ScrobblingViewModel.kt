@@ -4,17 +4,22 @@ import android.content.Context
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.scrobble.AudioscrobblerKeys
 import io.github.aedev.flow.data.scrobble.ScrobbleService
 import io.github.aedev.flow.data.scrobble.ScrobbleSettings
 import io.github.aedev.flow.data.scrobble.ScrobbleStore
 import io.github.aedev.flow.data.scrobble.ScrobbleWorker
 import io.github.aedev.flow.data.scrobble.Scrobbler
+import io.github.aedev.flow.data.scrobble.TasteImport
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,6 +42,7 @@ internal class ScrobblingViewModel
         @ApplicationContext private val context: Context,
         private val store: ScrobbleStore,
         private val scrobbler: Scrobbler,
+        private val tasteImport: TasteImport,
     ) : SettingsViewModel() {
         val settings = store.settings.asState(ScrobbleSettings())
 
@@ -57,6 +63,34 @@ internal class ScrobblingViewModel
                     scrobbler
                         .signIn(service, userName, passwordOrToken)
                         .fold(onSuccess = { SignInState.Done }, onFailure = { SignInState.Failed(it.message) })
+            }
+        }
+
+        private val _importing = MutableStateFlow<ScrobbleService?>(null)
+        val importing: StateFlow<ScrobbleService?> = _importing.asStateFlow()
+
+        private val _messages = Channel<String>(Channel.BUFFERED)
+
+        /** Import results, for the page's snackbar. */
+        val messages: Flow<String> = _messages.receiveAsFlow()
+
+        fun importTaste(service: ScrobbleService) {
+            if (_importing.value != null) return
+            _importing.value = service
+            viewModelScope.launch {
+                val message =
+                    tasteImport.importTopArtists(service).fold(
+                        onSuccess = { added ->
+                            if (added == 0) {
+                                context.getString(R.string.scrobbling_import_none)
+                            } else {
+                                context.resources.getQuantityString(R.plurals.scrobbling_import_done, added, added)
+                            }
+                        },
+                        onFailure = { context.getString(R.string.scrobbling_import_failed) },
+                    )
+                _importing.value = null
+                _messages.send(message)
             }
         }
 

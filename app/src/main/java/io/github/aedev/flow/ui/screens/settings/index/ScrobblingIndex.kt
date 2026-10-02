@@ -31,6 +31,18 @@ internal object ScrobblingIndex {
 
     fun account(service: ScrobbleService): SettingEntry = accounts.getValue(service)
 
+    private val imports =
+        ScrobbleService.entries.associateWith { service ->
+            entry(
+                "${service.name.lowercase()}_import",
+                R.string.scrobbling_import,
+                accounts.getValue(service).section ?: R.string.scrobbling_title,
+                R.string.scrobbling_import_summary,
+            )
+        }
+
+    fun import(service: ScrobbleService): SettingEntry = imports.getValue(service)
+
     val ownKey = entry("own_key", R.string.scrobbling_own_key, R.string.scrobbling_lastfm, R.string.scrobbling_own_key_summary)
     val ownKeyValues = entry("own_key_values", R.string.scrobbling_own_key_values, R.string.scrobbling_lastfm)
     val nowPlaying =
@@ -39,5 +51,7 @@ internal object ScrobblingIndex {
     val local = entry("local", R.string.scrobbling_local, R.string.scrobbling_options, R.string.scrobbling_local_summary)
     val sendNow = entry("send_now", R.string.scrobbling_send_now, R.string.scrobbling_options)
 
-    val all = ScrobbleService.entries.map(::account) + listOf(ownKey, ownKeyValues, nowPlaying, sendLikes, local, sendNow)
+    val all =
+        ScrobbleService.entries.map(::account) + ScrobbleService.entries.map(::import) +
+            listOf(ownKey, ownKeyValues, nowPlaying, sendLikes, local, sendNow)
 }

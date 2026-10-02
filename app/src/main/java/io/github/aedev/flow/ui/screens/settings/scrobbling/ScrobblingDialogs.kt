@@ -27,7 +27,7 @@ import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 private val FieldSpacing = 8.dp
 
-internal enum class ScrobbleDialogKind { SIGN_IN, SIGN_OUT, OWN_KEY }
+internal enum class ScrobbleDialogKind { SIGN_IN, SIGN_OUT, OWN_KEY, OFFER_IMPORT }
 
 @Composable
 internal fun ScrobbleService.label(): String =
@@ -116,6 +116,27 @@ internal fun SignOutDialog(
             }) { Text(stringResource(R.string.scrobbling_sign_out)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_cancel)) } },
+    )
+}
+
+/** Offered once right after signing in; the same import stays available on the account's row. */
+@Composable
+internal fun ImportOfferDialog(
+    service: ScrobbleService,
+    onImport: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    FlowAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.scrobbling_import_offer_title, service.label())) },
+        text = { Text(stringResource(R.string.scrobbling_import_offer_body)) },
+        confirmButton = {
+            TextButton(onClick = {
+                onImport()
+                onDismiss()
+            }) { Text(stringResource(R.string.scrobbling_import_action)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.scrobbling_import_later)) } },
     )
 }
 

@@ -49,6 +49,8 @@ class FavouriteArtistsStore
             musicBrain.setFavouriteArtist(artist.id, artist.name, favourite)
         }
 
+        suspend fun currentIds(): Set<String> = artists.first().mapTo(HashSet(), FavouriteArtist::id)
+
         /** The picks for the master backup; null when there are none. */
         suspend fun export(): ByteArray? = artists.first().takeIf { it.isNotEmpty() }?.let { json.encodeToString(it).toByteArray() }
 
