@@ -12,10 +12,13 @@ object ScrobbleRules {
     private const val MAX_THRESHOLD_MS = 4 * 60_000L
     private const val TOPIC_SUFFIX = " - Topic"
 
+    /** How long a track must play before it counts; null when it is too short to ever count. */
+    fun thresholdMs(durationMs: Long): Long? = if (durationMs > MIN_DURATION_MS) minOf(durationMs / 2, MAX_THRESHOLD_MS) else null
+
     fun counts(
         durationMs: Long,
         playedMs: Long,
-    ): Boolean = durationMs > MIN_DURATION_MS && playedMs >= minOf(durationMs / 2, MAX_THRESHOLD_MS)
+    ): Boolean = thresholdMs(durationMs)?.let { playedMs >= it } ?: false
 
     /** Null when the track has no artist or title to send. */
     fun entryFor(

@@ -48,6 +48,7 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.scrobble.ScrobbleRules
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
@@ -486,6 +487,7 @@ class Media3MusicService : MediaLibraryService() {
                     }
                     if (playbackState == Player.STATE_READY) {
                         refreshLearnDuration()
+                        if (player.isPlaying) scheduleScrobbleCheck()
                         applyLoudnessGain()
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
@@ -514,6 +516,7 @@ class Media3MusicService : MediaLibraryService() {
                         refreshLearnDuration()
                         learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
                         announceNowPlaying()
+                        scheduleScrobbleCheck()
                     } else {
                         closePlayingSegment()
                     }
@@ -550,6 +553,25 @@ class Media3MusicService : MediaLibraryService() {
     private var learnPlayingSinceMs = -1L
     private var learnStartedAtMs = 0L
     private var learnAnnounced = false
+    private var learnScrobbled = false
+    private var scrobbleCheck: Job? = null
+
+    /** Queues the scrobble the moment the listen counts, so a process killed later in the song cannot lose it. */
+    private fun scheduleScrobbleCheck() {
+        scrobbleCheck?.cancel()
+        if (learnScrobbled || learnPlayingSinceMs < 0) return
+        val track = learnTrack?.takeIf { it.videoId == learnMediaId } ?: return
+        val durationMs = if (track.duration > 0) track.duration.toLong() * 1000 else learnDurationMs
+        val thresholdMs = ScrobbleRules.thresholdMs(durationMs) ?: return
+        val playedMs = learnPlayedMs + (android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs)
+        scrobbleCheck =
+            lifecycleScope.launch {
+                delay((thresholdMs - playedMs).coerceAtLeast(0L))
+                if (learnMediaId != track.videoId || learnScrobbled) return@launch
+                learnScrobbled = true
+                scrobbler.onListened(track, durationMs, thresholdMs, learnStartedAtMs)
+            }
+    }
 
     /** Once per listen, when it really starts playing rather than when the item merely loads. */
     private fun announceNowPlaying() {
@@ -561,6 +583,7 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun closePlayingSegment() {
+        scrobbleCheck?.cancel()
         if (learnPlayingSinceMs >= 0) {
             learnPlayedMs += android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs
             learnPlayingSinceMs = -1L
@@ -597,10 +620,14 @@ class Media3MusicService : MediaLibraryService() {
         learnPlayedMs = 0L
         learnStartedAtMs = System.currentTimeMillis()
         learnAnnounced = false
+        learnScrobbled = false
         learnPlayingSinceMs =
             if (::player.isInitialized && player.isPlaying) android.os.SystemClock.elapsedRealtime() else -1L
         refreshLearnDuration()
-        if (learnPlayingSinceMs >= 0) announceNowPlaying()
+        if (learnPlayingSinceMs >= 0) {
+            announceNowPlaying()
+            scheduleScrobbleCheck()
+        }
     }
 
     private fun finalizeListenSession() {
@@ -611,6 +638,8 @@ class Media3MusicService : MediaLibraryService() {
         val playedMs = learnPlayedMs
         val pinnedGenre = learnGenre
         val startedAtMs = learnStartedAtMs
+        val alreadyScrobbled = learnScrobbled
+        learnScrobbled = false
         learnMediaId = null
         learnTrack = null
         learnGenre = null
@@ -636,7 +665,7 @@ class Media3MusicService : MediaLibraryService() {
         // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
         // this service's scope is already cancelled, and the session must still land.
         musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre, playedMs)
-        scrobbler.onListened(track, durationMs, playedMs, startedAtMs)
+        if (!alreadyScrobbled) scrobbler.onListened(track, durationMs, playedMs, startedAtMs)
         widgetContentSync.get().run {
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.ON_REPEAT)
             request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.WEEK)

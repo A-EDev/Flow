@@ -48,4 +48,11 @@ class ScrobbleRulesTest {
     fun `a love uses the same artist as the scrobble`() {
         assertThat(ScrobbleRules.loveFor(track(), loved = true)).isEqualTo(LoveEntry("Artist", "Song", loved = true))
     }
+
+    @Test
+    fun `the threshold is half the track, capped at four minutes, and absent for short tracks`() {
+        assertThat(ScrobbleRules.thresholdMs(200_000)).isEqualTo(100_000)
+        assertThat(ScrobbleRules.thresholdMs(20 * 60_000)).isEqualTo(4 * 60_000)
+        assertThat(ScrobbleRules.thresholdMs(30_000)).isNull()
+    }
 }
