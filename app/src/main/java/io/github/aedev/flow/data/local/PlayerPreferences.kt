@@ -145,6 +145,8 @@ class PlayerPreferences(
         // Shorts quality preferences
         val SHORTS_QUALITY_WIFI = stringPreferencesKey("shorts_quality_wifi")
         val SHORTS_QUALITY_CELLULAR = stringPreferencesKey("shorts_quality_cellular")
+        val THUMBNAIL_QUALITY_WIFI = stringPreferencesKey("thumbnail_quality_wifi")
+        val THUMBNAIL_QUALITY_CELLULAR = stringPreferencesKey("thumbnail_quality_cellular")
 
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
@@ -1388,6 +1390,26 @@ class PlayerPreferences(
     suspend fun setShortsQualityCellular(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_QUALITY_CELLULAR] = quality.label
+        }
+    }
+
+    val thumbnailQualityWifi: Flow<ThumbnailQuality> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> ThumbnailQuality.fromName(preferences[Keys.THUMBNAIL_QUALITY_WIFI]) }
+
+    val thumbnailQualityCellular: Flow<ThumbnailQuality> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> ThumbnailQuality.fromName(preferences[Keys.THUMBNAIL_QUALITY_CELLULAR]) }
+
+    suspend fun setThumbnailQualityWifi(quality: ThumbnailQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.THUMBNAIL_QUALITY_WIFI] = quality.name
+        }
+    }
+
+    suspend fun setThumbnailQualityCellular(quality: ThumbnailQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.THUMBNAIL_QUALITY_CELLULAR] = quality.name
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicAudioQuality
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 
@@ -23,6 +24,24 @@ internal val VideoQualities =
     )
 
 internal val MusicQualities = MusicAudioQuality.entries.toList()
+
+internal val ThumbnailQualities = ThumbnailQuality.entries.toList()
+
+@StringRes
+internal fun thumbnailQualityLabel(quality: ThumbnailQuality): Int =
+    when (quality) {
+        ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high
+        ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium
+        ThumbnailQuality.LOW -> R.string.thumbnail_quality_low
+    }
+
+@StringRes
+internal fun thumbnailQualityDescription(quality: ThumbnailQuality): Int =
+    when (quality) {
+        ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high_desc
+        ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium_desc
+        ThumbnailQuality.LOW -> R.string.thumbnail_quality_low_desc
+    }
 
 @StringRes
 internal fun videoQualityLabel(quality: VideoQuality): Int =

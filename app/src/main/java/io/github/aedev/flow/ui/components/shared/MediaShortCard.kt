@@ -97,6 +97,7 @@ fun MediaShortCard(
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                portrait = true,
             )
             ShortWatchedIndicator(videoId = video.id)
         }

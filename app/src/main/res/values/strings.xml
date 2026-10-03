@@ -3493,6 +3493,15 @@
     <string name="settings_quality_tab_video">Video</string>
     <string name="settings_quality_tab_shorts">Shorts</string>
     <string name="settings_quality_tab_music">Music</string>
+    <string name="settings_section_thumbnails">Thumbnails</string>
+    <string name="thumbnail_quality_high">High</string>
+    <string name="thumbnail_quality_medium">Medium</string>
+    <string name="thumbnail_quality_low">Low</string>
+    <string name="thumbnail_quality_high_desc">Sharpest, uses the most data</string>
+    <string name="thumbnail_quality_medium_desc">Clear on phones, about half the data</string>
+    <string name="thumbnail_quality_low_desc">Least data, softer on large cards</string>
+    <string name="thumbnail_quality_notice">Lower thumbnail quality saves data on every feed and on Shorts.</string>
+    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage</string>
     <string name="settings_quality_wifi">On Wi-Fi</string>
     <string name="settings_quality_mobile">On mobile data</string>
     <string name="settings_section_resolution">Resolution</string>

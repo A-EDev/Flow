@@ -57,6 +57,7 @@ import io.github.aedev.flow.ui.components.shorts.ShortsTopBar
 import io.github.aedev.flow.ui.components.shorts.rememberShortsReelSettings
 import io.github.aedev.flow.ui.components.shorts.rememberShortsSheetInsetState
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.utils.rememberIsOnWifi
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 

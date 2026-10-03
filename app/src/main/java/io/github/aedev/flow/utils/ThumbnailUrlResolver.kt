@@ -1,5 +1,6 @@
 package io.github.aedev.flow.utils
 
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 
 object ThumbnailUrlResolver {
@@ -32,22 +33,39 @@ object ThumbnailUrlResolver {
      * that lacks it, and when it does exist it is 1920x1080 for a surface that never shows more
      * than roughly a third of those pixels. hq720 is already >= the widest phone card.
      */
-    fun youtubeThumbnailCandidates(videoId: String): List<String> {
+    fun youtubeThumbnailCandidates(
+        videoId: String,
+        quality: ThumbnailQuality = ThumbnailQuality.HIGH,
+        portrait: Boolean = false,
+    ): List<String> {
         val id = videoId.trim()
         if (id.isEmpty()) return emptyList()
-        return listOf(
-            "https://i.ytimg.com/vi/$id/hq720.jpg",
-            "https://i.ytimg.com/vi/$id/hqdefault.jpg",
-        )
+        return youtubeThumbnailTiers(quality, portrait).map { tier -> "https://i.ytimg.com/vi/$id/$tier.jpg" }
     }
+
+    /**
+     * Best tier first, always ending in hqdefault, the one every video has. A portrait card crops a
+     * 16:9 frame to about a third of its width, so it never drops below hqdefault.
+     */
+    private fun youtubeThumbnailTiers(
+        quality: ThumbnailQuality,
+        portrait: Boolean,
+    ): List<String> =
+        when (quality) {
+            ThumbnailQuality.HIGH -> listOf("hq720", "hqdefault")
+            ThumbnailQuality.MEDIUM -> listOf("sddefault", "hqdefault")
+            ThumbnailQuality.LOW -> if (portrait) listOf("hqdefault") else listOf("mqdefault", "hqdefault")
+        }
 
     fun resolveVideoThumbnailCandidates(
         videoId: String,
         rawUrl: String?,
+        quality: ThumbnailQuality = ThumbnailQuality.HIGH,
+        portrait: Boolean = false,
     ): List<String> {
         val raw = rawUrl?.trim().orEmpty()
         val resolvedVideoId = resolveYoutubeThumbnailVideoId(videoId, raw)
-        val youtubeCandidates = youtubeThumbnailCandidates(resolvedVideoId)
+        val youtubeCandidates = youtubeThumbnailCandidates(resolvedVideoId, quality, portrait)
 
         val candidates =
             when {

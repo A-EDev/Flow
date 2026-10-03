@@ -15,14 +15,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.shared.LocalThumbnailQuality
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.utils.rememberIsOnWifi
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -125,22 +128,32 @@ fun ProvideVideoCardState(
             )
         }
 
+    val playerPreferences = remember(context) { PlayerPreferences(context) }
     val preferencesFlow =
-        remember(context) {
-            val preferences = PlayerPreferences(context)
+        remember(playerPreferences) {
             combine(
-                preferences.deArrowEnabled,
-                preferences.deArrowBadgeEnabled,
-                preferences.videoCardActionsEnabled,
-                preferences.videoCardMarkWatchedEnabled,
-                preferences.upcomingVideoReminderIds,
+                playerPreferences.deArrowEnabled,
+                playerPreferences.deArrowBadgeEnabled,
+                playerPreferences.videoCardActionsEnabled,
+                playerPreferences.videoCardMarkWatchedEnabled,
+                playerPreferences.upcomingVideoReminderIds,
             ) { deArrow, deArrowBadge, actions, markWatched, reminders ->
                 VideoCardPreferences(deArrow, deArrowBadge, actions, markWatched, reminders)
-            }.combine(preferences.showWatchProgress) { cardPreferences, showWatchProgress ->
+            }.combine(playerPreferences.showWatchProgress) { cardPreferences, showWatchProgress ->
                 cardPreferences.copy(showWatchProgress = showWatchProgress)
             }.distinctUntilChanged()
         }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(VideoCardPreferences())
+
+    val thumbnailQualitiesFlow =
+        remember(playerPreferences) {
+            playerPreferences.thumbnailQualityWifi
+                .combine(playerPreferences.thumbnailQualityCellular, ::Pair)
+                .distinctUntilChanged()
+        }
+    val thumbnailQualities by thumbnailQualitiesFlow.collectAsStateWithLifecycle(null)
+    val isWifi = rememberIsOnWifi()
+    val thumbnailQuality = thumbnailQualities?.let { (wifi, cellular) -> ThumbnailQuality.effective(isWifi, wifi, cellular) }
 
     val progressFlow =
         remember(context) {
@@ -157,6 +170,7 @@ fun ProvideVideoCardState(
         LocalVideoCardPreferences provides preferences,
         LocalVideoWatchProgress provides progressStore,
         LocalVideoCardActions provides actions,
+        LocalThumbnailQuality provides thumbnailQuality,
         content = content,
     )
 }
