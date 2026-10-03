@@ -7,6 +7,9 @@ import java.time.format.DateTimeFormatter
 private const val NEW_ISSUE_URL = "https://github.com/A-EDev/Flow/issues/new"
 private const val APP_PACKAGE = "io.github.aedev.flow"
 private const val MAX_URL_LOG_CHARS = 1_500
+private const val MAX_URL_ACTUAL_CHARS = 300
+private const val UNKNOWN_STEPS = "Not known. Flow crashed during normal use; the stack trace is under Logs."
+private const val EXPECTED = "Flow keeps running."
 private const val TOP_FRAMES = 6
 private val ReportTime: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
@@ -53,13 +56,16 @@ fun parseCrashSummary(report: String): CrashSummary {
 /**
  * The bug form with everything that fits in a URL filled in. The full report is too long for a
  * URL, so the Logs field gets the top of it and the page copies the rest.
+ *
+ * The required text fields are answered from the crash itself, so someone who cannot say how it
+ * happened can still send it in one tap and edit only what they know (#1189).
  */
 fun CrashSummary.issueUrl(): String {
     val title = "[Bug]: $exception" + (location?.let { " in $it" } ?: "")
+    val error = exception + (message?.let { ": $it" } ?: "")
     val log =
         buildString {
-            append(exception)
-            message?.let { append(": ").append(it) }
+            append(error)
             topFrames.forEach { append('\n').append(it) }
         }.take(MAX_URL_LOG_CHARS)
     val fields =
@@ -69,6 +75,9 @@ fun CrashSummary.issueUrl(): String {
             appVersion?.let { "app-version" to it.substringBefore(' ') },
             android?.let { "android-version" to it },
             device?.let { "device" to it },
+            "steps" to UNKNOWN_STEPS,
+            "expected" to EXPECTED,
+            "actual" to "Flow crashed with $error".take(MAX_URL_ACTUAL_CHARS),
             "logs" to log,
         )
     return NEW_ISSUE_URL + "?" +

@@ -188,7 +188,7 @@ class RssSubscriptionServiceTest {
         }
 
     @Test
-    fun `a failed tab pass is reported even when RSS answered`() =
+    fun `a failed tab pass after RSS answered keeps the channel without reporting it (1186)`() =
         runTest {
             reelIds = setOf("r1")
             rss("UCa", entry("r1"))
@@ -196,8 +196,22 @@ class RssSubscriptionServiceTest {
 
             val chunk = sweep("UCa")
 
-            assertThat(chunk.failedChannelIds).containsExactly("UCa")
-            assertThat(chunk.failedChannelReasons["UCa"]).contains("browse 500")
+            assertThat(chunk.failedChannelIds).isEmpty()
+            assertThat(chunk.incompleteChannelIds).containsExactly("UCa")
+            assertThat(chunk.videos.map { it.id }).containsExactly("r1")
+        }
+
+    @Test
+    fun `a slice the Shorts tab could not classify is shown but left unfinished`() =
+        runTest {
+            rss("UCa", entry("v1"))
+            coEvery { reelIndex.markReels("UCa", any(), any()) } returns null
+
+            val chunk = sweep("UCa")
+
+            assertThat(chunk.videos.map { it.id }).containsExactly("v1")
+            assertThat(chunk.failedChannelIds).isEmpty()
+            assertThat(chunk.incompleteChannelIds).containsExactly("UCa")
         }
 
     @Test

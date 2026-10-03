@@ -79,7 +79,12 @@ class SubscriptionFeedRepository
                 }
 
                 try {
-                    val allCached = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() }
+                    val cachedRows = withContext(PerformanceDispatcher.diskIO) { cacheDao.getSubscriptionFeed().first() }
+                    val allCached = cachedRows.map { it.toVideo() }
+                    val lastFeedFetchAt =
+                        withContext(PerformanceDispatcher.diskIO) {
+                            subscriptionRepository.getAllSubscriptions().first().associate { it.channelId to it.lastFeedFetchAt }
+                        }
                     val plannedChannelIds = plan.channelIds.toHashSet()
                     val sliceCached =
                         if (plan.isFullRefresh) {
@@ -92,6 +97,7 @@ class SubscriptionFeedRepository
                     var latestChunkVideos = emptyList<Video>()
                     var failedChannelIds = emptySet<String>()
                     var failedChannelReasons = emptyMap<String, String>()
+                    var incompleteChannelIds = emptySet<String>()
                     var processed = 0
 
                     rssSubscriptionService
@@ -99,11 +105,12 @@ class SubscriptionFeedRepository
                             channelIds = plan.channelIds,
                             maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                             knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
-                            storedReelVerdicts = allCached.associate { it.id to it.isShort },
+                            storedReelVerdicts = trustedReelVerdicts(cachedRows, lastFeedFetchAt),
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
                             failedChannelReasons = chunk.failedChannelReasons
+                            incompleteChannelIds = chunk.incompleteChannelIds
                             if (chunk.videos.isNotEmpty()) {
                                 latestChunkVideos = chunk.videos
                                 previewVideos =
@@ -134,7 +141,7 @@ class SubscriptionFeedRepository
                                 plan = plan,
                                 freshVideos = latestChunkVideos,
                                 sliceCached = sliceCached,
-                                failedChannelIds = failedChannelIds,
+                                failedChannelIds = failedChannelIds + incompleteChannelIds,
                                 refreshTime = refreshTime,
                             )
                         emit(
