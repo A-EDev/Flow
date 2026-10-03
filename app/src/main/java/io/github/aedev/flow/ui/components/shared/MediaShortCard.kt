@@ -34,6 +34,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -66,6 +67,7 @@ fun MediaShortCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.width(ShortCardDefaults.MinWidth),
     trailingContent: (@Composable () -> Unit)? = null,
+    removableFromSavedShorts: Boolean = false,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -121,9 +123,13 @@ fun MediaShortCard(
     }
 
     if (showQuickActions) {
+        val quickActions = sharedQuickActionsViewModel()
         VideoQuickActionsBottomSheet(
             video = video,
             onDismiss = { showQuickActions = false },
+            onRemoveFromCollection = { quickActions.removeFromSavedShorts(video) }.takeIf { removableFromSavedShorts },
+            removeFromCollectionLabel = stringResource(R.string.remove_from_saved_shorts).takeIf { removableFromSavedShorts },
+            viewModel = quickActions,
         )
     }
 }

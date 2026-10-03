@@ -155,6 +155,15 @@ class QuickActionsViewModel
             }
         }
 
+        fun removeFromSavedShorts(video: Video) {
+            viewModelScope.launch {
+                runAction {
+                    val removed = playlistRepository.takeVideosFromPlaylist(PlaylistRepository.SAVED_SHORTS_ID, setOf(video.id))
+                    if (removed.isNotEmpty()) emit(R.string.shorts_unsaved, undo = QuickActionUndo.PlaylistRemoval(removed))
+                }
+            }
+        }
+
         fun blockChannel(video: Video) {
             viewModelScope.launch {
                 runAction {
