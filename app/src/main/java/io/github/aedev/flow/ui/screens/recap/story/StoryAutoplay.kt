@@ -14,13 +14,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.MotionDurationScale
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 private const val PAGE_MS = 6_500
+
+// The clock is a timer, not decoration: with animations off the platform scales every duration
+// to zero, and each page would end the moment it began (#1192).
+private object RealTime : MotionDurationScale {
+    override val scaleFactor: Float = 1f
+}
 
 /**
  * The story's clock. [progress] runs 0..1 across the page on screen and is what every animation on
@@ -58,7 +66,7 @@ internal fun rememberStoryAutoplay(pager: PagerState): StoryAutoplay {
         }
         if (!running) return@LaunchedEffect
         val remaining = ((1f - clock.value) * PAGE_MS).roundToInt()
-        if (remaining > 0) clock.animateTo(1f, tween(durationMillis = remaining, easing = LinearEasing))
+        if (remaining > 0) withContext(RealTime) { clock.animateTo(1f, tween(durationMillis = remaining, easing = LinearEasing)) }
         // The turn runs outside this effect: it makes the pager scroll, which is one of this
         // effect's own keys, and would otherwise cancel the turn it started.
         if (page < pager.pageCount - 1) scope.launch { pager.animateScrollToPage(page + 1) }
