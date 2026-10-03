@@ -92,6 +92,7 @@ class SubscriptionFeedRepository
                     var latestChunkVideos = emptyList<Video>()
                     var failedChannelIds = emptySet<String>()
                     var failedChannelReasons = emptyMap<String, String>()
+                    var incompleteChannelIds = emptySet<String>()
                     var processed = 0
 
                     rssSubscriptionService
@@ -104,6 +105,7 @@ class SubscriptionFeedRepository
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
                             failedChannelReasons = chunk.failedChannelReasons
+                            incompleteChannelIds = chunk.incompleteChannelIds
                             if (chunk.videos.isNotEmpty()) {
                                 latestChunkVideos = chunk.videos
                                 previewVideos =
@@ -134,7 +136,7 @@ class SubscriptionFeedRepository
                                 plan = plan,
                                 freshVideos = latestChunkVideos,
                                 sliceCached = sliceCached,
-                                failedChannelIds = failedChannelIds,
+                                failedChannelIds = failedChannelIds + incompleteChannelIds,
                                 refreshTime = refreshTime,
                             )
                         emit(

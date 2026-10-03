@@ -59,6 +59,20 @@ class SubscriptionFeedWriteTest {
     }
 
     @Test
+    fun `a channel only RSS answered for keeps its fresh rows and its earlier ones (1186)`() {
+        val result =
+            write(
+                plan = fullPlan,
+                fresh = listOf(video("b2", "UCb")),
+                cached = listOf(video("b1", "UCb", ageHours = 30)),
+                failed = setOf("UCb"),
+            )
+
+        assertThat(result.rows.map { it.id }).containsExactly("b2", "b1").inOrder()
+        assertThat(result.fetchedChannelIds).containsExactly("UCa")
+    }
+
+    @Test
     fun `a full refresh still drops stale rows of a channel that answered`() {
         val result =
             write(

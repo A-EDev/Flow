@@ -11,6 +11,7 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.io.IOException
+import java.net.UnknownHostException
 
 /** #1094: an unreachable upload tab must fail the channel instead of reading as an empty one. */
 class ChannelUploadsClientTest {
@@ -146,5 +147,61 @@ class ChannelUploadsClientTest {
             val shorts = result.getOrThrow().shorts
             assertThat(shorts.single { it.id == "reel" }.timestamp).isEqualTo(0L)
             assertThat(shorts.single { it.id == "dated" }.timestamp).isEqualTo(datedReel.timestamp)
+        }
+
+    @Test
+    fun `a network failure is retried once and the second answer is used (1186)`() =
+        runTest {
+            val landings =
+                ArrayDeque(listOf(Result.failure(UnknownHostException("www.youtube.com")), Result.success(landing(ChannelTabKind.Videos))))
+            val sleeps = mutableListOf<Long>()
+            val result =
+                ChannelUploadsClient(
+                    landing = { landings.removeFirst() },
+                    tab = { _, _, _, kind -> Result.success(page(kind, listOf(video("v1", 1)))) },
+                    continuation = { _, _, _ -> error("no paging") },
+                    sleep = { sleeps += it },
+                ).fetch("UCa", notBeforeMillis = now - 60 * 24 * hour)
+
+            assertThat(result.getOrThrow().videos.map { it.id }).containsExactly("v1")
+            assertThat(sleeps).hasSize(1)
+        }
+
+    @Test
+    fun `a second network failure fails the channel without a third attempt`() =
+        runTest {
+            var calls = 0
+            val result =
+                ChannelUploadsClient(
+                    landing = {
+                        calls++
+                        Result.failure(UnknownHostException("www.youtube.com"))
+                    },
+                    tab = { _, _, _, _ -> error("unreachable") },
+                    continuation = { _, _, _ -> error("unreachable") },
+                    sleep = {},
+                ).fetch("UCa", notBeforeMillis = now - 60 * 24 * hour)
+
+            assertThat(result.exceptionOrNull()).isInstanceOf(UnknownHostException::class.java)
+            assertThat(calls).isEqualTo(2)
+        }
+
+    @Test
+    fun `a landing the parser cannot read is not retried`() =
+        runTest {
+            var calls = 0
+            val result =
+                ChannelUploadsClient(
+                    landing = {
+                        calls++
+                        Result.success(landing())
+                    },
+                    tab = { _, _, _, _ -> error("unreachable") },
+                    continuation = { _, _, _ -> error("unreachable") },
+                    sleep = {},
+                ).fetch("UCa", notBeforeMillis = now - 60 * 24 * hour)
+
+            assertThat(result.isFailure).isTrue()
+            assertThat(calls).isEqualTo(1)
         }
 }

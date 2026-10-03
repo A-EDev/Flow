@@ -34,6 +34,12 @@ data class SubscriptionFeedChunk(
     val failedChannelIds: Set<String>,
     /** Why each failed channel could not be read, keyed by channel id. */
     val failedChannelReasons: Map<String, String> = emptyMap(),
+    /**
+     * Channels whose RSS answered but whose channel-tab pass failed. Their latest uploads arrived,
+     * so they are not reported, but their earlier rows are kept and they are not stamped fresh,
+     * exactly like [failedChannelIds] (#1094, #1186).
+     */
+    val incompleteChannelIds: Set<String> = emptySet(),
 )
 
 /**
@@ -82,6 +88,8 @@ class RssSubscriptionService
                 // Seeded by Phase 1 and cleared per channel as soon as Phase 2 answers for it.
                 val unreachableChannelIds = mutableSetOf<String>()
                 val failureReasons = mutableMapOf<String, String>()
+                val rssAnsweredChannelIds = mutableSetOf<String>()
+                val incompleteChannelIds = mutableSetOf<String>()
 
                 Log.i(TAG, "Phase 1: Fetching RSS feeds for all ${uniqueChannelIds.size} channels")
                 val rssChunks = uniqueChannelIds.chunked(RSS_CHUNK_SIZE)
@@ -106,6 +114,8 @@ class RssSubscriptionService
                         if (result.failed) {
                             unreachableChannelIds += channelId
                             result.failureReason?.let { failureReasons[channelId] = it }
+                        } else {
+                            rssAnsweredChannelIds += channelId
                         }
                         result.videos.forEach { video ->
                             if (video.isShort) allShorts.add(video) else allRegular.add(video)
@@ -120,6 +130,7 @@ class RssSubscriptionService
                             videos = buildFeed(allRegular, allShorts, maxTotal),
                             failedChannelIds = unreachableChannelIds.toSet(),
                             failedChannelReasons = failureReasons.toMap(),
+                            incompleteChannelIds = incompleteChannelIds.toSet(),
                         ),
                     )
                     if (chunkIndex > 0 && chunkIndex % (CHANNEL_BATCH_SIZE / RSS_CHUNK_SIZE).coerceAtLeast(1) == 0) {
@@ -157,14 +168,20 @@ class RssSubscriptionService
                         }
 
                     for ((channelId, result) in chunkResults) {
-                        if (result.failed) {
-                            // Even when RSS answered, a failed tab pass leaves this channel's slice
-                            // incomplete, and only a listed failure keeps its earlier rows alive.
-                            unreachableChannelIds += channelId
-                            result.failureReason?.let { failureReasons[channelId] = it }
-                        } else {
-                            unreachableChannelIds -= channelId
-                            failureReasons -= channelId
+                        when {
+                            !result.failed -> {
+                                unreachableChannelIds -= channelId
+                                failureReasons -= channelId
+                            }
+
+                            channelId in rssAnsweredChannelIds -> {
+                                incompleteChannelIds += channelId
+                            }
+
+                            else -> {
+                                unreachableChannelIds += channelId
+                                result.failureReason?.let { failureReasons[channelId] = it }
+                            }
                         }
                         result.videos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
                     }
@@ -179,6 +196,7 @@ class RssSubscriptionService
                             videos = buildFeed(allRegular, allShorts, maxTotal),
                             failedChannelIds = unreachableChannelIds.toSet(),
                             failedChannelReasons = failureReasons.toMap(),
+                            incompleteChannelIds = incompleteChannelIds.toSet(),
                         ),
                     )
                 }
@@ -188,12 +206,14 @@ class RssSubscriptionService
                         videos = buildFeed(allRegular, allShorts, maxTotal),
                         failedChannelIds = unreachableChannelIds.toSet(),
                         failedChannelReasons = failureReasons.toMap(),
+                        incompleteChannelIds = incompleteChannelIds.toSet(),
                     ),
                 )
                 Log.i(
                     TAG,
                     "======== FEED FETCH COMPLETE: regular=${allRegular.size.coerceAtMost(MAX_REGULAR_VIDEOS)} " +
-                        "shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} unreachable=${unreachableChannelIds.size} ========",
+                        "shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} unreachable=${unreachableChannelIds.size} " +
+                        "incomplete=${incompleteChannelIds.size} ========",
                 )
             }
 
