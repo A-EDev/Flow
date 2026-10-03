@@ -68,6 +68,21 @@ class ShortsQualitySelectionTest {
         assertThat(selected).isNull()
     }
 
+    @Test
+    fun `a quality row names its codec so two codecs of one resolution read apart`() {
+        val labels = qualities.map { it.toQualityOption().label }
+
+        assertThat(labels).containsExactly("1080p VP9", "1080p H264", "720p VP9").inOrder()
+    }
+
+    @Test
+    fun `a quality without codec metadata keeps the bare resolution`() {
+        val option = quality(height = 2160, codec = "", url = "2160").toQualityOption()
+
+        assertThat(option.label).isEqualTo("2160p")
+        assertThat(option.streamKey).isEqualTo("2160")
+    }
+
     private fun quality(
         height: Int,
         codec: String,
