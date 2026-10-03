@@ -74,6 +74,8 @@ NEW FEATURES
 - Chips above the Home feed: your top interests, New to you, Recently uploaded, Mixes, Live and Watched. Each one loads only when you open it, and the row slides away as you scroll down and comes back as you scroll up
 - Shorts picture-in-picture now has previous and next buttons beside play and pause (#959)
 - A channel's Shorts tab can stay visible while Shorts are hidden everywhere else, from Content settings (#1106)
+- Thumbnail quality can be set separately for Wi-Fi and mobile data in Quality settings, to save data on feeds and Shorts (#886)
+- A new Playback setting opens videos paused, so the description and comments can be read before anything plays (#1024)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -124,6 +126,7 @@ IMPROVEMENTS
 - Profiles the old learning had worn down to a few stray words are rebuilt from what your channels teach when you update, and topics you blocked are cleared out of them (#907)
 - Report on the crash page fills in the whole bug form, so a crash can be sent without answering questions first (#1189)
 - Shorts default quality can now be set to 1440p or 2160p (#1125)
+- Search history keeps each search's filters and applies them again when the entry is tapped, showing them under the entry (#1174)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -196,6 +199,8 @@ FIXES AND STABILITY
 - Fix Subscriptions saying channels could not be loaded after a short network drop: their pages are tried again once, and a channel whose newest uploads arrived is no longer listed (#1186)
 - Fix a channel's Shorts staying filed as ordinary videos in Subscriptions when Flow could not check that channel's Shorts in time
 - Fix the Shorts quality menu listing the same resolution several times without naming the codec of each (#1213)
+- Fix being unable to remove a Short from Saved Shorts: its card menu now has Remove from Saved Shorts, with undo (#1024)
+- Fix a channel page losing its sort and scroll position, and loading again, after picture-in-picture or opening a Short (#1024)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
