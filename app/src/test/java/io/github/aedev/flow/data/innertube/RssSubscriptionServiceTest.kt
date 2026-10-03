@@ -202,6 +202,19 @@ class RssSubscriptionServiceTest {
         }
 
     @Test
+    fun `a slice the Shorts tab could not classify is shown but left unfinished`() =
+        runTest {
+            rss("UCa", entry("v1"))
+            coEvery { reelIndex.markReels("UCa", any(), any()) } returns null
+
+            val chunk = sweep("UCa")
+
+            assertThat(chunk.videos.map { it.id }).containsExactly("v1")
+            assertThat(chunk.failedChannelIds).isEmpty()
+            assertThat(chunk.incompleteChannelIds).containsExactly("UCa")
+        }
+
+    @Test
     fun `a channel RSS and the tabs both miss is reported`() =
         runTest {
             coEvery { rssClient.fetch("UCa") } returns Result.failure(IOException("HTTP 429"))

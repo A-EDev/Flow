@@ -79,7 +79,12 @@ class SubscriptionFeedRepository
                 }
 
                 try {
-                    val allCached = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() }
+                    val cachedRows = withContext(PerformanceDispatcher.diskIO) { cacheDao.getSubscriptionFeed().first() }
+                    val allCached = cachedRows.map { it.toVideo() }
+                    val lastFeedFetchAt =
+                        withContext(PerformanceDispatcher.diskIO) {
+                            subscriptionRepository.getAllSubscriptions().first().associate { it.channelId to it.lastFeedFetchAt }
+                        }
                     val plannedChannelIds = plan.channelIds.toHashSet()
                     val sliceCached =
                         if (plan.isFullRefresh) {
@@ -100,7 +105,7 @@ class SubscriptionFeedRepository
                             channelIds = plan.channelIds,
                             maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                             knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
-                            storedReelVerdicts = allCached.associate { it.id to it.isShort },
+                            storedReelVerdicts = trustedReelVerdicts(cachedRows, lastFeedFetchAt),
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
