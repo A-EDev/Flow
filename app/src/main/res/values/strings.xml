@@ -1943,6 +1943,10 @@
     <string name="music_player_mode_video">Video</string>
     <string name="music_video_unavailable">This song has no music video</string>
     <string name="music_video_failed">Couldn\'t load the music video</string>
+    <string name="music_watch_video">Watch video</string>
+    <string name="settings_pause_music_muted_title">Pause music when muted</string>
+    <string name="settings_pause_music_muted_summary">Resume when the volume comes back</string>
+    <string name="music_watch_video_desc">Open the music video in the video player</string>
     <string name="player_appearance_animated_artwork_title">Animated artwork</string>
     <string name="player_appearance_animated_artwork_subtitle">Loop an album\'s motion artwork when it has one</string>
     <string name="player_appearance_animated_artwork_wifi_title">Animated artwork on Wi-Fi only</string>

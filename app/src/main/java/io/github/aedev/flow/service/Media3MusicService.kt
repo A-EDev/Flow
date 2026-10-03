@@ -55,6 +55,7 @@ import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.player.MusicLoadErrorPolicy
+import io.github.aedev.flow.player.MusicMutePause
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
@@ -170,6 +171,8 @@ class Media3MusicService : MediaLibraryService() {
     @Volatile private var usedRadioAnchors: Set<String> = emptySet()
     private var radioTopUpJob: Job? = null
     private var radioAutoplayEnabled = true
+    private var pauseWhenMuted = false
+    private var pausedForMute = false
     private var loudnessNormalizationEnabled = true
     private var lastQueueIds: List<String>? = null
 
@@ -271,6 +274,7 @@ class Media3MusicService : MediaLibraryService() {
                 if (enabled && !wasEnabled && ::player.isInitialized) maybeExtendRadio()
             }
         }
+        lifecycleScope.launch { prefs.pauseMusicWhenMuted.collect { pauseWhenMuted = it } }
         lifecycleScope.launch {
             prefs.musicLoudnessNormalizationEnabled.collect {
                 loudnessNormalizationEnabled = it
@@ -398,6 +402,8 @@ class Media3MusicService : MediaLibraryService() {
                 .setLoadControl(loadControl)
                 .setSeekBackIncrementMs(5000)
                 .setSeekForwardIncrementMs(5000)
+                // Reports device volume changes, which the pause-when-muted setting listens for.
+                .setDeviceVolumeControlEnabled(true)
                 .build()
 
         // Expose audio session ID for external audio processors (James DSP, etc.)
@@ -535,6 +541,27 @@ class Media3MusicService : MediaLibraryService() {
                     reason: Int,
                 ) {
                     updateLocks(isPlaybackActive())
+                    if (playWhenReady) pausedForMute = false
+                }
+
+                override fun onDeviceVolumeChanged(
+                    volume: Int,
+                    muted: Boolean,
+                ) {
+                    val action = MusicMutePause.onVolume(muted || volume == 0, pauseWhenMuted, player.isPlaying, pausedForMute)
+                    when (action) {
+                        MusicMutePause.Action.PAUSE -> {
+                            player.pause()
+                            pausedForMute = true
+                        }
+
+                        MusicMutePause.Action.RESUME -> {
+                            pausedForMute = false
+                            player.play()
+                        }
+
+                        MusicMutePause.Action.NONE -> {}
+                    }
                 }
 
                 // A music video is decoded only while the player shows it: a collapsed player,

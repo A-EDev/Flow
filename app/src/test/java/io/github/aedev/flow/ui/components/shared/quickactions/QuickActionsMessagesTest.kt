@@ -6,8 +6,12 @@ import io.github.aedev.flow.data.engagement.BlockedChannel
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.video.MusicVideoVersions
 import io.github.aedev.flow.data.video.VideoDownloadOptions
 import io.github.aedev.flow.data.video.VideoDownloadOptionsLoader
+import io.github.aedev.flow.innertube.models.Artist
+import io.github.aedev.flow.innertube.models.SongItem
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -55,6 +59,9 @@ class QuickActionsMessagesTest {
         unmockkAll()
     }
 
+    private var videoSearch: suspend (String) -> List<SongItem> = { emptyList() }
+    private val song = MusicTrack("song", "Anti-Hero", "Taylor Swift", "", 201, channelId = "ts")
+
     private fun viewModel() =
         QuickActionsViewModel(
             repository = mockk(relaxed = true),
@@ -65,6 +72,7 @@ class QuickActionsMessagesTest {
             downloadOptions = loader,
             likedMedia = mockk(relaxed = true),
             playerManager = { mockk(relaxed = true) },
+            musicVideos = MusicVideoVersions { videoSearch(it) },
         )
 
     private fun kotlinx.coroutines.test.TestScope.messagesOf(viewModel: QuickActionsViewModel): List<QuickActionMessage> {
@@ -72,6 +80,35 @@ class QuickActionsMessagesTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.messages.collect { messages += it } }
         return messages
     }
+
+    @Test
+    fun `Watch video opens the song's official video`() =
+        runTest(testDispatcher) {
+            videoSearch =
+                { listOf(SongItem("video", "Anti-Hero", listOf(Artist("Taylor Swift", "ts")), musicVideoType = OMV, thumbnail = "")) }
+            val opened = mutableListOf<String>()
+
+            viewModel().watchVideo(song) { opened += it }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(opened).containsExactly("video")
+        }
+
+    @Test
+    fun `Watch video says so when the song has no video or the search fails`() =
+        runTest(testDispatcher) {
+            val viewModel = viewModel()
+            val messages = messagesOf(viewModel)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.watchVideo(song) { error("nothing to open") }
+            testDispatcher.scheduler.advanceUntilIdle()
+            videoSearch = { throw java.io.IOException("offline") }
+            viewModel.watchVideo(song.copy(videoId = "other")) { error("nothing to open") }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(messages.map { it.text }).containsExactly(R.string.music_video_unavailable, R.string.music_video_failed).inOrder()
+        }
 
     @Test
     fun `saving to Watch later offers an undo that takes it out again`() =
@@ -166,4 +203,8 @@ class QuickActionsMessagesTest {
             ).containsExactly(R.string.toast_fetching_download_links, R.string.toast_no_download_source).inOrder()
             assertThat(viewModel.pendingDownload.value).isNull()
         }
+
+    private companion object {
+        const val OMV = "MUSIC_VIDEO_TYPE_OMV"
+    }
 }
