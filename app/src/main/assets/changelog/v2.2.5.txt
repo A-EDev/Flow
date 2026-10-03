@@ -72,6 +72,8 @@ NEW FEATURES
 - Subtitles have their own positions in landscape and vertical fullscreen, with a wider range, and sit on the picture rather than the edge of the screen, so vertical fullscreen lines them up with the video (#1098)
 - Home remembers channels you keep watching without subscribing and brings in their new uploads now and then, marked "From a channel you watch". Your taste lists them, with Remove and Clear channel memory (#907)
 - Chips above the Home feed: your top interests, New to you, Recently uploaded, Mixes, Live and Watched. Each one loads only when you open it, and the row slides away as you scroll down and comes back as you scroll up
+- Shorts picture-in-picture now has previous and next buttons beside play and pause (#959)
+- A channel's Shorts tab can stay visible while Shorts are hidden everywhere else, from Content settings (#1106)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -121,6 +123,7 @@ IMPROVEMENTS
 - Styled titles such as 𝙋𝙃𝙊𝙉𝙆 or ｐｈｏｎｋ read as the word they spell, short topics such as AI, F1 and 3D count, and Chinese, Japanese and Thai titles are split into real words (#907)
 - Profiles the old learning had worn down to a few stray words are rebuilt from what your channels teach when you update, and topics you blocked are cleared out of them (#907)
 - Report on the crash page fills in the whole bug form, so a crash can be sent without answering questions first (#1189)
+- Shorts default quality can now be set to 1440p or 2160p (#1125)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -192,6 +195,7 @@ FIXES AND STABILITY
 - Fix subscriptions whose avatar was saved as a link to the channel page: they showed a blank avatar on every card, and are now repaired on launch
 - Fix Subscriptions saying channels could not be loaded after a short network drop: their pages are tried again once, and a channel whose newest uploads arrived is no longer listed (#1186)
 - Fix a channel's Shorts staying filed as ordinary videos in Subscriptions when Flow could not check that channel's Shorts in time
+- Fix the Shorts quality menu listing the same resolution several times without naming the codec of each (#1213)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
