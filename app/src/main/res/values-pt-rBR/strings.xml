@@ -1026,7 +1026,7 @@
     <string name="buffer_label_playback">Iniciar reprodução: %1$ds</string>
     <string name="buffer_label_rebuffer">Retomar após Rebuffer: %1$ds</string>
     <string name="cache_size_header">Tamanho do cache de mídia</string>
-    <string name="cache_size_desc">Espaço em disco para armazenar em cache o vídeo e áudio. Aplicado após reinício.</string>
+    <string name="cache_size_desc">Músicas em cache também tocam em offline. Aplicado após reinício.</string>
     <string name="btn_back">Voltar</string>
     <string name="back">Voltar</string>
     <string name="btn_close">Fechar</string>
@@ -3239,4 +3239,62 @@
     <string name="error_login_required">Login requisitado</string>
     <string name="error_login_required_hint">YouTube apenas reproduz este vídeo para contas logadas.</string>
     <string name="pause_watch_history_title">Pausar histórico de visualização</string>
+    <string name="subtitle_window_color">Cor da janela</string>
+    <string name="subtitle_window_opacity_template">Opacidade da janela: %1$d%%</string>
+    <string name="cache_size_1gb">1 GB</string>
+    <string name="cache_size_2gb">2 GB</string>
+    <string name="cache_size_5gb">5 GB</string>
+    <string name="shorts_linked_video">Vídeo relacionado</string>
+    <string name="settings_music_video_switch_title">Alternar entre música e vídeo</string>
+    <string name="settings_music_video_switch_summary">Alterna entre uma música e seu videoclipe no reprodutor</string>
+    <string name="music_player_mode_song">Música</string>
+    <string name="music_player_mode_video">Vídeo</string>
+    <string name="music_video_unavailable">Essa música não tem videoclipe</string>
+    <string name="music_video_failed">Não foi possível carregar o videoclipe</string>
+    <string name="subtitle_track_number">Faixa %1$d</string>
+    <string name="subtitle_origin_file">Arquivo de legenda</string>
+    <string name="subtitle_origin_embedded">No arquivo do vídeo</string>
+    <string name="subtitle_add_file">Adicionar arquivo de legenda</string>
+    <string name="subtitle_timing_in_sync">Em sincronia com o vídeo</string>
+    <string name="subtitle_timing_later_template">%1$s s depois</string>
+    <string name="subtitle_timing_earlier_template">%1$s s antes</string>
+    <string name="subtitle_timing_step_template">%1$s s</string>
+    <string name="download_subtitle_file">Arquivo de legenda</string>
+    <string name="widget_week_title">Últimos 7 dias</string>
+    <string name="widget_short_badge">Short</string>
+    <plurals name="widget_minutes_left">
+        <item quantity="one">%d minuto restante</item>
+        <item quantity="many">%d de minutos restantes</item>
+        <item quantity="other">%d minutos restantes</item>
+    </plurals>
+    <plurals name="widget_downloads_in_progress">
+        <item quantity="one">Baixando %d</item>
+        <item quantity="many">Baixando %d</item>
+        <item quantity="other">Baixando %d</item>
+    </plurals>
+    <string name="widget_browse_downloads">Pesquisar downloads</string>
+    <string name="widget_identify_song">Identificar música</string>
+    <string name="widget_config_shortcuts">Atalhos</string>
+    <string name="widget_config_shortcuts_footer">Escolha até quatro. A busca está sempre lá.</string>
+    <string name="widget_playlist_label">Playlist</string>
+    <string name="widget_playlist_description">Assistir mais tarde ou qualquer playlist, um toque para tocar</string>
+    <string name="widget_config_playlist">Sua playlist</string>
+    <string name="widget_playlist_empty">Nada aqui ainda</string>
+    <plurals name="widget_playlist_songs">
+        <item quantity="one">%d música</item>
+        <item quantity="many">%d de músicas</item>
+        <item quantity="other">%d músicas</item>
+    </plurals>
+    <plurals name="widget_playlist_videos">
+        <item quantity="one">%d vídeo</item>
+        <item quantity="many">%d de vídeos</item>
+        <item quantity="other">%d vídeos</item>
+    </plurals>
+    <string name="widget_week_label">Sua semana</string>
+    <string name="widget_week_description">Suas visualizações e o que escutou nos últimos sete dias</string>
+    <string name="widget_week_top_artist">Top artista desse mês</string>
+    <string name="settings_widgets_title">Widgets</string>
+    <string name="settings_widgets_summary">Coloque o Flow na sua tela inicial</string>
+    <string name="settings_widgets_add_header">Adicionar a tela inicial</string>
+    <string name="settings_widgets_footer">Clique em um para adicioná-lo ou pressione e segure na tela inicial.</string>
 </resources>
