@@ -8,7 +8,7 @@ import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 
-/** Resolutions offered for regular video, best first. */
+/** Resolutions offered for regular video and Shorts, best first. */
 internal val VideoQualities =
     listOf(
         VideoQuality.AUTO,
@@ -21,9 +21,6 @@ internal val VideoQualities =
         VideoQuality.Q_240P,
         VideoQuality.Q_144P,
     )
-
-/** Shorts are served no higher than 1080p, so the picker stops there. */
-internal val ShortsQualities = VideoQualities.filter { it == VideoQuality.AUTO || it.height <= VideoQuality.Q_1080P.height }
 
 internal val MusicQualities = MusicAudioQuality.entries.toList()
 
