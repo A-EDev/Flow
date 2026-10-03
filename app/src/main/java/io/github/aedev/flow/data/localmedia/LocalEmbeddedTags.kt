@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.localmedia
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
@@ -27,11 +28,15 @@ import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** One file's read, kept until the file changes. */
+/**
+ * One file's read, kept until the file changes. [titleless] is whether the platform's reader finds
+ * no title either; it is asked only when a file without one is no longer titled by its name.
+ */
 @Serializable
 internal data class StoredEmbeddedText(
     val stamp: String,
     val text: EmbeddedText,
+    val titleless: Boolean? = null,
 )
 
 /**
@@ -60,6 +65,7 @@ class LocalEmbeddedTags
         /** [library] with every file read, reading the ones not read yet; forgets files that are gone. */
         internal suspend fun withAll(library: LocalLibrary): LocalLibrary {
             readMissing(library.items())
+            checkRenamed(library.items())
             lock.withLock {
                 val ids = library.items().mapTo(HashSet()) { it.id }
                 val all = loaded()
@@ -98,11 +104,54 @@ class LocalEmbeddedTags
             }
         }
 
+        /**
+         * Asks the platform's reader about each untitled file whose MediaStore title no longer
+         * matches its name. Media3 skips some tags MediaStore reads (ID3v1, AVI, ASF), so only a
+         * file neither finds a title in was titled by a name it has since lost.
+         */
+        private suspend fun checkRenamed(items: List<LocalMediaItem>) {
+            val unknown =
+                lock.withLock {
+                    val all = loaded()
+                    items.filter { item ->
+                        val stored = all[item.id]
+                        stored != null &&
+                            stored.stamp == item.fileStamp &&
+                            stored.text.title == null &&
+                            stored.titleless == null &&
+                            item.fileTitle.let { it != null && it != item.title }
+                    }
+                }
+            if (unknown.isEmpty()) return
+            val checks = withContext(PerformanceDispatcher.diskIO) { unknown.map { it.id to platformTitleless(Uri.parse(it.contentUri)) } }
+            lock.withLock {
+                val all = loaded()
+                checks.forEach { (id, titleless) -> all[id]?.let { all[id] = it.copy(titleless = titleless) } }
+                save(all)
+            }
+        }
+
+        private fun platformTitleless(uri: Uri): Boolean {
+            val retriever = MediaMetadataRetriever()
+            return try {
+                retriever.setDataSource(context, uri)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE).isNullOrBlank()
+            } catch (e: Exception) {
+                Log.w(TAG, "Reading the title of $uri failed: ${e.message}")
+                false
+            } finally {
+                retriever.release()
+            }
+        }
+
         private suspend fun applied(library: LocalLibrary): LocalLibrary {
             val all = lock.withLock { HashMap(loaded()) }
 
             fun List<LocalMediaItem>.applied() =
-                map { item -> all[item.id]?.takeIf { it.stamp == item.fileStamp }?.let { item.withEmbeddedText(it.text) } ?: item }
+                map { item ->
+                    all[item.id]?.takeIf { it.stamp == item.fileStamp }?.let { item.withEmbeddedText(it.text, it.titleless == true) }
+                        ?: item
+                }
             return library.copy(videos = library.videos.applied(), music = library.music.applied())
         }
 

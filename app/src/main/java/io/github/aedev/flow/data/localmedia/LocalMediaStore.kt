@@ -91,16 +91,7 @@ internal class LocalMediaStore(
                 }
                 addAll(pathColumns())
             }
-        val selection =
-            buildList {
-                add("${MediaStore.Audio.Media.IS_MUSIC} != 0")
-                add("${MediaStore.Audio.Media.IS_NOTIFICATION} = 0")
-                add("${MediaStore.Audio.Media.IS_ALARM} = 0")
-                add("${MediaStore.Audio.Media.IS_RINGTONE} = 0")
-                add("${MediaStore.Audio.Media.IS_PODCAST} = 0")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add("${MediaStore.Audio.Media.IS_RECORDING} = 0")
-            }.joinToString(" AND ")
-        return query(collection, columns, selection) { cursor ->
+        return query(collection, columns, musicSelection()) { cursor ->
             val id = cursor.long(MediaStore.Audio.Media._ID)
             val size = cursor.long(MediaStore.Audio.Media.SIZE)
             if (size <= 0L) return@query null
@@ -127,6 +118,25 @@ internal class LocalMediaStore(
             )
         }
     }
+
+    /** Where MediaStore says each listed video and song is, as absolute paths. */
+    @Suppress("DEPRECATION")
+    fun filePaths(): List<String> {
+        val columns = listOf(MediaStore.MediaColumns.DATA)
+        val read: (Cursor) -> String? = { cursor -> cursor.string(MediaStore.MediaColumns.DATA)?.takeIf(String::isNotBlank) }
+        return query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, columns, selection = null, read) +
+            query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, columns, musicSelection(), read)
+    }
+
+    private fun musicSelection(): String =
+        buildList {
+            add("${MediaStore.Audio.Media.IS_MUSIC} != 0")
+            add("${MediaStore.Audio.Media.IS_NOTIFICATION} = 0")
+            add("${MediaStore.Audio.Media.IS_ALARM} = 0")
+            add("${MediaStore.Audio.Media.IS_RINGTONE} = 0")
+            add("${MediaStore.Audio.Media.IS_PODCAST} = 0")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add("${MediaStore.Audio.Media.IS_RECORDING} = 0")
+        }.joinToString(" AND ")
 
     /**
      * The song's own URI on Android 10 and later, where Coil loads it through `loadThumbnail`; the
@@ -179,7 +189,7 @@ private fun Cursor.tag(column: String): String? = string(column)?.trim()?.takeUn
 private fun Cursor.title(
     titleColumn: String,
     nameColumn: String,
-): String? = string(titleColumn)?.takeIf(String::isNotBlank) ?: string(nameColumn)?.substringBeforeLast('.')?.takeIf(String::isNotBlank)
+): String? = string(titleColumn)?.takeIf(String::isNotBlank) ?: fileNameTitle(string(nameColumn))
 
 @Suppress("DEPRECATION")
 private fun Cursor.folderPath(): String =

@@ -14,6 +14,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,6 +59,12 @@ private class MediaStoreSource(
     override suspend fun read(): LocalLibrary = embeddedTags.withKnown(LocalLibrary(videos = store.videos(), music = store.music()))
 
     override suspend fun complete(read: LocalLibrary): LocalLibrary = embeddedTags.withAll(read)
+
+    // Before Android 10 the scanner indexes a folder path as one file instead of walking it.
+    override suspend fun reindex() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        context.scanFolders(foldersToReindex(store.filePaths()) { File(it).exists() })
+    }
 
     override fun generation(): Long? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) MediaStore.getGeneration(context, MediaStore.VOLUME_EXTERNAL) else null
