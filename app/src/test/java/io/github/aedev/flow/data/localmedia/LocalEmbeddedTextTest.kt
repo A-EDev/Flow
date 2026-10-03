@@ -35,6 +35,22 @@ class LocalEmbeddedTextTest {
     }
 
     @Test
+    fun `a renamed file without a title of its own takes its new name`() {
+        val renamed = damaged.copy(title = "VID_0001", fileName = "Holiday in Rome.mp4")
+
+        assertThat(renamed.withEmbeddedText(EmbeddedText(), titleless = true).title).isEqualTo("Holiday in Rome")
+        assertThat(renamed.withEmbeddedText(EmbeddedText(title = "Roma"), titleless = true).title).isEqualTo("Roma")
+        assertThat(renamed.withEmbeddedText(EmbeddedText()).title).isEqualTo("VID_0001")
+    }
+
+    @Test
+    fun `a file name gives a title without its extension`() {
+        assertThat(fileNameTitle("Holiday.in.Rome.mkv")).isEqualTo("Holiday.in.Rome")
+        assertThat(fileNameTitle(".mp4")).isNull()
+        assertThat(fileNameTitle(null)).isNull()
+    }
+
+    @Test
     fun `question marks and replacement characters look damaged`() {
         assertThat(damaged.looksDamaged()).isTrue()
         assertThat(damaged.copy(title = "Sn�lla").looksDamaged()).isTrue()

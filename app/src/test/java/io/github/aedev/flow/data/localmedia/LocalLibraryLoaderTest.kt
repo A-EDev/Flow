@@ -24,10 +24,13 @@ class LocalLibraryLoaderTest {
         var failures = 0
         var gate: CompletableDeferred<Unit>? = null
         var completeGate: CompletableDeferred<Unit>? = null
+        val calls = mutableListOf<String>()
+        var reindexFails = false
         val changeSignal = MutableSharedFlow<Unit>()
 
         override suspend fun read(): LocalLibrary {
             reads++
+            calls += "read"
             gate?.await()
             if (failures > 0) {
                 failures--
@@ -39,6 +42,11 @@ class LocalLibraryLoaderTest {
         override fun generation(): Long = 1L
 
         override fun changes(): Flow<Unit> = changeSignal
+
+        override suspend fun reindex() {
+            calls += "reindex"
+            if (reindexFails) throw IllegalStateException("scanner unavailable")
+        }
 
         override suspend fun complete(read: LocalLibrary): LocalLibrary {
             completeGate?.await()
@@ -99,6 +107,43 @@ class LocalLibraryLoaderTest {
 
             assertThat(loader.refreshing.value).isFalse()
             assertThat(loader.library.first().failed).isFalse()
+        }
+
+    @Test
+    fun `a refresh brings the index up to date before reading it`() =
+        runTest {
+            val source = FakeSource()
+            val loader = loader(source)
+
+            loader.refresh()
+            advanceUntilIdle()
+
+            assertThat(source.calls).containsExactly("reindex", "read").inOrder()
+        }
+
+    @Test
+    fun `a failed reindex still reads and ends the refresh`() =
+        runTest {
+            val source = FakeSource().apply { reindexFails = true }
+            val loader = loader(source)
+
+            loader.refresh()
+            advanceUntilIdle()
+
+            assertThat(source.reads).isEqualTo(1)
+            assertThat(loader.refreshing.value).isFalse()
+        }
+
+    @Test
+    fun `opening the library reads without reindexing`() =
+        runTest {
+            val source = FakeSource()
+            val loader = loader(source)
+
+            loader.library.first()
+            advanceUntilIdle()
+
+            assertThat(source.calls).containsExactly("read")
         }
 
     @Test

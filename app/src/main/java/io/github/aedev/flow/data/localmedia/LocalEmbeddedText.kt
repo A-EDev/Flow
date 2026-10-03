@@ -15,12 +15,23 @@ data class EmbeddedText(
 /**
  * The item as its own file describes it. MediaStore's copy of these fields comes from the
  * device's metadata reader, which some vendors' builds damage ("Snälla" stored as "Sn??lla"), so
- * whatever the file itself carries wins; fields it lacks keep MediaStore's value.
+ * whatever the file itself carries wins; fields it lacks keep MediaStore's value. A [titleless]
+ * file is named by its file name: MediaStore copies the name into the title when it indexes the
+ * file and never updates it on a rename (#1214).
  */
-internal fun LocalMediaItem.withEmbeddedText(text: EmbeddedText): LocalMediaItem {
-    val updated = copy(title = text.title ?: title, artist = text.artist ?: artist, album = text.album ?: album)
+internal fun LocalMediaItem.withEmbeddedText(
+    text: EmbeddedText,
+    titleless: Boolean = false,
+): LocalMediaItem {
+    val untagged = if (titleless) fileTitle ?: title else title
+    val updated = copy(title = text.title ?: untagged, artist = text.artist ?: artist, album = text.album ?: album)
     return if (updated == this) this else updated
 }
+
+/** The file's name without its extension, the title MediaStore gives a file that carries none. */
+internal val LocalMediaItem.fileTitle: String? get() = fileNameTitle(fileName)
+
+internal fun fileNameTitle(fileName: String?): String? = fileName?.substringBeforeLast('.')?.takeIf(String::isNotBlank)
 
 /** Whether MediaStore's text looks damaged, so the file is read before the list is first shown. */
 internal fun LocalMediaItem.looksDamaged(): Boolean = listOf(title, artist, album).any { field -> field.any { it == '?' || it == '�' } }

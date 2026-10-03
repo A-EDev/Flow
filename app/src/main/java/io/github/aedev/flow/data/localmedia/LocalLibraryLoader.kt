@@ -34,6 +34,9 @@ internal interface LocalMediaSource {
 
     /** [read] finished with the slower work that can follow the first look; may throw. */
     suspend fun complete(read: LocalLibrary): LocalLibrary = read
+
+    /** Brings the platform's index up to date with the files before a refresh reads it; may throw. */
+    suspend fun reindex() = Unit
 }
 
 /**
@@ -73,11 +76,22 @@ internal class LocalLibraryLoader(
         refreshJob =
             scope.launch {
                 try {
+                    reindex()
                     reload(force = true)
                 } finally {
                     _refreshing.value = false
                 }
             }
+    }
+
+    private suspend fun reindex() {
+        try {
+            source.reindex()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Indexing the media library again failed", e)
+        }
     }
 
     private suspend fun reload(force: Boolean) =
