@@ -76,6 +76,7 @@ internal fun ChannelContent(
     onManageGroups: (() -> Unit)?,
     communityUiState: ChannelCommunityUiState,
     tabStates: Map<ChannelTabKind, ChannelTabState>,
+    showShortsTab: Boolean,
     onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
     subscribedChannelIds: Set<String>,
     channelNote: String?,
@@ -109,14 +110,13 @@ internal fun ChannelContent(
                 .PlayerPreferences(context)
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
-    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val columnPreference by preferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
     val coroutineScope = rememberCoroutineScope()
 
     val aboutTitle = stringResource(R.string.tab_about)
     val visibleTabs =
-        remember(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle) {
-            channelScreenTabs(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle)
+        remember(uiState.tabs, uiState.header, showShortsTab, aboutTitle) {
+            channelScreenTabs(uiState.tabs, uiState.header, showShortsTab, aboutTitle)
         }
     if (visibleTabs.isEmpty()) return
 

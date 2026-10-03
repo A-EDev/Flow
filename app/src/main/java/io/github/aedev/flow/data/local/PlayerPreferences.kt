@@ -158,6 +158,7 @@ class PlayerPreferences(
         val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
+        val CHANNEL_SHORTS_TAB_WHEN_HIDDEN = booleanPreferencesKey("channel_shorts_tab_when_hidden")
         val NOTES_ENABLED = booleanPreferencesKey("notes_enabled")
         val CHANNEL_NOTES_ENABLED = booleanPreferencesKey("channel_notes_enabled")
         val VIDEO_NOTES_ENABLED = booleanPreferencesKey("video_notes_enabled")
@@ -909,6 +910,22 @@ class PlayerPreferences(
     suspend fun setShortsContentEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_CONTENT_ENABLED] = enabled
+        }
+    }
+
+    /** Keeps a channel's Shorts tab while the master switch hides Shorts everywhere else. */
+    val channelShortsTabWhenHidden: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.CHANNEL_SHORTS_TAB_WHEN_HIDDEN] ?: false
+            }
+
+    val effectiveChannelShortsTabEnabled: Flow<Boolean> =
+        combine(shortsContentEnabled, channelShortsTabWhenHidden) { master, keep -> master || keep }
+
+    suspend fun setChannelShortsTabWhenHidden(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CHANNEL_SHORTS_TAB_WHEN_HIDDEN] = enabled
         }
     }
 
