@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.subscriptions
 
+import android.util.Log
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelPage
@@ -57,7 +58,8 @@ class ChannelUploadsClient internal constructor(
         limits: ChannelUploadLimits = ChannelUploadLimits(),
     ): Result<ChannelUploads> {
         val first = fetchOnce(channelId, notBeforeMillis, limits)
-        if (first.exceptionOrNull() !is IOException) return first
+        val error = first.exceptionOrNull() as? IOException ?: return first
+        Log.w(TAG, "[$channelId] Channel tabs network error, retrying once: ${error::class.simpleName}: ${error.message}")
         sleep(NETWORK_RETRY_DELAY_MS)
         return fetchOnce(channelId, notBeforeMillis, limits)
     }
@@ -162,6 +164,7 @@ class ChannelUploadsClient internal constructor(
     }
 
     private companion object {
+        const val TAG = "ChannelUploads"
         const val NETWORK_RETRY_DELAY_MS = 1_500L
         val UPLOAD_TABS = setOf(ChannelTabKind.Videos, ChannelTabKind.Shorts, ChannelTabKind.Live)
     }
