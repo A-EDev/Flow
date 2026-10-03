@@ -187,11 +187,11 @@ private fun QualityPickerDialog(
         }
 
         QualityPicker.SHORTS_WIFI -> {
-            resolution(R.string.settings_quality_wifi, ShortsQualities, state.shortsWifi, viewModel::setShortsWifi)
+            resolution(R.string.settings_quality_wifi, VideoQualities, state.shortsWifi, viewModel::setShortsWifi)
         }
 
         QualityPicker.SHORTS_MOBILE -> {
-            resolution(R.string.settings_quality_mobile, ShortsQualities, state.shortsMobile, viewModel::setShortsMobile)
+            resolution(R.string.settings_quality_mobile, VideoQualities, state.shortsMobile, viewModel::setShortsMobile)
         }
 
         QualityPicker.CODEC -> {

@@ -80,7 +80,6 @@ fun ShortsScreen(
     val shareVideo = rememberVideoShareAction()
 
     val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
-    ShortsPipActionEffect()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
@@ -165,6 +164,7 @@ fun ShortsScreen(
 
             uiState.shorts.isNotEmpty() -> {
                 val pagerState = rememberPagerState(initialPage = uiState.currentIndex, pageCount = { uiState.shorts.size })
+                ShortsPipActionEffect(pagerState = pagerState, isInPip = isInPip)
 
                 LaunchedEffect(pagerState.currentPage) { viewModel.updateCurrentIndex(pagerState.currentPage) }
                 LaunchedEffect(pagerState.settledPage) {

@@ -46,6 +46,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.player.PipQueueNavigation
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.LinkDestination
 import io.github.aedev.flow.ui.components.library.message
@@ -669,6 +670,7 @@ class MainActivity : ComponentActivity() {
         enterPlayerPictureInPictureMode(
             aspectRatio = shortsPool.activeVideoAspectRatio() ?: PORTRAIT_REEL_ASPECT_RATIO,
             isPlaying = true,
+            navigation = PictureInPictureHelper.shortsNavigation,
         )
     }
 
@@ -685,6 +687,7 @@ class MainActivity : ComponentActivity() {
         aspectRatio: Float = PictureInPictureHelper.currentVideoAspectRatio,
         isPlaying: Boolean = true,
         openSettingsOnDenied: Boolean = false,
+        navigation: PipQueueNavigation? = null,
     ): Boolean {
         if (cachedAppUiRoot == AppUiRoot.TV) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
@@ -702,6 +705,7 @@ class MainActivity : ComponentActivity() {
                 aspectRatio = aspectRatio,
                 isPlaying = isPlaying,
                 autoEnterEnabled = false,
+                navigation = navigation,
             )
         if (!entered) {
             pendingAutoPip = false

@@ -7,7 +7,6 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.notes.NotesRepository
-import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -43,12 +42,12 @@ class ChannelViewModelTest {
         coEvery { subscriptionGroupDao.getAllGroups() } returns flowOf(emptyList())
         coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
         every { playerPreferences.effectiveChannelNotesEnabled } returns flowOf(true)
+        every { playerPreferences.effectiveChannelShortsTabEnabled } returns flowOf(true)
         coEvery { notesRepository.observe(any(), any()) } returns flowOf(null)
         viewModel =
             ChannelViewModel(
                 appContext = context,
                 subscriptionRepository = subscriptionRepository,
-                shortsContentFilter = ShortsContentFilter(flowOf(true)),
                 subscriptionGroupDao = subscriptionGroupDao,
                 notesRepository = notesRepository,
                 playerPreferences = playerPreferences,

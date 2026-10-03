@@ -19,7 +19,6 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.toUiModel
 import io.github.aedev.flow.data.notes.NoteKind
 import io.github.aedev.flow.data.notes.NotesRepository
-import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
@@ -32,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -44,10 +44,9 @@ class ChannelViewModel
     constructor(
         @ApplicationContext private val appContext: Context,
         private val subscriptionRepository: SubscriptionRepository,
-        private val shortsContentFilter: ShortsContentFilter,
         private val subscriptionGroupDao: SubscriptionGroupDao,
         private val notesRepository: NotesRepository,
-        playerPreferences: PlayerPreferences,
+        private val playerPreferences: PlayerPreferences,
     ) : ViewModel() {
         val subscriptionGroups: StateFlow<List<SubscriptionGroup>> =
             subscriptionGroupDao
@@ -113,6 +112,10 @@ class ChannelViewModel
             playerPreferences.effectiveChannelNotesEnabled
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), false)
 
+        val showShortsTab: StateFlow<Boolean> =
+            playerPreferences.effectiveChannelShortsTabEnabled
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), true)
+
         private val _channelNote = MutableStateFlow<String?>(null)
         val channelNote: StateFlow<String?> = _channelNote.asStateFlow()
 
@@ -138,7 +141,6 @@ class ChannelViewModel
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
         private val communityController = ChannelCommunityController(viewModelScope)
-        private var shortsEnabled: Boolean = true
         internal val communityUiState: StateFlow<ChannelCommunityUiState> = communityController.state
 
         private val tabController = ChannelTabController(viewModelScope)
@@ -213,7 +215,6 @@ class ChannelViewModel
                         communityController.reset(channelId, header.title, header.avatarUrl)
                         loadSubscriptionState(channelId)
                         observeNote(channelId)
-                        shortsEnabled = shortsContentFilter.isEnabled()
                         onTabsResolved()
                     },
                     onFailure = { error ->
@@ -243,7 +244,15 @@ class ChannelViewModel
                 communityController.ensurePostsLoaded()
                 return
             }
-            if (kind == ChannelTabKind.Shorts && !shortsEnabled) return
+            if (kind == ChannelTabKind.Shorts) {
+                // Read at load time, not once per channel, so turning the tab on while a channel is open still loads it.
+                viewModelScope.launch {
+                    if (playerPreferences.effectiveChannelShortsTabEnabled.first()) {
+                        tabController.ensureLoaded(kind, _uiState.value.tabParams(kind))
+                    }
+                }
+                return
+            }
             tabController.ensureLoaded(kind, _uiState.value.tabParams(kind))
         }
 
