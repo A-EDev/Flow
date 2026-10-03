@@ -210,8 +210,8 @@ fun MusicSearchScreen(
                     searchHistoryItems(
                         query = query,
                         history = history,
-                        onSubmit = { text ->
-                            viewModel.performSearch(text)
+                        onSelect = { item ->
+                            viewModel.performSearch(item.query)
                             dismissSearchInput()
                         },
                         onDeleteHistoryItem = viewModel::deleteHistoryItem,

@@ -40,6 +40,7 @@ fun SearchSuggestionsPanel(
     history: List<SearchHistoryItem>,
     suggestions: List<SearchSuggestion>,
     onSubmit: (String) -> Unit,
+    onHistorySelect: (SearchHistoryItem) -> Unit,
     onFill: (String) -> Unit,
     onDeleteHistoryItem: (SearchHistoryItem) -> Unit,
     onClearHistory: () -> Unit,
@@ -52,7 +53,7 @@ fun SearchSuggestionsPanel(
         searchHistoryItems(
             query = query,
             history = history,
-            onSubmit = onSubmit,
+            onSelect = onHistorySelect,
             onDeleteHistoryItem = onDeleteHistoryItem,
             onClearHistory = onClearHistory,
         )
@@ -77,7 +78,7 @@ fun SearchSuggestionsPanel(
 fun LazyListScope.searchHistoryItems(
     query: String,
     history: List<SearchHistoryItem>,
-    onSubmit: (String) -> Unit,
+    onSelect: (SearchHistoryItem) -> Unit,
     onDeleteHistoryItem: (SearchHistoryItem) -> Unit,
     onClearHistory: () -> Unit,
 ) {
@@ -102,8 +103,9 @@ fun LazyListScope.searchHistoryItems(
         FlowSuggestionRow(
             text = item.query,
             leadingIcon = if (item.type == SearchType.VOICE) Icons.Rounded.Mic else Icons.Rounded.History,
-            onClick = { onSubmit(item.query) },
+            onClick = { onSelect(item) },
             query = query,
+            supportingText = item.filters?.let { searchFilterSummary(it) },
             trailingIcon = Icons.Rounded.Close,
             trailingContentDescription = stringResource(R.string.remove),
             onTrailingClick = { onDeleteHistoryItem(item) },

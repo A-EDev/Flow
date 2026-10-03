@@ -20,6 +20,8 @@ data class SearchHistoryItem(
     val query: String,
     val timestamp: Long = System.currentTimeMillis(),
     val type: SearchType = SearchType.TEXT,
+    /** The filters the search ran with; null on entries saved before filters were kept. */
+    val filters: SearchFilter? = null,
 )
 
 enum class SearchType {
@@ -77,31 +79,21 @@ class SearchHistoryRepository
             query: String,
             type: SearchType = SearchType.TEXT,
             scope: SearchHistoryScope = SearchHistoryScope.VIDEO,
+            filters: SearchFilter? = null,
         ) {
             if (!isSearchHistoryEnabled()) return
             if (query.isBlank()) return
 
             context.searchDataStore.edit { preferences ->
-                val currentHistory = getSearchHistoryList(preferences, scope)
-
-                // Remove duplicate if exists
-                val filteredHistory = currentHistory.filter { it.query != query }
-
-                // Add new item at the beginning
-                val newItem =
-                    SearchHistoryItem(
+                val updated =
+                    getSearchHistoryList(preferences, scope).withSearch(
                         query = query,
                         type = type,
-                        timestamp = System.currentTimeMillis(),
+                        filters = filters,
+                        maxSize = preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE,
+                        now = System.currentTimeMillis(),
                     )
-                val updatedHistory = listOf(newItem) + filteredHistory
-
-                // Trim to max size
-                val maxSize = preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE
-                val trimmedHistory = updatedHistory.take(maxSize)
-
-                // Save
-                preferences[historyKey(scope)] = gson.toJson(trimmedHistory)
+                preferences[historyKey(scope)] = gson.toJson(updated)
             }
         }
 
@@ -156,7 +148,7 @@ class SearchHistoryRepository
                         .asSequence()
                         .filter { it.query.isNotBlank() }
                         .sortedByDescending { it.timestamp }
-                        .distinctBy { it.query.trim().lowercase() }
+                        .distinctBy { it.query.searchHistoryKey() }
                         .take(maxSize)
                         .toList()
 
@@ -270,7 +262,7 @@ class SearchHistoryRepository
             val json = preferences[historyKey(scope)] ?: return emptyList()
             return try {
                 val type = object : TypeToken<List<SearchHistoryItem>>() {}.type
-                gson.fromJson(json, type) ?: emptyList()
+                gson.fromJson<List<SearchHistoryItem>>(json, type)?.map(SearchHistoryItem::sanitized) ?: emptyList()
             } catch (e: Exception) {
                 emptyList()
             }
