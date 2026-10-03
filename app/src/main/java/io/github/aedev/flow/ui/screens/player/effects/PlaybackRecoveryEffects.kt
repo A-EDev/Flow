@@ -197,6 +197,9 @@ internal fun PlaybackStartupRecoveryEffect(
             snapshot = captureStartupRecoverySnapshot(manager, videoId, uiState, screenState)
         }
 
+        // A video opened paused is loading without playWhenReady, which reads as stalled below.
+        if (manager.isStartPausedArmed(videoId) && snapshot.hasMedia && !snapshot.isIdle) return@LaunchedEffect
+
         if (snapshot.isActivelyBuffering && !snapshot.hasDuration && !snapshot.hasStarted) {
             delay(STARTUP_BUFFERING_GRACE_MS)
             snapshot = captureStartupRecoverySnapshot(manager, videoId, uiState, screenState)

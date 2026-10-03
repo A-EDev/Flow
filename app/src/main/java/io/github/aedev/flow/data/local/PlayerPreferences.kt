@@ -69,6 +69,7 @@ class PlayerPreferences(
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
+        val START_VIDEOS_PAUSED = booleanPreferencesKey("start_videos_paused")
         val MUSIC_ENDLESS_RADIO_ENABLED = booleanPreferencesKey("music_endless_radio_enabled")
         val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
@@ -1448,6 +1449,17 @@ class PlayerPreferences(
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    /** A video the viewer opens loads and waits for play; what plays after it is the autoplay settings' call. */
+    val startVideosPaused: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.START_VIDEOS_PAUSED] ?: false }
+
+    suspend fun setStartVideosPaused(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.START_VIDEOS_PAUSED] = enabled
         }
     }
 

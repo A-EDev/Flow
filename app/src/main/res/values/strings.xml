@@ -1164,6 +1164,8 @@
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
+    <string name="player_settings_start_paused">Start videos paused</string>
+    <string name="player_settings_start_paused_subtitle">Open a video without playing it until you press play</string>
     <string name="player_settings_autoplay">Autoplay related videos</string>
     <string name="player_settings_autoplay_subtitle">Play a suggested video when nothing is queued</string>
     <string name="player_settings_queue_autoplay">Autoplay queued videos</string>

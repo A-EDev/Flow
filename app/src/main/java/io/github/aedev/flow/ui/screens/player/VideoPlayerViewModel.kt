@@ -27,6 +27,7 @@ import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
@@ -83,6 +84,7 @@ class VideoPlayerViewModel
         notesRepository: io.github.aedev.flow.data.notes.NotesRepository,
         private val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder,
         private val localMediaDetails: LocalMediaDetails,
+        private val lifecyclePlayback: LifecyclePlaybackPreferences,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -351,8 +353,12 @@ class VideoPlayerViewModel
         /**
          * Plays a video by immediately caching metadata and triggering stream load.
          * This ensures the UI shows video info immediately while streams are fetched.
+         * [userOpened] is false when the video only follows another (next, previous), which keeps playing.
          */
-        fun playVideo(video: Video) {
+        fun playVideo(
+            video: Video,
+            userOpened: Boolean = true,
+        ) {
             val isMiniPlayerCollapsed =
                 GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
             if (_uiState.value.shouldReopenInsteadOfPlaying(video.id, playerManager.playerState.value, isMiniPlayerCollapsed)) {
@@ -363,6 +369,7 @@ class VideoPlayerViewModel
 
             nextPlaybackLoadToken()
             takeOverPlayback()
+            armStartPaused(video.id, userOpened)
 
             _uiState.value = _uiState.value.startPlaybackOf(video)
             GlobalPlayerState.setCurrentVideo(video)
@@ -380,7 +387,15 @@ class VideoPlayerViewModel
             contentUri: String,
         ) {
             takeOverPlayback()
+            armStartPaused(video.id, userOpened = true)
             prepareDeviceFile(video, contentUri)
+        }
+
+        private fun armStartPaused(
+            videoId: String,
+            userOpened: Boolean,
+        ) {
+            playerManager.armStartPaused(videoId.takeIf { userOpened && lifecyclePlayback.settings.startVideosPaused })
         }
 
         /** Plays a file on the device, keeping whatever queue it belongs to. */
@@ -489,6 +504,7 @@ class VideoPlayerViewModel
             EnhancedMusicPlayerManager.stop()
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
+            playerManager.armStartPaused(null)
             playerManager.setQueue(videos, startIndex, title, shuffle)
 
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
@@ -504,7 +520,7 @@ class VideoPlayerViewModel
             val handledByPlayer = playerManager.playNext(loadStreamsInPlayer = false)
             if (!handledByPlayer) {
                 _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
-                    playVideo(nextVideo)
+                    playVideo(nextVideo, userOpened = false)
                     io.github.aedev.flow.player.GlobalPlayerState
                         .setCurrentVideo(nextVideo)
                 }
@@ -516,7 +532,7 @@ class VideoPlayerViewModel
             if (!handledByPlayer) {
                 getPreviousVideoId()?.let { prevId ->
                     val prevVideo = blankVideo(prevId, cached = null)
-                    playVideo(prevVideo)
+                    playVideo(prevVideo, userOpened = false)
                     GlobalPlayerState.setCurrentVideo(prevVideo)
                 }
             }
