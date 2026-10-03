@@ -27,8 +27,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -144,7 +146,7 @@ internal fun ChannelContent(
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
-    var headerOffsetPx by remember { mutableFloatStateOf(0f) }
+    var headerOffsetPx by rememberSaveable { mutableFloatStateOf(0f) }
 
     val density = LocalDensity.current
     val collapseTitleThresholdPx = with(density) { 2.dp.toPx() }
@@ -231,7 +233,13 @@ internal fun ChannelContent(
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
 
-    LaunchedEffect(activeSelection, settledTab.kind) { listStateFor(settledTab.kind).scrollToItem(0) }
+    // A new tab or filter starts at the top; coming back to the page keeps the list where it was.
+    var scrolledFor by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(activeSelection, settledTab.kind) {
+        val target = "${settledTab.kind}:$activeSelection"
+        if (scrolledFor != null && scrolledFor != target) listStateFor(settledTab.kind).scrollToItem(0)
+        scrolledFor = target
+    }
 
     Box(
         modifier =

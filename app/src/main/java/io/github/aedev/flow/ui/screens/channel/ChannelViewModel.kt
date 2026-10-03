@@ -141,6 +141,7 @@ class ChannelViewModel
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
         private val communityController = ChannelCommunityController(viewModelScope)
+        private var requestedChannelUrl: String? = null
         internal val communityUiState: StateFlow<ChannelCommunityUiState> = communityController.state
 
         private val tabController = ChannelTabController(viewModelScope)
@@ -183,6 +184,8 @@ class ChannelViewModel
          *  PERFORMANCE OPTIMIZED: Load channel with timeout protection
          */
         fun loadChannel(channelUrl: String) {
+            if (!shouldLoadChannel(_uiState.value, requestedChannelUrl, channelUrl)) return
+            requestedChannelUrl = channelUrl
             val directId = youtubeChannelBrowseId(channelUrl)
             val vanityUrl = youtubeChannelUrl(channelUrl)
             if (directId == null && vanityUrl == null) {
@@ -190,9 +193,8 @@ class ChannelViewModel
                 return
             }
 
+            _uiState.update { it.copy(isLoading = true, error = null) }
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-
                 val browseId =
                     directId ?: YouTube.resolveChannelId(checkNotNull(vanityUrl)).getOrElse { error ->
                         Log.e(TAG, "Failed to resolve $vanityUrl", error)

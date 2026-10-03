@@ -30,3 +30,14 @@ data class ChannelUiState(
 
     fun hasTab(kind: ChannelTabKind): Boolean = tabs.any { it.kind == kind }
 }
+
+/**
+ * Whether opening [url] needs a fetch. Coming back to a channel page re-runs its effects, and a
+ * second load would refetch it and reset every tab's sort and loaded pages; only a different
+ * channel, or a retry after a failed load, loads again.
+ */
+internal fun shouldLoadChannel(
+    state: ChannelUiState,
+    requestedUrl: String?,
+    url: String,
+): Boolean = url != requestedUrl || (state.header == null && !state.isLoading)

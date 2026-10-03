@@ -138,8 +138,13 @@ fun SearchScreen(
         }
     }
 
+    // A new query starts at the top; coming back from a result keeps the grid where it was.
+    var scrolledForQuery by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState.query) {
-        if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
+        if (uiState.query.isNotBlank() && scrolledForQuery != uiState.query) {
+            if (scrolledForQuery != null) gridState.scrollToItem(0)
+            scrolledForQuery = uiState.query
+        }
     }
 
     LaunchedEffect(pagingItems.itemSnapshotList.items) {
