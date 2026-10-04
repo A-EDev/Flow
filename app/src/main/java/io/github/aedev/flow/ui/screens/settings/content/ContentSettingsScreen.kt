@@ -18,6 +18,7 @@ import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.screens.settings.index.ContentIndex
 import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 
@@ -33,6 +34,7 @@ internal fun ContentSettingsScreen(
     viewModel: ContentSettingsViewModel = hiltViewModel(),
 ) {
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
+    val channelShortsTab by viewModel.channelShortsTab.collectAsStateWithLifecycle()
     val hideWatchedHome by viewModel.hideWatchedHome.collectAsStateWithLifecycle()
     val hideWatchedSubs by viewModel.hideWatchedSubs.collectAsStateWithLifecycle()
     val hideWatchedShorts by viewModel.hideWatchedShorts.collectAsStateWithLifecycle()
@@ -71,6 +73,16 @@ internal fun ContentSettingsScreen(
         }
         group(key = "content.shorts", header = R.string.content_settings_header_shorts) {
             switch(ContentIndex.shortsContent, viewModel.shortsContent, viewModel::setShortsContent)
+            row(ContentIndex.channelShortsTab.key) { shape ->
+                FlowSwitchRow(
+                    title = stringResource(ContentIndex.channelShortsTab.title),
+                    supportingText = stringResource(R.string.content_settings_channel_shorts_tab_subtitle),
+                    checked = channelShortsTab || shortsContent,
+                    onCheckedChange = viewModel::setChannelShortsTab,
+                    enabled = !shortsContent,
+                    shape = shape,
+                )
+            }
             switch(ContentIndex.hideWatchedShorts, viewModel.hideWatchedShorts, viewModel::setHideWatchedShorts, enabled = shortsContent)
         }
         group(key = "content.watch_later", header = R.string.watch_later) {
