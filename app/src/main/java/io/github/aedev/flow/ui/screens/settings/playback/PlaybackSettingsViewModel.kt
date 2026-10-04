@@ -29,6 +29,7 @@ class PlaybackSettingsViewModel
 
         val backgroundPlay = preferences.backgroundPlayEnabled.asState(false)
         val autoplay = preferences.autoplayEnabled.asState(true)
+        val startPaused = preferences.startVideosPaused.asState(false)
         val queueAutoplay = preferences.queueAutoplayEnabled.asState(true)
         val autoplayCountdown = preferences.autoplayCountdownSeconds.asState(0)
         val loopAll = preferences.videoLoopEnabled.asState(false)
@@ -97,6 +98,8 @@ class PlaybackSettingsViewModel
             }.asState(lyricsRegistry.getOrderedProviders("").map { LyricsProviderState(it.name, true) })
 
         fun setBackgroundPlay(value: Boolean) = write { preferences.setBackgroundPlayEnabled(value) }
+
+        fun setStartPaused(value: Boolean) = write { preferences.setStartVideosPaused(value) }
 
         fun setAutoplay(value: Boolean) = write { preferences.setAutoplayEnabled(value && !loopAll.value) }
 

@@ -28,6 +28,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.LifecyclePlaybackSettings
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
@@ -74,6 +75,7 @@ internal class VideoPlayerViewModelHarness(
     val liveChatRepository: LiveChatRepository = mockk(relaxed = true)
     val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
     val playerManager: EnhancedPlayerManager = mockk(relaxed = true)
+    var startVideosPaused = false
     val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder = mockk(relaxed = true)
 
     /**
@@ -215,6 +217,7 @@ internal class VideoPlayerViewModelHarness(
             notesRepository = mockk(relaxed = true),
             videoStats = videoStats,
             localMediaDetails = mockk { coEvery { enrich(any()) } returns null },
+            lifecyclePlayback = mockk { every { settings } answers { LifecyclePlaybackSettings(startVideosPaused = startVideosPaused) } },
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

@@ -110,7 +110,7 @@ fun TvPlayerScreen(
 
     fun playFromPlayer(next: Video) {
         GlobalPlayerState.setCurrentVideo(next)
-        viewModel.playVideo(next)
+        viewModel.playVideo(next, userOpened = false)
         overlayController.hide()
     }
 

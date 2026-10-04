@@ -826,6 +826,7 @@
     <string name="player_appearance_grouped_quality_selector_subtitle">One row per resolution, with codecs inside</string>
     <string name="shorts_saved">Short saved</string>
     <string name="shorts_unsaved">Short unsaved</string>
+    <string name="remove_from_saved_shorts">Remove from Saved Shorts</string>
     <string name="shorts_showing_more_like_this">We\'ll show more like this</string>
     <string name="shorts_showing_less_like_this">Got it, showing less of this</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
@@ -1163,6 +1164,8 @@
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
+    <string name="player_settings_start_paused">Start videos paused</string>
+    <string name="player_settings_start_paused_subtitle">Open a video without playing it until you press play</string>
     <string name="player_settings_autoplay">Autoplay related videos</string>
     <string name="player_settings_autoplay_subtitle">Play a suggested video when nothing is queued</string>
     <string name="player_settings_queue_autoplay">Autoplay queued videos</string>
@@ -3492,6 +3495,15 @@
     <string name="settings_quality_tab_video">Video</string>
     <string name="settings_quality_tab_shorts">Shorts</string>
     <string name="settings_quality_tab_music">Music</string>
+    <string name="settings_section_thumbnails">Thumbnails</string>
+    <string name="thumbnail_quality_high">High</string>
+    <string name="thumbnail_quality_medium">Medium</string>
+    <string name="thumbnail_quality_low">Low</string>
+    <string name="thumbnail_quality_high_desc">Sharpest, uses the most data</string>
+    <string name="thumbnail_quality_medium_desc">Clear on phones, about half the data</string>
+    <string name="thumbnail_quality_low_desc">Least data, softer on large cards</string>
+    <string name="thumbnail_quality_notice">Lower thumbnail quality saves data on every feed and on Shorts.</string>
+    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage</string>
     <string name="settings_quality_wifi">On Wi-Fi</string>
     <string name="settings_quality_mobile">On mobile data</string>
     <string name="settings_section_resolution">Resolution</string>

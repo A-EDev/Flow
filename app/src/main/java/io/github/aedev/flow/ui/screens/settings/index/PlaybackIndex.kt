@@ -15,6 +15,15 @@ internal object PlaybackIndex {
             section = R.string.playback_header,
             destination = page,
         )
+    val startPaused =
+        SettingEntry(
+            key = "playback.start_paused",
+            title = R.string.player_settings_start_paused,
+            summary = R.string.player_settings_start_paused_subtitle,
+            keywords = R.string.settings_keywords_autoplay,
+            section = R.string.playback_header,
+            destination = page,
+        )
     val autoplay =
         SettingEntry(
             key = "playback.autoplay",
@@ -432,6 +441,7 @@ internal object PlaybackIndex {
     val all =
         listOf(
             backgroundPlay,
+            startPaused,
             autoplay,
             queueAutoplay,
             autoplayCountdown,

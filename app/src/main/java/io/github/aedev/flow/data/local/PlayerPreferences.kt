@@ -69,6 +69,7 @@ class PlayerPreferences(
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
+        val START_VIDEOS_PAUSED = booleanPreferencesKey("start_videos_paused")
         val MUSIC_ENDLESS_RADIO_ENABLED = booleanPreferencesKey("music_endless_radio_enabled")
         val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
@@ -145,6 +146,8 @@ class PlayerPreferences(
         // Shorts quality preferences
         val SHORTS_QUALITY_WIFI = stringPreferencesKey("shorts_quality_wifi")
         val SHORTS_QUALITY_CELLULAR = stringPreferencesKey("shorts_quality_cellular")
+        val THUMBNAIL_QUALITY_WIFI = stringPreferencesKey("thumbnail_quality_wifi")
+        val THUMBNAIL_QUALITY_CELLULAR = stringPreferencesKey("thumbnail_quality_cellular")
 
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
@@ -1391,6 +1394,26 @@ class PlayerPreferences(
         }
     }
 
+    val thumbnailQualityWifi: Flow<ThumbnailQuality> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> ThumbnailQuality.fromName(preferences[Keys.THUMBNAIL_QUALITY_WIFI]) }
+
+    val thumbnailQualityCellular: Flow<ThumbnailQuality> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> ThumbnailQuality.fromName(preferences[Keys.THUMBNAIL_QUALITY_CELLULAR]) }
+
+    suspend fun setThumbnailQualityWifi(quality: ThumbnailQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.THUMBNAIL_QUALITY_WIFI] = quality.name
+        }
+    }
+
+    suspend fun setThumbnailQualityCellular(quality: ThumbnailQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.THUMBNAIL_QUALITY_CELLULAR] = quality.name
+        }
+    }
+
     val musicAudioQuality: Flow<MusicAudioQuality> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -1426,6 +1449,17 @@ class PlayerPreferences(
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    /** A video the viewer opens loads and waits for play; what plays after it is the autoplay settings' call. */
+    val startVideosPaused: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.START_VIDEOS_PAUSED] ?: false }
+
+    suspend fun setStartVideosPaused(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.START_VIDEOS_PAUSED] = enabled
         }
     }
 

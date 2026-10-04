@@ -9,13 +9,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
+/**
+ * The thumbnail size the viewer chose for the network they are on. Null until the preference has
+ * been read, so the first frame never fetches a size that is about to be replaced.
+ */
+val LocalThumbnailQuality = staticCompositionLocalOf<ThumbnailQuality?> { ThumbnailQuality.HIGH }
+
+/** [portrait] marks a card that crops the frame to 9:16, which keeps it from the smallest tier. */
 @Composable
 fun VideoThumbnailImage(
     videoId: String,
@@ -23,12 +32,18 @@ fun VideoThumbnailImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    portrait: Boolean = false,
 ) {
+    val quality = LocalThumbnailQuality.current
     val models =
-        remember(videoId, model) {
+        remember(videoId, model, quality, portrait) {
             when {
+                quality == null -> {
+                    emptyList()
+                }
+
                 model is String || model == null -> {
-                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
+                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String, quality, portrait)
                 }
 
                 else -> {

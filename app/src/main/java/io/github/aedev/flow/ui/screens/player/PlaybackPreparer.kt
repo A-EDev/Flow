@@ -177,7 +177,7 @@ internal class PlaybackPreparer(
         applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty())
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
     /**
@@ -213,7 +213,7 @@ internal class PlaybackPreparer(
             applyRememberedPlaybackSpeed(isLive = true)
 
             if (!isCurrent()) return@withContext false
-            playerManager.play()
+            if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
             true
         }
 
@@ -275,7 +275,7 @@ internal class PlaybackPreparer(
         applyRememberedPlaybackSpeed(isLive = false, speedContext = speedContext)
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
     suspend fun prepareLocalMedia(
@@ -310,7 +310,7 @@ internal class PlaybackPreparer(
         applyRememberedPlaybackSpeed(isLive = false, speedContext = speedContext)
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
     private var speedBeforeOverride: Float? = null

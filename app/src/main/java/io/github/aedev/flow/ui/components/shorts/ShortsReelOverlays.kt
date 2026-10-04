@@ -83,6 +83,7 @@ internal fun ShortsReelPoster(
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
+            portrait = true,
         )
     }
 }

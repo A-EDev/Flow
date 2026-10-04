@@ -120,6 +120,15 @@ class SearchViewModel
             }
         }
 
+        /** A search the user asked for, kept in history with its filters. Typing on TV goes through [search] and is not kept. */
+        fun submit(
+            query: String,
+            filters: SearchFilter,
+        ) {
+            search(query, filters)
+            rememberSearch(query, filters)
+        }
+
         fun onSearchHistoryCleared() = videoStats.onSearchHistoryCleared()
 
         fun updateFilters(filters: SearchFilter) {
@@ -127,7 +136,16 @@ class SearchViewModel
             _uiState.value = _uiState.value.copy(filters = filters)
             if (currentQuery.isNotBlank()) {
                 _searchKey.value = SearchKey(currentQuery, filters)
+                rememberSearch(currentQuery, filters)
             }
+        }
+
+        private fun rememberSearch(
+            query: String,
+            filters: SearchFilter,
+        ) {
+            if (query.isBlank()) return
+            viewModelScope.launch { searchHistory.saveSearchQuery(query, filters = filters) }
         }
 
         fun clearSearch() {

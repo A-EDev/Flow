@@ -13,6 +13,7 @@ import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
@@ -180,6 +181,43 @@ class VideoPlayerViewModelEntryPointsTest {
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
             coVerify(exactly = 1) { harness.viewHistory.getSavedPosition("local_1") }
             coVerify(exactly = 0) { harness.viewHistory.touchHistoryEntry(any(), any(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `with start paused on an opened video is loaded and waits for play`() =
+        runTest {
+            harness.startVideosPaused = true
+            every { harness.playerManager.isStartPausedArmed("local_1") } returns true
+            val viewModel = newViewModel()
+
+            viewModel.playLocalVideo(video("local_1"), "content://media/external/video/1")
+            advanceUntilIdle()
+
+            verify { harness.playerManager.armStartPaused("local_1") }
+            verify { harness.playerManager.playLocalFile("local_1", "content://media/external/video/1", any(), any(), any()) }
+            verify(exactly = 0) { harness.playerManager.play() }
+        }
+
+    @Test
+    fun `a video that follows another is never held paused`() =
+        runTest {
+            harness.startVideosPaused = true
+            val viewModel = newViewModel()
+
+            viewModel.playVideo(video("next_1"), userOpened = false)
+
+            verify { harness.playerManager.armStartPaused(null) }
+            verify(exactly = 0) { harness.playerManager.armStartPaused("next_1") }
+        }
+
+    @Test
+    fun `with start paused off an opened video plays as before`() =
+        runTest {
+            val viewModel = newViewModel()
+
+            viewModel.playVideo(video("open_1"))
+
+            verify { harness.playerManager.armStartPaused(null) }
         }
 
     @Test

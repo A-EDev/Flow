@@ -65,7 +65,6 @@ class SearchScreenState(
         get() = allHistoryState.value.matchingTyped(query)
 
     fun onSubmit(text: String) {
-        scope.launch { history.saveSearchQuery(text) }
         suggestions = emptyList()
         submittedQuery = text
         isTyping = false

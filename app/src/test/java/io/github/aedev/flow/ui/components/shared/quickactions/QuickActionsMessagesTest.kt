@@ -5,6 +5,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.engagement.BlockedChannel
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
+import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.video.MusicVideoVersions
@@ -62,10 +64,12 @@ class QuickActionsMessagesTest {
     private var videoSearch: suspend (String) -> List<SongItem> = { emptyList() }
     private val song = MusicTrack("song", "Anti-Hero", "Taylor Swift", "", 201, channelId = "ts")
 
+    private val playlistRepository: PlaylistRepository = mockk(relaxed = true)
+
     private fun viewModel() =
         QuickActionsViewModel(
             repository = mockk(relaxed = true),
-            playlistRepository = mockk(relaxed = true),
+            playlistRepository = playlistRepository,
             videoDownloadManager = mockk(relaxed = true),
             engagement = engagement,
             feedback = feedback,
@@ -108,6 +112,24 @@ class QuickActionsMessagesTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(messages.map { it.text }).containsExactly(R.string.music_video_unavailable, R.string.music_video_failed).inOrder()
+        }
+
+    @Test
+    fun `removing a saved Short offers an undo that puts it back in place`() =
+        runTest(testDispatcher) {
+            val entry = PlaylistVideoCrossRef(PlaylistRepository.SAVED_SHORTS_ID, video.id, position = -5L, addedAt = 1L)
+            coEvery { playlistRepository.takeVideosFromPlaylist(PlaylistRepository.SAVED_SHORTS_ID, setOf(video.id)) } returns listOf(entry)
+            val viewModel = viewModel()
+            val messages = messagesOf(viewModel)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.removeFromSavedShorts(video)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(messages.map { it.text }).containsExactly(R.string.shorts_unsaved)
+            viewModel.undo(messages.single().undo!!)
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify { playlistRepository.restorePlaylistVideos(listOf(entry)) }
         }
 
     @Test

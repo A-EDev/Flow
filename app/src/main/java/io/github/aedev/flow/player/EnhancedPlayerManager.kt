@@ -1157,7 +1157,21 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    /**
+     * The video the viewer opened paused. It waits for [play] however often its media is reloaded
+     * (stream expiry, a quality or audio-track change) and stops applying once another video loads.
+     */
+    private var startPausedVideoId: String? = null
+
+    /** Opens [videoId] paused, or clears that when null. */
+    fun armStartPaused(videoId: String?) {
+        startPausedVideoId = videoId
+    }
+
+    fun isStartPausedArmed(videoId: String?): Boolean = videoId != null && videoId == startPausedVideoId
+
     private fun resetPlaybackStateForNewVideo(videoId: String) {
+        if (startPausedVideoId != videoId) startPausedVideoId = null
         clearAutoplayCountdownInternal()
         currentVideoId = videoId
         liveQualityHeights = emptyList()
@@ -1254,7 +1268,7 @@ class EnhancedPlayerManager private constructor() {
         preservePosition: Long? = null,
         localFilePath: String? = null,
         audioOnly: Boolean = false,
-        playWhenReady: Boolean = true,
+        playWhenReady: Boolean = !isStartPausedArmed(currentVideoId),
     ): Boolean {
         val loaded =
             prepareMediaSource(
@@ -2187,6 +2201,7 @@ class EnhancedPlayerManager private constructor() {
     // ===== Playback Controls =====
 
     fun play() {
+        startPausedVideoId = null
         if (audioOnlyMode.needsVideoRestore) {
             restoreVideoOutput()
         }
