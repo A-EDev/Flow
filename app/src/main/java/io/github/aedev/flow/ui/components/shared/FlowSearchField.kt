@@ -154,6 +154,7 @@ fun FlowSearchField(
     releaseFocusWithKeyboard: Boolean = false,
 ) {
     val state = remember { TextFieldState(initialText = query) }
+    val echoes = remember { QueryEchoFilter() }
     val currentOnQueryChange by rememberUpdatedState(onQueryChange)
 
     // drop(1) discards snapshotFlow's replay of the text the field was seeded with, so the caller
@@ -161,11 +162,14 @@ fun FlowSearchField(
     LaunchedEffect(state) {
         snapshotFlow { state.text.toString() }
             .drop(1)
-            .collect { currentOnQueryChange(it) }
+            .collect {
+                echoes.sent(it)
+                currentOnQueryChange(it)
+            }
     }
 
     LaunchedEffect(query) {
-        if (query != state.text.toString()) state.setTextAndPlaceCursorAtEnd(query)
+        if (echoes.shouldApply(query) && query != state.text.toString()) state.setTextAndPlaceCursorAtEnd(query)
     }
 
     FlowSearchField(
@@ -180,6 +184,34 @@ fun FlowSearchField(
         trailingContent = trailingContent,
         releaseFocusWithKeyboard = releaseFocusWithKeyboard,
     )
+}
+
+/**
+ * Tells a late echo of the field's own edit from a query the caller set. A caller whose query comes
+ * back through a slow pipeline hands "a" back after the field already holds "ab"; applying it
+ * rewinds the text, the field reports "a" again, and the two trade places while the user types.
+ */
+internal class QueryEchoFilter {
+    private val pending = ArrayDeque<String>()
+
+    fun sent(query: String) {
+        pending.addLast(query)
+        if (pending.size > MAX_PENDING) pending.removeFirst()
+    }
+
+    fun shouldApply(query: String): Boolean {
+        if (query == pending.lastOrNull()) {
+            pending.clear()
+            return false
+        }
+        if (query in pending) return false
+        pending.clear()
+        return true
+    }
+
+    private companion object {
+        const val MAX_PENDING = 64
+    }
 }
 
 /**
