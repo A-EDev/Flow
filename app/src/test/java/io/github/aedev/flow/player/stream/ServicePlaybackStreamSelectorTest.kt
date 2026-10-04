@@ -75,7 +75,8 @@ class ServicePlaybackStreamSelectorTest {
 
     @Test
     fun `a preference never matches a track whose name merely contains its code`() {
-        val english = audio("en", languageTag = "en", trackName = "English original", trackType = AudioTrackType.ORIGINAL, bitrate = 128_000)
+        val english =
+            audio("en", languageTag = "en", trackName = "English original", trackType = AudioTrackType.ORIGINAL, bitrate = 128_000)
         val french = audio("fr", languageTag = "fr-FR", trackName = "French (FR)", bitrate = 130_000)
         val hindi = audio("hi", languageTag = "hi", trackName = "Hindi", bitrate = 128_000)
         val chinese = audio("zh", languageTag = "zh", trackName = "Chinese", bitrate = 130_000)

@@ -72,12 +72,14 @@ class LocalMediaViewModel
         private val selection = MutableStateFlow(LocalMediaSelection())
 
         private val playback =
-            viewHistory.getLocalHistoryFlow().map { entries ->
-                LocalPlayback(
-                    fraction = entries.filter { it.duration > 0 }.associate { it.videoId to (it.position.toFloat() / it.duration) },
-                    lastPlayedMs = entries.associate { it.videoId to it.timestamp },
-                )
-            }.distinctUntilChanged()
+            viewHistory
+                .getLocalHistoryFlow()
+                .map { entries ->
+                    LocalPlayback(
+                        fraction = entries.filter { it.duration > 0 }.associate { it.videoId to (it.position.toFloat() / it.duration) },
+                        lastPlayedMs = entries.associate { it.videoId to it.timestamp },
+                    )
+                }.distinctUntilChanged()
 
         val uiState: StateFlow<LocalMediaUiState> =
             combine(repository.library, preferences.settings, playback, selection) { library, settings, played, chosen ->
