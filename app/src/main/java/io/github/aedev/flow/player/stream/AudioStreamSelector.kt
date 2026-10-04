@@ -61,14 +61,7 @@ object AudioStreamSelector {
         }
 
         val languageMatches = streams.filter { stream ->
-            val localeLanguage = stream.audioLocale?.language.orEmpty()
-            val localeTag = stream.audioLocale?.toLanguageTag().orEmpty()
-            val trackName = stream.audioTrackName.orEmpty()
-            localeLanguage.equals(normalizedPreference, ignoreCase = true) ||
-                localeLanguage.startsWith(normalizedPreference, ignoreCase = true) ||
-                localeTag.equals(normalizedPreference, ignoreCase = true) ||
-                localeTag.startsWith(normalizedPreference, ignoreCase = true) ||
-                trackName.contains(normalizedPreference, ignoreCase = true)
+            languageMatches(stream.audioLocale?.toLanguageTag(), normalizedPreference)
         }
         if (languageMatches.isNotEmpty()) return languageMatches
 
@@ -79,6 +72,19 @@ object AudioStreamSelector {
         if (nonDubbed.isNotEmpty()) return nonDubbed
 
         return streams
+    }
+
+    /**
+     * True when [languageTag] is [preference] itself or a regional form of it ("pt" matches "pt-BR").
+     * Track display names are never matched: "French" contains "en" and "Chinese" contains "hi".
+     */
+    fun languageMatches(
+        languageTag: String?,
+        preference: String,
+    ): Boolean {
+        if (languageTag.isNullOrBlank() || preference.isBlank()) return false
+        return languageTag.equals(preference, ignoreCase = true) ||
+            languageTag.startsWith("$preference-", ignoreCase = true)
     }
 
     private const val MEDIUM_BITRATE_TARGET = 128_000
