@@ -859,7 +859,7 @@
     <string name="player_settings_audio_original_desc">Wykorzystuje natywną ścieżkę dźwiękową filmu</string>
     <string name="player_settings_video_codec">Domyślny Kodek Wideo</string>
     <string name="player_settings_video_codec_dialog_title">Domyślny Kodek Wideo</string>
-    <string name="player_settings_video_codec_dialog_body">Ustaw domyślny kodek dla wybranej rozdzielczości. Wybór kodeka zawsze możesz zmienić ręcznie. H.264 gwarantuje płynność i kompatybilność, a AV1/VP9 oszczędzają transfer kosztem większego obciążenia sprzętu.</string>
+    <string name="player_settings_video_codec_dialog_body">Flow wybierze ten kodek w pierwszej kolejności. Wciąż możesz wybrać dowolny z menu jakości. H.264 działa najpłynniej na większości urządzeń. AV1 i VP9 zużywają mniej danych, ale wymagają większej mocy.</string>
     <string name="player_settings_video_codec_auto_desc">Pozwól wybrać aplikacji (preferowany format: H.264)</string>
     <string name="player_settings_play_during_calls">Odtwarzanie w Trakcie Rozmowy</string>
     <string name="player_settings_play_during_calls_subtitle">Kontynuuj odtwarzanie podczas rozmów telefonicznych lub przez VoIP (np. WhatsApp)</string>
@@ -2118,4 +2118,14 @@
     <string name="top_bar_close_search">Zamknij wyszukiwanie</string>
     <string name="onboarding_channels_results_header">Kanały</string>
     <string name="onboarding_import_source_youtube">YouTube</string>
+    <string name="onboarding_welcome_title">Odkryj swój Flow</string>
+    <string name="onboarding_restore_backup">Przywróć dane z kopii</string>
+    <string name="onboarding_get_started">Rozpocznij</string>
+    <string name="onboarding_welcome_subtitle">Filmy i muzyka dopasowane do Twoich upodobań. Konfiguracja zajmie chwilę.</string>
+    <plurals name="onboarding_pick_more">
+        <item quantity="one">Wybierz jeszcze %d</item>
+        <item quantity="few">Wybierz jeszcze %d</item>
+        <item quantity="many">Wybierz jeszcze %d</item>
+        <item quantity="other">Wybierz jeszcze %d</item>
+    </plurals>
 </resources>
