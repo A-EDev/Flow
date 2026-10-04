@@ -201,6 +201,10 @@ FIXES AND STABILITY
 - Fix the Shorts quality menu listing the same resolution several times without naming the codec of each (#1213)
 - Fix being unable to remove a Short from Saved Shorts: its card menu now has Remove from Saved Shorts, with undo (#1024)
 - Fix a channel page losing its sort and scroll position, and loading again, after picture-in-picture or opening a Short (#1024)
+- Fix a video playing in another language's dub, most often French, when a specific audio language is set: a track now matches only by its language, never by letters in its name (#1223)
+- Fix the Local Media search text and cursor flickering and the grid jumping while typing, mostly on first open or with the mini player showing (#1220)
+- Fix an in-progress download's title shrinking to a few letters on phones: its pause and cancel buttons now sit under the title on narrow screens (#1225)
+- Fix a download freezing at a fixed percentage: when no data arrives for a while it fetches the stream again or stops with Retry (#1224)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
