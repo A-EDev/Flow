@@ -49,6 +49,7 @@ fun MediaRow(
     leading: (@Composable () -> Unit)? = null,
     subtitleLeading: (@Composable () -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
+    actions: (@Composable RowScope.() -> Unit)? = null,
     thumbnail: @Composable () -> Unit,
 ) {
     val background =
@@ -119,6 +120,15 @@ fun MediaRow(
                     color = supportingColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            if (actions != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                    content = actions,
                 )
             }
         }
