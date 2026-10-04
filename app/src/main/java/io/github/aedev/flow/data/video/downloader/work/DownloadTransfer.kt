@@ -110,7 +110,14 @@ class DownloadTransfer
                 val job = TransferJob(request.videoId, parts, threads, YouTubeClient.USER_AGENT_WEB)
                 val result =
                     try {
-                        reportingProgress(request, itemId, { job.downloadedBytes }, { job.totalBytes }, { saveState(staging, job) }) {
+                        reportingProgress(
+                            request,
+                            itemId,
+                            { job.downloadedBytes },
+                            { job.totalBytes },
+                            { saveState(staging, job) },
+                            StallLimit(DIRECT_STALL_TICKS) { job.fail(TransferResult.Stalled) },
+                        ) {
                             rangeDownloader.run(job)
                         }
                     } finally {
@@ -124,6 +131,10 @@ class DownloadTransfer
                     TransferResult.Stopped -> {
                         currentCoroutineContext().ensureActive()
                         return FetchOutcome.Failed(FetchFailure.NETWORK)
+                    }
+
+                    TransferResult.Stalled -> {
+                        Log.w(TAG, "${request.videoId}: no bytes for ${DIRECT_STALL_TICKS}s, resolving again")
                     }
 
                     is TransferResult.Denied -> {
@@ -181,6 +192,10 @@ class DownloadTransfer
                         { engine.downloadedVideoBytes.get() + engine.downloadedAudioBytes.get() },
                         { estimated },
                         null,
+                        StallLimit(SABR_STALL_TICKS) {
+                            Log.w(TAG, "${request.videoId}: SABR sent nothing new for ${SABR_STALL_TICKS}s")
+                            engine.cancel()
+                        },
                     ) {
                         engine.download(
                             streamingUrl = info.streamingUrl,
@@ -214,6 +229,7 @@ class DownloadTransfer
             downloaded: () -> Long,
             total: () -> Long,
             persist: (() -> Unit)?,
+            stall: StallLimit,
             block: suspend () -> T,
         ): T =
             coroutineScope {
@@ -224,6 +240,7 @@ class DownloadTransfer
                             delay(PROGRESS_INTERVAL_MS)
                             val done = downloaded()
                             val all = total()
+                            if (stall.stillAt(done)) stall.onStall()
                             downloads.emitProgress(
                                 DownloadProgressUpdate(request.videoId, itemId, done, all, DownloadItemStatus.DOWNLOADING),
                             )
@@ -251,5 +268,7 @@ class DownloadTransfer
             const val MAX_RESOLVES = 4
             const val PROGRESS_INTERVAL_MS = 1_000L
             const val PERSIST_EVERY_TICKS = 5
+            const val DIRECT_STALL_TICKS = 45
+            const val SABR_STALL_TICKS = 60
         }
     }
