@@ -713,6 +713,11 @@ class EnhancedPlayerManager private constructor() {
                 sponsorBlockHandler?.setEnabled(isEnabled)
             }
         }
+        sponsorBlockHandler?.let { handler ->
+            built.launch {
+                handler.muteEvent.collect { muted -> if (muted) player?.mute() else player?.unmute() }
+            }
+        }
 
         built.launch {
             prefs.videoLoopEnabled.collect { isEnabled ->
@@ -2747,6 +2752,13 @@ class EnhancedPlayerManager private constructor() {
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
 
+    val sponsorBlockOffForVideo: StateFlow<Boolean>
+        get() = sponsorBlockHandler?.disabledForCurrentVideo ?: MutableStateFlow(false)
+
+    fun setSponsorBlockOffForVideo(off: Boolean) {
+        sponsorBlockHandler?.setDisabledForCurrentVideo(off, getCurrentPosition())
+    }
+
     fun reloadSponsorSegments(videoId: String) = sponsorBlockHandler?.reloadSegments(videoId)
 
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
@@ -2755,9 +2767,6 @@ class EnhancedPlayerManager private constructor() {
 
     val skipEvent: SharedFlow<SponsorBlockSegment>
         get() = sponsorBlockHandler?.skipEvent ?: MutableSharedFlow()
-
-    val sbMuteEvent: SharedFlow<Boolean>
-        get() = sponsorBlockHandler?.muteEvent ?: MutableSharedFlow()
 
     val sbToastEvent: SharedFlow<SponsorBlockSegment>
         get() = sponsorBlockHandler?.toastEvent ?: MutableSharedFlow()

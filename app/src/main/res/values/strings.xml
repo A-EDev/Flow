@@ -3087,6 +3087,13 @@
     <string name="subtitle_load_failed">Couldn’t load %1$s subtitles — try again</string>
     <string name="subtitle_translation_unavailable">Translation unavailable — showing %1$s</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
+    <string name="sb_segment_notice">%1$s segment</string>
+    <string name="sb_off_for_video">SponsorBlock off for this video</string>
+    <string name="sb_on_for_video">SponsorBlock on for this video</string>
+    <plurals name="sb_video_segments">
+        <item quantity="one">%d segment in this video</item>
+        <item quantity="other">%d segments in this video</item>
+    </plurals>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>
     <!-- Localization follow-up: toasts and feedback (#738) -->

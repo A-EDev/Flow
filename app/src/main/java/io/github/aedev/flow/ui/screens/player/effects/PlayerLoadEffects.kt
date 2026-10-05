@@ -15,6 +15,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.NetworkState
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -157,10 +158,19 @@ internal fun SponsorSkipEffect(
     LaunchedEffect(Unit) {
         EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
             currentOnSkipped(segment.category, ((segment.endTime - segment.startTime) * 1000).toLong())
-            Toast.makeText(context, context.getString(R.string.ui_skipped_segment, segment.category), Toast.LENGTH_SHORT).show()
+            val message = context.getString(R.string.ui_skipped_segment, context.sponsorCategoryLabel(segment.category))
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+    LaunchedEffect(Unit) {
+        EnhancedPlayerManager.getInstance().sbToastEvent.collect { segment ->
+            val message = context.getString(R.string.sb_segment_notice, context.sponsorCategoryLabel(segment.category))
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 }
+
+private fun Context.sponsorCategoryLabel(category: String): String = sponsorCategoryLabelRes(category)?.let(::getString) ?: category
 
 @Composable
 internal fun SubtitleLoadErrorEffect(
