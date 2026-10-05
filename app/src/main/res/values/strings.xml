@@ -1213,10 +1213,16 @@
     <string name="sb_contribute_header">Contribute to SponsorBlock</string>
     <string name="sb_contribute_toggle_title">Contribute to SponsorBlock</string>
     <string name="sb_contribute_toggle_subtitle">Show a button in the player to submit new segments</string>
+    <string name="sponsor_model_source">View model on Hugging Face</string>
     <string name="sponsor_model_header">On-device detection</string>
     <string name="sponsor_model_toggle_title">Use on-device ML model</string>
-    <string name="sponsor_model_toggle_subtitle">Detect sponsor segments locally with a machine-learning model. Requires a one-time download from Hugging Face.</string>
+    <string name="sponsor_model_toggle_subtitle">Detect sponsor, self-promotion and interaction segments locally. Download the model from Hugging Face; future model updates require another download.</string>
     <string name="sponsor_model_status_installed">Model installed (%1$s)</string>
+    <string name="sponsor_model_update_title">New detection model available</string>
+    <string name="sponsor_model_update_status">Model update available (%1$s)</string>
+    <string name="sponsor_model_update_body">Download the updated model (%1$s) to detect sponsor, self-promotion and interaction segments. Detection is paused until the update is installed. You can follow the download in Settings → Integrations.</string>
+    <string name="sponsor_model_update_download">Download update</string>
+    <string name="sponsor_model_update_later">Later</string>
     <string name="sponsor_model_status_missing">Model not downloaded (%1$s)</string>
     <string name="sponsor_model_download">Download model</string>
     <string name="sponsor_model_retry">Retry download</string>

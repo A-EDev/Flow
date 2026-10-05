@@ -38,6 +38,7 @@ import io.github.aedev.flow.data.sponsordetection.SponsorFeedbackVerdict
 import io.github.aedev.flow.data.sponsordetection.SponsorPredictedSpan
 import io.github.aedev.flow.data.sponsordetection.SponsorSpan
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -186,6 +187,12 @@ private fun SponsorDetectionReviewSheet(
                                 .padding(horizontal = 24.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        sponsorCategoryLabelRes(prediction.category)?.let { label ->
+                            Text(
+                                text = stringResource(label),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
                         Text(
                             text =
                                 stringResource(

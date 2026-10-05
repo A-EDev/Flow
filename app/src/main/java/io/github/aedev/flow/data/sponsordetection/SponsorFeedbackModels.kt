@@ -4,19 +4,11 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-const val SPONSOR_MODEL_NAME = "ettin_17m_sponsor_combined_int8"
-const val SPONSOR_MODEL_SHA256 = "a710676d38de003310557410b4194566e5156c766d076c1781778034bd778f8f"
+const val SPONSOR_MODEL_NAME = "curated_category_encoder_ensemble_20261004"
+const val SPONSOR_MODEL_SHA256 = "4ff3d44f921de64b370745b1c9961d6ab1ab9aee8c703f39b6d6e22b1fdd7d34"
 const val SPONSOR_TOKENIZER_SHA256 = "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
 
-/**
- * Operating point of the bundled combined model, frozen by
- * `reports/ettin_17m_combined_android_export.json` in Flow-SponsorML
- * (`inference.confidence_threshold`, validated span F1 0.889 at temporal IoU 0.5
- * on the 39-video mixed pilot with exact FP32/INT8 parity).
- *
- * This threshold is calibrated to the combined checkpoint and must never be
- * applied to other weights.
- */
+/** Sponsor-head threshold; category decoder thresholds are configured separately. */
 const val SPONSOR_CONFIDENCE_THRESHOLD = 0.7
 
 @Serializable
@@ -25,22 +17,26 @@ data class SponsorPredictedSpan(
     @SerialName("start_ms") val startMs: Long,
     @SerialName("end_ms") val endMs: Long,
     val confidence: Double,
+    val category: String = "sponsor",
 ) {
     init {
         require(spanId.isNotBlank())
         require(startMs >= 0)
         require(endMs > startMs)
         require(confidence in 0.0..1.0)
+        require(category in SPONSOR_MODEL_CATEGORIES)
     }
 
     fun asSponsorBlockSegment(videoId: String): SponsorBlockSegment =
         SponsorBlockSegment(
-            category = "sponsor",
+            category = category,
             segment = listOf(startMs / 1000f, endMs / 1000f),
             uuid = "flow-ml-$videoId-$spanId",
             actionType = "skip",
         )
 }
+
+internal val SPONSOR_MODEL_CATEGORIES = listOf("sponsor", "selfpromo", "interaction")
 
 internal data class SponsorInferenceResult(
     val videoId: String,
@@ -87,10 +83,12 @@ data class SponsorInferenceSummary(
 data class SponsorSpan(
     @SerialName("start_ms") val startMs: Long,
     @SerialName("end_ms") val endMs: Long,
+    val category: String = "sponsor",
 ) {
     init {
         require(startMs >= 0)
         require(endMs > startMs)
+        require(category in SPONSOR_MODEL_CATEGORIES)
     }
 }
 
@@ -99,6 +97,7 @@ data class SponsorApiSpan(
     val id: String,
     @SerialName("start_ms") val startMs: Long,
     @SerialName("end_ms") val endMs: Long,
+    val category: String = "sponsor",
 )
 
 @Serializable

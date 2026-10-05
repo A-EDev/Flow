@@ -51,7 +51,7 @@ class SponsorModelRepository
         val state: StateFlow<SponsorModelState> = _state.asStateFlow()
 
         fun refresh() {
-            _state.value = currentState()
+            if (downloadJob?.isActive != true) _state.value = currentState()
         }
 
         fun download() {
@@ -109,9 +109,7 @@ class SponsorModelRepository
             }
         }
 
-        private fun currentState(): SponsorModelState =
-            store.installedFiles()?.let { SponsorModelState.Installed(it.sizeBytes) }
-                ?: SponsorModelState.NotInstalled
+        private fun currentState(): SponsorModelState = store.currentState()
 
         private suspend fun downloadFile(
             destination: File,

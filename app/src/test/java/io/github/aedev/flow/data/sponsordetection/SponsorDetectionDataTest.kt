@@ -102,13 +102,13 @@ class SponsorDetectionDataTest {
     }
 
     @Test
-    fun `invalid and non sponsor api ranges are excluded from evaluation`() {
+    fun `invalid and unsupported category API ranges are excluded from evaluation`() {
         val predictions = listOf(SponsorPredictedSpan("model", 0, 10_000, 0.9))
         val api =
             listOf(
                 segment("zero", 4f, 4f),
                 segment("reversed", 8f, 3f),
-                SponsorBlockSegment("selfpromo", listOf(0f, 10f), "promo"),
+                SponsorBlockSegment("intro", listOf(0f, 10f), "intro"),
             )
 
         val (apiSpans, comparison) = compareSponsorSpans(predictions, api)
@@ -145,8 +145,8 @@ class SponsorDetectionDataTest {
         val transcript = AssembledSponsorTranscript("x".repeat(100), listOf(CueRange(0, 100, 0, 10_000)))
         val spans =
             listOf(
-                WindowSponsorSpan(0, 10, 20, 0.9),
-                WindowSponsorSpan(0, 40, 50, 0.4),
+                WindowSponsorSpan(0, 10, 22, 0.9),
+                WindowSponsorSpan(0, 40, 52, 0.4),
             )
 
         val kept = stitchSponsorSpans(transcript, spans, confidenceThreshold = 0.5)

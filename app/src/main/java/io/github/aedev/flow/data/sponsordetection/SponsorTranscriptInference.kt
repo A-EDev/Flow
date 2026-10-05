@@ -2,8 +2,6 @@ package io.github.aedev.flow.data.sponsordetection
 
 import java.text.Normalizer
 import java.util.Locale
-import kotlin.math.exp
-import kotlin.math.ln
 import kotlin.math.roundToLong
 
 internal data class DetectionTranscriptCue(
@@ -16,6 +14,7 @@ internal data class SponsorDetectionSpan(
     val startMs: Long,
     val endMs: Long,
     val confidence: Double,
+    val category: String = "sponsor",
 )
 
 internal data class AssembledSponsorTranscript(
@@ -70,7 +69,7 @@ internal data class CueRange(
 internal const val SPONSOR_INFERENCE_BATCH_SIZE = 4
 internal const val SPONSOR_INFERENCE_LOOKAHEAD_MS = 15L * 60L * 1000L
 internal const val SPONSOR_INFERENCE_INTRA_OP_THREADS = 2
-internal const val SPONSOR_WINDOW_MAX_LENGTH = 768
+internal const val SPONSOR_WINDOW_MAX_LENGTH = 1024
 internal const val SPONSOR_WINDOW_OVERLAP_TOKENS = 128
 
 internal data class SponsorInferenceRuntimeConfig(
@@ -119,12 +118,17 @@ internal data class WindowSponsorSpan(
     val startCodePoint: Int,
     val endCodePoint: Int,
     val confidence: Double,
+    val category: String = "sponsor",
 )
 
 internal fun normalizeSponsorCue(text: String): String {
     val lowered = text.lowercase(Locale.ROOT).replace(WHITESPACE_PATTERN, " ").trim()
     val urlsReplaced = lowered.replace(URL_PATTERN, "URL_TOKEN")
-    return Normalizer.normalize(urlsReplaced.replace(NUMBER_PATTERN, "NUMBER_TOKEN"), Normalizer.Form.NFC)
+    val replaced =
+        urlsReplaced
+            .replace(NUMBER_PATTERN, "NUMBER_TOKEN")
+            .replace(PLACEHOLDER_PATTERN) { it.value.uppercase(Locale.ROOT) }
+    return Normalizer.normalize(replaced, Normalizer.Form.NFC)
 }
 
 internal fun assembleSponsorTranscript(cues: List<DetectionTranscriptCue>): AssembledSponsorTranscript {
@@ -239,124 +243,193 @@ internal fun selectSponsorInferenceBatch(
     return remaining.sortedByDescending { it.endMs }.take(batchSize)
 }
 
+internal const val SPONSOR_MIN_SPAN_CHARS = 12
+internal val SPONSOR_CATEGORY_THRESHOLDS = mapOf("sponsor" to 0.7, "selfpromo" to 0.875, "interaction" to 0.825)
+
+// A category head can lose confidence in the middle of one event (most visibly a
+// sponsor read whose narrative lead-in is less overtly promotional), so decoding
+// splits it into pieces with a hole and a skip lets the middle play. These gaps
+// reunite such pieces. Sponsor is the skip target and gets the largest gap;
+// selfpromo is advisory; interaction is left unmerged because it under-detects
+// and bridging only extends false events.
+internal val SPONSOR_CONTINUITY_GAP_MS = mapOf("sponsor" to 30_000L, "selfpromo" to 15_000L, "interaction" to 0L)
+internal const val SPONSOR_CONTINUITY_MIN_ANCHOR_CHARS = 40
+
 internal fun decodeSponsorBilou(
-    logits: List<FloatArray>,
+    logits: List<Array<FloatArray>>,
     offsets: List<IntRange>,
 ): List<WindowDecodedSpan> {
     require(logits.size == offsets.size)
-    val tokenIndexes = offsets.indices.filter { !offsets[it].isEmpty() }
-    if (tokenIndexes.isEmpty()) return emptyList()
-    val probabilities = Array(tokenIndexes.size) { index -> logSoftmax(logits[tokenIndexes[index]]) }
-    val paths = Array(probabilities.size) { IntArray(LABEL_COUNT) }
-    var scores =
-        DoubleArray(LABEL_COUNT) { label ->
-            if (label in START_LABELS) probabilities[0][label] else Double.NEGATIVE_INFINITY
-        }
-    for (position in 1 until probabilities.size) {
-        val next = DoubleArray(LABEL_COUNT)
-        for (label in 0 until LABEL_COUNT) {
-            val previous = bestPrevious(scores, PREVIOUS_LABELS[label])
-            paths[position][label] = previous
-            next[label] = scores[previous] + probabilities[position][label]
-        }
-        scores = next
-    }
-    val path = IntArray(probabilities.size)
-    path[path.lastIndex] = END_LABELS.maxBy { scores[it] }
-    for (position in path.lastIndex downTo 1) path[position - 1] = paths[position][path[position]]
+    require(logits.all { it.size == SPONSOR_MODEL_CATEGORIES.size && it.all { head -> head.size == 5 } })
+    val decoded = mutableListOf<WindowDecodedSpan>()
+    SPONSOR_MODEL_CATEGORIES.forEachIndexed { categoryIndex, category ->
+        var openStart = -1
+        val openProbabilities = mutableListOf<Double>()
 
-    return buildList {
-        var position = 0
-        while (position < path.size) {
-            val label = path[position]
-            if (label == LABEL_O) {
-                position++
-                continue
+        fun close(endIndex: Int) {
+            if (openStart < 0) return
+            val confidence = openProbabilities.average()
+            if (confidence >= (SPONSOR_CATEGORY_THRESHOLDS[category] ?: 0.5)) {
+                val startOffset = offsets[openStart]
+                val endOffset = offsets[endIndex - 1]
+                val startChar = startOffset.first
+                val endChar = endOffset.last + 1
+                decoded +=
+                    WindowDecodedSpan(
+                        startChar,
+                        endChar,
+                        (confidence * 1_000_000).roundToLong() / 1_000_000.0,
+                        category,
+                    )
             }
-            var endPosition = position
-            if (label == LABEL_B) {
-                endPosition++
-                while (path[endPosition] == LABEL_I) endPosition++
-            } else {
-                check(label == LABEL_U)
-            }
-            var logConfidence = 0.0
-            for (tokenPosition in position..endPosition) {
-                logConfidence += probabilities[tokenPosition][path[tokenPosition]]
-            }
-            val confidence = exp(logConfidence / (endPosition - position + 1))
-            val startToken = tokenIndexes[position]
-            val endToken = tokenIndexes[endPosition]
-            add(
-                WindowDecodedSpan(
-                    startCodePoint = offsets[startToken].first,
-                    endCodePoint = offsets[endToken].last + 1,
-                    confidence = confidence,
-                ),
-            )
-            position = endPosition + 1
+            openStart = -1
+            openProbabilities.clear()
         }
+        offsets.indices.forEach { index ->
+            val offset = offsets[index]
+            if (offset.isEmpty()) {
+                close(index)
+                return@forEach
+            }
+            val values = logits[index][categoryIndex]
+            val maximum = values.maxOrNull() ?: return@forEach
+            val exponentials = DoubleArray(values.size) { kotlin.math.exp(values[it].toDouble() - maximum.toDouble()) }
+            val probabilitySum = exponentials.sum()
+            val tag = values.indices.maxBy { values[it] }
+            val probability = exponentials[tag] / probabilitySum
+            when (tag) {
+                0 -> {
+                    close(index)
+                }
+
+                1, 4 -> {
+                    close(index)
+                    openStart = index
+                    openProbabilities += probability
+                    if (tag == 4) close(index + 1)
+                }
+
+                2, 3 -> {
+                    if (openStart < 0) openStart = index
+                    openProbabilities += probability
+                    if (tag == 3) close(index + 1)
+                }
+            }
+        }
+        close(offsets.size)
     }
+    return decoded.sortedWith(
+        compareBy(
+            WindowDecodedSpan::startCodePoint,
+            WindowDecodedSpan::endCodePoint,
+            WindowDecodedSpan::category,
+        ),
+    )
 }
 
 internal data class WindowDecodedSpan(
     val startCodePoint: Int,
     val endCodePoint: Int,
     val confidence: Double,
+    val category: String = "sponsor",
 )
 
 internal fun stitchSponsorSpans(
     transcript: AssembledSponsorTranscript,
     spans: List<WindowSponsorSpan>,
-    confidenceThreshold: Double = 0.0,
-    mergeGapCharacters: Int = 24,
-    mergeGapMs: Long = 1_500,
+    confidenceThreshold: Double? = null,
 ): List<SponsorDetectionSpan> {
     val selected =
         spans
             .filter {
-                it.confidence >= confidenceThreshold &&
+                it.confidence >= (confidenceThreshold ?: SPONSOR_CATEGORY_THRESHOLDS.getValue(it.category)) &&
                     it.startCodePoint in 0 until it.endCodePoint &&
                     it.endCodePoint <= transcript.codePointLength
-            }.sortedWith(compareBy(WindowSponsorSpan::startCodePoint, WindowSponsorSpan::endCodePoint))
+            }.sortedWith(
+                compareBy(
+                    WindowSponsorSpan::startCodePoint,
+                    WindowSponsorSpan::endCodePoint,
+                    WindowSponsorSpan::category,
+                ),
+            )
     if (selected.isEmpty()) return emptyList()
-    val clusters = mutableListOf<MutableList<WindowSponsorSpan>>()
-    for (span in selected) {
-        if (clusters.isNotEmpty() && span.startCodePoint <= clusters.last().maxOf { it.endCodePoint }) {
-            clusters.last() += span
-        } else {
-            clusters += mutableListOf(span)
+    val clusters =
+        selected.map { it.category }.distinct().flatMap { category ->
+            val categoryClusters = mutableListOf<MutableList<WindowSponsorSpan>>()
+            selected.filter { it.category == category }.forEach { span ->
+                val lastCluster = categoryClusters.lastOrNull()
+                if (
+                    lastCluster != null && span.startCodePoint <= lastCluster.maxOf { it.endCodePoint } &&
+                    lastCluster.none { it.windowIndex == span.windowIndex }
+                ) {
+                    lastCluster += span
+                } else {
+                    categoryClusters += mutableListOf(span)
+                }
+            }
+            categoryClusters
         }
-    }
     val fused =
-        clusters.map { cluster ->
+        clusters.mapNotNull { cluster ->
             val start = cluster.minOf { it.startCodePoint }
             val end = cluster.maxOf { it.endCodePoint }
+            if (end - start < SPONSOR_MIN_SPAN_CHARS) return@mapNotNull null
             val times = transcript.timestampsForSpan(start, end)
-            CharacterSponsorSpan(start, end, times.first, times.second, cluster.maxOf { it.confidence })
+            CharacterSponsorSpan(
+                start,
+                end,
+                times.first,
+                times.second,
+                cluster.maxOf { it.confidence },
+                cluster.first().category,
+            )
         }
+    return fused
+        .groupBy { it.category }
+        .flatMap { (category, group) -> mergeContinuousSpans(group, SPONSOR_CONTINUITY_GAP_MS[category] ?: 0L) }
+        .map { SponsorDetectionSpan(it.startMs, it.endMs, it.confidence, it.category) }
+        .sortedWith(
+            compareBy(
+                SponsorDetectionSpan::startMs,
+                SponsorDetectionSpan::endMs,
+                SponsorDetectionSpan::category,
+            ),
+        )
+}
+
+/**
+ * Reunite same-category spans that a mid-event confidence dropout split in two.
+ *
+ * Two spans of one category are joined when the time gap between them is within
+ * [gapMs] and at least one is a substantive event ([SPONSOR_CONTINUITY_MIN_ANCHOR_CHARS]
+ * characters wide), so two short noise fragments are never chained together. A
+ * [gapMs] of zero (for example the advisory interaction head) returns the spans
+ * unchanged.
+ */
+private fun mergeContinuousSpans(
+    spans: List<CharacterSponsorSpan>,
+    gapMs: Long,
+): List<CharacterSponsorSpan> {
+    if (gapMs <= 0L) return spans
     val merged = mutableListOf<CharacterSponsorSpan>()
-    for (span in fused) {
-        val previous = merged.lastOrNull()
-        if (
-            previous != null &&
-            span.startCodePoint - previous.endCodePoint <= mergeGapCharacters &&
-            span.startMs - previous.endMs <= mergeGapMs
-        ) {
-            val times = transcript.timestampsForSpan(previous.startCodePoint, span.endCodePoint)
+    for (span in spans.sortedWith(compareBy(CharacterSponsorSpan::startCodePoint, CharacterSponsorSpan::endCodePoint))) {
+        val last = merged.lastOrNull()
+        val anchor =
+            last != null &&
+                maxOf(last.endCodePoint - last.startCodePoint, span.endCodePoint - span.startCodePoint) >=
+                SPONSOR_CONTINUITY_MIN_ANCHOR_CHARS
+        if (last != null && span.startMs - last.endMs <= gapMs && anchor) {
             merged[merged.lastIndex] =
-                CharacterSponsorSpan(
-                    previous.startCodePoint,
-                    span.endCodePoint,
-                    times.first,
-                    times.second,
-                    maxOf(previous.confidence, span.confidence),
+                last.copy(
+                    endCodePoint = maxOf(last.endCodePoint, span.endCodePoint),
+                    endMs = maxOf(last.endMs, span.endMs),
+                    confidence = maxOf(last.confidence, span.confidence),
                 )
         } else {
             merged += span
         }
     }
-    return merged.map { SponsorDetectionSpan(it.startMs, it.endMs, it.confidence) }
+    return merged
 }
 
 private data class CharacterSponsorSpan(
@@ -365,46 +438,11 @@ private data class CharacterSponsorSpan(
     val startMs: Long,
     val endMs: Long,
     val confidence: Double,
+    val category: String,
 )
-
-private fun logSoftmax(values: FloatArray): DoubleArray {
-    require(values.size == LABEL_COUNT)
-    var maximum = values[0].toDouble()
-    for (index in 1 until values.size) maximum = maxOf(maximum, values[index].toDouble())
-    var exponentialSum = 0.0
-    for (value in values) exponentialSum += exp(value - maximum)
-    val denominator = maximum + ln(exponentialSum)
-    return DoubleArray(values.size) { index -> values[index] - denominator }
-}
-
-private fun bestPrevious(
-    scores: DoubleArray,
-    candidates: IntArray,
-): Int {
-    var best = candidates[0]
-    for (index in 1 until candidates.size) {
-        val candidate = candidates[index]
-        if (scores[candidate] > scores[best]) best = candidate
-    }
-    return best
-}
 
 private val URL_PATTERN = Regex("(?i)\\b(?:https?://|www\\.)\\S+|\\b\\S+\\.(?:com|net|org)\\S*")
 private val NUMBER_PATTERN = Regex("\\b\\d+(?:[.,:]\\d+)*\\b")
 private val WHITESPACE_PATTERN = Regex("\\s+")
-private const val LABEL_COUNT = 5
-private const val LABEL_O = 0
-private const val LABEL_B = 1
-private const val LABEL_I = 2
-private const val LABEL_L = 3
-private const val LABEL_U = 4
-private val START_LABELS = intArrayOf(LABEL_O, LABEL_B, LABEL_U)
-private val END_LABELS = intArrayOf(LABEL_O, LABEL_L, LABEL_U)
-private val PREVIOUS_LABELS =
-    arrayOf(
-        intArrayOf(LABEL_O, LABEL_L, LABEL_U),
-        intArrayOf(LABEL_O, LABEL_L, LABEL_U),
-        intArrayOf(LABEL_B, LABEL_I),
-        intArrayOf(LABEL_B, LABEL_I),
-        intArrayOf(LABEL_O, LABEL_L, LABEL_U),
-    )
+
+private val PLACEHOLDER_PATTERN = Regex("(?i)\\b(?:url_token|number_token)\\b")

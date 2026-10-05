@@ -248,10 +248,8 @@ composeCompiler {
 }
 
 dependencies {
-    // Minimal ONNX Runtime build (4 ABIs, LTO, reduced operator set) rather than the
-    // upstream Maven artifact, which is roughly 10-15 MB larger. Rebuilt and vendored
-    // from Flow-SponsorML; see that repo's README for the build steps.
-    implementation(files("libs/onnxruntime-android-1.29.0.aar"))
+    // The three-category graph uses kernels excluded from the older sponsor-only runtime.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
 
     // --- Core Android ---
     implementation(libs.androidx.core.ktx)

@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -42,6 +43,7 @@ internal fun SponsorModelSettingsSection(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -62,6 +64,9 @@ internal fun SponsorModelSettingsSection(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            TextButton(onClick = { runCatching { uriHandler.openUri(SponsorModelConfig.MODEL_PAGE_URL) } }) {
+                Text(stringResource(R.string.sponsor_model_source))
+            }
             when (modelState) {
                 is SponsorModelState.Installed -> {
                     Text(
@@ -95,6 +100,18 @@ internal fun SponsorModelSettingsSection(
                         text = stringResource(R.string.sponsor_model_downloading, (fraction * 100).toInt()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                SponsorModelState.UpdateAvailable -> {
+                    ModelStatusRow(
+                        statusText =
+                            stringResource(
+                                R.string.sponsor_model_update_status,
+                                Formatter.formatFileSize(context, SponsorModelConfig.TOTAL_BYTES),
+                            ),
+                        actionText = stringResource(R.string.sponsor_model_update_download),
+                        onAction = onDownload,
                     )
                 }
 

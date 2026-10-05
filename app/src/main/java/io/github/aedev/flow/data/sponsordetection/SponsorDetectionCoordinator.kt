@@ -345,8 +345,8 @@ internal class SponsorDetectionCoordinator(
                         createdAtEpochMs = now,
                         targetSpanId = targetSpan?.spanId,
                         verdict = verdict,
-                        originalSpan = targetSpan?.let { SponsorSpan(it.startMs, it.endMs) },
-                        correctedSpan = correctedSpan,
+                        originalSpan = targetSpan?.let { SponsorSpan(it.startMs, it.endMs, it.category) },
+                        correctedSpan = correctedSpan?.copy(category = targetSpan?.category ?: correctedSpan.category),
                         transcriptWindow = correctedSpan?.let(::feedbackTranscriptWindow),
                     ),
                 )
@@ -482,7 +482,7 @@ internal class SponsorDetectionCoordinator(
         val transcript = currentTranscript ?: return null
         return focusedTranscriptWindows(
             transcript = transcript,
-            predictions = listOf(SponsorPredictedSpan("feedback", span.startMs, span.endMs, 1.0)),
+            predictions = listOf(SponsorPredictedSpan("feedback", span.startMs, span.endMs, 1.0, span.category)),
             apiSpans = emptyList(),
             maxNegativeWindows = 0,
             seed = "feedback-${span.startMs}-${span.endMs}",

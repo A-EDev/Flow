@@ -60,18 +60,18 @@ internal fun compareSponsorSpans(
     val apiSpans =
         apiSegments
             .asSequence()
-            .filter { it.category == "sponsor" }
+            .filter { it.category in SPONSOR_MODEL_CATEGORIES }
             .mapNotNull { segment ->
                 val start = (segment.startTime * 1000).toLong()
                 val end = (segment.endTime * 1000).toLong()
-                if (start < 0 || end <= start) null else SponsorApiSpan(segment.uuid, start, end)
+                if (start < 0 || end <= start) null else SponsorApiSpan(segment.uuid, start, end, segment.category)
             }.toList()
     val candidates =
         predictions
             .flatMap { prediction ->
                 apiSpans.mapNotNull { api ->
                     val overlap = min(prediction.endMs, api.endMs) - max(prediction.startMs, api.startMs)
-                    if (overlap <= 0) return@mapNotNull null
+                    if (overlap <= 0 || prediction.category != api.category) return@mapNotNull null
                     val union = max(prediction.endMs, api.endMs) - min(prediction.startMs, api.startMs)
                     val iou = overlap.toDouble() / union
                     if (iou < minimumIou) null else Triple(prediction, api, iou)
