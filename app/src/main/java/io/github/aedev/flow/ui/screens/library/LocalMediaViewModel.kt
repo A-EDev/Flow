@@ -16,14 +16,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 private const val SHARING_TIMEOUT_MS = 5_000L
+
+// Minute precision is all the watch states need, and it lets an unchanged rebuild compare equal so
+// stateIn drops it instead of recomposing the grid.
+private fun stateClockMs(): Long = Instant.now().truncatedTo(ChronoUnit.MINUTES).toEpochMilli()
 
 /** Whether a tab lists every file or its folders. */
 enum class LocalView { ALL, FOLDERS }
@@ -65,16 +72,18 @@ class LocalMediaViewModel
         private val selection = MutableStateFlow(LocalMediaSelection())
 
         private val playback =
-            viewHistory.getLocalHistoryFlow().map { entries ->
-                LocalPlayback(
-                    fraction = entries.filter { it.duration > 0 }.associate { it.videoId to (it.position.toFloat() / it.duration) },
-                    lastPlayedMs = entries.associate { it.videoId to it.timestamp },
-                )
-            }
+            viewHistory
+                .getLocalHistoryFlow()
+                .map { entries ->
+                    LocalPlayback(
+                        fraction = entries.filter { it.duration > 0 }.associate { it.videoId to (it.position.toFloat() / it.duration) },
+                        lastPlayedMs = entries.associate { it.videoId to it.timestamp },
+                    )
+                }.distinctUntilChanged()
 
         val uiState: StateFlow<LocalMediaUiState> =
             combine(repository.library, preferences.settings, playback, selection) { library, settings, played, chosen ->
-                buildState(library, settings, played, chosen, System.currentTimeMillis())
+                buildState(library, settings, played, chosen, stateClockMs())
             }.flowOn(Dispatchers.Default)
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), LocalMediaUiState())
 

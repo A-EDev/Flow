@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.error.StreamDenialClassifier
+import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.preferNonDrc
@@ -216,7 +217,7 @@ object MusicPlayerUtils {
 
     private fun PlayerResponse.StreamingData.Format.audioBitrate(): Int = averageBitrate?.takeIf { it > 0 } ?: bitrate
 
-    private fun preferredAudioFormats(
+    internal fun preferredAudioFormats(
         formats: List<PlayerResponse.StreamingData.Format>,
         preferredAudioLanguage: String,
     ): List<PlayerResponse.StreamingData.Format> {
@@ -230,11 +231,7 @@ object MusicPlayerUtils {
 
         val languageMatches =
             formats.filter { format ->
-                val trackId = format.audioTrack?.id.orEmpty()
-                val displayName = format.audioTrack?.displayName.orEmpty()
-                trackId.equals(normalizedPreference, ignoreCase = true) ||
-                    trackId.startsWith(normalizedPreference, ignoreCase = true) ||
-                    displayName.contains(normalizedPreference, ignoreCase = true)
+                AudioStreamSelector.languageMatches(format.audioLanguageTag, normalizedPreference)
             }
         if (languageMatches.isNotEmpty()) return languageMatches
 

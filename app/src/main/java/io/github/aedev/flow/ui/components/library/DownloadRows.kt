@@ -2,6 +2,8 @@ package io.github.aedev.flow.ui.components.library
 
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +22,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,6 +50,7 @@ import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
+import io.github.aedev.flow.ui.components.shared.MediaRowDefaults
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
@@ -212,51 +217,80 @@ internal fun ActiveDownloadRow(
             else -> stringResource(R.string.download_progress_percent, percent)
         }
 
-    MediaRow(
-        title = download.download.title,
-        modifier = modifier,
-        subtitle = download.download.uploader,
-        supporting = statusText,
-        supportingColor = if (stopped) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        trailing = {
-            when {
-                stopped -> {
-                    MediaRowAction(
-                        icon = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.retry),
-                        onClick = onRetryClick,
-                    )
-                }
-
-                !isMerging -> {
-                    MediaRowAction(
-                        icon = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                        contentDescription = stringResource(if (isPaused) R.string.resume else R.string.pause),
-                        onClick = if (isPaused) onResumeClick else onPauseClick,
-                    )
-                }
-            }
-            MediaRowAction(
-                icon = Icons.Outlined.Close,
-                contentDescription = stringResource(R.string.cd_delete_download, download.download.title),
-                onClick = onCancelClick,
-            )
-        },
-    ) {
-        MediaThumbnail(videoId = download.download.videoId, thumbnailUrl = download.download.thumbnailUrl) {
-            if (!stopped) {
-                LinearProgressIndicator(
-                    progress = { fraction },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(ProgressBarHeight)
-                            .align(Alignment.BottomCenter),
+    val actions: @Composable RowScope.() -> Unit = {
+        when {
+            stopped -> {
+                MediaRowAction(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.retry),
+                    onClick = onRetryClick,
                 )
+            }
+
+            !isMerging -> {
+                MediaRowAction(
+                    icon = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = stringResource(if (isPaused) R.string.resume else R.string.pause),
+                    onClick = if (isPaused) onResumeClick else onPauseClick,
+                )
+            }
+        }
+        MediaRowAction(
+            icon = Icons.Outlined.Close,
+            contentDescription = stringResource(R.string.cd_delete_download, download.download.title),
+            onClick = onCancelClick,
+        )
+    }
+    val actionCount = if (isMerging && !stopped) 1 else 2
+
+    BoxWithConstraints(modifier = modifier) {
+        val actionsBelow =
+            downloadActionsBelowText(
+                rowWidth = maxWidth,
+                fontScale = LocalDensity.current.fontScale,
+                actionCount = actionCount,
+                actionWidth = LocalMinimumInteractiveComponentSize.current,
+            )
+        MediaRow(
+            title = download.download.title,
+            subtitle = download.download.uploader,
+            supporting = statusText,
+            supportingColor = if (stopped) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            trailing = actions.takeUnless { actionsBelow },
+            actions = actions.takeIf { actionsBelow },
+        ) {
+            MediaThumbnail(videoId = download.download.videoId, thumbnailUrl = download.download.thumbnailUrl) {
+                if (!stopped) {
+                    LinearProgressIndicator(
+                        progress = { fraction },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(ProgressBarHeight)
+                                .align(Alignment.BottomCenter),
+                    )
+                }
             }
         }
     }
 }
+
+/**
+ * Beside a 152 dp thumbnail, two 48 dp buttons leave a phone's title only a few letters wide, so
+ * on a narrow row (or with a large font) the buttons move under the text instead.
+ */
+internal fun downloadActionsBelowText(
+    rowWidth: Dp,
+    fontScale: Float,
+    actionCount: Int,
+    actionWidth: Dp,
+): Boolean {
+    val fixed = MediaRowDefaults.HorizontalPadding * 2 + MediaThumbnailDefaults.VideoWidth + MediaRowDefaults.Spacing
+    val trailing = (actionWidth + MediaRowDefaults.Spacing) * actionCount
+    return rowWidth - fixed - trailing < MinTitleWidth * fontScale
+}
+
+private val MinTitleWidth = 160.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
