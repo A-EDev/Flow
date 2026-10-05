@@ -9,10 +9,13 @@ import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.video.AutoDownloadResolution
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
+import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.beginLoadFor
@@ -54,6 +57,7 @@ internal class PlaybackLoadController(
     private val notes: PlayerNotes,
     private val recovery: PlaybackRecoveryController,
     private val presence: PlaybackPresenceController,
+    private val autoDownload: AutoDownloadTrigger,
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
     private val ioDispatcher: CoroutineDispatcher,
@@ -171,6 +175,7 @@ internal class PlaybackLoadController(
         cancel()
         val loadToken = nextToken()
         loadingVideoId = videoId
+        autoDownload.onLoadStarted(videoId, loadToken)
 
         val load = LoadContext(videoId, loadToken)
         val sessionApplier = collaborators.sessionApplier
@@ -192,7 +197,10 @@ internal class PlaybackLoadController(
                             ),
                         isCurrent = { isCurrent(loadToken) },
                         resolveUpcoming = collaborators.upcomingPremiere::resolve,
-                        onStep = { step -> sessionApplier.apply(step, load) },
+                        onStep = { step ->
+                            sessionApplier.apply(step, load)
+                            autoDownload.onResolved(videoId, loadToken, step.autoDownloadResolution(), uiState.value.cachedVideo)
+                        },
                     )
                 } finally {
                     if (isCurrent(loadToken)) {
@@ -268,3 +276,15 @@ internal class PlaybackLoadController(
         }
     }
 }
+
+private fun ResolvedPlayback.autoDownloadResolution(): AutoDownloadResolution =
+    when (this) {
+        is ResolvedPlayback.VodFromInnerTube -> AutoDownloadResolution.VIDEO
+
+        is ResolvedPlayback.Failed -> AutoDownloadResolution.FAILED
+
+        is ResolvedPlayback.LocalCopyReady,
+        is ResolvedPlayback.Live,
+        is ResolvedPlayback.Upcoming,
+        -> AutoDownloadResolution.NOT_DOWNLOADABLE
+    }

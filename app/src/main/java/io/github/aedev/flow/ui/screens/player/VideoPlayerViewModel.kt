@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.VideoQueueStore
 import io.github.aedev.flow.di.IoDispatcher
@@ -80,6 +81,7 @@ class VideoPlayerViewModel
         private val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder,
         private val localMediaDetails: LocalMediaDetails,
         private val lifecyclePlayback: LifecyclePlaybackPreferences,
+        private val autoDownload: AutoDownloadTrigger,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -198,6 +200,7 @@ class VideoPlayerViewModel
                 notes = notes,
                 recovery = recovery,
                 presence = presence,
+                autoDownload = autoDownload,
                 scope = viewModelScope,
                 networkDispatcher = networkDispatcher,
                 ioDispatcher = ioDispatcher,
@@ -325,6 +328,7 @@ class VideoPlayerViewModel
             loads.nextToken()
             takeOverPlayback()
             armStartPaused(video.id, userOpened)
+            autoDownload.onOpened(video, userOpened)
 
             _uiState.value = _uiState.value.startPlaybackOf(video)
             GlobalPlayerState.setCurrentVideo(video)
