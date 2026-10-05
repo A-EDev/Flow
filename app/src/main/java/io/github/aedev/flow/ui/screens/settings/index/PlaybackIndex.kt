@@ -262,6 +262,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_player_buttons,
             destination = page,
         )
+    val sponsorBlockButton =
+        SettingEntry(
+            key = "playback.sponsorblock_button",
+            title = R.string.player_settings_overlay_sponsorblock,
+            summary = R.string.player_settings_overlay_sponsorblock_subtitle,
+            section = R.string.settings_section_player_buttons,
+            destination = page,
+        )
     val autoPip =
         SettingEntry(
             key = "playback.auto_pip",
@@ -471,6 +479,7 @@ internal object PlaybackIndex {
             lockButton,
             speedIndicator,
             commentsButton,
+            sponsorBlockButton,
             autoPip,
             continueWatchingMiniPlayer,
             restoreMusicMiniPlayer,

@@ -1213,6 +1213,7 @@
     <string name="player_settings_display">Display</string>
     <string name="player_settings_ambient_mode">Ambient mode</string>
     <string name="player_settings_ambient_mode_subtitle">A soft glow of the video\'s colors around it</string>
+    <string name="player_settings_sponsorblock_video">SponsorBlock for this video</string>
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
@@ -2588,6 +2589,8 @@
     <string name="player_settings_overlay_speed_indicator_subtitle">Show the current speed on the video player overlay</string>
     <string name="player_settings_overlay_comments">Comments Button</string>
     <string name="player_settings_overlay_comments_subtitle">Open comments in a side panel in fullscreen</string>
+    <string name="player_settings_overlay_sponsorblock">SponsorBlock Button</string>
+    <string name="player_settings_overlay_sponsorblock_subtitle">Shown when SponsorBlock is on and the video has segments</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>

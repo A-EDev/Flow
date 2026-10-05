@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.RemoveModerator
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SlowMotionVideo
 import androidx.compose.material.icons.rounded.ZoomIn
@@ -48,6 +49,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -78,6 +80,8 @@ internal fun VideoPlayerTopBar(
     resizeModeLabels: List<String>,
     isPipSupported: Boolean,
     sbSubmitEnabled: Boolean,
+    isSponsorBlockAvailable: Boolean,
+    isSponsorBlockOffForVideo: Boolean,
     isCasting: Boolean,
     isSubtitlesEnabled: Boolean,
     isAutoplayOn: Boolean,
@@ -207,6 +211,22 @@ internal fun VideoPlayerTopBar(
                         iconSize = actionIconSize,
                         icon = Icons.AutoMirrored.Rounded.QueueMusic,
                         contentDescription = stringResource(R.string.playlist_queue),
+                    )
+                }
+
+                if (isSponsorBlockAvailable && preferences.sponsorBlockEnabled) {
+                    TopBarToggleIconButton(
+                        checked = !isSponsorBlockOffForVideo,
+                        onCheckedChange = { on -> actions.onSponsorBlockToggle(!on) },
+                        buttonSize = actionButtonSize,
+                        iconSize = actionIconSize,
+                        icon =
+                            if (isSponsorBlockOffForVideo) {
+                                Icons.Rounded.RemoveModerator
+                            } else {
+                                ImageVector.vectorResource(R.drawable.ic_block)
+                            },
+                        contentDescription = stringResource(R.string.player_settings_sponsorblock_video),
                     )
                 }
 
