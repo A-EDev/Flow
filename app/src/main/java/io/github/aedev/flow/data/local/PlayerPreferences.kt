@@ -17,6 +17,7 @@ import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
+import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -1417,6 +1418,10 @@ class PlayerPreferences(
             preferences[Keys.THUMBNAIL_QUALITY_CELLULAR] = quality.name
         }
     }
+
+    /** The level for the network the device is on now, for work that has no composition to read it from. */
+    suspend fun currentThumbnailQuality(): ThumbnailQuality =
+        ThumbnailQuality.effective(NetworkState.isOnWifi(context), thumbnailQualityWifi.first(), thumbnailQualityCellular.first())
 
     val musicAudioQuality: Flow<MusicAudioQuality> =
         context.playerPreferencesDataStore.data
