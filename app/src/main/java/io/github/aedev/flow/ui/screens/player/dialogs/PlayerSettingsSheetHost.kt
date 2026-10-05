@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -58,6 +60,10 @@ internal fun PlayerSettingsSheetHost(
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val playerManager = EnhancedPlayerManager.getInstance()
+    val sponsorSegments by playerManager.sponsorSegments.collectAsState()
+    val sponsorBlockOffForVideo by playerManager.sponsorBlockOffForVideo.collectAsState()
+    val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val subtitleFilePicker =
         rememberLauncherForActivityResult(OpenSubtitleFile()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -146,6 +152,9 @@ internal fun PlayerSettingsSheetHost(
             }
         },
         onSleepTimerClick = { screenState.open(PlayerSheet.SleepTimer) },
+        sponsorBlockSegmentCount = if (sponsorBlockEnabled) sponsorSegments.count { it.endTime > it.startTime } else 0,
+        sponsorBlockOffForVideo = sponsorBlockOffForVideo,
+        onSponsorBlockToggle = playerManager::setSponsorBlockOffForVideo,
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,

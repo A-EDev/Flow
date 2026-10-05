@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import io.github.aedev.flow.R
@@ -52,7 +53,11 @@ internal fun PlayerSettingsMainPage(
     onSkipSilenceToggle: (Boolean) -> Unit,
     onStableVolumeToggle: (Boolean) -> Unit,
     onAmbientModeToggle: (Boolean) -> Unit,
+    sponsorBlockSegmentCount: Int = 0,
+    sponsorBlockOffForVideo: Boolean = false,
+    onSponsorBlockToggle: (off: Boolean) -> Unit = {},
 ) {
+    val playbackRows = if (sponsorBlockSegmentCount > 0) PLAYBACK_ROWS + 1 else PLAYBACK_ROWS
     FlowSectionHeader(stringResource(R.string.video))
     FlowRowGroup {
         FlowNavRow(
@@ -75,14 +80,14 @@ internal fun PlayerSettingsMainPage(
             leadingIcon = Icons.Filled.Speed,
             title = stringResource(R.string.playback_speed),
             trailingText = playbackSpeedLabel(playerState.playbackSpeed),
-            shape = flowRowGroupShape(0, PLAYBACK_ROWS),
+            shape = flowRowGroupShape(0, playbackRows),
             onClick = { onNavigateToPage(PlayerSettingsPage.Speed) },
         )
         FlowSwitchRow(
             leadingIcon = Icons.Rounded.Repeat,
             title = stringResource(R.string.loop_video),
             checked = playerState.isLooping,
-            shape = flowRowGroupShape(1, PLAYBACK_ROWS),
+            shape = flowRowGroupShape(1, playbackRows),
             onCheckedChange = onLoopToggle,
         )
         FlowSwitchRow(
@@ -90,9 +95,20 @@ internal fun PlayerSettingsMainPage(
             title = stringResource(R.string.autoplay_next),
             checked = autoplayEnabled,
             enabled = !playerState.isLooping,
-            shape = flowRowGroupShape(2, PLAYBACK_ROWS),
+            shape = flowRowGroupShape(2, playbackRows),
             onCheckedChange = onAutoplayToggle,
         )
+        if (sponsorBlockSegmentCount > 0) {
+            FlowSwitchRow(
+                leadingIcon = ImageVector.vectorResource(R.drawable.ic_block),
+                title = stringResource(R.string.player_settings_sponsorblock_video),
+                supportingText =
+                    pluralStringResource(R.plurals.sb_video_segments, sponsorBlockSegmentCount, sponsorBlockSegmentCount),
+                checked = !sponsorBlockOffForVideo,
+                shape = flowRowGroupShape(3, playbackRows),
+                onCheckedChange = { on -> onSponsorBlockToggle(!on) },
+            )
+        }
     }
 
     FlowSectionHeader(stringResource(R.string.audio_settings_title))
