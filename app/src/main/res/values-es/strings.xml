@@ -2677,4 +2677,24 @@
     <string name="player_appearance_plain_control_colors_title">Colores de los controles</string>
     <string name="player_appearance_plain_control_colors_monochrome">Negro y blanco</string>
     <string name="player_appearance_plain_control_colors_app">Tema de la aplicación</string>
+    <string name="lyrics_source_local_file">Archivo de letra de canción</string>
+    <string name="lyrics_source_embedded">Letra integrada</string>
+    <string name="audio_bitrate_kbps_template">%1$d kbps</string>
+    <string name="check_out_short_template">Mira este short: %1$s\nhttps://youtube.com/shorts/%2$s</string>
+    <string name="link_not_supported">Flow no puede abrir este tipo de enlace</string>
+    <string name="quick_action_watched">Visto</string>
+    <string name="quick_action_go_to">Ir a</string>
+    <string name="quick_action_artists">Artistas</string>
+    <string name="quick_action_failed">No funcionó, vuelve a intentarlo.</string>
+    <string name="scheduled_for_prefix">Programado para %1$s</string>
+    <string name="live_in_prefix">Directo %1$s</string>
+    <string name="filter_timed">Cronometrado</string>
+    <string name="no_timed_comments">Todavía no hay comentarios en esta marca temporal</string>
+    <string name="comment_hearted_by_creator">Le gusta al creador</string>
+    <string name="verified">Verificado</string>
+    <string name="comments_with_count_template">Comentarios · %1$s</string>
+    <string name="desc_see_more">Ver mas</string>
+    <string name="desc_see_less">Ver menos</string>
+    <string name="start_radio">Iniciar radio</string>
+    <string name="start_radio_desc">Reproducir una estación de radio basada en esta canción</string>
 </resources>
