@@ -65,7 +65,7 @@ object NetworkModule {
             maxRequestsPerHost = MAX_REQUESTS_PER_HOST
         }
 
-        return AppProxyManager.applyTo(OkHttpClient.Builder())
+        return AppProxyManager.buildLive(OkHttpClient.Builder()
             // Enable HTTP/2 for multiplexing (parallel streams on single connection)
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             
@@ -89,9 +89,7 @@ object NetworkModule {
             
             // Follow redirects
             .followRedirects(true)
-            .followSslRedirects(true)
-            
-            .build()
+            .followSslRedirects(true))
     }
     
     /**
@@ -102,14 +100,13 @@ object NetworkModule {
     @Singleton
     @MetadataClient
     fun provideMetadataClient(@ApplicationContext context: Context): OkHttpClient {
-        return AppProxyManager.applyTo(OkHttpClient.Builder())
+        return AppProxyManager.buildLive(OkHttpClient.Builder()
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .connectionPool(ConnectionPool(2, 1, TimeUnit.MINUTES))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
+            .retryOnConnectionFailure(true))
     }
 }
 

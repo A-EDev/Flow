@@ -364,7 +364,7 @@ object Paxsenix {
         suspend fun getToken(): String? = mutex.withLock {
             cachedToken?.let { return it }
             try {
-                val httpClient = OkHttpClient.Builder()
+                val httpClient = AppProxyManager.applyTo(OkHttpClient.Builder())
                     .connectTimeout(10, TimeUnit.SECONDS)
                     .readTimeout(10, TimeUnit.SECONDS)
                     .followRedirects(true)
