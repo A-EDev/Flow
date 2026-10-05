@@ -3516,6 +3516,13 @@
     <string name="settings_section_subscriptions">Subscriptions</string>
     <string name="settings_section_watched">Watched videos</string>
     <string name="settings_section_sharing">Sharing</string>
+    <string name="settings_section_links">Links</string>
+    <string name="content_settings_open_links_title">Open YouTube links in Flow</string>
+    <string name="content_settings_open_links_subtitle">Choose which links open here</string>
+    <string name="content_settings_open_links_all">On for every YouTube address</string>
+    <string name="content_settings_open_links_some">On for %1$d of %2$d addresses</string>
+    <string name="content_settings_open_links_off">Off. Links open in another app</string>
+    <string name="content_settings_open_links_system_asks">Android asks which app to use</string>
     <string name="settings_keywords_hide_watched">seen, already watched, filter</string>
     <string-array name="settings_block_suggestions">
         <item>ASMR</item>
