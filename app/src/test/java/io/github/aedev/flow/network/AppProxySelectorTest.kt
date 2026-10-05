@@ -54,7 +54,19 @@ class AppProxySelectorTest {
 
     @Test
     fun `local hosts are recognised from literals and local names only`() {
-        val local = listOf("localhost", "127.0.0.1", "10.0.2.2", "172.16.0.9", "172.31.255.1", "192.168.0.4", "169.254.1.1", "::1", "fd12::4", "printer.local")
+        val local =
+            listOf(
+                "localhost",
+                "127.0.0.1",
+                "10.0.2.2",
+                "172.16.0.9",
+                "172.31.255.1",
+                "192.168.0.4",
+                "169.254.1.1",
+                "::1",
+                "fd12::4",
+                "printer.local",
+            )
         val remote = listOf("www.youtube.com", "172.32.0.1", "8.8.8.8", "192.169.0.1", "fdroid.org", "300.1.1.1", "2001:db8::1")
 
         local.forEach { assertWithMessage(it).that(isLocalHost(it)).isTrue() }
