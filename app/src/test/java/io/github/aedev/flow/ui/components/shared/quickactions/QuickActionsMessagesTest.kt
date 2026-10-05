@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.video.MusicVideoVersions
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.VideoDownloadOptions
 import io.github.aedev.flow.data.video.VideoDownloadOptionsLoader
 import io.github.aedev.flow.innertube.models.Artist
@@ -19,8 +20,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -65,6 +68,8 @@ class QuickActionsMessagesTest {
     private val song = MusicTrack("song", "Anti-Hero", "Taylor Swift", "", 201, channelId = "ts")
 
     private val playlistRepository: PlaylistRepository = mockk(relaxed = true)
+    private val autoDownloads = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val autoDownload: AutoDownloadTrigger = mockk(relaxed = true) { every { queued } returns autoDownloads }
 
     private fun viewModel() =
         QuickActionsViewModel(
@@ -77,6 +82,7 @@ class QuickActionsMessagesTest {
             likedMedia = mockk(relaxed = true),
             playerManager = { mockk(relaxed = true) },
             musicVideos = MusicVideoVersions { videoSearch(it) },
+            autoDownload = autoDownload,
         )
 
     private fun kotlinx.coroutines.test.TestScope.messagesOf(viewModel: QuickActionsViewModel): List<QuickActionMessage> {
@@ -84,6 +90,22 @@ class QuickActionsMessagesTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.messages.collect { messages += it } }
         return messages
     }
+
+    @Test
+    fun `an automatic download is announced with an undo that cancels it`() =
+        runTest(testDispatcher) {
+            val viewModel = viewModel()
+            val messages = messagesOf(viewModel)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            autoDownloads.emit(video.id)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(messages.map { it.text }).containsExactly(R.string.auto_download_queued)
+            viewModel.undo(messages.single().undo!!)
+            testDispatcher.scheduler.advanceUntilIdle()
+            verify(exactly = 1) { autoDownload.undo(video.id) }
+        }
 
     @Test
     fun `Watch video opens the song's official video`() =
