@@ -20,6 +20,7 @@ import io.github.aedev.flow.utils.RICH_TEXT_CHANNEL
 import io.github.aedev.flow.utils.RICH_TEXT_EMOJI_PREFIX
 import io.github.aedev.flow.utils.RICH_TEXT_SEEK
 import io.github.aedev.flow.utils.RICH_TEXT_URL
+import io.github.aedev.flow.utils.RICH_TEXT_VIDEO
 import io.github.aedev.flow.utils.formatRichText
 import io.github.aedev.flow.utils.toAnnotatedString
 
@@ -49,10 +50,12 @@ internal data class CommentTextContent(
             onAuthorClick(channel.item)
             return true
         }
-        annotated.getStringAnnotations(RICH_TEXT_URL, offset, offset).firstOrNull()?.let { url ->
-            onOpenUrl(url.item)
-            return true
-        }
+        (annotated.getStringAnnotations(RICH_TEXT_VIDEO, offset, offset) + annotated.getStringAnnotations(RICH_TEXT_URL, offset, offset))
+            .firstOrNull()
+            ?.let { link ->
+                onOpenUrl(link.item)
+                return true
+            }
         return false
     }
 

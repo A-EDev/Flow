@@ -28,7 +28,6 @@ class YouTubeLinkTest {
             "https://youtube.com/watch?v=$video&si=abc123&pp=ygUFY2F0cw%3D%3D",
             "https://m.youtube.com/watch?t=30&v=$video",
             "http://www.youtube.com/watch?app=desktop&v=$video&t=1m2s",
-            "https://www.youtube.com/watch?v=$video&list=PLabcdef",
             "https://youtu.be/$video",
             "https://youtu.be/$video?si=abc123&t=42",
             "https://www.youtube.com/embed/$video",
@@ -44,9 +43,30 @@ class YouTubeLinkTest {
         assertParses(
             Video(video, isMusic = true),
             "https://music.youtube.com/watch?v=$video",
-            "https://music.youtube.com/watch?v=$video&si=abc&list=RDAMVM$video",
             "https://m.music.youtube.com/watch?v=$video",
         )
+    }
+
+    @Test
+    fun `a watch link inside a playlist keeps the playlist it plays from`() {
+        assertParses(
+            Video(video, isMusic = false, playlistId = "PLabcdef"),
+            "https://www.youtube.com/watch?v=$video&list=PLabcdef",
+            "https://www.youtube.com/watch?list=PLabcdef&v=$video&index=4",
+        )
+        assertParses(
+            Video(video, isMusic = true, playlistId = "RDAMVM$video"),
+            "https://music.youtube.com/watch?v=$video&si=abc&list=RDAMVM$video",
+        )
+        assertParses(Video(video, isMusic = false), "https://www.youtube.com/watch?v=$video&list=")
+    }
+
+    @Test
+    fun `a browse id opens an album, a channel or a playlist`() {
+        assertThat(youTubeBrowseLink("MPREb_abc123")).isEqualTo(Album("MPREb_abc123"))
+        assertThat(youTubeBrowseLink(channel)).isEqualTo(Channel(channel, isMusic = false))
+        assertThat(youTubeBrowseLink("VLPLabcdef")).isEqualTo(Playlist("PLabcdef", isMusic = false))
+        assertThat(youTubeBrowseLink("FEmusic_home")).isNull()
     }
 
     @Test
@@ -93,6 +113,19 @@ class YouTubeLinkTest {
         assertParses(ChannelHandle("@ハンドル"), "https://www.youtube.com/@%E3%83%8F%E3%83%B3%E3%83%89%E3%83%AB")
         assertParses(LegacyChannel("c", "LinusTechTips"), "https://www.youtube.com/c/LinusTechTips")
         assertParses(LegacyChannel("user", "LinusTechTips"), "https://www.youtube.com/user/LinusTechTips/featured")
+    }
+
+    @Test
+    fun `a bare custom name is a channel, unless it names a youtube page`() {
+        assertParses(LegacyChannel("", "officialpsy"), "http://www.youtube.com/officialpsy", "https://youtube.com/officialpsy/videos")
+        assertThat(LegacyChannel("", "officialpsy").url).isEqualTo("https://www.youtube.com/officialpsy")
+        assertParses(
+            null,
+            "https://www.youtube.com/premium",
+            "https://www.youtube.com/officialpsy/videos/extra",
+            "https://www.youtube.com/officialpsy/unknownTab",
+            "https://music.youtube.com/library",
+        )
     }
 
     @Test
