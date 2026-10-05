@@ -46,6 +46,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
+import io.github.aedev.flow.player.PipDismissPolicy
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.LinkDestination
 import io.github.aedev.flow.ui.components.library.message
@@ -506,7 +507,13 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     delay(350L)
                     val stillBackgrounded = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-                    if (stillBackgrounded && !isInPictureInPictureMode) {
+                    if (
+                        PipDismissPolicy.shouldDismissAfterPipExit(
+                            stillBackgrounded = stillBackgrounded,
+                            isInPipMode = this@MainActivity.isInPictureInPictureMode,
+                            explicitBackgroundActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+                        )
+                    ) {
                         GlobalPlayerState.requestDismiss()
                         io.github.aedev.flow.player.EnhancedPlayerManager
                             .getInstance()
@@ -567,6 +574,9 @@ class MainActivity : ComponentActivity() {
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
         PictureInPictureHelper.dismissPopup(this)
+        if (!isInPictureInPictureMode && _deeplinkVideoId.value == null && _pendingRoute.value == null) {
+            GlobalPlayerState.requestForegroundVideoRestore()
+        }
         val suppressClipboardRead = suppressClipboardReadOnNextResume
         suppressClipboardReadOnNextResume = false
         if (!suppressClipboardRead) openClipboardVideoLinkIfPresent()

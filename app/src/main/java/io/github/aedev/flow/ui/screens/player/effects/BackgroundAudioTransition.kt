@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.player.effects
 
 import android.app.Activity
+import android.os.Build
+import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 
 /**
@@ -17,6 +19,10 @@ object BackgroundAudioTransition {
         viewModel: VideoPlayerViewModel,
     ) {
         viewModel.startBackgroundPlayback()
+        // A stopped PiP composition cannot disable auto-entry before moveTaskToBack runs.
+        if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PictureInPictureHelper.updatePipParams(activity, autoEnterEnabled = false)
+        }
         runCatching { activity?.moveTaskToBack(true) }
     }
 }

@@ -1249,6 +1249,7 @@
     <string name="sponsor_training_clear_after_export">Export complete. Clear the local training file?</string>
     <string name="sponsor_training_review">Review detection</string>
     <string name="sponsor_training_review_title">Review sponsor predictions</string>
+    <string name="sponsor_training_review_read_only">Feedback collection is off. Enable it in SponsorBlock settings to save reviews.</string>
     <string name="sponsor_training_no_predictions">The model found no sponsor segments. You can confirm that or report a missed segment.</string>
     <string name="sponsor_training_prediction_confidence">%1$s – %2$s · %3$d%% confidence</string>
     <string name="sponsor_training_api_match">Matches SponsorBlock</string>

@@ -307,7 +307,9 @@ fun VideoPlayerHost(
         pipPreferences = pipPreferences,
         hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
         onNext = playerViewModel::playNext,
-        onBackgroundAudio = playerViewModel::startBackgroundPlayback,
+        onBackgroundAudio = {
+            BackgroundAudioTransition.enterBackgroundAudio(activity, playerViewModel)
+        },
     )
 
     FullscreenEffect(

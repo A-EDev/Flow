@@ -544,7 +544,9 @@ class EnhancedPlayerManager private constructor() {
             SponsorDetectionCoordinator(
                 context.applicationContext,
                 onProvisionalPlayback = { provisionalVideoId, segments ->
-                    sponsorBlockHandler?.setProvisionalSegments(provisionalVideoId, segments)
+                    withContext(Dispatchers.Main.immediate) {
+                        sponsorBlockHandler?.setProvisionalSegments(provisionalVideoId, segments)
+                    }
                 },
                 playbackPositionMs = { lastKnownPlaybackPositionMs.get() },
             )
