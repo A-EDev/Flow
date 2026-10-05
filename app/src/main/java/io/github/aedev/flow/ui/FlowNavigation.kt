@@ -210,6 +210,9 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToLocalMedia = {
                 navController.navigate("localMedia")
             },
+            onNavigateToNotes = {
+                navController.navigate("notes")
+            },
             onManageData = {
                 navController.navigate("settings")
             },
@@ -519,6 +522,13 @@ fun NavGraphBuilder.flowAppGraph(
                     popUpTo("home") { inclusive = true }
                 }
             },
+        )
+    }
+    composable("notes") {
+        currentRoute.value = "notes"
+        io.github.aedev.flow.ui.screens.notes.NotesScreen(
+            onBackClick = { navController.popBackStack() },
+            onPlay = { video, startPositionMs -> playerViewModel.playVideo(video, startPositionMs = startPositionMs) },
         )
     }
     composable("localMedia") {

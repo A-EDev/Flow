@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.notes.NotesRepository
 import io.github.aedev.flow.data.playlist.sortedFor
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.stats.RecapPeriod
@@ -67,8 +68,15 @@ class LibraryViewModel
         shortsContentFilter: ShortsContentFilter,
         playerPreferences: PlayerPreferences,
         private val recapReadiness: RecapReadiness,
+        notesRepository: NotesRepository,
     ) : ViewModel() {
         private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
+
+        /** Null while notes are turned off in Content settings, which hides the Notes row. */
+        internal val notesCount: StateFlow<Int?> =
+            combine(playerPreferences.notesEnabled, notesRepository.observeCount()) { enabled, count -> count.takeIf { enabled } }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, sharing, null)
 
         private val _recapReady = MutableStateFlow<RecapPeriod?>(null)
 
