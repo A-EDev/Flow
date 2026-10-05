@@ -30,7 +30,7 @@
     <string name="clear_watch_history_alert_body">Це видалить всі відео всі відео з вашої історії переглядів. Ця дія не може бути скасована.</string>
     <string name="clear">Очистити</string>
     <string name="cancel">Скасувати</string>
-    <string name="empty_watch_history">Немає історії переглядів</string>
+    <string name="empty_watch_history">Історія перегляду відсутня</string>
     <string name="empty_watch_history_body">Відео які ви подивитесь опиняться тут</string>
     <string name="liked">Вподобано</string>
     <string name="liked_music">Вподобана музика</string>
