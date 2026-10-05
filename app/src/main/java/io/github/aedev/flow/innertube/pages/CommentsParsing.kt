@@ -6,6 +6,8 @@ import io.github.aedev.flow.data.model.RichTextEmoji
 import io.github.aedev.flow.data.model.RichTextHighlight
 import io.github.aedev.flow.data.model.RichTextSpan
 import io.github.aedev.flow.data.model.RichTextTarget
+import io.github.aedev.flow.utils.YouTubeLink
+import io.github.aedev.flow.utils.youTubeBrowseLink
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -203,7 +205,10 @@ private fun JsonObject.toRichTextTarget(ownVideoId: String?): RichTextTarget? {
         if (canonical != null && canonical.startsWith("/hashtag/")) {
             return RichTextTarget.Hashtag(canonical.removePrefix("/hashtag/"))
         }
-        return RichTextTarget.Channel(browseId)
+        return when (youTubeBrowseLink(browseId)) {
+            null, is YouTubeLink.Channel -> RichTextTarget.Channel(browseId)
+            else -> RichTextTarget.Url("https://www.youtube.com/browse/$browseId")
+        }
     }
     this["urlEndpoint"].objectOrNull()?.let { url ->
         val raw = url["url"].stringOrNull() ?: return@let

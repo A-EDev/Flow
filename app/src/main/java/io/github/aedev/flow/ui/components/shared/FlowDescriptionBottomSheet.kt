@@ -31,12 +31,14 @@ import io.github.aedev.flow.data.model.RichTextTarget
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.VideoDescriptionFactoid
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.ui.components.shared.rememberRichTextInlineContent
+import io.github.aedev.flow.ui.openYouTubeUrl
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatViewCount
@@ -67,8 +69,12 @@ fun FlowDescriptionBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
+    val navigator = LocalMediaNavigator.current
     val context = LocalContext.current
     val sheetState = rememberFlowBottomSheetState()
+    val openLink: (String) -> Unit = { url ->
+        if (navigator.openYouTubeUrl(url)) sheetState.dismiss() else runCatching { uriHandler.openUri(url) }
+    }
     val descriptionScrollState = rememberScrollState()
     val tint = rememberMediaArtworkTint(artworkUrl ?: video.thumbnailUrl)
     val linkColor = tint.accent
@@ -200,7 +206,8 @@ fun FlowDescriptionBottomSheet(
                         offset = offset,
                         onSeekMs = onSeekMs,
                         onHashtagClick = onHashtagClick,
-                        onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
+                        onChannelClick = onChannelClick ?: navigator::openChannel,
+                        onOpenUrl = openLink,
                     )
                 },
                 layoutResult = descLayoutResult,
@@ -271,7 +278,7 @@ fun FlowDescriptionBottomSheet(
                     channel = channel,
                     tint = tint,
                     onChannelClick = onChannelClick,
-                    onOpenLink = { url -> runCatching { uriHandler.openUri(url) } },
+                    onOpenLink = openLink,
                 )
             }
 

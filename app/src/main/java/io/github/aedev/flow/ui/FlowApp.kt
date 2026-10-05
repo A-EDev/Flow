@@ -40,7 +40,6 @@ import io.github.aedev.flow.ui.components.layout.FlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
-import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
 import io.github.aedev.flow.ui.components.layout.navigation.flowUsesNavigationRail
 import io.github.aedev.flow.ui.components.layout.navigation.rememberFlowNavigationScrollState
@@ -533,7 +532,7 @@ fun FlowApp(
                                 onOpenSettings = { navController.navigate("settings") },
                             ) {
                                 CompositionLocalProvider(
-                                    LocalMediaNavigator provides mediaNavigator,
+                                    *mediaNavigationLocals(mediaNavigator),
                                     LocalMusicMenus provides musicMenus,
                                     LocalEqualizerState provides equalizerViewModel.state,
                                     LocalFlowBottomInsets provides bottomInsets,
@@ -582,7 +581,7 @@ fun FlowApp(
         // padding to pick the mini player's resting bounds, and an animated Dp parameter
         // recomposed the whole overlay on every frame of the nav bar animation.
         CompositionLocalProvider(
-            LocalMediaNavigator provides mediaNavigator,
+            *mediaNavigationLocals(mediaNavigator),
             LocalMusicMenus provides musicMenus,
             LocalEqualizerState provides equalizerViewModel.state,
             LocalFlowBottomInsets provides bottomInsets,

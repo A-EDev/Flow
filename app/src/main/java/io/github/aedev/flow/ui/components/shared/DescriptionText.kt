@@ -9,9 +9,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.core.text.HtmlCompat
 import io.github.aedev.flow.ui.theme.DescriptionLinkBlue
+import io.github.aedev.flow.utils.RICH_TEXT_CHANNEL
 import io.github.aedev.flow.utils.RICH_TEXT_HASHTAG
 import io.github.aedev.flow.utils.RICH_TEXT_SEEK
 import io.github.aedev.flow.utils.RICH_TEXT_URL
+import io.github.aedev.flow.utils.RICH_TEXT_VIDEO
 
 fun parseHtmlDescription(
     rawHtml: String,
@@ -100,6 +102,7 @@ internal fun AnnotatedString.handleDescriptionTap(
     offset: Int,
     onSeekMs: (Long) -> Unit,
     onHashtagClick: ((String) -> Unit)?,
+    onChannelClick: (String) -> Unit,
     onOpenUrl: (String) -> Unit,
 ) {
     getStringAnnotations(RICH_TEXT_SEEK, offset, offset).firstOrNull()?.let { seek ->
@@ -114,9 +117,13 @@ internal fun AnnotatedString.handleDescriptionTap(
         onHashtagClick?.invoke(hashtag.item.removePrefix("#"))
         return
     }
-    getStringAnnotations(RICH_TEXT_URL, offset, offset).firstOrNull()?.let { url ->
-        onOpenUrl(url.item)
+    getStringAnnotations(RICH_TEXT_CHANNEL, offset, offset).firstOrNull()?.let { channel ->
+        onChannelClick(channel.item)
+        return
     }
+    (getStringAnnotations(RICH_TEXT_VIDEO, offset, offset) + getStringAnnotations(RICH_TEXT_URL, offset, offset))
+        .firstOrNull()
+        ?.let { link -> onOpenUrl(link.item) }
 }
 
 private const val LEGACY_TIMESTAMP_TAG = "TIMESTAMP"
