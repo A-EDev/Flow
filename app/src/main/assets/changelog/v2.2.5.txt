@@ -76,6 +76,7 @@ NEW FEATURES
 - A channel's Shorts tab can stay visible while Shorts are hidden everywhere else, from Content settings (#1106)
 - Thumbnail quality can be set separately for Wi-Fi and mobile data in Quality settings, to save data on feeds and Shorts (#886)
 - A new Playback setting opens videos paused, so the description and comments can be read before anything plays (#1024)
+- Download videos you open, in Downloads settings: off by default, or on Wi-Fi or any network, at your default quality and codec, with Undo on the snackbar (#771)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
