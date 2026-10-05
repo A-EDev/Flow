@@ -51,6 +51,11 @@ Flow-desktop/
 # Local SponsorBlock database mirror (multi-gigabyte training source)
 /sb-mirror/
 
+# On-device instrumentation fixtures: the exported model and tokenizer are
+# delivered via Hugging Face and stay local; only the small goldens are tracked.
+/app/src/androidTest/assets/*.onnx
+/app/src/androidTest/assets/tokenizer.json
+
 # Sponsor-detection ML now lives in the Flow-SponsorML repository. Any local
 # checkout kept here is ignored.
 ml/

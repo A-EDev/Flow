@@ -1,0 +1,43 @@
+{
+  "cases": [
+    {
+      "source_example_id": "e110ac6c6e4b9bb2b0c38805812a412f08e9f53425316cc5ad4cfa0565253e65",
+      "text": " of [ __ ] in this idea you may have seen at the time this video of micode i sent NUMBER_TOKEN cvs with a bot here is what i learned in this video micode and his team sends around ten thousand cvs to see which elements have the most impact on the response of a recruiter they chose four criteria spelling schools profile photo and finally linkedin style [ __ ] besides the fact that we can find many posts in this video one data still stands out far too much from the lot to be insignificant the more you bullshitz your missions on your cv the more the response rate increases conclusion is horrible really i didn't think i would say it one day but bllit go save your skin bllchit to the max if recruiters have for some always taken the reflex to look for you on facebook or instagram the absence of these networks well you will never be blamed linkedin is different and recruiting someone who does not have a linkedin profile or the best possible linkedin profile seems to be much more complex with equal cv today linkedin therefore seems to be the quintessence of this phenomenon i hope you will have understood the goal of this video was not specifically to talk about the content on linkedin already because there are plenty of videos that do it very very well and that it is an angle that has been quite exploited for years what has always surprised me for using linkedin for years is to what extent no one talks about the fact that linkedin is simply a database for professionals and that is all the people who produce content on linkedin do it and i hope you will have understood it only for the purpose of prospecting whether it is to find a job or to find clients and that is perhaps what makes the content seem so how could we say strange for the anecdote i even had fun scrolling and counting the posts on my linkedin profile and i can assure you that i was not disappointed an ad an ad self-promotion an ad in all case i hope you liked this video the month of june is a bit of a special month for me because i have all the corrections the dissertations the end of year files so it's quite busy i thank again the sponsor of this video cybergost vpn so if you are looking for an affordable and quality vpn especially don't hesitate and we'll see you at the end of july for a next video hunting is an art for others it can be painting music all that but hey b for us it's hunting it's a",
+      "duration_ms": 60000,
+      "spans": [
+        {
+          "category": "sponsor",
+          "start_ms": 52732,
+          "end_ms": 57494,
+          "confidence": 0.928202
+        }
+      ]
+    },
+    {
+      "source_example_id": "604cbcfdc84c29bc511af8750ece85827b06559da6c4cf0856b649f9237733e0",
+      "text": "hello, i'm guitarist kim jin-san. i filmed a promotion video for \"night crow\" when i composed crow, i made the song thinking of brave warriors, and i'm very excited to see that the bravery of the medieval knights in \"night crows\" goes well with the atmosphere of the song. i am also looking forward to the release as a user. it will be released on april 27th, so please look forward to it and support it. thank you",
+      "duration_ms": 60000,
+      "spans": [
+        {
+          "category": "selfpromo",
+          "start_ms": 4783,
+          "end_ms": 60000,
+          "confidence": 0.975888
+        }
+      ]
+    },
+    {
+      "source_example_id": "b9de990dd4e704188d5a9382751ba490800bdc36e492b0484051760cc1db0934",
+      "text": "thank you for watching! subscribe:d",
+      "duration_ms": 60000,
+      "spans": [
+        {
+          "category": "interaction",
+          "start_ms": 0,
+          "end_ms": 60000,
+          "confidence": 0.983915
+        }
+      ]
+    }
+  ]
+}
