@@ -5,9 +5,11 @@ import java.net.URLDecoder
 
 /** What a YouTube, YouTube Music or front-end link points at. */
 sealed interface YouTubeLink {
+    /** [playlistId] is the list a `watch?v=…&list=…` link plays the video from. */
     data class Video(
         val id: String,
         val isMusic: Boolean,
+        val playlistId: String? = null,
     ) : YouTubeLink
 
     data class Short(
@@ -109,8 +111,9 @@ private fun pathLink(
     val second = segments.getOrNull(1)
     return when {
         first == "watch" -> {
-            query["v"]?.takeIf(VIDEO_ID::matches)?.let { YouTubeLink.Video(it, isMusic) }
-                ?: query["list"]?.let { playlist(it, isMusic) }
+            val list = query["list"]?.takeIf(PLAYLIST_ID::matches)
+            query["v"]?.takeIf(VIDEO_ID::matches)?.let { YouTubeLink.Video(it, isMusic, list) }
+                ?: list?.let { playlist(it, isMusic) }
         }
 
         first == "playlist" -> {
@@ -130,7 +133,7 @@ private fun pathLink(
         }
 
         first == "browse" -> {
-            second?.let { browseLink(it, isMusic) }
+            second?.let { youTubeBrowseLink(it, isMusic) }
         }
 
         first == "c" || first == "user" -> {
@@ -151,9 +154,10 @@ private fun pathLink(
     }
 }
 
-private fun browseLink(
+/** What an InnerTube browse id opens: an album, a channel or a playlist. Null for any other page. */
+fun youTubeBrowseLink(
     browseId: String,
-    isMusic: Boolean,
+    isMusic: Boolean = false,
 ): YouTubeLink? =
     when {
         ALBUM_ID.matches(browseId) -> YouTubeLink.Album(browseId)

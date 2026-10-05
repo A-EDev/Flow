@@ -28,7 +28,6 @@ class YouTubeLinkTest {
             "https://youtube.com/watch?v=$video&si=abc123&pp=ygUFY2F0cw%3D%3D",
             "https://m.youtube.com/watch?t=30&v=$video",
             "http://www.youtube.com/watch?app=desktop&v=$video&t=1m2s",
-            "https://www.youtube.com/watch?v=$video&list=PLabcdef",
             "https://youtu.be/$video",
             "https://youtu.be/$video?si=abc123&t=42",
             "https://www.youtube.com/embed/$video",
@@ -44,9 +43,30 @@ class YouTubeLinkTest {
         assertParses(
             Video(video, isMusic = true),
             "https://music.youtube.com/watch?v=$video",
-            "https://music.youtube.com/watch?v=$video&si=abc&list=RDAMVM$video",
             "https://m.music.youtube.com/watch?v=$video",
         )
+    }
+
+    @Test
+    fun `a watch link inside a playlist keeps the playlist it plays from`() {
+        assertParses(
+            Video(video, isMusic = false, playlistId = "PLabcdef"),
+            "https://www.youtube.com/watch?v=$video&list=PLabcdef",
+            "https://www.youtube.com/watch?list=PLabcdef&v=$video&index=4",
+        )
+        assertParses(
+            Video(video, isMusic = true, playlistId = "RDAMVM$video"),
+            "https://music.youtube.com/watch?v=$video&si=abc&list=RDAMVM$video",
+        )
+        assertParses(Video(video, isMusic = false), "https://www.youtube.com/watch?v=$video&list=")
+    }
+
+    @Test
+    fun `a browse id opens an album, a channel or a playlist`() {
+        assertThat(youTubeBrowseLink("MPREb_abc123")).isEqualTo(Album("MPREb_abc123"))
+        assertThat(youTubeBrowseLink(channel)).isEqualTo(Channel(channel, isMusic = false))
+        assertThat(youTubeBrowseLink("VLPLabcdef")).isEqualTo(Playlist("PLabcdef", isMusic = false))
+        assertThat(youTubeBrowseLink("FEmusic_home")).isNull()
     }
 
     @Test
