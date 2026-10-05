@@ -4004,6 +4004,10 @@
     <string name="favourite_artists_remove">Remove %1$s</string>
     <string name="settings_auto_download_likes_title">Download liked songs</string>
     <string name="settings_auto_download_likes_summary">Songs you like are saved for offline</string>
+    <string name="settings_auto_download_opened_title">Download videos you open</string>
+    <string name="settings_auto_download_opened_summary">Uses your default quality and codec</string>
+    <string name="auto_download_wifi">On Wi-Fi</string>
+    <string name="auto_download_always">Always</string>
     <string name="recap_top_albums">Top albums</string>
     <string name="music_home_your_subscriptions">Your subscriptions</string>
     <string name="music_home_shelf_rotation">Time of day mix</string>

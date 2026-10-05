@@ -58,6 +58,13 @@ internal object DownloadsIndex {
             R.string.settings_section_download_defaults,
             summary = R.string.settings_auto_download_likes_summary,
         )
+    val autoDownloadOpened =
+        entry(
+            "auto_download_opened",
+            R.string.settings_auto_download_opened_title,
+            R.string.settings_section_download_defaults,
+            summary = R.string.settings_auto_download_opened_summary,
+        )
     val wifiOnly =
         entry(
             "wifi_only",
@@ -114,6 +121,7 @@ internal object DownloadsIndex {
             musicQuality,
             menuStyle,
             autoDownloadLikes,
+            autoDownloadOpened,
             wifiOnly,
             subtitleFile,
             retag,

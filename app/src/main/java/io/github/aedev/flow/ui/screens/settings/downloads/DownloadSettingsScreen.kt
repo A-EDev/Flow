@@ -46,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.AutoDownloadMode
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MAX_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.MusicAudioQuality
@@ -73,7 +74,7 @@ import io.github.aedev.flow.ui.screens.settings.quality.codecLabel
 import io.github.aedev.flow.ui.screens.settings.quality.musicQualityLabel
 import io.github.aedev.flow.ui.screens.settings.quality.videoQualityLabel
 
-private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, CACHE }
+private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, CACHE, AUTO_DOWNLOAD }
 
 private const val MAX_THREADS = 8
 private val UsageSpacing = 8.dp
@@ -98,6 +99,7 @@ internal fun DownloadSettingsScreen(
     val threads by viewModel.threads.collectAsStateWithLifecycle()
     val concurrentDownloads by viewModel.concurrentDownloads.collectAsStateWithLifecycle()
     val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
+    val autoDownloadOpened by viewModel.autoDownloadOpened.collectAsStateWithLifecycle()
 
     var picker by rememberSaveable { mutableStateOf<DownloadPicker?>(null) }
     var locationTarget by rememberSaveable { mutableStateOf<DownloadTarget?>(null) }
@@ -179,6 +181,9 @@ internal fun DownloadSettingsScreen(
             }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
             switch(DownloadsIndex.autoDownloadLikes, viewModel.autoDownloadLikes, viewModel::setAutoDownloadLikes)
+            choice(DownloadsIndex.autoDownloadOpened, onClick = { picker = DownloadPicker.AUTO_DOWNLOAD }) {
+                stringResource(autoDownloadLabel(autoDownloadOpened))
+            }
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
             switch(DownloadsIndex.subtitleFile, viewModel.subtitleFile, viewModel::setSubtitleFile)
         }
@@ -318,6 +323,16 @@ internal fun DownloadSettingsScreen(
             )
         }
 
+        DownloadPicker.AUTO_DOWNLOAD -> {
+            FlowChoiceDialog(
+                title = stringResource(R.string.settings_auto_download_opened_title),
+                options = AutoDownloadMode.entries.map { FlowChoice(it, stringResource(autoDownloadLabel(it))) },
+                selected = autoDownloadOpened,
+                onSelect = viewModel::setAutoDownloadOpened,
+                onDismiss = { picker = null },
+            )
+        }
+
         null -> {
             Unit
         }
@@ -350,6 +365,13 @@ private fun StorageUsageRow(
 @Composable
 private fun LocationUi.label(): String =
     if (notWritable) stringResource(R.string.download_location_not_writable, saveFolder) else saveFolder
+
+private fun autoDownloadLabel(mode: AutoDownloadMode): Int =
+    when (mode) {
+        AutoDownloadMode.OFF -> R.string.off
+        AutoDownloadMode.WIFI -> R.string.auto_download_wifi
+        AutoDownloadMode.ALWAYS -> R.string.auto_download_always
+    }
 
 private fun cacheSizeLabel(megabytes: Int): Int =
     when (megabytes) {
