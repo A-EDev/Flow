@@ -175,7 +175,8 @@ class InnerTube {
                     )
                 }
 
-                proxy?.let { proxy = this@InnerTube.proxy }
+                // Qualified: a bare `proxy` here is the engine config's own, which starts null.
+                this@InnerTube.proxy?.let { proxy = it }
 
                 // Fix proxy auth
                 proxyAuth?.let { auth ->

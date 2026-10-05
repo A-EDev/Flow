@@ -19,6 +19,7 @@ import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.utils.AppLanguageManager
@@ -31,10 +32,15 @@ import io.github.aedev.flow.utils.normalizeYouTubeCountry
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -56,6 +62,9 @@ class FlowApplication :
     @Inject
     lateinit var okHttpClient: OkHttpClient
 
+    @Inject
+    lateinit var vpnStateMonitor: VpnStateMonitor
+
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
     companion object {
@@ -72,6 +81,7 @@ class FlowApplication :
         super.attachBaseContext(AppLanguageManager.wrapContext(base, selectedLanguage))
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
@@ -151,17 +161,25 @@ class FlowApplication :
         // search results on tablets and fresh Android 16 installs (Issue #223).
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             var nsigWarmed = false
-            playerPreferences.proxyConfig.collectLatest { proxyConfig ->
-                applyProxyConfig(proxyConfig)
-                // Ordered after the first proxy application so the warm-up honours it. Resolving
-                // the remote n-decoder player id is a round trip that the first video of a session
-                // would otherwise pay on its path to first frame; it is persisted for 24h, so on
-                // most launches this is only a disk read.
-                if (!nsigWarmed) {
-                    nsigWarmed = true
-                    PipePipeNsigDecoder.warmUp()
+            playerPreferences.proxyConfig
+                .distinctUntilChanged()
+                .flatMapLatest { config ->
+                    if (config.watchesVpn()) {
+                        vpnStateMonitor.vpnActive().map { vpnActive -> config to vpnActive }
+                    } else {
+                        flowOf(config to false)
+                    }
+                }.collectLatest { (proxyConfig, vpnActive) ->
+                    applyProxyConfig(proxyConfig, vpnActive)
+                    // Ordered after the first proxy application so the warm-up honours it. Resolving
+                    // the remote n-decoder player id is a round trip that the first video of a session
+                    // would otherwise pay on its path to first frame; it is persisted for 24h, so on
+                    // most launches this is only a disk read.
+                    if (!nsigWarmed) {
+                        nsigWarmed = true
+                        PipePipeNsigDecoder.warmUp()
+                    }
                 }
-            }
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -278,8 +296,11 @@ class FlowApplication :
         }
     }
 
-    private fun applyProxyConfig(config: io.github.aedev.flow.network.AppProxyConfig) {
-        AppProxyManager.update(config)
+    private fun applyProxyConfig(
+        config: io.github.aedev.flow.network.AppProxyConfig,
+        vpnActive: Boolean,
+    ) {
+        AppProxyManager.update(config, vpnActive)
         YouTube.proxy = AppProxyManager.currentProxy()
         YouTube.proxyAuth = AppProxyManager.currentHttpProxyAuthorizationHeader()
         NewPipeExtractor.invalidateClient()

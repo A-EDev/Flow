@@ -49,11 +49,12 @@ class DownloadUtil
         private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
 
         private val okHttpClient: OkHttpClient by lazy {
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .build()
+            AppProxyManager.buildLive(
+                OkHttpClient
+                    .Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS),
+            )
         }
 
         /**
