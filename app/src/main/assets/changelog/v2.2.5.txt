@@ -80,6 +80,7 @@ NEW FEATURES
 - A video linked from inside a playlist now plays with that playlist as its queue, and a new Content setting shows whether YouTube links open in Flow and opens the system screen to turn them on (#802)
 - The proxy can now step aside while a VPN is on, from Network settings, and comes back when the VPN goes off (#677)
 - A SponsorBlock button in the player turns it off for just the video you are watching, and the next video starts with your setting again; the player settings sheet and the TV player have the same switch (#930)
+- Thumbnails can be turned off, separately for Wi-Fi and mobile data, in Quality settings: feeds, playlists, banners and notifications load no images, while downloads and device files keep their covers (#849)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
