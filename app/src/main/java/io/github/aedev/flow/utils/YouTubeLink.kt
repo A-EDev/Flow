@@ -35,12 +35,12 @@ sealed interface YouTubeLink {
         val handle: String,
     ) : YouTubeLink
 
-    /** A `/c/name` or `/user/name` channel link; [kind] is `c` or `user`. */
+    /** A `/c/name`, `/user/name` or bare `/name` channel link; [kind] is `c`, `user` or empty. */
     data class LegacyChannel(
         val kind: String,
         val name: String,
     ) : YouTubeLink {
-        val url: String get() = "https://www.youtube.com/$kind/$name"
+        val url: String get() = if (kind.isEmpty()) "https://www.youtube.com/$name" else "https://www.youtube.com/$kind/$name"
     }
 
     data class Search(
@@ -61,6 +61,46 @@ private val YOUTUBE_DOMAINS = listOf("youtube.com", "youtube-nocookie.com")
 private val FRONT_END_DOMAINS = listOf("piped.video", "yewtu.be")
 private val MUSIC_HOSTS = setOf("music.youtube.com", "m.music.youtube.com")
 private val VIDEO_PATHS = setOf("live", "embed", "v", "e")
+private val CHANNEL_TABS = setOf("featured", "videos", "shorts", "streams", "playlists", "community", "posts", "about")
+
+// Top-level youtube.com pages a bare `/name` channel link can never be, including every path
+// pathLink reads, so a malformed watch or shorts link is not mistaken for a channel.
+private val RESERVED_PATHS =
+    VIDEO_PATHS +
+        setOf("watch", "playlist", "shorts", "channel", "browse", "c", "user", "results") +
+        setOf(
+            "about",
+            "account",
+            "ads",
+            "attribution_link",
+            "clip",
+            "creators",
+            "feed",
+            "gaming",
+            "hashtag",
+            "howyoutubeworks",
+            "iframe_api",
+            "jobs",
+            "kids",
+            "live_chat",
+            "logout",
+            "music",
+            "new",
+            "oembed",
+            "post",
+            "premium",
+            "redirect",
+            "reporthistory",
+            "s",
+            "signin",
+            "sitemap.xml",
+            "robots.txt",
+            "favicon.ico",
+            "studio",
+            "t",
+            "upload",
+            "trending",
+        )
 
 /**
  * The first YouTube link in [text], which may be a bare link or a share message around one.
@@ -75,10 +115,22 @@ fun parseYouTubeLink(text: String): YouTubeLink? {
             .split('/')
             .filter(String::isNotEmpty)
     return when {
-        host.isOrIsUnder("youtu.be") -> segments.firstOrNull()?.takeIf(VIDEO_ID::matches)?.let { YouTubeLink.Video(it, isMusic = false) }
-        YOUTUBE_DOMAINS.any(host::isOrIsUnder) -> pathLink(segments, queryOf(uri), isMusic = host in MUSIC_HOSTS)
-        FRONT_END_DOMAINS.any(host::isOrIsUnder) -> pathLink(segments, queryOf(uri), isMusic = false)
-        else -> null
+        host.isOrIsUnder("youtu.be") -> {
+            segments.firstOrNull()?.takeIf(VIDEO_ID::matches)?.let { YouTubeLink.Video(it, isMusic = false) }
+        }
+
+        YOUTUBE_DOMAINS.any(host::isOrIsUnder) -> {
+            val isMusic = host in MUSIC_HOSTS
+            pathLink(segments, queryOf(uri), isMusic) ?: customNameChannel(segments).takeUnless { isMusic }
+        }
+
+        FRONT_END_DOMAINS.any(host::isOrIsUnder) -> {
+            pathLink(segments, queryOf(uri), isMusic = false)
+        }
+
+        else -> {
+            null
+        }
     }
 }
 
@@ -152,6 +204,14 @@ private fun pathLink(
             null
         }
     }
+}
+
+/** A channel's old custom URL with no `/c/` (`youtube.com/officialpsy`), optionally on one of its tabs. */
+private fun customNameChannel(segments: List<String>): YouTubeLink? {
+    val name = segments.firstOrNull() ?: return null
+    if (segments.size > 2 || (segments.size == 2 && segments[1] !in CHANNEL_TABS)) return null
+    if (name.lowercase() in RESERVED_PATHS || !CHANNEL_NAME.matches(name)) return null
+    return YouTubeLink.LegacyChannel(kind = "", name = name)
 }
 
 /** What an InnerTube browse id opens: an album, a channel or a playlist. Null for any other page. */

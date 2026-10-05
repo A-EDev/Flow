@@ -116,6 +116,19 @@ class YouTubeLinkTest {
     }
 
     @Test
+    fun `a bare custom name is a channel, unless it names a youtube page`() {
+        assertParses(LegacyChannel("", "officialpsy"), "http://www.youtube.com/officialpsy", "https://youtube.com/officialpsy/videos")
+        assertThat(LegacyChannel("", "officialpsy").url).isEqualTo("https://www.youtube.com/officialpsy")
+        assertParses(
+            null,
+            "https://www.youtube.com/premium",
+            "https://www.youtube.com/officialpsy/videos/extra",
+            "https://www.youtube.com/officialpsy/unknownTab",
+            "https://music.youtube.com/library",
+        )
+    }
+
+    @Test
     fun `an eleven character custom name is a channel, not a video`() {
         assertParses(LegacyChannel("c", "abcdefghijk"), "https://www.youtube.com/c/abcdefghijk")
         assertParses(LegacyChannel("user", "abcdefghijk"), "https://www.youtube.com/user/abcdefghijk")
