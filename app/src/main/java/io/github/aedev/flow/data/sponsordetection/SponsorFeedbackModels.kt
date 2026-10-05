@@ -11,6 +11,13 @@ const val SPONSOR_TOKENIZER_SHA256 = "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd
 /** Sponsor-head threshold; category decoder thresholds are configured separately. */
 const val SPONSOR_CONFIDENCE_THRESHOLD = 0.7
 
+/**
+ * Bump whenever the on-device decode/stitch logic changes (window size, thresholds,
+ * minimum span, continuity merge, ...). The prediction cache keys on this so a
+ * cached result produced by older logic is never replayed against new decoding.
+ */
+const val SPONSOR_DECODE_LOGIC_VERSION = 2
+
 @Serializable
 data class SponsorPredictedSpan(
     @SerialName("span_id") val spanId: String,

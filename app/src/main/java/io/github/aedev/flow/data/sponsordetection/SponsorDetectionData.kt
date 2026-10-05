@@ -203,6 +203,17 @@ internal interface SponsorPredictionCache {
     suspend fun put(result: SponsorInferenceResult)
 }
 
+/**
+ * Cache identity for one prediction. It binds the model, the tokenizer and the
+ * on-device decode logic so that changing any of them (window size, thresholds,
+ * minimum span, continuity merge, ...) invalidates previously cached spans.
+ */
+internal fun sponsorPredictionCacheKey(
+    videoId: String,
+    transcriptHash: String,
+    logicVersion: Int = SPONSOR_DECODE_LOGIC_VERSION,
+): String = sha256("$videoId|$SPONSOR_MODEL_SHA256|$SPONSOR_TOKENIZER_SHA256|$logicVersion|$transcriptHash")
+
 internal class SponsorInferenceCache(
     private val directory: File,
     private val json: Json = Json { ignoreUnknownKeys = true },
@@ -263,7 +274,7 @@ internal class SponsorInferenceCache(
     private fun cacheKey(
         videoId: String,
         transcriptHash: String,
-    ): String = sha256("$videoId|$SPONSOR_MODEL_SHA256|$SPONSOR_TOKENIZER_SHA256|$transcriptHash")
+    ): String = sponsorPredictionCacheKey(videoId, transcriptHash)
 
     @Serializable
     private data class CachedInference(

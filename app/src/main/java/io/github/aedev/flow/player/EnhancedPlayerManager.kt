@@ -2376,11 +2376,16 @@ class EnhancedPlayerManager private constructor() {
             p.setSeekParameters(SeekParameters.EXACT)
             markLiveDisplaySeek(target)
         } else {
-            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+            // Exact, not CLOSEST_SYNC: a sync-point seek can land on the keyframe before a short
+            // segment, which re-arms the skip and loops it forever (#814). Restored right after,
+            // like the frame-step path, so ordinary scrubbing keeps using CLOSEST_SYNC.
+            p.setSeekParameters(SeekParameters.EXACT)
         }
         p.seekTo(target)
         if (isLive) {
             updateLiveEdgeState(p)
+        } else {
+            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
         }
     }
 

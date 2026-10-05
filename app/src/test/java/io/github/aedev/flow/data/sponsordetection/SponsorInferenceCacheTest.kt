@@ -75,6 +75,16 @@ class SponsorInferenceCacheTest {
             assertThat(cache.get("two", second)?.videoId).isEqualTo("two")
         }
 
+    @Test
+    fun `cache key changes with the decode logic version`() {
+        val first = sponsorPredictionCacheKey("video", "hash", logicVersion = 1)
+        val second = sponsorPredictionCacheKey("video", "hash", logicVersion = 2)
+
+        assertThat(first).isNotEqualTo(second)
+        assertThat(sponsorPredictionCacheKey("video", "hash", logicVersion = 2)).isEqualTo(second)
+        assertThat(sponsorPredictionCacheKey("video", "other", logicVersion = 2)).isNotEqualTo(second)
+    }
+
     private fun result(
         videoId: String,
         transcript: SponsorTranscriptPayload,
