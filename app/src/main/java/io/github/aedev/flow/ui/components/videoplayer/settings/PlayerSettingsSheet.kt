@@ -59,6 +59,8 @@ fun SettingsMenuDialog(
     sponsorBlockSegmentCount: Int = 0,
     sponsorBlockOffForVideo: Boolean = false,
     onSponsorBlockToggle: (off: Boolean) -> Unit = {},
+    notePositionMs: Long? = null,
+    onAddNote: () -> Unit = {},
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     enableVerticalDismiss: Boolean = true,
@@ -154,6 +156,8 @@ fun SettingsMenuDialog(
                         sponsorBlockSegmentCount = sponsorBlockSegmentCount,
                         sponsorBlockOffForVideo = sponsorBlockOffForVideo,
                         onSponsorBlockToggle = onSponsorBlockToggle,
+                        notePositionMs = notePositionMs,
+                        onAddNote = onAddNote,
                     )
                 }
 

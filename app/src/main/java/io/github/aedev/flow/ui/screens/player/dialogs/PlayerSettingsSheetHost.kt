@@ -64,6 +64,7 @@ internal fun PlayerSettingsSheetHost(
     val sponsorSegments by playerManager.sponsorSegments.collectAsState()
     val sponsorBlockOffForVideo by playerManager.sponsorBlockOffForVideo.collectAsState()
     val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
+    val videoNotesEnabled by viewModel.videoNotesEnabled.collectAsState()
     val subtitleFilePicker =
         rememberLauncherForActivityResult(OpenSubtitleFile()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -155,6 +156,8 @@ internal fun PlayerSettingsSheetHost(
         sponsorBlockSegmentCount = if (sponsorBlockEnabled) sponsorSegments.count { it.endTime > it.startTime } else 0,
         sponsorBlockOffForVideo = sponsorBlockOffForVideo,
         onSponsorBlockToggle = playerManager::setSponsorBlockOffForVideo,
+        notePositionMs = screenState.currentPosition.takeIf { videoNotesEnabled && !playerState.isLive },
+        onAddNote = { screenState.open(PlayerSheet.Note) },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,

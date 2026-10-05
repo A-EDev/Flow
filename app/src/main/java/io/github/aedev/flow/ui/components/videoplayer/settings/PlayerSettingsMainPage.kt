@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 import io.github.aedev.flow.ui.components.shared.playbackSpeedLabel
+import io.github.aedev.flow.utils.formatDurationMillis
 
 private const val VIDEO_ROWS = 1
 private const val PLAYBACK_ROWS = 3
@@ -56,6 +58,8 @@ internal fun PlayerSettingsMainPage(
     sponsorBlockSegmentCount: Int = 0,
     sponsorBlockOffForVideo: Boolean = false,
     onSponsorBlockToggle: (off: Boolean) -> Unit = {},
+    notePositionMs: Long? = null,
+    onAddNote: () -> Unit = {},
 ) {
     val playbackRows = if (sponsorBlockSegmentCount > 0) PLAYBACK_ROWS + 1 else PLAYBACK_ROWS
     FlowSectionHeader(stringResource(R.string.video))
@@ -107,6 +111,18 @@ internal fun PlayerSettingsMainPage(
                 checked = !sponsorBlockOffForVideo,
                 shape = flowRowGroupShape(3, playbackRows),
                 onCheckedChange = { on -> onSponsorBlockToggle(!on) },
+            )
+        }
+    }
+
+    if (notePositionMs != null) {
+        FlowSectionHeader(stringResource(R.string.note_title))
+        FlowRowGroup {
+            FlowNavRow(
+                leadingIcon = Icons.Outlined.MoreTime,
+                title = stringResource(R.string.note_at_time, formatDurationMillis(notePositionMs)),
+                shape = flowRowGroupShape(0, 1),
+                onClick = onAddNote,
             )
         }
     }

@@ -533,6 +533,8 @@
     <string name="note_edit">Edit note</string>
     <string name="note_add">Add note</string>
     <string name="note_placeholder">Write a note for yourself…</string>
+    <string name="note_insert_time">Insert %1$s</string>
+    <string name="note_at_time">Note at %1$s</string>
     <string name="note_channel_title">Note about this channel</string>
     <string name="note_video_title">Note about this video</string>
     <string name="content_settings_notes_title">Personal notes</string>

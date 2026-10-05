@@ -269,6 +269,9 @@ fun FlowDescriptionBottomSheet(
                         onEdit = onEditNote,
                         containerColor = tint.container,
                         contentColor = tint.onContainer,
+                        linkColor = tint.accent,
+                        durationMs = video.duration * 1000L,
+                        onTimestampClick = onSeekMs.takeUnless { video.isLive },
                     )
                 }
             }
