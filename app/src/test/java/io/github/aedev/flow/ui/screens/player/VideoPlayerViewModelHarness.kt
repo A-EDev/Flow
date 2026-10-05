@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.repository.LiveChatRepository
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.innertube.YouTube
@@ -68,6 +69,7 @@ internal class VideoPlayerViewModelHarness(
     val likedVideosRepository: LikedVideosRepository = mockk(relaxed = true)
     val playlistRepository: PlaylistRepository = mockk(relaxed = true)
     val playerPreferences: PlayerPreferences = mockk(relaxed = true)
+    val autoDownload: AutoDownloadTrigger = mockk(relaxed = true)
     val videoDownloadManager: VideoDownloadManager = mockk(relaxed = true)
     val offlineSubtitleStore: OfflineSubtitleStore = mockk(relaxed = true)
     val localSubtitles: LocalSubtitles = mockk(relaxed = true)
@@ -218,6 +220,7 @@ internal class VideoPlayerViewModelHarness(
             videoStats = videoStats,
             localMediaDetails = mockk { coEvery { enrich(any()) } returns null },
             lifecyclePlayback = mockk { every { settings } answers { LifecyclePlaybackSettings(startVideosPaused = startVideosPaused) } },
+            autoDownload = autoDownload,
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

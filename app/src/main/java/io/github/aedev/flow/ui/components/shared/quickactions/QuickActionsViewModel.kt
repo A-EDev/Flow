@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.video.MusicVideoVersions
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.VideoDownloadOptions
 import io.github.aedev.flow.data.video.VideoDownloadOptionsLoader
@@ -30,7 +31,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -58,6 +61,7 @@ class QuickActionsViewModel
         private val likedMedia: LikedMediaUseCase,
         private val playerManager: Provider<EnhancedPlayerManager>,
         private val musicVideos: MusicVideoVersions,
+        private val autoDownload: AutoDownloadTrigger,
     ) : ViewModel() {
         val watchLaterIds: StateFlow<Set<String>> =
             playlistRepository
@@ -78,6 +82,12 @@ class QuickActionsViewModel
 
         private val _messages = MutableSharedFlow<QuickActionMessage>(extraBufferCapacity = 4)
         val messages: SharedFlow<QuickActionMessage> = _messages.asSharedFlow()
+
+        init {
+            autoDownload.queued
+                .onEach { videoId -> emit(R.string.auto_download_queued, undo = QuickActionUndo.AutoDownload(videoId)) }
+                .launchIn(viewModelScope)
+        }
 
         private val _pendingDownload = MutableStateFlow<VideoDownloadOptions?>(null)
 
@@ -269,6 +279,10 @@ class QuickActionsViewModel
 
                         is QuickActionUndo.QueueRemoval -> {
                             playerManager.get().restoreRemovedVideo(undo.entry)
+                        }
+
+                        is QuickActionUndo.AutoDownload -> {
+                            autoDownload.undo(undo.videoId)
                         }
                     }
                 }

@@ -128,6 +128,7 @@ class PlayerPreferences(
         val LAST_DOWNLOAD_AUDIO_LABEL = stringPreferencesKey("last_download_audio_label")
         val LAST_DOWNLOAD_SUBTITLE_LANGUAGE = stringPreferencesKey("last_download_subtitle_language")
         val DOWNLOAD_SUBTITLE_FILE = booleanPreferencesKey("download_subtitle_file")
+        val AUTO_DOWNLOAD_OPENED_VIDEOS = stringPreferencesKey("auto_download_opened_videos")
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_TYPE = stringPreferencesKey("proxy_type")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -2877,6 +2878,20 @@ class PlayerPreferences(
         }
     }
 
+    /** Whether a video the viewer opens is also saved for offline, and on which networks. */
+    val autoDownloadOpenedVideos: Flow<AutoDownloadMode> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                runCatching { AutoDownloadMode.valueOf(preferences[Keys.AUTO_DOWNLOAD_OPENED_VIDEOS] ?: AutoDownloadMode.OFF.name) }
+                    .getOrDefault(AutoDownloadMode.OFF)
+            }.distinctUntilChanged()
+
+    suspend fun setAutoDownloadOpenedVideos(mode: AutoDownloadMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTO_DOWNLOAD_OPENED_VIDEOS] = mode.name
+        }
+    }
+
     // Remembered last-used download options (used by the compact dialog to preselect).
     val lastDownloadType: Flow<String?> =
         context.playerPreferencesDataStore.data
@@ -3577,6 +3592,13 @@ enum class SliderStyle {
 enum class DownloadDialogStyle {
     FULL,
     COMPACT,
+}
+
+/** When an opened video is downloaded on its own: never, only on Wi-Fi, or on any network. */
+enum class AutoDownloadMode {
+    OFF,
+    WIFI,
+    ALWAYS,
 }
 
 /** Control colors for the music player when artwork colors are off. */

@@ -6,6 +6,7 @@ import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.AutoDownloadMode
 import io.github.aedev.flow.data.local.DEFAULT_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MusicAudioQuality
@@ -78,6 +79,7 @@ class DownloadSettingsViewModel
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
         val autoDownloadLikes = preferences.autoDownloadLikedMusic.asState(false)
+        val autoDownloadOpened = preferences.autoDownloadOpenedVideos.asState(AutoDownloadMode.OFF)
         val subtitleFile = preferences.downloadSubtitleFile.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
@@ -139,6 +141,8 @@ class DownloadSettingsViewModel
 
         // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
         fun setAutoDownloadLikes(value: Boolean) = write { preferences.setAutoDownloadLikedMusic(value) }
+
+        fun setAutoDownloadOpened(value: AutoDownloadMode) = write { preferences.setAutoDownloadOpenedVideos(value) }
 
         fun setWifiOnly(value: Boolean) =
             write {
