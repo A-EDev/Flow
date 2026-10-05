@@ -82,6 +82,7 @@ NEW FEATURES
 - A SponsorBlock button in the player turns it off for just the video you are watching, and the next video starts with your setting again; the player settings sheet and the TV player have the same switch (#930)
 - Thumbnails can be turned off, separately for Wi-Fi and mobile data, in Quality settings: feeds, playlists, banners and notifications load no images, while downloads and device files keep their covers (#849)
 - Notes can hold timestamps: times like 12:34 in a video note play from that moment, the note editor inserts the current time, and a new Notes page in Library lists every note with search, filters and its video or channel, side by side on tablets (#843)
+- Subscriptions now show collaborations a channel you follow took part in, even when another channel uploaded them, with every collaborator on the card; turn it off in Content settings (#840)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
