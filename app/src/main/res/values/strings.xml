@@ -3516,8 +3516,10 @@
     <string name="thumbnail_quality_high_desc">Sharpest, uses the most data</string>
     <string name="thumbnail_quality_medium_desc">Clear on phones, about half the data</string>
     <string name="thumbnail_quality_low_desc">Least data, softer on large cards</string>
-    <string name="thumbnail_quality_notice">Lower thumbnail quality saves data on every feed and on Shorts.</string>
-    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage</string>
+    <string name="thumbnail_quality_off">Off</string>
+    <string name="thumbnail_quality_off_desc">Loads none, except for downloads and device files</string>
+    <string name="thumbnail_quality_notice">Lower quality or Off saves data on every feed and on Shorts. Downloads and device files keep their covers.</string>
+    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage, hide thumbnails, no images</string>
     <string name="settings_quality_wifi">On Wi-Fi</string>
     <string name="settings_quality_mobile">On mobile data</string>
     <string name="settings_section_resolution">Resolution</string>

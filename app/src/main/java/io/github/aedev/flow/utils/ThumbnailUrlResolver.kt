@@ -39,7 +39,7 @@ object ThumbnailUrlResolver {
         portrait: Boolean = false,
     ): List<String> {
         val id = videoId.trim()
-        if (id.isEmpty()) return emptyList()
+        if (id.isEmpty() || LocalMediaIds.isLocal(id)) return emptyList()
         return youtubeThumbnailTiers(quality, portrait).map { tier -> "https://i.ytimg.com/vi/$id/$tier.jpg" }
     }
 
@@ -55,7 +55,11 @@ object ThumbnailUrlResolver {
             ThumbnailQuality.HIGH -> listOf("hq720", "hqdefault")
             ThumbnailQuality.MEDIUM -> listOf("sddefault", "hqdefault")
             ThumbnailQuality.LOW -> if (portrait) listOf("hqdefault") else listOf("mqdefault", "hqdefault")
+            ThumbnailQuality.OFF -> emptyList()
         }
+
+    /** A cover stored on the device: a download's saved thumbnail, or a MediaStore item. */
+    fun isDeviceUri(url: String): Boolean = url.startsWith("file:") || url.startsWith("content:") || url.startsWith("/")
 
     fun resolveVideoThumbnailCandidates(
         videoId: String,
@@ -71,6 +75,7 @@ object ThumbnailUrlResolver {
             when {
                 raw.isEmpty() -> youtubeCandidates
                 isYoutubeVideoThumbnail(raw) -> youtubeCandidates
+                quality == ThumbnailQuality.OFF && !isDeviceUri(raw) -> youtubeCandidates
                 else -> listOf(raw) + youtubeCandidates
             }
 

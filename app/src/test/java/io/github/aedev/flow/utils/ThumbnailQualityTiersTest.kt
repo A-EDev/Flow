@@ -35,7 +35,7 @@ class ThumbnailQualityTiersTest {
     fun `a DeArrow thumbnail stays first at every quality`() {
         val deArrow = "https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=$id&time=12"
 
-        ThumbnailQuality.entries.forEach { quality ->
+        (ThumbnailQuality.entries - ThumbnailQuality.OFF).forEach { quality ->
             assertThat(ThumbnailUrlResolver.resolveVideoThumbnailCandidates(id, deArrow, quality).first()).isEqualTo(deArrow)
         }
     }
@@ -62,5 +62,31 @@ class ThumbnailQualityTiersTest {
         assertThat(ThumbnailQuality.fromName(null)).isEqualTo(ThumbnailQuality.HIGH)
         assertThat(ThumbnailQuality.fromName("ULTRA")).isEqualTo(ThumbnailQuality.HIGH)
         assertThat(ThumbnailQuality.fromName("LOW")).isEqualTo(ThumbnailQuality.LOW)
+    }
+
+    @Test
+    fun `off fetches nothing from the network, DeArrow included`() {
+        val deArrow = "https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=$id&time=12"
+
+        assertThat(tiers(ThumbnailQuality.OFF)).isEmpty()
+        assertThat(tiers(ThumbnailQuality.OFF, portrait = true)).isEmpty()
+        assertThat(ThumbnailUrlResolver.resolveVideoThumbnailCandidates(id, deArrow, ThumbnailQuality.OFF)).isEmpty()
+    }
+
+    @Test
+    fun `off still shows a cover stored on the device`() {
+        val saved = "file:///data/user/0/io.github.aedev.flow/files/thumbs/$id.jpg"
+        val mediaStore = "content://media/external/video/media/42"
+
+        assertThat(ThumbnailUrlResolver.resolveVideoThumbnailCandidates(id, saved, ThumbnailQuality.OFF)).containsExactly(saved)
+        assertThat(ThumbnailUrlResolver.resolveVideoThumbnailCandidates("local_42", mediaStore, ThumbnailQuality.OFF))
+            .containsExactly(mediaStore)
+    }
+
+    @Test
+    fun `a device file never falls back to a YouTube thumbnail`() {
+        assertThat(ThumbnailUrlResolver.youtubeThumbnailCandidates("local_42")).isEmpty()
+        assertThat(ThumbnailUrlResolver.resolveVideoThumbnailCandidates("local_42", "content://media/external/video/media/42"))
+            .containsExactly("content://media/external/video/media/42")
     }
 }
