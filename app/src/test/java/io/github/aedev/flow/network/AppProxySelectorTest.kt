@@ -60,4 +60,28 @@ class AppProxySelectorTest {
         local.forEach { assertWithMessage(it).that(isLocalHost(it)).isTrue() }
         remote.forEach { assertWithMessage(it).that(isLocalHost(it)).isFalse() }
     }
+
+    @Test
+    fun `a vpn sends traffic direct and rekeys clients when the bypass is on`() {
+        val config = AppProxyConfig(enabled = true, host = "proxy.example.test", port = 3128, bypassOnVpn = true)
+        AppProxyManager.update(config, vpnActive = false)
+        val withProxy = AppProxyManager.currentSignature()
+
+        AppProxyManager.update(config, vpnActive = true)
+
+        assertThat(select("https://www.youtube.com/")).isEqualTo(Proxy.NO_PROXY)
+        assertThat(AppProxyManager.currentSignature()).isNotEqualTo(withProxy)
+
+        AppProxyManager.update(config, vpnActive = false)
+
+        assertThat(select("https://www.youtube.com/").type()).isEqualTo(Proxy.Type.HTTP)
+        assertThat(AppProxyManager.currentSignature()).isEqualTo(withProxy)
+    }
+
+    @Test
+    fun `a vpn leaves the proxy on when the bypass is off`() {
+        AppProxyManager.update(AppProxyConfig(enabled = true, host = "proxy.example.test", port = 3128), vpnActive = true)
+
+        assertThat(select("https://www.youtube.com/").type()).isEqualTo(Proxy.Type.HTTP)
+    }
 }

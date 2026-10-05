@@ -48,4 +48,27 @@ class AppProxyConfigTest {
         assertThat(config(port = 0).toProxy()).isNull()
         assertThat(config(port = 70_000).toProxy()).isNull()
     }
+
+    @Test
+    fun `a vpn pauses the proxy only when the bypass is on`() {
+        val bypass = config().copy(bypassOnVpn = true)
+
+        assertThat(bypass.effective(vpnActive = true).toProxy()).isNull()
+        assertThat(bypass.effective(vpnActive = false).toProxy()).isNotNull()
+        assertThat(config().effective(vpnActive = true).toProxy()).isNotNull()
+        assertThat(config().effective(vpnActive = false).toProxy()).isNotNull()
+    }
+
+    @Test
+    fun `the network is watched for a vpn only while it could change the proxy`() {
+        assertThat(config().copy(bypassOnVpn = true).watchesVpn()).isTrue()
+        assertThat(config().watchesVpn()).isFalse()
+        assertThat(config().copy(enabled = false, bypassOnVpn = true).watchesVpn()).isFalse()
+        assertThat(config(host = " ").copy(bypassOnVpn = true).watchesVpn()).isFalse()
+    }
+
+    @Test
+    fun `the bypass switch alone does not change the signature clients are keyed by`() {
+        assertThat(config().copy(bypassOnVpn = true).signature()).isEqualTo(config().signature())
+    }
 }

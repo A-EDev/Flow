@@ -135,6 +135,7 @@ class PlayerPreferences(
         val PROXY_PORT = intPreferencesKey("proxy_port")
         val PROXY_USERNAME = stringPreferencesKey("proxy_username")
         val PROXY_PASSWORD = stringPreferencesKey("proxy_password")
+        val PROXY_BYPASS_ON_VPN = booleanPreferencesKey("proxy_bypass_on_vpn")
         val SURFACE_READY_TIMEOUT_MS = longPreferencesKey("surface_ready_timeout_ms")
 
         // Audio track preference
@@ -3118,6 +3119,7 @@ class PlayerPreferences(
                     port = preferences[Keys.PROXY_PORT] ?: 8080,
                     username = preferences[Keys.PROXY_USERNAME].orEmpty(),
                     password = KeystoreSecretBox.open(preferences[Keys.PROXY_PASSWORD]),
+                    bypassOnVpn = preferences[Keys.PROXY_BYPASS_ON_VPN] ?: false,
                 )
             }.flowOn(Dispatchers.IO)
 
@@ -3131,6 +3133,7 @@ class PlayerPreferences(
             preferences[Keys.PROXY_HOST] = config.host.trim()
             preferences[Keys.PROXY_PORT] = config.port
             preferences[Keys.PROXY_USERNAME] = config.username.trim()
+            preferences[Keys.PROXY_BYPASS_ON_VPN] = config.bypassOnVpn
             if (config.password.isEmpty()) {
                 preferences.remove(Keys.PROXY_PASSWORD)
             } else {

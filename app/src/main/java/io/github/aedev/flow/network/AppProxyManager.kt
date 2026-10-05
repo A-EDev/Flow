@@ -32,12 +32,19 @@ data class AppProxyConfig(
     val port: Int = 8080,
     val username: String = "",
     val password: String = "",
+    val bypassOnVpn: Boolean = false,
 ) {
     fun normalized(): AppProxyConfig =
         copy(
             host = host.trim(),
             username = username.trim(),
         )
+
+    /** The proxy traffic should follow right now: a VPN pauses it when [bypassOnVpn] is set. */
+    fun effective(vpnActive: Boolean): AppProxyConfig = if (bypassOnVpn && vpnActive) copy(enabled = false) else this
+
+    /** Whether a VPN can change this proxy, so only then is the network watched for one. */
+    fun watchesVpn(): Boolean = bypassOnVpn && hasUsableEndpoint()
 
     fun hasUsableEndpoint(): Boolean = enabled && host.isNotBlank() && port in 1..65535
 
@@ -79,11 +86,14 @@ object AppProxyManager {
 
     private val livePools = CopyOnWriteArrayList<ConnectionPool>()
 
-    fun update(newConfig: AppProxyConfig) {
+    fun update(
+        newConfig: AppProxyConfig,
+        vpnActive: Boolean = false,
+    ) {
         val changed =
             synchronized(lock) {
                 val previous = config.signature()
-                config = newConfig.normalized()
+                config = newConfig.normalized().effective(vpnActive)
                 installJvmAuthenticatorLocked()
                 config.signature() != previous
             }
