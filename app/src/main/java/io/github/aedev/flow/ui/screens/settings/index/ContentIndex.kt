@@ -88,6 +88,14 @@ internal object ContentIndex {
             section = R.string.settings_section_subscriptions,
             destination = page,
         )
+    val subsCollaborations =
+        SettingEntry(
+            key = "content.subs.collaborations",
+            title = R.string.content_settings_subs_collaborations_title,
+            summary = R.string.content_settings_subs_collaborations_subtitle,
+            section = R.string.settings_section_subscriptions,
+            destination = page,
+        )
     val hideWatchedSubs =
         SettingEntry(
             key = "content.subs.hide_watched",
@@ -216,6 +224,7 @@ internal object ContentIndex {
             subsShorts,
             subsShortsShelf,
             subsLive,
+            subsCollaborations,
             hideWatchedSubs,
             hideUnplayableSubs,
             subsRefreshOnStartup,

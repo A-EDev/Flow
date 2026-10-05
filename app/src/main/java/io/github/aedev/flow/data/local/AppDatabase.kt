@@ -77,8 +77,9 @@ import io.github.aedev.flow.data.local.migrations.Migration24To25
         AutoMigration(from = 27, to = 28),
         AutoMigration(from = 28, to = 29),
         AutoMigration(from = 29, to = 30),
+        AutoMigration(from = 30, to = 31),
     ],
-    version = 30,
+    version = 31,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

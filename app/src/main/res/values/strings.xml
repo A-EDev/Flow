@@ -1114,6 +1114,8 @@
     <string name="content_settings_subs_show_shorts_subtitle">Show Shorts in the subscription feed</string>
     <string name="content_settings_subs_show_live_title">Subscription live streams</string>
     <string name="content_settings_subs_show_live_subtitle">Show live and recent streams in the feed</string>
+    <string name="content_settings_subs_collaborations_title">Collaborations</string>
+    <string name="content_settings_subs_collaborations_subtitle">Videos made with channels you follow</string>
     <string name="content_settings_nav_order_title">Tab order and default</string>
     <string name="content_settings_nav_order_subtitle">Drag to reorder. Choose the tab Flow opens on.</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
