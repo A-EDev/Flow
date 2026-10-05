@@ -312,14 +312,17 @@ class VideoPlayerViewModel
          * Plays a video by immediately caching metadata and triggering stream load.
          * This ensures the UI shows video info immediately while streams are fetched.
          * [userOpened] is false when the video only follows another (next, previous), which keeps playing.
+         * [startPositionMs] opens it at that time instead of where the viewer left it.
          */
         fun playVideo(
             video: Video,
             userOpened: Boolean = true,
+            startPositionMs: Long? = null,
         ) {
             val isMiniPlayerCollapsed =
                 GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
             if (_uiState.value.shouldReopenInsteadOfPlaying(video.id, playerManager.playerState.value, isMiniPlayerCollapsed)) {
+                startPositionMs?.let(playerManager::seekTo)
                 presence.showVideoPlayer()
                 _expandPlayerRequest.tryEmit(Unit)
                 return
@@ -338,7 +341,7 @@ class VideoPlayerViewModel
             if (upcomingPremiere.applyCountdown(video)) {
                 return
             }
-            loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
+            loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true, resumePositionOverrideMs = startPositionMs)
         }
 
         fun playLocalVideo(

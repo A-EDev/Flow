@@ -27,6 +27,7 @@ import io.github.aedev.flow.ui.screens.player.state.withDeviceFileDetails
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "VideoPlayerViewModel"
 
@@ -141,7 +143,7 @@ internal class PlaybackLoadController(
             // A device file never touches the network; a queue of them arrives here one by one.
             val uri = LocalMediaIds.videoUri(videoId) ?: return
             val video = uiState.value.cachedVideo?.takeIf { it.id == videoId } ?: return
-            prepareDeviceFile(video, uri.toString())
+            prepareDeviceFile(video, uri.toString(), resumePositionOverrideMs)
             return
         }
         val currentState = uiState.value
@@ -199,6 +201,10 @@ internal class PlaybackLoadController(
                         resolveUpcoming = collaborators.upcomingPremiere::resolve,
                         onStep = { step ->
                             sessionApplier.apply(step, load)
+                            // A download resumes from history inside the applier; a chosen time wins.
+                            if (step is ResolvedPlayback.LocalCopyReady && resumePositionOverrideMs != null && isCurrent(loadToken)) {
+                                withContext(Dispatchers.Main) { playerManager.seekTo(resumePositionOverrideMs) }
+                            }
                             autoDownload.onResolved(videoId, loadToken, step.autoDownloadResolution(), uiState.value.cachedVideo)
                         },
                     )
@@ -214,6 +220,7 @@ internal class PlaybackLoadController(
     fun prepareDeviceFile(
         video: Video,
         contentUri: String,
+        startPositionMs: Long? = null,
     ) {
         val loadToken = nextToken()
         uiState.value = uiState.value.startLocalPlaybackOf(video, contentUri)
@@ -226,7 +233,7 @@ internal class PlaybackLoadController(
                 load = LoadContext(video.id, loadToken),
                 localFilePath = contentUri,
                 offlineSegments = null,
-                savedPosition = runCatching { viewHistory.getSavedPosition(video.id) }.getOrDefault(0L),
+                savedPosition = startPositionMs ?: runCatching { viewHistory.getSavedPosition(video.id) }.getOrDefault(0L),
             )
         }
         scope.launch {
