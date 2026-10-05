@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsGroupScope
 import io.github.aedev.flow.ui.components.settings.SettingsPage
+import io.github.aedev.flow.ui.components.settings.info
 import io.github.aedev.flow.ui.components.settings.notice
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.settings.toggleGroup
@@ -59,6 +61,7 @@ internal fun NetworkSettingsScreen(
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
+    val pausedByVpn by viewModel.pausedByVpn.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val savedMessage = stringResource(R.string.proxy_settings_saved)
@@ -91,6 +94,14 @@ internal fun NetworkSettingsScreen(
         group(key = "network.proxy", header = R.string.proxy_settings_title) {
             switch(NetworkIndex.enabled, form.enabled, { on -> viewModel.edit { it.copy(enabled = on) } }, icon = Icons.Outlined.Public)
             toggleGroup(NetworkIndex.type, types, form.type, { type -> viewModel.edit { it.copy(type = type) } })
+            switch(
+                NetworkIndex.bypassOnVpn,
+                form.bypassOnVpn,
+                { on -> viewModel.edit { it.copy(bypassOnVpn = on) } },
+                enabled = form.enabled,
+                icon = Icons.Outlined.VpnLock,
+            )
+            if (pausedByVpn) info(NetworkIndex.vpnPaused, value = null, icon = Icons.Outlined.Info)
         }
         group(key = "network.server", header = R.string.settings_section_proxy_server) {
             field(NetworkIndex.host, form.host, { value -> viewModel.edit { it.copy(host = value) } }, Icons.Outlined.Public) {

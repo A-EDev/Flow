@@ -1136,6 +1136,10 @@
     <string name="proxy_settings_username">Username</string>
     <string name="proxy_settings_password">Password</string>
     <string name="proxy_settings_optional_auth">Leave these empty if the proxy has no sign-in.</string>
+    <string name="proxy_settings_bypass_vpn">Skip the proxy on VPN</string>
+    <string name="proxy_settings_bypass_vpn_subtitle">Connect directly while a VPN is on</string>
+    <string name="proxy_settings_vpn_paused">Proxy paused</string>
+    <string name="proxy_settings_vpn_paused_subtitle">A VPN is on, so traffic connects directly.</string>
     <string name="proxy_settings_restart_notice">Downloads and long streams may need a restart to use the new proxy.</string>
     <string name="proxy_type_http">HTTP</string>
     <string name="proxy_type_socks5">SOCKS5</string>
