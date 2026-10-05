@@ -31,6 +31,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.ui.components.shared.DurationBadge
 import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 import io.github.aedev.flow.utils.formatDuration
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
@@ -116,9 +117,9 @@ private fun ChapterThumbnail(
                 .clip(MaterialTheme.shapes.small)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
-        if (thumbnailUrl.isNotBlank()) {
+        thumbnailUrlOrNull(thumbnailUrl)?.let { url ->
             AsyncImage(
-                model = thumbnailUrl,
+                model = url,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,

@@ -51,8 +51,9 @@ internal fun PlaylistCompactRow(
             if (isMusic) {
                 ArtworkThumbnail(thumbnailUrl = thumbnailUrl, placeholder = Icons.Rounded.MusicNote)
             } else {
+                // A playlist id is not a video id; the cover's own URL names the video it shows.
                 MediaThumbnail(
-                    videoId = playlist.id,
+                    videoId = "",
                     thumbnailUrl = thumbnailUrl,
                     width = CompactVideoWidth,
                     placeholder = Icons.AutoMirrored.Outlined.PlaylistPlay,

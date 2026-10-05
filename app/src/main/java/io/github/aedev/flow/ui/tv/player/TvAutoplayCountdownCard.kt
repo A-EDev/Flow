@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.AutoplayCountdownState
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 import io.github.aedev.flow.ui.tv.components.TvButton
 
 /** Autoplay "up next in N seconds" card with focusable Play now / Cancel actions. */
@@ -47,7 +48,7 @@ fun TvAutoplayCountdownCard(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                countdown.nextVideoThumbnailUrl?.let { thumbnail ->
+                thumbnailUrlOrNull(countdown.nextVideoThumbnailUrl)?.let { thumbnail ->
                     AsyncImage(
                         model = thumbnail,
                         contentDescription = null,

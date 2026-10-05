@@ -22,6 +22,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.innertube.pages.renderer.PostAttachment
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 
 /**
  * One community post in the search strip, shaped like YouTube's: a fixed-width outlined card with
@@ -82,7 +83,7 @@ fun SearchPostCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                post.previewImageUrl()?.let { url ->
+                thumbnailUrlOrNull(post.previewImageUrl())?.let { url ->
                     AsyncImage(
                         model = url,
                         contentDescription = null,

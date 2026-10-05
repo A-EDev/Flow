@@ -63,6 +63,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 
 private val HeaderPadding: Dp = 16.dp
 private const val DESCRIPTION_COLLAPSED_LINES = 2
@@ -157,8 +158,9 @@ private fun PlaylistArtwork(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        if (url.isNotEmpty()) {
-            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        val artworkUrl = thumbnailUrlOrNull(url)
+        if (artworkUrl != null) {
+            AsyncImage(model = artworkUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
