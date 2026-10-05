@@ -4126,4 +4126,18 @@
     <string name="scrobbling_import_failed">Не вдалося завантажити список ваших найулюбленіших виконавців</string>
     <string name="music_home_lastfm_discover">Відкривайте для себе музику з Last.fm</string>
     <string name="music_home_lastfm_discover_subtitle">Вибрано слухачами Last.fm із вашого списку «На повторі»</string>
+    <string name="remove_from_saved_shorts">Видалити зі збережених Shorts</string>
+    <string name="content_settings_channel_shorts_tab_title">Вкладка Shorts на каналах</string>
+    <string name="content_settings_channel_shorts_tab_subtitle">Зберегти вкладку каналів Shorts, навіть коли Shorts приховано</string>
+    <string name="player_settings_start_paused">Запускати відео на паузі</string>
+    <string name="player_settings_start_paused_subtitle">Відкрити відео, не відтворюючи його, доки не натиснете кнопку відтворення</string>
+    <string name="settings_section_thumbnails">Мініатюри</string>
+    <string name="thumbnail_quality_high">Висока</string>
+    <string name="thumbnail_quality_medium">Середня</string>
+    <string name="thumbnail_quality_low">Низька</string>
+    <string name="thumbnail_quality_high_desc">Найчіткіше зображення, використовує найбільше даних</string>
+    <string name="thumbnail_quality_medium_desc">Чітко на телефонах, приблизно вдвічі менше даних</string>
+    <string name="thumbnail_quality_low_desc">Мінімум даних, м’якше оформлення на великих картках</string>
+    <string name="thumbnail_quality_notice">Нижча якість мініатюр заощаджує трафік у кожній стрічці та в Shorts.</string>
+    <string name="settings_keywords_thumbnails">мініатюра, зображення, режим економії даних, використання даних</string>
 </resources>
