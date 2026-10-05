@@ -178,7 +178,10 @@ object NotesMerger {
             // Same instant on two devices: deletion wins, so a clear is never undone by a stale edit.
             x.deleted != y.deleted -> if (x.deleted) x else y
 
-            else -> if (x.text >= y.text) x else y
+            x.text != y.text -> if (x.text > y.text) x else y
+
+            // Filling in what a note is about leaves its time alone, so the copy that knows wins.
+            else -> if (x.title != null || y.title == null) x else y
         }
 }
 

@@ -123,6 +123,11 @@ data class CanonicalNote(
     val text: String = "",
     val updatedAt: Long = 0L,
     val deleted: Boolean = false,
+    val title: String? = null,
+    val channelName: String? = null,
+    val channelId: String? = null,
+    val thumbnailUrl: String? = null,
+    val durationSeconds: Int? = null,
 )
 
 @Serializable

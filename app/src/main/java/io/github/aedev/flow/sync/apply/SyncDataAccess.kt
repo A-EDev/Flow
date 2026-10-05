@@ -188,6 +188,11 @@ class SyncDataAccess
                     kind = note.kind,
                     text = note.text,
                     updatedAt = note.updatedAt,
+                    title = note.title,
+                    channelName = note.channelName,
+                    channelId = note.channelId,
+                    thumbnailUrl = note.thumbnailUrl,
+                    durationSeconds = note.durationSeconds,
                 )
             }
 
@@ -202,6 +207,11 @@ class SyncDataAccess
                             kind = note.kind,
                             text = note.text,
                             updatedAt = note.updatedAt,
+                            title = note.title,
+                            channelName = note.channelName,
+                            channelId = note.channelId,
+                            thumbnailUrl = note.thumbnailUrl,
+                            durationSeconds = note.durationSeconds,
                         )
                     },
                 )

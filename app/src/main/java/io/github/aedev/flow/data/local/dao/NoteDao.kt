@@ -12,8 +12,31 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
     fun observe(id: String): Flow<NoteEntity?>
 
+    @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): NoteEntity?
+
     @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
     suspend fun getAll(): List<NoteEntity>
+
+    @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
+    fun observeAll(): Flow<List<NoteEntity>>
+
+    @Query("SELECT COUNT(*) FROM notes")
+    fun observeCount(): Flow<Int>
+
+    /** Fills in what a note is about without touching its text or edit time. */
+    @Query(
+        "UPDATE notes SET title = :title, channelName = :channelName, channelId = :channelId, " +
+            "thumbnailUrl = :thumbnailUrl, durationSeconds = :durationSeconds WHERE id = :id",
+    )
+    suspend fun updateSubject(
+        id: String,
+        title: String,
+        channelName: String,
+        channelId: String,
+        thumbnailUrl: String,
+        durationSeconds: Int,
+    )
 
     @Upsert
     suspend fun upsert(note: NoteEntity)

@@ -96,7 +96,7 @@ class VideoPlayerViewModel
         fun saveVideoNote(
             videoId: String,
             text: String,
-        ) = notes.save(videoId, text)
+        ) = notes.save(videoId, text, _uiState.value.cachedVideo)
 
         private val collaborators: PlayerCollaborators =
             PlayerCollaborators(
