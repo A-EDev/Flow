@@ -282,7 +282,7 @@ private fun ColumnScope.NoteBody(
         }
     }
     Text(
-        text = stringResource(R.string.note_edited, relativeTime(note.updatedAt)),
+        text = editedLabel(note.updatedAt),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = ContentInset + 4.dp),

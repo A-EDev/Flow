@@ -554,6 +554,7 @@
     <string name="notes_no_match_body">Try other words or another filter</string>
     <string name="notes_pick_title">Pick a note to read it here</string>
     <string name="note_edited">Edited %1$s</string>
+    <string name="note_edited_just_now">Edited just now</string>
     <string name="note_channel_note">Channel note</string>
     <string name="note_timestamps">Timestamps</string>
     <string name="note_play_from">Play from %1$s</string>

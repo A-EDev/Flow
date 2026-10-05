@@ -202,7 +202,7 @@ private fun NoteListItem(
                         )
                     }
                     Text(
-                        text = stringResource(R.string.note_edited, relativeTime(note.updatedAt)),
+                        text = editedLabel(note.updatedAt),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -239,9 +239,16 @@ private fun NoteListItem(
     }
 }
 
-/** "2 days ago", in the device language, from the platform's own formatter. */
-internal fun relativeTime(epochMs: Long): String =
-    DateUtils.getRelativeTimeSpanString(epochMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+/** "Edited 2 days ago", in the device language from the platform's own formatter, or "Edited just now". */
+@Composable
+internal fun editedLabel(epochMs: Long): String {
+    val now = System.currentTimeMillis()
+    return if (now - epochMs < DateUtils.MINUTE_IN_MILLIS) {
+        stringResource(R.string.note_edited_just_now)
+    } else {
+        stringResource(R.string.note_edited, DateUtils.getRelativeTimeSpanString(epochMs, now, DateUtils.MINUTE_IN_MILLIS).toString())
+    }
+}
 
 private val NotesSort.labelRes: Int
     get() =
