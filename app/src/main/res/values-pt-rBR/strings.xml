@@ -3297,4 +3297,14 @@
     <string name="settings_widgets_summary">Coloque o Flow na sua tela inicial</string>
     <string name="settings_widgets_add_header">Adicionar a tela inicial</string>
     <string name="settings_widgets_footer">Clique em um para adicioná-lo ou pressione e segure na tela inicial.</string>
+    <string name="settings_section_watch_history">Histórico de visualização</string>
+    <string name="content_settings_channel_shorts_tab_title">Aba de Shorts nos canais</string>
+    <string name="content_settings_channel_shorts_tab_subtitle">Mantenha a guia Shorts de um canal enquanto os Shorts estão ocultos</string>
+    <string name="settings_open_music_player_on_play_summary">Desligado mantém uma nova música no mini reprodutor</string>
+    <string name="player_settings_start_paused">Começar vídeos pausados</string>
+    <string name="player_settings_start_paused_subtitle">Abre um vídeo sem tocar ele enquanto não clicar em play</string>
+    <string name="music_watch_video">Assistir vídeo</string>
+    <string name="settings_pause_music_muted_title">Pausar música quando estiver mudo</string>
+    <string name="settings_pause_music_muted_summary">Voltar a tocar quando o volume voltar</string>
+    <string name="music_watch_video_desc">Abrir o vídeo da música no reprodutor de vídeo</string>
 </resources>
