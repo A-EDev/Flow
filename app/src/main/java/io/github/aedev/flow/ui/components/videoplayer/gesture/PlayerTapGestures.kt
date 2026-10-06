@@ -16,9 +16,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
 
-/** How long a further tap in the same zone keeps adding to the running double-tap seek total. */
-private const val SEEK_ACCUMULATION_WINDOW_MS = 1_000L
-
 internal fun Modifier.playerTapGestures(
     isSpeedBoostActive: State<Boolean>,
     onSpeedBoostChange: State<(Boolean) -> Unit>,
@@ -82,7 +79,7 @@ internal fun Modifier.playerTapGestures(
                     lastBackTapTime = 0L
                     pendingBackTargetMs = null
 
-                    val continuing = now - lastForwardTapTime < SEEK_ACCUMULATION_WINDOW_MS
+                    val continuing = now - lastForwardTapTime < DOUBLE_TAP_SEEK_WINDOW_MS
                     accumulatedForwardMs = if (continuing) accumulatedForwardMs + step else step
                     lastForwardTapTime = now
                     val base = pendingForwardTargetMs?.takeIf { continuing } ?: playerPosition
@@ -97,7 +94,7 @@ internal fun Modifier.playerTapGestures(
                     lastForwardTapTime = 0L
                     pendingForwardTargetMs = null
 
-                    val continuing = now - lastBackTapTime < SEEK_ACCUMULATION_WINDOW_MS
+                    val continuing = now - lastBackTapTime < DOUBLE_TAP_SEEK_WINDOW_MS
                     accumulatedBackMs = if (continuing) accumulatedBackMs + step else step
                     lastBackTapTime = now
                     val base = pendingBackTargetMs?.takeIf { continuing } ?: playerPosition

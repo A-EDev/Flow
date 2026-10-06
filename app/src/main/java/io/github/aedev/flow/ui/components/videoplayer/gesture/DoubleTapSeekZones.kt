@@ -6,6 +6,9 @@ internal enum class TapZone { BACK, CENTER, FORWARD }
 /** Share of the player width each seek zone covers, shared by the hit test and the seek ripple. */
 internal const val DEFAULT_SEEK_ZONE_FRACTION = 1f / 3f
 
+/** How long the seek read-out stays up after a seek. A tap on the same side inside it adds to that seek. */
+internal const val DOUBLE_TAP_SEEK_WINDOW_MS = 800L
+
 /** A side fraction of zero puts the whole width in [TapZone.CENTER]. */
 internal fun tapZoneOf(
     x: Float,
