@@ -807,7 +807,7 @@
     <string name="appearance_color_hue">Hue</string>
     <string name="appearance_color_saturation">Saturation</string>
     <string name="appearance_color_brightness">Brightness</string>
-    <string name="appearance_color_alpha">Alpha</string>
+    <string name="appearance_color_alpha">Opacity</string>
     <string name="appearance_navigate_back">Navigate back</string>
     <string name="appearance_selected">Selected</string>
     <string name="appearance_system_defaults_title">System Default Themes</string>
@@ -3744,6 +3744,7 @@
     <string name="settings_theme_role_muted_text">Muted text</string>
     <string name="settings_theme_role_outline">Outline</string>
     <string name="settings_theme_role_error">Error</string>
+    <string name="settings_theme_color_with_opacity">%1$s · %2$d%% opacity</string>
     <string name="settings_keywords_custom_themes">custom theme, palette, colours, colors, import, export, share, desktop</string>
     <plurals name="settings_custom_theme_imported">
         <item quantity="one">%1$d theme imported</item>

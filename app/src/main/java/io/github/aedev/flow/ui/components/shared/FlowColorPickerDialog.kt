@@ -45,7 +45,7 @@ private const val DARK_TEXT_LUMINANCE = 0.5f
 
 /**
  * Edits one colour role: type a hex value, or dial it in by hue, saturation, brightness and alpha.
- * With [allowAlpha] off the colour stays opaque, as the themes Flow Desktop exchanges require.
+ * With [allowAlpha] off the colour stays opaque.
  */
 @Composable
 fun FlowColorPickerDialog(
