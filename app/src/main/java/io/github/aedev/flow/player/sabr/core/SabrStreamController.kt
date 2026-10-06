@@ -233,7 +233,7 @@ class SabrStreamController(
 
     fun abort() {
         aborted = true
-        dataSource.close()
+        dataSource.cancel()
     }
 
     fun release() {
