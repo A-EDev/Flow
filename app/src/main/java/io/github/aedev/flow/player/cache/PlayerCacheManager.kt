@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 @UnstableApi
 class PlayerCacheManager(
     private val context: Context,
+    currentVideoId: () -> String?,
 ) {
     companion object {
         private const val TAG = "PlayerCacheManager"
@@ -49,7 +50,18 @@ class PlayerCacheManager(
                 runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = resolved) }
                     .onFailure { Log.w(TAG, "Cache preload failed; initialize() will retry", it) }
             }
+
+        /**
+         * The configured cache size, from [preload] when it has run. Otherwise a blocking read: the
+         * media service and Hilt can build a cache without going through the cold-start path.
+         */
+        fun configuredCacheSizeBytes(context: Context): Long =
+            preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
+                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context.applicationContext).mediaCacheSizeMb.first())
+            }
     }
+
+    private val videoCacheKeys = VideoCacheKeys(currentVideoId)
 
     private var cache: SimpleCache? = null
 
@@ -81,22 +93,13 @@ class PlayerCacheManager(
         val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
         try {
-            // Falls back to a blocking read only when preload() has not run — the media service
-            // can build a player without going through the cold-start path.
-            val cacheSizeBytes =
-                preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
-                    PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context).mediaCacheSizeMb.first())
-                }
-            cache =
-                SharedPlayerCacheProvider.getOrCreate(
-                    context,
-                    maxCacheSizeBytes = cacheSizeBytes,
-                )
+            cache = SharedPlayerCacheProvider.getOrCreate(context, maxCacheSizeBytes = configuredCacheSizeBytes(context))
 
             val cacheFactory =
                 CacheDataSource
                     .Factory()
                     .setCache(cache!!)
+                    .setCacheKeyFactory(videoCacheKeys)
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
             // Create the 3 specific factories
@@ -104,6 +107,7 @@ class PlayerCacheManager(
                 CacheDataSource
                     .Factory()
                     .setCache(cache!!)
+                    .setCacheKeyFactory(videoCacheKeys)
                     .setUpstreamDataSourceFactory(dashUpstream)
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
@@ -111,6 +115,7 @@ class PlayerCacheManager(
                 CacheDataSource
                     .Factory()
                     .setCache(cache!!)
+                    .setCacheKeyFactory(videoCacheKeys)
                     .setUpstreamDataSourceFactory(progressiveUpstream)
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
@@ -118,6 +123,7 @@ class PlayerCacheManager(
                 CacheDataSource
                     .Factory()
                     .setCache(cache!!)
+                    .setCacheKeyFactory(videoCacheKeys)
                     .setUpstreamDataSourceFactory(hlsUpstream)
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
@@ -172,21 +178,14 @@ class PlayerCacheManager(
      */
     fun getCacheSize(): Long = cache?.cacheSpace ?: 0L
 
-    /**
-     * Clear all cached data.
-     */
-    fun clearCache() {
-        try {
-            cache?.let { c ->
-                val keys = c.keys
-                for (key in keys) {
-                    c.removeResource(key)
-                }
-            }
-            Log.d(TAG, "Cache cleared")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error clearing cache", e)
+    /** Drops what [videoId]'s streams left in the cache, leaving every other video and song alone. */
+    fun clearVideo(videoId: String) {
+        val cache = cache ?: return
+        val keys = videoCacheKeys.takeKeys(videoId)
+        keys.forEach { key ->
+            runCatching { cache.removeResource(key) }.onFailure { Log.w(TAG, "Could not clear a cached stream of $videoId", it) }
         }
+        Log.d(TAG, "Cleared ${keys.size} cached streams of $videoId")
     }
 
     /**

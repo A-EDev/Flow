@@ -25,26 +25,29 @@ object SharedPlayerCacheProvider {
 
     @Volatile private var cache: SimpleCache? = null
 
-    @Volatile private var standaloneDb: DatabaseProvider? = null
+    @Volatile private var database: DatabaseProvider? = null
+
+    /**
+     * The one database every Media3 cache in the app indexes into. Hilt hands out this same
+     * instance, so no second open helper ever works on the same file.
+     */
+    @Synchronized
+    fun databaseProvider(context: Context): DatabaseProvider =
+        database ?: StandaloneDatabaseProvider(context.applicationContext).also { database = it }
 
     /**
      * Returns the shared [SimpleCache], creating it on first call.
      *
-     * All callers share the same instance regardless of which [databaseProvider] or
-     * [maxCacheSizeBytes] they pass — only the first call's values are used.
+     * All callers share the same instance regardless of the [maxCacheSizeBytes] they pass; only the
+     * first call's value is used.
      */
     @Synchronized
     fun getOrCreate(
         context: Context,
-        databaseProvider: DatabaseProvider? = null,
         maxCacheSizeBytes: Long = PlayerConfig.CACHE_SIZE_BYTES,
     ): SimpleCache =
         cache ?: run {
-            val db =
-                databaseProvider ?: run {
-                    standaloneDb = StandaloneDatabaseProvider(context.applicationContext)
-                    standaloneDb!!
-                }
+            val db = databaseProvider(context)
             val cacheDir = File(context.applicationContext.cacheDir, PlayerConfig.CACHE_DIR_NAME)
             val evictor =
                 if (maxCacheSizeBytes <= 0) {
@@ -70,7 +73,6 @@ object SharedPlayerCacheProvider {
     fun release() {
         cache?.release()
         cache = null
-        standaloneDb = null
         Log.d(TAG, "Shared SimpleCache released")
     }
 }
