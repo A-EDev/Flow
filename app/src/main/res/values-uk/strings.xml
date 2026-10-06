@@ -4140,4 +4140,20 @@
     <string name="thumbnail_quality_low_desc">Мінімум даних, м’якше оформлення на великих картках</string>
     <string name="thumbnail_quality_notice">Нижча якість мініатюр заощаджує трафік у кожній стрічці та в Shorts.</string>
     <string name="settings_keywords_thumbnails">мініатюра, зображення, режим економії даних, використання даних</string>
+    <string name="proxy_settings_bypass_vpn">Обійти проксі через VPN</string>
+    <string name="proxy_settings_bypass_vpn_subtitle">Під’єднуватися напряму, коли VPN увімкнено</string>
+    <string name="proxy_settings_vpn_paused">Проксі призупинено</string>
+    <string name="proxy_settings_vpn_paused_subtitle">VPN увімкнено, тому трафік з’єднується напряму.</string>
+    <string name="settings_section_links">Посилання</string>
+    <string name="content_settings_open_links_title">Відкривати посилання YouTube у Flow</string>
+    <string name="content_settings_open_links_subtitle">Виберіть, які тут посилання відкривати</string>
+    <string name="content_settings_open_links_all">Увімкнено для кожної адреси YouTube</string>
+    <string name="content_settings_open_links_some">Увімкнено для %1$d з %2$d адрес</string>
+    <string name="content_settings_open_links_off">Вимкнено. Посилання відкриваються в іншому застосунку</string>
+    <string name="content_settings_open_links_system_asks">Android запитує, яким застосунком скористатися</string>
+    <string name="settings_auto_download_opened_title">Завантажувати відео, які ви відкриваєте</string>
+    <string name="settings_auto_download_opened_summary">Використовує типову якість і типовий кодек</string>
+    <string name="auto_download_wifi">Через Wi-Fi</string>
+    <string name="auto_download_always">Завжди</string>
+    <string name="auto_download_queued">Зберегти для перегляду поза мережею</string>
 </resources>
