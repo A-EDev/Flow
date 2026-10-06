@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.notes
 
+import android.util.Log
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.VideoDao
@@ -52,7 +53,7 @@ internal class NoteBackfill
                 coroutineScope {
                     batch
                         .map { note ->
-                            async(networkDispatcher) { note to withTimeoutOrNull(FETCH_TIMEOUT_MS) { fetch(note, channelPages) } }
+                            async(networkDispatcher) { note to fetch(note, channelPages) }
                         }.awaitAll()
                         .forEach { (note, subject) -> subject?.let { notesRepository.saveSubject(note.kind, note.targetId, it) } }
                 }
@@ -111,8 +112,15 @@ internal class NoteBackfill
                         val known =
                             note.subject?.takeIf { it.title.isNotBlank() } ?: run {
                                 val details =
-                                    YouTube.player(note.targetId, client = YouTubeClient.ANDROID).getOrNull()?.videoDetails
-                                        ?: return@withContext null
+                                    withTimeoutOrNull(FETCH_TIMEOUT_MS) {
+                                        (
+                                            YouTube.player(note.targetId, client = YouTubeClient.ANDROID).getOrNull()
+                                                ?: YouTube.player(note.targetId, client = YouTubeClient.MOBILE).getOrNull()
+                                        )?.videoDetails
+                                    } ?: run {
+                                        Log.w(TAG, "No details found for ${note.targetId}; tried again on the next visit")
+                                        return@withContext null
+                                    }
                                 NoteSubject(
                                     title = details.title.orEmpty(),
                                     channelName = details.author.orEmpty(),
@@ -145,12 +153,14 @@ internal class NoteBackfill
             pages: MutableMap<String, ChannelHeader?>,
         ): ChannelHeader? {
             synchronized(pages) { if (channelId in pages) return pages[channelId] }
-            val header = YouTube.channelLanding(channelId).getOrNull()?.header
+            // Its own timeout: a slow channel page must not cost the video details found before it.
+            val header = withTimeoutOrNull(FETCH_TIMEOUT_MS) { YouTube.channelLanding(channelId).getOrNull()?.header }
             synchronized(pages) { pages[channelId] = header }
             return header
         }
 
         private companion object {
+            const val TAG = "NoteBackfill"
             const val PARALLEL_FETCHES = 4
             const val FETCH_TIMEOUT_MS = 10_000L
         }
