@@ -52,7 +52,11 @@ internal fun subscriptionFeedSections(
             .flatMap { (_, channelShorts) -> channelShorts.withStableUploadSortKeys(now).take(1) }
             .withStableUploadSortKeys(now)
 
-    fun Video.inSelectedGroup() = filters.allowedChannelIds == null || channelId in filters.allowedChannelIds
+    // A collaboration someone else uploaded belongs to the group of the collaborator it came through.
+    fun Video.inSelectedGroup() =
+        filters.allowedChannelIds == null ||
+            channelId in filters.allowedChannelIds ||
+            collaborators.any { it.channelId in filters.allowedChannelIds }
 
     return SubscriptionFeedSections(
         recentVideos =

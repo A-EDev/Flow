@@ -533,6 +533,45 @@
     <string name="note_edit">Edit note</string>
     <string name="note_add">Add note</string>
     <string name="note_placeholder">Write a note for yourself…</string>
+    <string name="note_insert_time">Insert %1$s</string>
+    <string name="note_at_time">Note at %1$s</string>
+    <string name="notes_title">Notes</string>
+    <string name="notes_library_subtitle">Your notes on videos and channels</string>
+    <plurals name="notes_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="notes_search_placeholder">Search notes</string>
+    <string name="notes_filter_all">All</string>
+    <string name="notes_filter_videos">Videos</string>
+    <string name="notes_filter_channels">Channels</string>
+    <string name="notes_sort_recent">Recently edited</string>
+    <string name="notes_sort_oldest">Oldest first</string>
+    <string name="notes_sort_title">Title</string>
+    <string name="notes_sort_custom">Custom order</string>
+    <string name="notes_sort">Sort notes</string>
+    <string name="notes_select">Select notes</string>
+    <string name="notes_reorder">Reorder</string>
+    <string name="notes_reorder_title">Reorder notes</string>
+    <plurals name="notes_deleted">
+        <item quantity="one">%d note deleted</item>
+        <item quantity="other">%d notes deleted</item>
+    </plurals>
+    <string name="notes_empty_title">No notes yet</string>
+    <string name="notes_empty_body">Add one from a video\'s Note button or a channel\'s subscribe menu. Times like 12:34 become links.</string>
+    <string name="notes_no_match_title">No notes match</string>
+    <string name="notes_no_match_body">Try other words or another filter</string>
+    <string name="notes_pick_title">Pick a note to read it here</string>
+    <string name="note_edited">Edited %1$s</string>
+    <string name="note_edited_just_now">Edited just now</string>
+    <string name="note_channel_note">Channel note</string>
+    <string name="note_open_channel">Channel</string>
+    <string name="note_timestamps">Timestamps</string>
+    <string name="note_play_from">Play from %1$s</string>
+    <string name="note_copy_text">Copy text</string>
+    <string name="note_copied">Note copied</string>
+    <string name="note_deleted">Note deleted</string>
+    <string name="note_unknown_video">Video</string>
     <string name="note_channel_title">Note about this channel</string>
     <string name="note_video_title">Note about this video</string>
     <string name="content_settings_notes_title">Personal notes</string>
@@ -1086,6 +1125,8 @@
     <string name="content_settings_subs_show_shorts_subtitle">Show Shorts in the subscription feed</string>
     <string name="content_settings_subs_show_live_title">Subscription live streams</string>
     <string name="content_settings_subs_show_live_subtitle">Show live and recent streams in the feed</string>
+    <string name="content_settings_subs_collaborations_title">Collaborations</string>
+    <string name="content_settings_subs_collaborations_subtitle">Videos made with channels you follow</string>
     <string name="content_settings_nav_order_title">Tab order and default</string>
     <string name="content_settings_nav_order_subtitle">Drag to reorder. Choose the tab Flow opens on.</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
@@ -1213,6 +1254,7 @@
     <string name="player_settings_display">Display</string>
     <string name="player_settings_ambient_mode">Ambient mode</string>
     <string name="player_settings_ambient_mode_subtitle">A soft glow of the video\'s colors around it</string>
+    <string name="player_settings_sponsorblock_video">SponsorBlock for this video</string>
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
@@ -2588,6 +2630,8 @@
     <string name="player_settings_overlay_speed_indicator_subtitle">Show the current speed on the video player overlay</string>
     <string name="player_settings_overlay_comments">Comments Button</string>
     <string name="player_settings_overlay_comments_subtitle">Open comments in a side panel in fullscreen</string>
+    <string name="player_settings_overlay_sponsorblock">SponsorBlock Button</string>
+    <string name="player_settings_overlay_sponsorblock_subtitle">Shown when SponsorBlock is on and the video has segments</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>
@@ -3087,6 +3131,13 @@
     <string name="subtitle_load_failed">Couldn’t load %1$s subtitles — try again</string>
     <string name="subtitle_translation_unavailable">Translation unavailable — showing %1$s</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
+    <string name="sb_segment_notice">%1$s segment</string>
+    <string name="sb_off_for_video">SponsorBlock off for this video</string>
+    <string name="sb_on_for_video">SponsorBlock on for this video</string>
+    <plurals name="sb_video_segments">
+        <item quantity="one">%d segment in this video</item>
+        <item quantity="other">%d segments in this video</item>
+    </plurals>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>
     <!-- Localization follow-up: toasts and feedback (#738) -->
@@ -3506,8 +3557,10 @@
     <string name="thumbnail_quality_high_desc">Sharpest, uses the most data</string>
     <string name="thumbnail_quality_medium_desc">Clear on phones, about half the data</string>
     <string name="thumbnail_quality_low_desc">Least data, softer on large cards</string>
-    <string name="thumbnail_quality_notice">Lower thumbnail quality saves data on every feed and on Shorts.</string>
-    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage</string>
+    <string name="thumbnail_quality_off">Off</string>
+    <string name="thumbnail_quality_off_desc">Loads none, except for downloads and device files</string>
+    <string name="thumbnail_quality_notice">Lower quality or Off saves data on every feed and on Shorts. Downloads and device files keep their covers.</string>
+    <string name="settings_keywords_thumbnails">thumbnail, images, data saver, data usage, hide thumbnails, no images</string>
     <string name="settings_quality_wifi">On Wi-Fi</string>
     <string name="settings_quality_mobile">On mobile data</string>
     <string name="settings_section_resolution">Resolution</string>

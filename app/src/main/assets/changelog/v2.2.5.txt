@@ -79,6 +79,10 @@ NEW FEATURES
 - Download videos you open, in Downloads settings: off by default, or on Wi-Fi or any network, at your default quality and codec, with Undo on the snackbar (#771)
 - A video linked from inside a playlist now plays with that playlist as its queue, and a new Content setting shows whether YouTube links open in Flow and opens the system screen to turn them on (#802)
 - The proxy can now step aside while a VPN is on, from Network settings, and comes back when the VPN goes off (#677)
+- A SponsorBlock button in the player turns it off for just the video you are watching, and the next video starts with your setting again; the player settings sheet and the TV player have the same switch (#930)
+- Thumbnails can be turned off, separately for Wi-Fi and mobile data, in Quality settings: feeds, playlists, banners and notifications load no images, while downloads and device files keep their covers (#849)
+- Notes can hold timestamps: times like 12:34 in a video note play from that moment, the note editor inserts the current time, and a new Notes page in Library lists every note with search, filters and its video or channel, side by side on tablets (#843)
+- Subscriptions now show collaborations a channel you follow took part in, even when another channel uploaded them, with every collaborator on the card; turn it off in Content settings (#840)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -210,6 +214,8 @@ FIXES AND STABILITY
 - Fix a download freezing at a fixed percentage: when no data arrives for a while it fetches the stream again or stops with Retry (#1224)
 - Fix YouTube links in descriptions, comments and posts opening the browser instead of the video, channel or playlist in Flow, and links to other videos in a description doing nothing at all (#1032)
 - Fix YouTube requests, thumbnails, update checks, song recognition and the music player ignoring the proxy or keeping an old one until a restart
+- Fix notes never syncing from one Android device to another
+- Fix SponsorBlock categories set to Mute playing at full volume, notify-only categories showing nothing, and downloaded videos skipping segments with SponsorBlock turned off
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

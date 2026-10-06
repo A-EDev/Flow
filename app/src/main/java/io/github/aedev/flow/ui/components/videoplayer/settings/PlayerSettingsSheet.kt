@@ -56,6 +56,11 @@ fun SettingsMenuDialog(
     onCastClick: () -> Unit = {},
     onPipClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
+    sponsorBlockSegmentCount: Int = 0,
+    sponsorBlockOffForVideo: Boolean = false,
+    onSponsorBlockToggle: (off: Boolean) -> Unit = {},
+    notePositionMs: Long? = null,
+    onAddNote: () -> Unit = {},
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     enableVerticalDismiss: Boolean = true,
@@ -148,6 +153,11 @@ fun SettingsMenuDialog(
                         onSkipSilenceToggle = onSkipSilenceToggle,
                         onStableVolumeToggle = onStableVolumeToggle,
                         onAmbientModeToggle = onAmbientModeToggle,
+                        sponsorBlockSegmentCount = sponsorBlockSegmentCount,
+                        sponsorBlockOffForVideo = sponsorBlockOffForVideo,
+                        onSponsorBlockToggle = onSponsorBlockToggle,
+                        notePositionMs = notePositionMs,
+                        onAddNote = onAddNote,
                     )
                 }
 

@@ -22,6 +22,7 @@ internal data class PlayerControlActions(
     val onSubtitleLongClick: () -> Unit = {},
     val onAutoplayToggle: (Boolean) -> Unit = {},
     val onSbSubmitClick: () -> Unit = {},
+    val onSponsorBlockToggle: (off: Boolean) -> Unit = {},
     val onCastClick: () -> Unit = {},
     val onLiveClick: () -> Unit = {},
     val onLiveChatClick: () -> Unit = {},

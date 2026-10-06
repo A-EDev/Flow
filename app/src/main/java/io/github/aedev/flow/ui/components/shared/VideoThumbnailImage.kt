@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,12 +53,22 @@ fun VideoThumbnailImage(
             }
         }
 
+    // Off draws nothing rather than the fallback fill, so the card's own container and badges show.
+    if (models.isEmpty() && quality == ThumbnailQuality.OFF) return
     SafeAsyncImage(
         models = models,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
     )
+}
+
+/** [url] when the viewer's thumbnail setting allows loading it here, else null. Device covers always load. */
+@Composable
+@ReadOnlyComposable
+fun thumbnailUrlOrNull(url: String?): String? {
+    val raw = url?.takeIf { it.isNotBlank() } ?: return null
+    return raw.takeUnless { LocalThumbnailQuality.current == ThumbnailQuality.OFF && !ThumbnailUrlResolver.isDeviceUri(raw) }
 }
 
 @Composable

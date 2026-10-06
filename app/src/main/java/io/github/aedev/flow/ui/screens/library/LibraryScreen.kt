@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +36,7 @@ import io.github.aedev.flow.ui.OnTabReselected
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.MediaKind
@@ -55,6 +57,7 @@ fun LibraryScreen(
     onNavigateToSavedShorts: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToLocalMedia: () -> Unit,
+    onNavigateToNotes: () -> Unit,
     onManageData: () -> Unit,
     onOpenRecap: (RecapPeriod?) -> Unit,
     onVideoClick: (Video) -> Unit,
@@ -72,6 +75,7 @@ fun LibraryScreen(
     val separatePlaylistKinds by viewModel.separatePlaylistKinds.collectAsStateWithLifecycle()
     val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
     val recapReady by viewModel.recapReady.collectAsStateWithLifecycle()
+    val notesCount by viewModel.notesCount.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     val listState = rememberLazyListState()
     OnTabReselected(FlowTab.Library.route) { listState.animateScrollToItem(0) }
@@ -166,6 +170,19 @@ fun LibraryScreen(
                         counts = null,
                         onClick = onNavigateToLocalMedia,
                     )
+                    notesCount?.let { count ->
+                        LibraryNavigationRow(
+                            icon = LibrarySection.NOTES.icon,
+                            title = LibrarySection.NOTES.title,
+                            subtitle =
+                                if (count > 0) {
+                                    pluralStringResource(R.plurals.notes_count, count, count)
+                                } else {
+                                    LibrarySection.NOTES.subtitle(null)
+                                },
+                            onClick = onNavigateToNotes,
+                        )
+                    }
                     LibrarySectionRow(
                         section = LibrarySection.SETTINGS,
                         counts = null,

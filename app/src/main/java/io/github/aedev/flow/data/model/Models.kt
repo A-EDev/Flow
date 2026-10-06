@@ -1,7 +1,9 @@
 package io.github.aedev.flow.data.model
 
+import kotlinx.serialization.Serializable
 import org.schabi.newpipe.extractor.Page
 
+@Serializable
 data class VideoCollaborator(
     val name: String,
     val channelId: String = "",

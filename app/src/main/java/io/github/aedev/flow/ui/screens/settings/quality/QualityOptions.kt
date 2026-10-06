@@ -33,6 +33,7 @@ internal fun thumbnailQualityLabel(quality: ThumbnailQuality): Int =
         ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high
         ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium
         ThumbnailQuality.LOW -> R.string.thumbnail_quality_low
+        ThumbnailQuality.OFF -> R.string.thumbnail_quality_off
     }
 
 @StringRes
@@ -41,6 +42,7 @@ internal fun thumbnailQualityDescription(quality: ThumbnailQuality): Int =
         ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high_desc
         ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium_desc
         ThumbnailQuality.LOW -> R.string.thumbnail_quality_low_desc
+        ThumbnailQuality.OFF -> R.string.thumbnail_quality_off_desc
     }
 
 @StringRes

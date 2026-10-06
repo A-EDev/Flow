@@ -5,6 +5,9 @@ enum class ThumbnailQuality {
     HIGH,
     MEDIUM,
     LOW,
+
+    /** Nothing is fetched; covers stored on the device still show. */
+    OFF,
     ;
 
     companion object {

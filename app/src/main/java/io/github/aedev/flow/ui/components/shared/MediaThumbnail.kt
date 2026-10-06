@@ -158,9 +158,9 @@ fun CollectionThumbnail(
             )
         }
 
-        if (!thumbnailUrl.isNullOrBlank()) {
+        thumbnailUrlOrNull(thumbnailUrl)?.let { url ->
             AsyncImage(
-                model = thumbnailUrl,
+                model = url,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,

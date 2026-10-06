@@ -43,4 +43,7 @@ internal sealed interface PlayerSheet {
     ) : PlayerSheet
 
     data object SbSubmit : PlayerSheet
+
+    /** The video note editor, raised from the settings sheet so fullscreen can write one too. */
+    data object Note : PlayerSheet
 }

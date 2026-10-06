@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
@@ -37,18 +38,20 @@ internal val PaletteInkDark = Color(0xFF161616)
 /**
  * [animated] eases the swatches in over a second, which is right for the player and wrong for a
  * page that re-derives a whole colour scheme from them: a scheme change recomposes everything
- * under the theme, so pages take the settled colours in one step instead.
+ * under the theme, so pages take the settled colours in one step instead. [cacheOnly] reads the
+ * image only if it is already cached, so a tint never downloads a picture the viewer chose not to load.
  */
 @Composable
 fun rememberMediaPalette(
     thumbnailUrl: String?,
     animated: Boolean = true,
+    cacheOnly: Boolean = false,
 ): MediaPalette {
     val context = LocalContext.current
     var baseSwatch by remember { mutableStateOf<Color?>(null) }
     var accentSwatch by remember { mutableStateOf<Color?>(null) }
 
-    LaunchedEffect(thumbnailUrl) {
+    LaunchedEffect(thumbnailUrl, cacheOnly) {
         if (thumbnailUrl.isNullOrEmpty()) return@LaunchedEffect
         val request =
             ImageRequest
@@ -56,6 +59,7 @@ fun rememberMediaPalette(
                 .data(thumbnailUrl)
                 .allowHardware(false)
                 .size(128)
+                .apply { if (cacheOnly) networkCachePolicy(CachePolicy.DISABLED) }
                 .build()
         val result = SingletonImageLoader.get(context).execute(request)
         if (result is SuccessResult) {

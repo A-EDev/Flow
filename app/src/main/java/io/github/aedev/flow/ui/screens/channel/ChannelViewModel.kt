@@ -18,6 +18,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.toUiModel
 import io.github.aedev.flow.data.notes.NoteKind
+import io.github.aedev.flow.data.notes.NoteSubject
 import io.github.aedev.flow.data.notes.NotesRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
@@ -133,8 +134,21 @@ class ChannelViewModel
 
         fun saveChannelNote(text: String) {
             val channelId = _uiState.value.channelId ?: return
+            val subject =
+                _uiState.value.header
+                    ?.takeIf { it.title.isNotBlank() }
+                    ?.let { header ->
+                        NoteSubject(
+                            title = header.title,
+                            channelId = header.id,
+                            thumbnailUrl = header.avatarUrl,
+                            channelAvatarUrl = header.avatarUrl,
+                            channelHandle = header.handle.orEmpty(),
+                            subscriberCountText = header.subscriberCountText.orEmpty(),
+                        )
+                    }
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                notesRepository.save(NoteKind.Channel, channelId, text)
+                notesRepository.save(NoteKind.Channel, channelId, text, subject)
             }
         }
 

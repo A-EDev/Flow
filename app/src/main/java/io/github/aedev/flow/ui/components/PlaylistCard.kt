@@ -45,6 +45,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 private val RowHorizontalPadding = 12.dp
@@ -254,6 +255,7 @@ private fun LayeredPlaylistArtwork(
     videoCount: Int,
     modifier: Modifier = Modifier,
 ) {
+    val artworkUrl = thumbnailUrlOrNull(thumbnailUrl).orEmpty()
     Box(modifier = modifier) {
         Box(
             modifier =
@@ -263,9 +265,9 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
+            if (artworkUrl.isNotBlank()) {
                 PlaylistArtworkImage(
-                    url = thumbnailUrl,
+                    url = artworkUrl,
                     modifier =
                         Modifier
                             .fillMaxSize()
@@ -287,8 +289,8 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
-                PlaylistArtworkImage(url = thumbnailUrl, modifier = Modifier.fillMaxSize())
+            if (artworkUrl.isNotBlank()) {
+                PlaylistArtworkImage(url = artworkUrl, modifier = Modifier.fillMaxSize())
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,

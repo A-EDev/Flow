@@ -1,8 +1,10 @@
 package io.github.aedev.flow.ui.screens.player
 
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.notes.NoteKind
 import io.github.aedev.flow.data.notes.NotesRepository
+import io.github.aedev.flow.data.notes.toNoteSubject
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -43,13 +45,16 @@ internal class PlayerNotes(
             }
     }
 
+    /** [video] is saved with the note when it is the one the note is about. */
     fun save(
         videoId: String,
         text: String,
+        video: Video?,
     ) {
         if (videoId.isBlank()) return
+        val subject = video?.takeIf { it.id == videoId && it.title.isNotBlank() }?.toNoteSubject()
         scope.launch(PerformanceDispatcher.diskIO) {
-            notesRepository.save(NoteKind.Video, videoId, text)
+            notesRepository.save(NoteKind.Video, videoId, text, subject)
         }
     }
 

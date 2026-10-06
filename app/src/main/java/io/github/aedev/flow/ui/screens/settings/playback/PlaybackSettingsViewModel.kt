@@ -64,6 +64,7 @@ class PlaybackSettingsViewModel
         val lockButton = preferences.overlayLockModeEnabled.asState(false)
         val speedIndicator = preferences.overlaySpeedIndicatorEnabled.asState(overlay.speedIndicatorEnabled)
         val commentsButton = preferences.overlayCommentsEnabled.asState(overlay.commentsEnabled)
+        val sponsorBlockButton = preferences.overlaySponsorBlockEnabled.asState(overlay.sponsorBlockEnabled)
 
         val autoPip = preferences.autoPipEnabled.asState(false)
         val continueWatchingMiniPlayer = preferences.miniPlayerContinueWatchingEnabled.asState(true)
@@ -170,6 +171,8 @@ class PlaybackSettingsViewModel
         fun setSpeedIndicator(value: Boolean) = write { preferences.setOverlaySpeedIndicatorEnabled(value) }
 
         fun setCommentsButton(value: Boolean) = write { preferences.setOverlayCommentsEnabled(value) }
+
+        fun setSponsorBlockButton(value: Boolean) = write { preferences.setOverlaySponsorBlockEnabled(value) }
 
         fun setAutoPip(value: Boolean) = write { preferences.setAutoPipEnabled(value) }
 

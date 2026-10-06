@@ -30,6 +30,7 @@ internal class VideoPlayerPreferencesState(
     val gestureOverlayStyle: GestureOverlayStyle,
     val hapticsEnabled: Boolean,
     val sbSubmitEnabled: Boolean,
+    val sponsorBlockEnabled: Boolean,
     val doubleTapSeekSeconds: Int,
     val longPressPlaybackSpeed: Float,
     val disableShortsPlayer: Boolean,
@@ -62,6 +63,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
     val hapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+    val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val disableShortsPlayer by playerPreferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
@@ -92,6 +94,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         gestureOverlayStyle = gestureOverlayStyle,
         hapticsEnabled = hapticsEnabled,
         sbSubmitEnabled = sbSubmitEnabled,
+        sponsorBlockEnabled = sponsorBlockEnabled,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
         longPressPlaybackSpeed = longPressPlaybackSpeed,
         disableShortsPlayer = disableShortsPlayer,
