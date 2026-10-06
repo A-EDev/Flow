@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -120,20 +121,36 @@ fun SettingsGroupScope.nav(
 }
 
 /** A row that only reports a value, such as when something last ran. It is not clickable. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun SettingsGroupScope.info(
     entry: SettingEntry,
     value: String?,
     icon: ImageVector? = null,
-) = row(entry.key) { shape ->
+) = row(entry.key) { shape -> InfoRow(stringResource(entry.title), value ?: entry.summaryText(), icon, shape) }
+
+/** [info] for a status that is not a setting, so it stays out of settings search. */
+fun SettingsGroupScope.info(
+    key: String,
+    title: String,
+    value: String?,
+    icon: ImageVector? = null,
+) = row(key) { shape -> InfoRow(title, value, icon, shape) }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun InfoRow(
+    title: String,
+    value: String?,
+    icon: ImageVector?,
+    shape: Shape,
+) {
     SegmentedListItem(
         verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         leadingContent = icon?.let { { Icon(imageVector = it, contentDescription = null) } },
-        supportingContent = (value ?: entry.summaryText())?.let { { Text(it) } },
+        supportingContent = value?.let { { Text(it) } },
     ) {
-        Text(stringResource(entry.title))
+        Text(title)
     }
 }
 
