@@ -57,7 +57,7 @@ class MusicSearchViewModel
             // Handle search suggestions with debounce
             _query
                 .debounce(300)
-                .filter { it.isNotBlank() }
+                .filter { it.isNotBlank() && searchHistory.isSearchSuggestionsEnabled() }
                 .onEach { q ->
                     fetchSuggestions(q)
                 }.launchIn(viewModelScope)
