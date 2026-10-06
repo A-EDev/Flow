@@ -5,6 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 
 /** The nine colours a palette is authored with, per light or dark variant, as in Flow Desktop. */
@@ -111,13 +112,34 @@ fun mixColors(
     amount: Float,
 ): Color {
     val t = amount.coerceIn(0f, 1f)
+    if (first.alpha == 1f && second.alpha == 1f) {
+        return Color(
+            red = first.red * t + second.red * (1 - t),
+            green = first.green * t + second.green * (1 - t),
+            blue = first.blue * t + second.blue * (1 - t),
+            alpha = 1f,
+        )
+    }
+    // CSS mixes premultiplied, so mixing with `transparent` keeps the colour and only lowers its opacity.
+    val firstWeight = first.alpha * t
+    val secondWeight = second.alpha * (1 - t)
+    val alpha = firstWeight + secondWeight
+    if (alpha == 0f) return Color.Transparent
+
+    fun channel(
+        a: Float,
+        b: Float,
+    ): Float = ((a * firstWeight + b * secondWeight) / alpha).coerceIn(0f, 1f)
     return Color(
-        red = first.red * t + second.red * (1 - t),
-        green = first.green * t + second.green * (1 - t),
-        blue = first.blue * t + second.blue * (1 - t),
-        alpha = 1f,
+        red = channel(first.red, second.red),
+        green = channel(first.green, second.green),
+        blue = channel(first.blue, second.blue),
+        alpha = alpha,
     )
 }
+
+/** [this] as it shows over [ground]; contrast is only meaningful between opaque colours. */
+private fun Color.opaqueOver(ground: Color): Color = if (alpha >= 1f) this else compositeOver(ground)
 
 /** Black or white, whichever reads better on [background]. */
 internal fun contentColorOn(background: Color): Color = if (background.luminance() > DARK_CONTENT_LUMINANCE) Color.Black else Color.White
@@ -133,19 +155,20 @@ private const val DARK_CONTENT_LUMINANCE = 0.179f
 fun PaletteColors.toColorScheme(variant: ThemeVariant): ColorScheme {
     val dark = variant != ThemeVariant.LIGHT
     val base = if (dark) darkColorScheme() else lightColorScheme()
+    val ground = surface.opaqueOver(background.opaqueOver(if (dark) Color.Black else Color.White))
     return base.copy(
         primary = primary,
         onPrimary = onPrimary,
         primaryContainer = mixColors(primary, surface, if (dark) 0.30f else 0.18f),
         onPrimaryContainer = onSurface,
         // Snackbar actions sit on inverseSurface (onSurface here), so the accent is toned until it reads there.
-        inversePrimary = ensureContrastOn(primary, onSurface, INVERSE_PRIMARY_CONTRAST),
+        inversePrimary = ensureContrastOn(primary.opaqueOver(ground), onSurface.opaqueOver(ground), INVERSE_PRIMARY_CONTRAST),
         secondary = secondary,
-        onSecondary = contentColorOn(secondary),
+        onSecondary = contentColorOn(secondary.opaqueOver(ground)),
         secondaryContainer = mixColors(secondary, surface, if (dark) 0.26f else 0.16f),
         onSecondaryContainer = onSurface,
         tertiary = secondary,
-        onTertiary = contentColorOn(secondary),
+        onTertiary = contentColorOn(secondary.opaqueOver(ground)),
         tertiaryContainer = mixColors(secondary, surface, if (dark) 0.20f else 0.12f),
         onTertiaryContainer = onSurface,
         background = background,
@@ -158,7 +181,7 @@ fun PaletteColors.toColorScheme(variant: ThemeVariant): ColorScheme {
         inverseSurface = onSurface,
         inverseOnSurface = surface,
         error = error,
-        onError = contentColorOn(error),
+        onError = contentColorOn(error.opaqueOver(ground)),
         errorContainer = mixColors(error, surface, if (dark) 0.24f else 0.14f),
         onErrorContainer = onSurface,
         outline = mixColors(onSurfaceVariant, outline, OUTLINE_WEIGHT),
