@@ -46,11 +46,10 @@ object DownloadModule {
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
         val cacheSizeMb = runBlocking { PlayerPreferences(context).mediaCacheSizeMb.first() }
-        val cacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb)
         return SharedPlayerCacheProvider.getOrCreate(
             context,
             databaseProvider = databaseProvider,
-            maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes,
+            maxCacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb),
         )
     }
 }
