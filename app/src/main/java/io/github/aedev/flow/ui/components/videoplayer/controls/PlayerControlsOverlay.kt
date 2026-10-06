@@ -278,6 +278,7 @@ internal fun PlayerControlsOverlay(
                     isLive = state.isLive,
                     isFullscreen = isFullscreen,
                     showRemainingTime = state.showRemainingTime,
+                    isLayerVisible = isLayerOnScreen,
                     seekbarContent = seekbarContent,
                     pillHeight = OverlayPillHeight,
                     topPadding = fullscreenTopPadding,

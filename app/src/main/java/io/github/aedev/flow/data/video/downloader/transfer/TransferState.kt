@@ -42,6 +42,15 @@ data class TransferState(
 
         fun read(file: File): TransferState? = runCatching { json.decodeFromString(serializer(), file.readText()) }.getOrNull()
 
+        fun write(
+            file: File,
+            job: TransferJob,
+        ) {
+            // A failed size probe must not overwrite the saved blocks with an unresolved job.
+            if (job.streams.any { it.totalBytes <= 0L }) return
+            write(file, of(job))
+        }
+
         /** Written to a sibling and renamed, so a crash mid-write never leaves half a map behind. */
         fun write(
             file: File,

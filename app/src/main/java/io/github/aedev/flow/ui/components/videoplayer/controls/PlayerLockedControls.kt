@@ -45,6 +45,7 @@ internal fun BoxScope.PlayerLockedControls(
     isLive: Boolean,
     isFullscreen: Boolean,
     showRemainingTime: Boolean,
+    isLayerVisible: () -> Boolean,
     seekbarContent: PlayerSeekbarContent,
     pillHeight: Dp,
     topPadding: Dp,
@@ -100,6 +101,7 @@ internal fun BoxScope.PlayerLockedControls(
                 duration = duration,
                 isLive = isLive,
                 showRemainingTime = showRemainingTime,
+                isLayerVisible = isLayerVisible,
                 onClick = null,
                 modifier =
                     Modifier

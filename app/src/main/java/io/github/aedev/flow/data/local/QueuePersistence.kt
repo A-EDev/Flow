@@ -12,6 +12,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.withTypedArtists
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,6 +58,7 @@ class QueuePersistence private constructor(
     private var saveJob: Job? = null
     private var autoSaveJob: Job? = null
     private var lastSaveTime = 0L
+    private var lastAutoSaveSignature: QueueAutoSaveSnapshot? = null
 
     /**
      * Data class holding all queue state for persistence
@@ -103,10 +105,10 @@ class QueuePersistence private constructor(
         shuffleEnabled: Boolean = false,
         repeatMode: Int = 0,
         automix: List<MusicTrack> = emptyList(),
-    ) {
-        if (queue.isEmpty()) return
+    ): Boolean {
+        if (queue.isEmpty()) return false
 
-        saveMutex.withLock {
+        return saveMutex.withLock {
             try {
                 val now = System.currentTimeMillis()
                 context.queueDataStore.edit { prefs ->
@@ -121,8 +123,12 @@ class QueuePersistence private constructor(
                 }
                 lastSaveTime = now
                 Log.d(TAG, "Queue saved: ${queue.size} tracks, index=$currentIndex, pos=$currentPosition, automix=${automix.size}")
+                true
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save queue", e)
+                false
             }
         }
     }
@@ -174,23 +180,29 @@ class QueuePersistence private constructor(
      */
     fun startAutoSave(getQueueState: () -> QueueState?) {
         autoSaveJob?.cancel()
+        lastAutoSaveSignature = null
         autoSaveJob =
             scope.launch {
                 while (true) {
                     delay(AUTO_SAVE_INTERVAL_MS)
-                    getQueueState()?.let { state ->
-                        if (state.queue.isNotEmpty()) {
-                            saveQueueImmediate(
-                                queue = state.queue,
-                                currentIndex = state.currentIndex,
-                                currentPosition = state.currentPosition,
-                                currentTrackId = state.currentTrackId,
-                                shuffleEnabled = state.shuffleEnabled,
-                                repeatMode = state.repeatMode,
-                                automix = state.automix,
-                            )
-                        }
-                    }
+                    val state = getQueueState() ?: continue
+                    if (state.queue.isEmpty()) continue
+                    // Skip only when nothing a restore cares about moved: position, track, index,
+                    // shuffle, repeat, or the queue/automix contents. Position alone is not enough —
+                    // repeat/shuffle can change while the position is frozen.
+                    val signature = queueAutoSaveSignature(state)
+                    if (signature == lastAutoSaveSignature) continue
+                    val saved =
+                        saveQueueImmediate(
+                            queue = state.queue,
+                            currentIndex = state.currentIndex,
+                            currentPosition = state.currentPosition,
+                            currentTrackId = state.currentTrackId,
+                            shuffleEnabled = state.shuffleEnabled,
+                            repeatMode = state.repeatMode,
+                            automix = state.automix,
+                        )
+                    if (saved) lastAutoSaveSignature = signature
                 }
             }
     }
@@ -211,6 +223,7 @@ class QueuePersistence private constructor(
             context.queueDataStore.edit { prefs ->
                 prefs.clear()
             }
+            lastAutoSaveSignature = null
             Log.d(TAG, "Queue cleared")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear queue", e)
@@ -229,3 +242,25 @@ class QueuePersistence private constructor(
             false
         }
 }
+
+/** Restore-relevant state, captured structurally so same-size content changes are detected. */
+internal data class QueueAutoSaveSnapshot(
+    val currentTrackId: String?,
+    val currentIndex: Int,
+    val currentPosition: Long,
+    val shuffleEnabled: Boolean,
+    val repeatMode: Int,
+    val queue: List<MusicTrack>,
+    val automix: List<MusicTrack>,
+)
+
+internal fun queueAutoSaveSignature(state: QueuePersistence.QueueState): QueueAutoSaveSnapshot =
+    QueueAutoSaveSnapshot(
+        currentTrackId = state.currentTrackId,
+        currentIndex = state.currentIndex,
+        currentPosition = state.currentPosition,
+        shuffleEnabled = state.shuffleEnabled,
+        repeatMode = state.repeatMode,
+        queue = state.queue.map { it.copy(artists = it.artists.toList()) },
+        automix = state.automix.map { it.copy(artists = it.artists.toList()) },
+    )

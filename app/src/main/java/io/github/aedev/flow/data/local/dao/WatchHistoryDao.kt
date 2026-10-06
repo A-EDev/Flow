@@ -12,6 +12,36 @@ interface WatchHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: WatchHistoryEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(entry: WatchHistoryEntity)
+
+    @Query(
+        """
+        UPDATE watch_history SET
+            duration = CASE WHEN :duration > 0 THEN :duration ELSE duration END,
+            timestamp = :timestamp,
+            title = CASE WHEN :title != '' THEN :title ELSE title END,
+            thumbnailUrl = CASE WHEN :thumbnailUrl != '' THEN :thumbnailUrl ELSE thumbnailUrl END,
+            channelName = CASE WHEN :channelName != '' THEN :channelName ELSE channelName END,
+            channelId = CASE WHEN :channelId != '' THEN :channelId ELSE channelId END,
+            isMusic = 0,
+            isShort = :isShort,
+            isLocal = :isLocal
+        WHERE videoId = :videoId
+        """,
+    )
+    suspend fun touchExistingEntry(
+        videoId: String,
+        duration: Long,
+        timestamp: Long,
+        title: String,
+        thumbnailUrl: String,
+        channelName: String,
+        channelId: String,
+        isShort: Boolean,
+        isLocal: Boolean,
+    )
+
     /**
      * Bulk insert many entries at once.
      * Uses IGNORE so that actual watch-progress records already in the DB are

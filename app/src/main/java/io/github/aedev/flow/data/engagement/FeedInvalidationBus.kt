@@ -33,7 +33,7 @@ object FeedInvalidationBus {
     private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 8)
     val events: SharedFlow<Event> = _events.asSharedFlow()
 
-    fun emit(event: Event) {
-        _events.tryEmit(event)
+    suspend fun emit(event: Event) {
+        _events.emit(event)
     }
 }

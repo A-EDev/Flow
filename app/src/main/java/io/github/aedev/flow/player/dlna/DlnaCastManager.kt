@@ -89,6 +89,9 @@ object DlnaCastManager {
      * [DISCOVERY_TIMEOUT_MS] ms, then resolves each device description to
      * populate the control URL.
      */
+    @Volatile
+    private var castInFlight = false
+
     fun startDiscovery(context: Context) {
         discoveryJob?.cancel()
         _devices.value = emptyList()
@@ -114,6 +117,11 @@ object DlnaCastManager {
         discoveryJob = null
         releaseMulticastLock()
         _isDiscovering.value = false
+        // The proxy is started with discovery but only serves streams while a cast is active.
+        // Leaving it bound after the picker is dismissed leaks a listening socket for the process.
+        if (_currentDevice.value == null && !castInFlight) {
+            proxy.stop()
+        }
     }
 
     private suspend fun discoverDevices() {
@@ -374,6 +382,7 @@ object DlnaCastManager {
         durationSeconds: Long = 0,
         fallbackVideoUrl: String? = null,
     ) {
+        castInFlight = true
         scope.launch {
             try {
                 val castUrl: String
@@ -413,6 +422,8 @@ object DlnaCastManager {
             } catch (e: Exception) {
                 Log.e(TAG, "castTo failed: ${e.message}")
                 _currentDevice.value = null
+            } finally {
+                castInFlight = false
             }
         }
     }

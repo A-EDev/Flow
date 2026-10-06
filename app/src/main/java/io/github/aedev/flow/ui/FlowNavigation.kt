@@ -925,7 +925,7 @@ fun NavGraphBuilder.flowAppGraph(
         val requestedStartPositionMs =
             backStackEntry.arguments
                 ?.getLong("startMs")
-                ?.takeIf { it != NO_START_POSITION_MS && it > 0L }
+                ?.takeIf { it != NO_START_POSITION_MS && it >= 0L }
 
         // Use passed state
         val playerUiState = playerUiStateResult.value

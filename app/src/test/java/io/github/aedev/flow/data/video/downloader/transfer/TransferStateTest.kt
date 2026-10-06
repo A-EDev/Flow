@@ -51,4 +51,28 @@ class TransferStateTest {
 
         assertThat(TransferState.read(file)).isNull()
     }
+
+    @Test
+    fun `an unresolved job does not overwrite a resumable state after a failed probe`() {
+        val saved = TransferState(listOf(TransferState.StreamState(StreamRole.VIDEO, 137, 100, listOf(0), emptyMap())))
+        val file = folder.root.resolve("resume.json")
+        TransferState.write(file, saved)
+        val unresolved = stream(137, 0, fileSize = 100)
+
+        TransferState.write(file, TransferJob("v", listOf(unresolved), 1, "ua"))
+
+        assertThat(TransferState.read(file)).isEqualTo(saved)
+    }
+
+    @Test
+    fun `a resolved job replaces its saved block map`() {
+        val file = folder.root.resolve("resume.json")
+        val resolved = stream(137, 100)
+        resolved.completedBlocks.add(0)
+        val job = TransferJob("v", listOf(resolved), 1, "ua")
+
+        TransferState.write(file, job)
+
+        assertThat(TransferState.read(file)).isEqualTo(TransferState.of(job))
+    }
 }

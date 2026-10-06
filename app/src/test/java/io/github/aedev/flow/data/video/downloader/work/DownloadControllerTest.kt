@@ -73,7 +73,7 @@ class DownloadControllerTest {
         )
 
     @Test
-    fun `a new request is written as a pending row with its request, then the queue runs`() =
+    fun `a new request appends a successor for a row arriving as the worker finishes`() =
         runTest {
             coEvery { dao.getDownloadWithItems("song") } returns null
             val row = slot<DownloadEntity>()
@@ -88,7 +88,42 @@ class DownloadControllerTest {
             assertThat(items.captured.single().filePath).startsWith(folder.root.path)
             verify(
                 exactly = 1,
-            ) { workManager.enqueueUniqueWork(DownloadQueueWorker.UNIQUE_NAME, ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>()) }
+            ) {
+                workManager.enqueueUniqueWork(
+                    DownloadQueueWorker.UNIQUE_NAME,
+                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    any<OneTimeWorkRequest>(),
+                )
+            }
+        }
+
+    @Test
+    fun `ordinary queue kick keeps existing unique work`() =
+        runTest {
+            controller.kick()
+
+            verify(exactly = 1) {
+                workManager.enqueueUniqueWork(
+                    DownloadQueueWorker.UNIQUE_NAME,
+                    ExistingWorkPolicy.KEEP,
+                    any<OneTimeWorkRequest>(),
+                )
+            }
+        }
+
+    @Test
+    fun `resuming a queued row appends work behind a finishing drain`() =
+        runTest {
+            controller.resume("song").join()
+
+            coVerify { dao.updateAllItemsStatus("song", DownloadItemStatus.PENDING) }
+            verify {
+                workManager.enqueueUniqueWork(
+                    DownloadQueueWorker.UNIQUE_NAME,
+                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    any<OneTimeWorkRequest>(),
+                )
+            }
         }
 
     @Test

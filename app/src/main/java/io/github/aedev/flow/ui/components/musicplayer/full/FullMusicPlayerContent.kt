@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.musicplayer.full
 
+import android.app.Activity
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -13,10 +14,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,6 +33,7 @@ import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
@@ -53,6 +57,7 @@ import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import java.lang.ref.WeakReference
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +85,15 @@ internal fun FullMusicPlayerContent(
     var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
+    val activeVideo by GlobalPlayerState.currentVideo.collectAsState()
+    val sleepTimerOwner = remember { Any() }
+    val isActivePlaybackOwner = uiState.currentTrack != null && musicPlayer != null && activeVideo == null
+    val pauseMusic by rememberUpdatedState { EnhancedMusicPlayerManager.player?.pause() }
+    val activityReference = remember(context) { WeakReference(context as? Activity) }
+    val exitMusic by rememberUpdatedState {
+        EnhancedMusicPlayerManager.stop()
+        activityReference.get()?.finishAndRemoveTask()
+    }
 
     val previousTrack = uiState.queue.getOrNull(uiState.currentQueueIndex - 1)
     val nextTrack = uiState.queue.getOrNull(uiState.currentQueueIndex + 1)
@@ -102,19 +116,17 @@ internal fun FullMusicPlayerContent(
         }
     val backgroundThumbnailUrl = backgroundPreviewTrack?.highResThumbnailUrl ?: thumbnailUrl
 
-    LaunchedEffect(musicPlayer) {
+    DisposableEffect(sleepTimerOwner, musicPlayer) {
         SleepTimerManager.attachToPlayer(
+            owner = sleepTimerOwner,
             player = musicPlayer,
-        ) {
-            EnhancedMusicPlayerManager.player?.pause()
-        }
+            pauseFn = { pauseMusic() },
+            exitFn = { exitMusic() },
+        )
+        onDispose { SleepTimerManager.detachPlayer(sleepTimerOwner) }
     }
-
-    LaunchedEffect(Unit) {
-        SleepTimerManager.attachExitCallback {
-            EnhancedMusicPlayerManager.stop()
-            (context as? android.app.Activity)?.finishAndRemoveTask()
-        }
+    SideEffect {
+        SleepTimerManager.updateOwnerActive(sleepTimerOwner, isActivePlaybackOwner)
     }
 
     var showLyricsSheet by remember { mutableStateOf(false) }

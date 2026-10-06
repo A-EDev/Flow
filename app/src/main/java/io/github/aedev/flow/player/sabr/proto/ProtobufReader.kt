@@ -1,6 +1,8 @@
 package io.github.aedev.flow.player.sabr.proto
 
-class ProtobufReader(private val data: ByteArray) {
+class ProtobufReader(
+    private val data: ByteArray,
+) {
     private var pos = 0
 
     val isAtEnd: Boolean get() = pos >= data.size
@@ -9,13 +11,18 @@ class ProtobufReader(private val data: ByteArray) {
         val fieldNumber: Int,
         val wireType: Int,
         val varintValue: Long = 0,
-        val bytesValue: ByteArray = EMPTY_BYTES
+        val bytesValue: ByteArray = EMPTY_BYTES,
     ) {
         fun asInt(): Int = varintValue.toInt()
+
         fun asLong(): Long = varintValue
+
         fun asBool(): Boolean = varintValue != 0L
+
         fun asString(): String = bytesValue.toString(Charsets.UTF_8)
+
         fun asBytes(): ByteArray = bytesValue
+
         fun asMessage(): ProtobufReader = ProtobufReader(bytesValue)
 
         companion object {
@@ -35,30 +42,43 @@ class ProtobufReader(private val data: ByteArray) {
                 val value = readRawVarint()
                 Field(fieldNumber, wireType, varintValue = value)
             }
+
             WIRE_FIXED64 -> {
+                if (pos + 8 > data.size) throw IllegalStateException("Truncated fixed64 at $pos")
                 var value = 0L
                 for (i in 0 until 8) {
                     value = value or ((data[pos++].toLong() and 0xFF) shl (i * 8))
                 }
                 Field(fieldNumber, wireType, varintValue = value)
             }
+
             WIRE_LENGTH_DELIMITED -> {
-                val length = readRawVarint().toInt()
-                val bytes = data.copyOfRange(pos, pos + length)
-                pos += length
+                val length = readRawVarint()
+                if (length < 0 || length > Int.MAX_VALUE || pos + length > data.size) {
+                    throw IllegalStateException("Invalid length-delimited field length $length at $pos")
+                }
+                val intLength = length.toInt()
+                val bytes = data.copyOfRange(pos, pos + intLength)
+                pos += intLength
                 Field(fieldNumber, wireType, bytesValue = bytes)
             }
+
             WIRE_FIXED32 -> {
+                if (pos + 4 > data.size) throw IllegalStateException("Truncated fixed32 at $pos")
                 var value = 0
                 for (i in 0 until 4) {
                     value = value or ((data[pos++].toInt() and 0xFF) shl (i * 8))
                 }
                 Field(fieldNumber, wireType, varintValue = value.toLong())
             }
+
             3, 4 -> {
                 Field(fieldNumber, wireType)
             }
-            else -> throw IllegalStateException("Unknown wire type: $wireType at position $pos")
+
+            else -> {
+                throw IllegalStateException("Unknown wire type: $wireType at position $pos")
+            }
         }
     }
 
@@ -82,6 +102,7 @@ class ProtobufReader(private val data: ByteArray) {
         var result = 0L
         var shift = 0
         while (true) {
+            if (pos >= data.size) throw IllegalStateException("Truncated varint at $pos")
             val b = data[pos++].toInt() and 0xFF
             result = result or ((b and 0x7F).toLong() shl shift)
             if (b and 0x80 == 0) break

@@ -21,6 +21,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
@@ -39,6 +40,7 @@ import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * The drawer a landscape fullscreen player slides in from the trailing edge instead of raising a
@@ -55,9 +57,9 @@ internal class FullscreenSidePanelState(
     val showSleepTimer: Boolean,
     val showQueue: Boolean,
     val drawerWidth: Dp,
-    val drawerOffset: Dp,
+    val drawerOffsetPx: () -> Float,
     val panelHeight: Dp,
-    val playerWidth: Dp,
+    val playerWidthPx: () -> Float,
     val dragModifier: Modifier,
     val close: () -> Unit,
 )
@@ -162,19 +164,18 @@ internal fun rememberFullscreenSidePanelState(
                 },
             )
         }
-    val fullscreenDrawerOffset = with(density) { fullscreenDrawerOffsetPx.value.toDp() }
-    val fullscreenReservedWidth =
-        if (fullscreenSidePanelVisible) {
-            (fullscreenDrawerWidth - fullscreenDrawerOffset).coerceIn(0.dp, fullscreenDrawerWidth)
-        } else {
-            0.dp
-        }
     val fullscreenSidePanelHeight = maxHeight
-    val fullscreenPlayerWidth =
-        if (fullscreenSidePanelVisible) {
-            (maxWidth - fullscreenReservedWidth).coerceAtLeast(maxWidth * 0.58f)
-        } else {
-            maxWidth
+    val maxPlayerWidthPx = with(density) { maxWidth.toPx() }
+    val minPlayerWidthPx = maxPlayerWidthPx * 0.58f
+    val drawerOffsetPx: () -> Float = { fullscreenDrawerOffsetPx.value }
+    val playerWidthPx: () -> Float =
+        {
+            if (fullscreenSidePanelVisible) {
+                val reserved = (fullscreenDrawerWidthPx - drawerOffsetPx()).coerceIn(0f, fullscreenDrawerWidthPx)
+                (maxPlayerWidthPx - reserved).coerceAtLeast(minPlayerWidthPx)
+            } else {
+                maxPlayerWidthPx
+            }
         }
 
     return FullscreenSidePanelState(
@@ -187,9 +188,9 @@ internal fun rememberFullscreenSidePanelState(
         showSleepTimer = showSleepTimerSidePanel,
         showQueue = showQueueSidePanel,
         drawerWidth = fullscreenDrawerWidth,
-        drawerOffset = fullscreenDrawerOffset,
+        drawerOffsetPx = drawerOffsetPx,
         panelHeight = fullscreenSidePanelHeight,
-        playerWidth = fullscreenPlayerWidth,
+        playerWidthPx = playerWidthPx,
         dragModifier = fullscreenSidePanelDragModifier,
         close = ::closeFullscreenSidePanel,
     )
@@ -219,7 +220,7 @@ internal fun BoxScope.FullscreenSidePanel(
         modifier =
             Modifier
                 .align(Alignment.CenterEnd)
-                .offset(x = panelState.drawerOffset)
+                .offset { IntOffset(panelState.drawerOffsetPx().roundToInt(), 0) }
                 .width(panelState.drawerWidth)
                 .fillMaxHeight()
                 .then(panelState.dragModifier)

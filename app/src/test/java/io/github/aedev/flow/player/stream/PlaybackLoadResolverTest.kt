@@ -110,6 +110,19 @@ class PlaybackLoadResolverTest {
         }
 
     @Test
+    fun `an explicit zero resume override survives resolution`() =
+        runTest(testDispatcher) {
+            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } returns playableInnerTubeResult()
+
+            val steps = resolveSteps(resumePositionOverrideMs = 0L).second
+            advanceUntilIdle()
+            val step = steps.single() as ResolvedPlayback.VodFromInnerTube
+
+            assertThat(step.resumePositionOverrideMs).isEqualTo(0L)
+            coVerify(exactly = 0) { viewHistory.getPlaybackPosition(VIDEO_ID) }
+        }
+
+    @Test
     fun `a forced SABR reload retries the full client ladder once before giving up`() =
         runTest(testDispatcher) {
             val steps = resolveSteps(escalateToSabr = true).second
@@ -152,6 +165,32 @@ class PlaybackLoadResolverTest {
             assertThat(local.downloadedVideo?.title).isEqualTo("Downloaded")
             assertThat(local.needsSponsorBlockBackfill).isFalse()
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+        }
+
+    @Test
+    fun `a downloaded copy carries an explicit shared timestamp`() =
+        runTest(testDispatcher) {
+            val file = temporaryFolder.newFile("$VIDEO_ID.mp4")
+            localCopy = DownloadedVideo(video = downloadedVideo(), filePath = file.absolutePath)
+
+            val steps = resolveSteps(resumePositionOverrideMs = 90_000L).second
+            advanceUntilIdle()
+
+            val local = steps.single() as ResolvedPlayback.LocalCopyReady
+            assertThat(local.resumePositionOverrideMs).isEqualTo(90_000L)
+        }
+
+    @Test
+    fun `a downloaded copy keeps an explicit zero distinct from no timestamp`() =
+        runTest(testDispatcher) {
+            val file = temporaryFolder.newFile("$VIDEO_ID.mp4")
+            localCopy = DownloadedVideo(video = downloadedVideo(), filePath = file.absolutePath)
+
+            val steps = resolveSteps(resumePositionOverrideMs = 0L).second
+            advanceUntilIdle()
+
+            val local = steps.single() as ResolvedPlayback.LocalCopyReady
+            assertThat(local.resumePositionOverrideMs).isEqualTo(0L)
         }
 
     @Test
@@ -204,6 +243,7 @@ class PlaybackLoadResolverTest {
 
     private fun TestScope.resolveSteps(
         escalateToSabr: Boolean = false,
+        resumePositionOverrideMs: Long? = null,
         isCurrent: () -> Boolean = { true },
         upcoming: UpcomingPremiere = UpcomingPremiere.NOT_UPCOMING,
         blockedChannelIds: Set<String> = emptySet(),
@@ -218,7 +258,7 @@ class PlaybackLoadResolverTest {
                             videoId = VIDEO_ID,
                             isWifi = true,
                             escalateToSabr = escalateToSabr,
-                            resumePositionOverrideMs = null,
+                            resumePositionOverrideMs = resumePositionOverrideMs,
                             allowShorts = true,
                             blockedChannelIds = blockedChannelIds,
                         ),

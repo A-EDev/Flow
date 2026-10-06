@@ -72,8 +72,19 @@ class WatchHistoryEntryTest {
     }
 
     @Test
+    fun `a VOD HLS stream is written to history`() {
+        val vod = VideoPlayerUiState(hlsUrl = "https://example.invalid/manifest.m3u8")
+
+        assertThat(vod.isCurrentLiveStream()).isFalse()
+        assertThat(entry(vod)).isNotNull()
+    }
+
+    @Test
     fun `a live stream is never written`() {
-        assertThat(entry(VideoPlayerUiState(hlsUrl = "https://example.invalid/manifest.m3u8"))).isNull()
+        val live = VideoPlayerUiState(isLive = true, hlsUrl = "https://example.invalid/manifest.m3u8")
+
+        assertThat(live.isCurrentLiveStream()).isTrue()
+        assertThat(entry(live)).isNull()
     }
 
     @Test

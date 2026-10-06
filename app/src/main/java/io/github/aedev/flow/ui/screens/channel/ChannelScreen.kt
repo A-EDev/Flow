@@ -134,8 +134,8 @@ fun ChannelScreen(
                 .PlayerPreferences(context)
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
-    val uiState by viewModel.uiState.collectAsState()
-    val communityUiState by viewModel.communityUiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val communityUiState by viewModel.communityUiState.collectAsStateWithLifecycle()
     val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
     val channelNote by viewModel.channelNote.collectAsStateWithLifecycle()

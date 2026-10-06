@@ -15,24 +15,34 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class SabrOrchestrator(
     private val controller: SabrStreamController,
+    private val bandwidthEstimateProvider: (() -> Long)? = null,
+    private val audioBufferLimitBytes: Long = AUDIO_BUFFER_LIMIT_BYTES,
+    private val videoBufferLimitBytes: Long = VIDEO_BUFFER_LIMIT_BYTES,
     private val reloadResolver: (suspend (SabrEvent.ReloadRequired) -> SabrStreamInfo?)? = null,
 ) {
     companion object {
         private const val TAG = "SabrOrchestrator"
+        const val BUFFER_CAPACITY_ERROR = -6
         private const val MAX_FOLLOW_UP_ERRORS = 5
         private const val POLL_INTERVAL_MS = 250L
         private const val DEFAULT_MAX_REQUEST_GAP_MS = 8_000L
         private const val MIN_TARGET_READAHEAD_MS = 5_000L
         private const val URL_EXPIRY_MARGIN_MS = 60_000L
         private const val MAX_PLAYER_RESPONSE_RELOADS = 2
+        private const val AUDIO_BUFFER_LIMIT_BYTES = 4L * 1024 * 1024
+        private const val VIDEO_BUFFER_LIMIT_BYTES = 32L * 1024 * 1024
     }
 
-    val audioBuffer = SabrSegmentBuffer()
-    val videoBuffer = SabrSegmentBuffer()
+    // These are conservative heap guardrails; they are not performance-tuned limits.
+    val audioBuffer = SabrSegmentBuffer(audioBufferLimitBytes)
+    val videoBuffer = SabrSegmentBuffer(videoBufferLimitBytes)
 
+    private val requestWakeup = SabrRequestWakeup()
     private var scope: CoroutineScope? = null
     private var eventCollectorJob: Job? = null
     private var segmentFetchJob: Job? = null
@@ -46,7 +56,10 @@ class SabrOrchestrator(
     @Volatile
     private var playerResponseReloadJob: Deferred<Boolean>? = null
     private var playerResponseReloads = 0
-    private var consecutiveErrors = 0
+
+    private val bufferCapacityFailureReported = AtomicBoolean(false)
+
+    private val consecutiveErrors = AtomicInteger(0)
 
     @Volatile
     var isRunning = false
@@ -61,13 +74,14 @@ class SabrOrchestrator(
         private set
 
     var onFormatInitialized: ((FormatInitializationMetadata) -> Unit)? = null
-    var onError: ((Int, String, Boolean) -> Unit)? = null
+    var onError: ((Int, String, Boolean, Int?) -> Unit)? = null
     var onEndOfTrack: (() -> Unit)? = null
 
     fun start() {
         if (isRunning) return
         isRunning = true
-        consecutiveErrors = 0
+        consecutiveErrors.set(0)
+        bufferCapacityFailureReported.set(false)
         audioInitReceived = false
         videoInitReceived = false
         audioBuffer.reset()
@@ -109,6 +123,10 @@ class SabrOrchestrator(
         videoBuffer.close()
     }
 
+    fun setPlaybackRequested(requested: Boolean) {
+        requestWakeup.setPlaybackRequested(requested)
+    }
+
     fun updatePlayhead(positionMs: Long) {
         controller.updatePlayheadPosition(positionMs)
     }
@@ -125,15 +143,16 @@ class SabrOrchestrator(
                 val initData = metadata.initData
                 if (initData.isNotEmpty()) {
                     if (metadata.isAudio) {
-                        audioBuffer.appendSegment(initData)
+                        if (!appendSegment(audioBuffer, initData, "audio")) return
                         audioInitReceived = true
                         Log.d(TAG, "Audio init received: ${metadata.mimeType} ${metadata.codecs}, ${initData.size}B")
                     } else if (metadata.isVideo) {
-                        videoBuffer.appendSegment(initData)
+                        if (!appendSegment(videoBuffer, initData, "video")) return
                         videoInitReceived = true
                         Log.d(
                             TAG,
-                            "Video init received: ${metadata.mimeType} ${metadata.codecs}, ${metadata.width}x${metadata.height}, ${initData.size}B",
+                            "Video init received: ${metadata.mimeType} ${metadata.codecs}, " +
+                                "${metadata.width}x${metadata.height}, ${initData.size}B",
                         )
                     }
                 }
@@ -142,11 +161,11 @@ class SabrOrchestrator(
 
             is SabrEvent.SegmentReady -> {
                 val segment = event.segment
-                consecutiveErrors = 0
+                consecutiveErrors.set(0)
                 if (segment.isAudio) {
-                    audioBuffer.appendSegment(segment.data)
+                    appendSegment(audioBuffer, segment.data, "audio")
                 } else {
-                    videoBuffer.appendSegment(segment.data)
+                    appendSegment(videoBuffer, segment.data, "video")
                 }
             }
 
@@ -159,11 +178,11 @@ class SabrOrchestrator(
 
             is SabrEvent.Error -> {
                 Log.e(TAG, "SABR error: code=${event.code}, msg=${event.message}, recoverable=${event.recoverable}")
-                consecutiveErrors++
-                if (!event.recoverable || consecutiveErrors >= MAX_FOLLOW_UP_ERRORS) {
-                    onError?.invoke(event.code, event.message, false)
+                consecutiveErrors.incrementAndGet()
+                if (!event.recoverable || consecutiveErrors.get() >= MAX_FOLLOW_UP_ERRORS) {
+                    onError?.invoke(event.code, event.message, false, event.itag)
                 } else {
-                    onError?.invoke(event.code, event.message, true)
+                    onError?.invoke(event.code, event.message, true, event.itag)
                 }
             }
 
@@ -234,7 +253,7 @@ class SabrOrchestrator(
                     Log.w(TAG, "PoToken refreshed for $videoId (urgent=$urgent)")
                     PoTokenRefreshResult(success = true, required = urgent)
                 } else if (urgent) {
-                    onError?.invoke(-5, "PoToken refresh failed while attestation required", false)
+                    onError?.invoke(-5, "PoToken refresh failed while attestation required", false, null)
                     PoTokenRefreshResult(success = false, required = true)
                 } else {
                     PoTokenRefreshResult(success = false, required = false)
@@ -254,7 +273,7 @@ class SabrOrchestrator(
             isRunning = false
             audioBuffer.signalEndOfStream()
             videoBuffer.signalEndOfStream()
-            onError?.invoke(-2, event.reason, false)
+            onError?.invoke(-2, event.reason, false, null)
             return
         }
 
@@ -315,8 +334,12 @@ class SabrOrchestrator(
 
     private suspend fun startFollowUpLoop() {
         var lastRequestAtMs = System.currentTimeMillis()
-        while (isRunning && consecutiveErrors < MAX_FOLLOW_UP_ERRORS) {
-            delay(POLL_INTERVAL_MS)
+        while (isRunning && consecutiveErrors.get() < MAX_FOLLOW_UP_ERRORS) {
+            val requestGapMs =
+                controller.sessionState.maxTimeSinceLastRequestMs.takeIf { it > 0 }
+                    ?: DEFAULT_MAX_REQUEST_GAP_MS
+            val heartbeatWaitMs = requestGapMs - (System.currentTimeMillis() - lastRequestAtMs)
+            requestWakeup.awaitNext(POLL_INTERVAL_MS, heartbeatWaitMs)
             if (!isRunning) break
 
             val reloadJob = playerResponseReloadJob
@@ -335,7 +358,7 @@ class SabrOrchestrator(
                     isRunning = false
                     audioBuffer.signalEndOfStream()
                     videoBuffer.signalEndOfStream()
-                    onError?.invoke(-2, "Unable to reload SABR player response", false)
+                    onError?.invoke(-2, "Unable to reload SABR player response", false, null)
                     break
                 }
                 continue
@@ -351,7 +374,7 @@ class SabrOrchestrator(
             val expiresAtMs = state.urlExpiresAtMs()
             if (expiresAtMs > 0 && now >= expiresAtMs - URL_EXPIRY_MARGIN_MS) {
                 Log.w(TAG, "SABR URL expiring (${(expiresAtMs - now) / 1000}s left) — requesting re-extraction")
-                onError?.invoke(-4, "SABR streaming URL expiring", false)
+                onError?.invoke(-4, "SABR streaming URL expiring", false, null)
                 break
             }
 
@@ -359,7 +382,20 @@ class SabrOrchestrator(
                 state.maxTimeSinceLastRequestMs.takeIf { it > 0 }
                     ?: DEFAULT_MAX_REQUEST_GAP_MS
             val heartbeatDue = now - lastRequestAtMs >= maxGapMs
-            if (!heartbeatDue && bufferedAheadMs(state) >= targetReadaheadMs(state)) {
+            val bufferedAheadMs = bufferedAheadMs(state)
+            if (
+                shouldPauseFollowUpRequest(
+                    audioOnly = state.enabledTrackTypes == 1,
+                    audioAtHighWater = audioBuffer.isAtHighWater,
+                    videoAtHighWater = videoBuffer.isAtHighWater,
+                    bufferedAheadMs = bufferedAheadMs,
+                    criticalLeadMs = MIN_TARGET_READAHEAD_MS,
+                    heartbeatDue = heartbeatDue,
+                )
+            ) {
+                continue
+            }
+            if (!heartbeatDue && bufferedAheadMs >= targetReadaheadMs(state)) {
                 continue
             }
 
@@ -385,18 +421,23 @@ class SabrOrchestrator(
             }
 
             try {
+                positiveBandwidthEstimate(bandwidthEstimateProvider?.invoke())?.let { estimate ->
+                    synchronized(state) {
+                        state.estimatedBandwidthBps = estimate
+                    }
+                }
                 controller.requestNextSegments()
                 lastRequestAtMs = System.currentTimeMillis()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Follow-up request failed", e)
-                consecutiveErrors++
-                if (consecutiveErrors >= MAX_FOLLOW_UP_ERRORS) {
-                    onError?.invoke(-1, "Too many consecutive errors", false)
+                consecutiveErrors.incrementAndGet()
+                if (consecutiveErrors.get() >= MAX_FOLLOW_UP_ERRORS) {
+                    onError?.invoke(-1, "Too many consecutive errors", false, null)
                     break
                 }
-                delay(1000L * consecutiveErrors)
+                delay(1000L * consecutiveErrors.get())
             }
         }
     }
@@ -417,8 +458,62 @@ class SabrOrchestrator(
         minOf(state.targetAudioReadaheadMs, state.targetVideoReadaheadMs)
             .coerceAtLeast(MIN_TARGET_READAHEAD_MS)
 
+    private fun appendSegment(
+        buffer: SabrSegmentBuffer,
+        data: ByteArray,
+        track: String,
+    ): Boolean {
+        when (buffer.appendSegment(data)) {
+            SegmentAppendResult.ACCEPTED -> return true
+            SegmentAppendResult.CLOSED -> return false
+            SegmentAppendResult.CAPACITY_EXCEEDED -> Unit
+        }
+        if (bufferCapacityFailureReported.compareAndSet(false, true)) {
+            isRunning = false
+            eventCollectorJob?.cancel()
+            segmentFetchJob?.cancel()
+            audioBuffer.signalEndOfStream()
+            videoBuffer.signalEndOfStream()
+            controller.abort()
+            val failingItag =
+                if (track == "audio") {
+                    controller.sessionState.selectedAudioItag
+                } else {
+                    controller.sessionState.selectedVideoItag
+                }
+            onError?.invoke(
+                BUFFER_CAPACITY_ERROR,
+                "SABR $track buffer exceeded its ${buffer.maxBufferedBytes}-byte memory limit",
+                false,
+                failingItag.takeIf { it > 0 },
+            )
+            scope?.cancel()
+            scope = null
+        }
+        return false
+    }
+
     private data class PoTokenRefreshResult(
         val success: Boolean,
         val required: Boolean,
     )
 }
+
+internal fun shouldPauseFollowUpRequest(
+    audioOnly: Boolean,
+    audioAtHighWater: Boolean,
+    videoAtHighWater: Boolean,
+    bufferedAheadMs: Long,
+    criticalLeadMs: Long,
+    heartbeatDue: Boolean,
+): Boolean {
+    val buffersAtHighWater =
+        if (audioOnly) {
+            audioAtHighWater
+        } else {
+            audioAtHighWater || videoAtHighWater
+        }
+    return !heartbeatDue && bufferedAheadMs >= criticalLeadMs && buffersAtHighWater
+}
+
+internal fun positiveBandwidthEstimate(sample: Long?): Long? = sample?.takeIf { it > 0 }

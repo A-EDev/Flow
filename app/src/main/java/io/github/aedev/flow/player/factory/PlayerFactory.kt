@@ -8,7 +8,6 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.LoadControl
@@ -18,8 +17,6 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.SponsorBlockAction
-import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.config.VideoSizeCap
@@ -28,7 +25,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 @UnstableApi
-class PlayerFactory {
+class PlayerFactory(
+    private val playerPreferencesFactory: (Context) -> PlayerPreferences = ::PlayerPreferences,
+) {
     companion object {
         private const val TAG = "PlayerFactory"
     }
@@ -42,11 +41,12 @@ class PlayerFactory {
         val playDuringCalls: Boolean,
     )
 
+    @Volatile
     private var cachedPrefs: CachedPrefs? = null
 
     private fun ensurePrefs(context: Context): CachedPrefs {
         cachedPrefs?.let { return it }
-        val prefs = PlayerPreferences(context)
+        val prefs = playerPreferencesFactory(context)
         val result =
             runBlocking {
                 CachedPrefs(
@@ -63,9 +63,8 @@ class PlayerFactory {
     }
 
     suspend fun preloadPreferences(context: Context) {
-        if (cachedPrefs != null) return
-        val prefs = PlayerPreferences(context)
-        cachedPrefs =
+        val prefs = playerPreferencesFactory(context)
+        val refreshedPrefs =
             CachedPrefs(
                 audioLanguage = prefs.preferredAudioLanguage.first(),
                 minBufferMs = prefs.minBufferMs.first(),
@@ -74,6 +73,11 @@ class PlayerFactory {
                 bufferRebufferMs = prefs.bufferForPlaybackAfterRebufferMs.first(),
                 playDuringCalls = prefs.playDuringCalls.first(),
             )
+        cachedPrefs = refreshedPrefs
+    }
+
+    fun invalidatePreferences() {
+        cachedPrefs = null
     }
 
     fun createBandwidthMeter(context: Context): DefaultBandwidthMeter =
@@ -113,26 +117,14 @@ class PlayerFactory {
         }
     }
 
-    fun createLoadControl(
-        context: Context,
-        sponsorSegmentsProvider: () -> List<SponsorBlockSegment> = { emptyList() },
-        categoryActionsProvider: () -> Map<String, SponsorBlockAction> = { emptyMap() },
-        isAutoSkipEnabledProvider: () -> Boolean = { false },
-    ): LoadControl {
+    fun createLoadControl(context: Context): LoadControl {
         val prefs = ensurePrefs(context)
-        val defaultLoadControl =
-            LoadControlFactory.forVideo(
-                context = context,
-                minMs = prefs.minBufferMs,
-                maxMs = prefs.maxBufferMs,
-                playbackMs = prefs.bufferForPlaybackMs,
-                rebufferMs = prefs.bufferRebufferMs,
-            )
-        return SegmentAwareLoadControl(
-            delegate = defaultLoadControl,
-            sponsorSegmentsProvider = sponsorSegmentsProvider,
-            categoryActionsProvider = categoryActionsProvider,
-            isAutoSkipEnabledProvider = isAutoSkipEnabledProvider,
+        return LoadControlFactory.forVideo(
+            context = context,
+            minMs = prefs.minBufferMs,
+            maxMs = prefs.maxBufferMs,
+            playbackMs = prefs.bufferForPlaybackMs,
+            rebufferMs = prefs.bufferRebufferMs,
         )
     }
 

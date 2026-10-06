@@ -42,6 +42,8 @@ sealed interface ResolvedPlayback {
         val needsSponsorBlockBackfill: Boolean = false,
         /** What the download row knows about the video, for a screen opened with only its id. */
         val downloadedVideo: Video? = null,
+        /** A shared-link timestamp, which takes precedence over the saved position. */
+        val resumePositionOverrideMs: Long? = null,
     ) : ResolvedPlayback
 
     /** A live stream, from the manifest InnerTube produced. */

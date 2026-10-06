@@ -42,8 +42,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
@@ -179,11 +177,7 @@ internal fun MiniPlayerControls(
         }
 
         IconButton(
-            onClick = {
-                EnhancedPlayerManager.getInstance().stop()
-                GlobalPlayerState.hideMiniPlayer()
-                onClose()
-            },
+            onClick = onClose,
             modifier =
                 Modifier
                     .align(Alignment.TopEnd)

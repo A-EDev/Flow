@@ -1,23 +1,22 @@
 package io.github.aedev.flow.player.dlna
 
 import android.content.Context
-import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
-import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Local HTTP proxy server that relays YouTube streams to DLNA renderers.
@@ -74,6 +73,29 @@ class StreamProxyServer private constructor() {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // OkHttp reports every synchronous call through an EventListener — the only way to reach the
+    // calls a blocking handleGet is stuck in. stop() cancels them so a relay ends immediately
+    // instead of holding an IO thread (and a connection slot) until the 30s read timeout.
+    private val activeCalls = ConcurrentHashMap.newKeySet<Call>()
+
+    private val callTracker =
+        object : EventListener() {
+            override fun callStart(call: Call) {
+                activeCalls.add(call)
+            }
+
+            override fun callEnd(call: Call) {
+                activeCalls.remove(call)
+            }
+
+            override fun callFailed(
+                call: Call,
+                ioe: IOException,
+            ) {
+                activeCalls.remove(call)
+            }
+        }
+
     private val http =
         OkHttpClient
             .Builder()
@@ -81,12 +103,12 @@ class StreamProxyServer private constructor() {
             .readTimeout(30, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
+            .eventListener(callTracker)
             .build()
 
-    private var serverSocket: ServerSocket? = null
-    private val isRunning = AtomicBoolean(false)
+    private val listener = DlnaProxyListener(scope, MAX_CONNECTIONS, ::handleClient)
     private var localAddress: String = "127.0.0.1"
-    private var localPort: Int = 0
+    private val localPort: Int get() = listener.port
 
     /**
      * Map of path → StreamEntry.
@@ -107,52 +129,29 @@ class StreamProxyServer private constructor() {
      * Starts the proxy server on a random available port.
      * Must be called before registerStream().
      */
+    @Synchronized
     fun start(context: Context) {
-        if (isRunning.get()) return
-
-        localAddress = getDeviceIpAddress(context)
-
-        scope.launch {
-            try {
-                serverSocket = ServerSocket(0, MAX_CONNECTIONS, InetAddress.getByName("0.0.0.0"))
-                localPort = serverSocket!!.localPort
-                isRunning.set(true)
-
-                Log.i(TAG, "Proxy started at http://$localAddress:$localPort")
-
-                while (isRunning.get()) {
-                    try {
-                        val clientSocket = serverSocket?.accept() ?: break
-                        scope.launch {
-                            handleClient(clientSocket)
-                        }
-                    } catch (e: SocketException) {
-                        if (isRunning.get()) {
-                            Log.e(TAG, "Accept error", e)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Proxy server error", e)
-            } finally {
-                isRunning.set(false)
-            }
+        if (listener.isRunning) return
+        try {
+            localAddress = dlnaDeviceAddress(context)
+            val bindAddress = runCatching { InetAddress.getByName(localAddress) }.getOrNull()
+            listener.start(bindAddress)
+            Log.i(TAG, "Proxy started at http://$localAddress:$localPort")
+        } catch (error: Exception) {
+            Log.e(TAG, "Proxy server error", error)
         }
     }
 
     /**
      * Stops the proxy server and clears all registered streams.
      */
+    @Synchronized
     fun stop() {
-        isRunning.set(false)
+        listener.stop()
+        activeCalls.forEach { it.cancel() }
+        activeCalls.clear()
         streams.clear()
         hlsPlaylists.clear()
-        try {
-            serverSocket?.close()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error closing server socket", e)
-        }
-        serverSocket = null
         Log.i(TAG, "Proxy stopped")
     }
 
@@ -168,7 +167,7 @@ class StreamProxyServer private constructor() {
         realUrl: String,
         contentType: String = "video/mp4",
     ): String {
-        if (!isRunning.get()) {
+        if (!listener.isRunning) {
             Log.w(TAG, "Proxy not running, cannot register stream")
             return realUrl
         }
@@ -210,7 +209,7 @@ class StreamProxyServer private constructor() {
         audioCodec: String = "mp4a.40.2",
         durationSeconds: Long = 0,
     ): String {
-        if (!isRunning.get() || videoVariants.isEmpty()) {
+        if (!listener.isRunning || videoVariants.isEmpty()) {
             Log.w(TAG, "Proxy not running or no variants, cannot register HLS")
             return videoVariants.firstOrNull()?.url ?: ""
         }
@@ -499,71 +498,65 @@ class StreamProxyServer private constructor() {
                 requestBuilder.addHeader("Range", rangeHeader)
             }
 
-            val response = http.newCall(requestBuilder.build()).execute()
+            http.newCall(requestBuilder.build()).execute().use { response ->
 
-            if (!response.isSuccessful && response.code != 206) {
-                Log.e(TAG, "YouTube returned ${response.code} for ${entry.realUrl.take(80)}")
-                sendError(output, response.code, "Upstream Error")
-                response.close()
-                return
-            }
-
-            val body =
-                response.body ?: run {
-                    sendError(output, 502, "No Body")
-                    response.close()
+                if (!response.isSuccessful && response.code != 206) {
+                    Log.e(TAG, "YouTube returned ${response.code} for ${entry.realUrl.take(80)}")
+                    sendError(output, response.code, "Upstream Error")
                     return
                 }
 
-            val responseHeaders =
-                buildString {
-                    if (response.code == 206) {
-                        append("HTTP/1.1 206 Partial Content\r\n")
-                        response.header("Content-Range")?.let {
-                            append("Content-Range: $it\r\n")
+                val body = response.body
+
+                val responseHeaders =
+                    buildString {
+                        if (response.code == 206) {
+                            append("HTTP/1.1 206 Partial Content\r\n")
+                            response.header("Content-Range")?.let {
+                                append("Content-Range: $it\r\n")
+                            }
+                        } else {
+                            append("HTTP/1.1 200 OK\r\n")
                         }
-                    } else {
-                        append("HTTP/1.1 200 OK\r\n")
+
+                        val contentType = response.header("Content-Type") ?: entry.contentType
+                        append("Content-Type: $contentType\r\n")
+
+                        val contentLength = response.header("Content-Length")
+                        if (contentLength != null) {
+                            append("Content-Length: $contentLength\r\n")
+                        }
+
+                        append("Accept-Ranges: bytes\r\n")
+                        append("Access-Control-Allow-Origin: *\r\n")
+                        append("Connection: close\r\n")
+                        append("transferMode.dlna.org: Streaming\r\n")
+                        append("contentFeatures.dlna.org: DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n")
+                        append("\r\n")
                     }
 
-                    val contentType = response.header("Content-Type") ?: entry.contentType
-                    append("Content-Type: $contentType\r\n")
+                output.write(responseHeaders.toByteArray())
+                output.flush()
 
-                    val contentLength = response.header("Content-Length")
-                    if (contentLength != null) {
-                        append("Content-Length: $contentLength\r\n")
+                val buffer = ByteArray(BUFFER_SIZE)
+                val inputStream = body.byteStream()
+                var bytesWritten = 0L
+
+                while (true) {
+                    val read = inputStream.read(buffer)
+                    if (read == -1) break
+                    try {
+                        output.write(buffer, 0, read)
+                        bytesWritten += read
+                    } catch (e: SocketException) {
+                        Log.d(TAG, "Client disconnected after ${bytesWritten / 1024}KB")
+                        break
                     }
-
-                    append("Accept-Ranges: bytes\r\n")
-                    append("Access-Control-Allow-Origin: *\r\n")
-                    append("Connection: close\r\n")
-                    append("transferMode.dlna.org: Streaming\r\n")
-                    append("contentFeatures.dlna.org: DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n")
-                    append("\r\n")
                 }
 
-            output.write(responseHeaders.toByteArray())
-            output.flush()
-
-            val buffer = ByteArray(BUFFER_SIZE)
-            val inputStream = body.byteStream()
-            var bytesWritten = 0L
-
-            while (true) {
-                val read = inputStream.read(buffer)
-                if (read == -1) break
-                try {
-                    output.write(buffer, 0, read)
-                    bytesWritten += read
-                } catch (e: SocketException) {
-                    Log.d(TAG, "Client disconnected after ${bytesWritten / 1024}KB")
-                    break
-                }
+                output.flush()
+                Log.d(TAG, "Streamed ${bytesWritten / 1024}KB to renderer")
             }
-
-            output.flush()
-            response.close()
-            Log.d(TAG, "Streamed ${bytesWritten / 1024}KB to renderer")
         } catch (e: Exception) {
             Log.e(TAG, "GET handler error: ${e.message}")
             try {
@@ -604,46 +597,6 @@ class StreamProxyServer private constructor() {
             Log.d(TAG, "Content length probe failed: ${e.message}")
             -1
         }
-
-    private fun getDeviceIpAddress(context: Context): String {
-        try {
-            val wifiManager =
-                context.applicationContext
-                    .getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            val wifiInfo = wifiManager?.connectionInfo
-            val ip = wifiInfo?.ipAddress ?: 0
-            if (ip != 0) {
-                return String.format(
-                    "%d.%d.%d.%d",
-                    ip and 0xff,
-                    (ip shr 8) and 0xff,
-                    (ip shr 16) and 0xff,
-                    (ip shr 24) and 0xff,
-                )
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to get WiFi IP", e)
-        }
-
-        try {
-            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val networkInterface = interfaces.nextElement()
-                if (networkInterface.isLoopback || !networkInterface.isUp) continue
-                val addresses = networkInterface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val addr = addresses.nextElement()
-                    if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
-                        return addr.hostAddress ?: continue
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to enumerate interfaces", e)
-        }
-
-        return "127.0.0.1"
-    }
 
     private fun readLine(input: InputStream): String? {
         val sb = StringBuilder()

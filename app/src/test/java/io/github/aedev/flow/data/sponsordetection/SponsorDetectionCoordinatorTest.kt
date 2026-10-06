@@ -107,14 +107,19 @@ class SponsorDetectionCoordinatorTest {
     fun `offline saved segments stay authoritative`() =
         runTest {
             val saved = listOf(segment("offline", 5f, 8f))
+            var predicted = false
             val coordinator =
                 coordinator(
                     fetchSegments = { error("network should not be used") },
-                    predictStream = { _, transcript, _ -> inference(transcript) },
+                    predictStream = { _, transcript, _ ->
+                        predicted = true
+                        inference(transcript)
+                    },
                 )
 
             val result = coordinator.evaluate("video", emptyList(), saved)
 
+            assertThat(predicted).isTrue()
             assertThat(result.playbackSegments).containsExactlyElementsIn(saved)
             assertThat(coordinator.state.value.apiOutcome).isEqualTo(SponsorApiOutcome.OFFLINE_SAVED)
         }
@@ -406,6 +411,30 @@ class SponsorDetectionCoordinatorTest {
             assertThat(coordinator.state.value.status).isEqualTo(SponsorDetectionStatus.SKIPPED)
         }
 
+    @Test
+    fun `on-device detection runs with online SponsorBlock disabled without fetching`() =
+        runTest {
+            var fetches = 0
+            val coordinator =
+                coordinator(
+                    fetchSegments = {
+                        fetches++
+                        SponsorBlockFetchResult.Success(listOf(segment("api", 1f, 2f)))
+                    },
+                    onlineEnabled = { false },
+                    predictStream = { _, transcript, _ ->
+                        inference(transcript, SponsorPredictedSpan("model", 1_000, 2_000, 0.9))
+                    },
+                )
+
+            val result = coordinator.evaluate("video", emptyList())
+
+            assertThat(fetches).isEqualTo(0)
+            assertThat(result.playbackSegments.single().uuid).contains("flow-ml")
+            assertThat(coordinator.state.value.apiSegments).isEmpty()
+            assertThat(coordinator.state.value.apiOutcome).isEqualTo(SponsorApiOutcome.DISABLED)
+        }
+
     private fun coordinator(
         fetchSegments: suspend (String) -> SponsorBlockFetchResult = { SponsorBlockFetchResult.Empty },
         loadCaptions: suspend (List<SubtitlesStream>) -> SponsorTranscriptPayload? = {
@@ -422,6 +451,7 @@ class SponsorDetectionCoordinatorTest {
         onProvisionalPlayback: suspend (String, List<SponsorBlockSegment>) -> Unit = { _, _ -> },
         onDeviceEnabled: suspend () -> Boolean = { true },
         onDeviceModelInstalled: () -> Boolean = { true },
+        onlineEnabled: suspend () -> Boolean = { true },
         journalDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(),
     ) = SponsorDetectionCoordinator(
         fetchSegments = fetchSegments,
@@ -433,6 +463,7 @@ class SponsorDetectionCoordinatorTest {
         onProvisionalPlayback = onProvisionalPlayback,
         onDeviceEnabled = onDeviceEnabled,
         onDeviceModelInstalled = onDeviceModelInstalled,
+        onlineEnabled = onlineEnabled,
         journalDispatcher = journalDispatcher,
     )
 }

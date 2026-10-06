@@ -13,6 +13,7 @@ import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
@@ -270,6 +271,147 @@ class VideoPlayerViewModelEntryPointsTest {
             verify(exactly = 1) { harness.playerManager.restoreVideoOutput() }
             verify(exactly = 1) { harness.playerManager.pause() }
             verify { harness.repository wasNot Called }
+        }
+
+    @Test
+    fun `an explicit zero timestamp seeks to the beginning instead of reopening saved progress`() =
+        runTest {
+            val viewModel = newViewModel()
+            val video = video("vid_a")
+            every { harness.playerManager.isPreparedForPlayback(video.id) } returns true
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = video.id, isPrepared = true, isPlaying = true)
+
+            viewModel.expandPlayerRequest.test {
+                viewModel.playVideo(video, startPositionOverrideMs = 0L)
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            verify(exactly = 1) { harness.playerManager.seekTo(0L, exact = true) }
+            verify(exactly = 0) { harness.playerManager.clearAll() }
+            coVerify(exactly = 0) { harness.viewHistory.getSavedPosition(video.id) }
+        }
+
+    @Test
+    fun `same prepared video share timestamp requests an exact seek`() =
+        runTest {
+            val viewModel = newViewModel()
+            val video = video("vid_a")
+            every { harness.playerManager.isPreparedForPlayback(video.id) } returns true
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = video.id, isPrepared = true, isPlaying = false)
+
+            viewModel.expandPlayerRequest.test {
+                viewModel.playVideo(video, startPositionOverrideMs = 65_000L)
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            verify(exactly = 1) { harness.playerManager.seekTo(65_000L, exact = true) }
+            verify(exactly = 0) { harness.playerManager.clearAll() }
+            coVerify(exactly = 0) { harness.viewHistory.getSavedPosition(video.id) }
+        }
+
+    @Test
+    fun `history writes require a prepared player item matching the video`() =
+        runTest {
+            val viewModel = newViewModel()
+            val videoId = "vid_a"
+
+            fun savePosition() =
+                viewModel.savePlaybackPosition(
+                    videoId = videoId,
+                    position = 30_000L,
+                    duration = 120_000L,
+                    title = "Title",
+                    thumbnailUrl = "https://example.invalid/thumb.jpg",
+                )
+
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = "another_video", isPrepared = true)
+            savePosition()
+            advanceUntilIdle()
+
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = videoId, isPrepared = false)
+            savePosition()
+            advanceUntilIdle()
+
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = videoId, isPrepared = true)
+            savePosition()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) {
+                harness.viewHistory.savePlaybackPosition(
+                    videoId = videoId,
+                    position = 30_000L,
+                    duration = 120_000L,
+                    title = "Title",
+                    thumbnailUrl = "https://example.invalid/thumb.jpg",
+                    channelName = "",
+                    channelId = "",
+                    isMusic = false,
+                    isShort = false,
+                    isLocal = false,
+                )
+            }
+        }
+
+    @Test
+    fun `clearVideo captures a prepared zero position before clearing player state`() =
+        runTest {
+            val history = historyEntity("vid_a")
+            coEvery { harness.viewHistory.getLatestUnfinishedVideo() } returns history
+            every { harness.playerManager.getCurrentPosition() } returns 0L
+            every { harness.playerManager.getDuration() } returns history.duration
+            every { harness.playerManager.clearAll() } answers {
+                harness.playerState.value = EnhancedPlayerState()
+            }
+            val viewModel = newViewModel()
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = history.videoId, isPrepared = true)
+
+            viewModel.clearVideo()
+            advanceUntilIdle()
+
+            assertThat(harness.playerState.value.currentVideoId).isNull()
+            coVerify(exactly = 1) {
+                harness.viewHistory.savePlaybackPosition(
+                    videoId = history.videoId,
+                    position = 0L,
+                    duration = history.duration,
+                    title = history.title,
+                    thumbnailUrl = history.thumbnailUrl,
+                    channelName = history.channelName,
+                    channelId = history.channelId,
+                    isMusic = false,
+                    isShort = false,
+                    isLocal = false,
+                )
+            }
+        }
+
+    @Test
+    fun `clearVideo skips the final save for unprepared or mismatched player items`() =
+        runTest {
+            val history = historyEntity("vid_a")
+            coEvery { harness.viewHistory.getLatestUnfinishedVideo() } returns history
+            every { harness.playerManager.getCurrentPosition() } returns 30_000L
+            every { harness.playerManager.getDuration() } returns history.duration
+            val viewModel = newViewModel()
+
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = history.videoId, isPrepared = false)
+            viewModel.clearVideo()
+            advanceUntilIdle()
+            coVerify(
+                exactly = 0,
+            ) { harness.viewHistory.savePlaybackPosition(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+
+            coEvery { harness.viewHistory.getLatestUnfinishedVideo() } returns history
+            val secondViewModel = newViewModel()
+            harness.playerState.value = EnhancedPlayerState(currentVideoId = "another_video", isPrepared = true)
+            secondViewModel.clearVideo()
+            advanceUntilIdle()
+
+            coVerify(
+                exactly = 0,
+            ) { harness.viewHistory.savePlaybackPosition(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         }
 
     @Test

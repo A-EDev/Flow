@@ -68,6 +68,7 @@ internal fun SyncQrContent(
     LaunchedEffect(s.expiresAtEpochSeconds) {
         while (true) {
             remaining = (s.expiresAtEpochSeconds - System.currentTimeMillis() / 1000).coerceAtLeast(0)
+            if (remaining <= 0L) break
             delay(1000)
         }
     }

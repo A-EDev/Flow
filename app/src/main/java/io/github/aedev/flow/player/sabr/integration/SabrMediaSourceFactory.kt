@@ -6,9 +6,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.upstream.BandwidthMeter
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.player.sabr.core.SabrCpn
 import io.github.aedev.flow.player.sabr.core.SabrSessionState
@@ -28,6 +30,7 @@ object SabrMediaSourceFactory {
         startPositionMs: Long = 0L,
         mediaId: String = videoId,
         mediaMetadata: MediaMetadata = MediaMetadata.EMPTY,
+        transferListener: TransferListener? = null,
     ): SabrMediaSourceResult {
         val sessionState =
             SabrSessionState().apply {
@@ -65,8 +68,12 @@ object SabrMediaSourceFactory {
         // The GVS/SABR request must be made as the same client that minted the PoToken, so the
         // user-agent comes from the session rather than being assumed to be WEB.
         val userAgent = info.clientUserAgent.ifEmpty { YouTubeClient.USER_AGENT_WEB }
-        val dataSource = SabrDataSource(userAgent)
+        val dataSource = SabrDataSource(userAgent, transferListener)
         val controller = SabrStreamController(dataSource, sessionState)
+        val bandwidthEstimateProvider =
+            (transferListener as? BandwidthMeter)?.let { meter ->
+                { meter.bitrateEstimate }
+            }
         val reloadHeight = info.targetHeight.takeIf { it > 0 } ?: info.videoHeight
         val reloadCodec = VideoCodecUtils.codecKeyFromMimeType(info.videoMimeType)
         // Keep the content-playback nonce stable across reloads — a fresh cpn each reload reads
@@ -74,16 +81,20 @@ object SabrMediaSourceFactory {
         val sessionCpn = sessionState.cpn
         val reloadClient = SabrClientIdentity.sabrClientFor(info.clientNameId)
         val orchestrator =
-            SabrOrchestrator(controller) { event ->
-                InnerTubeVideoStreamExtractor.resolveSabrDownload(
-                    videoId = videoId,
-                    targetHeight = reloadHeight,
-                    preferredCodec = reloadCodec,
-                    reloadToken = event.reloadToken,
-                    cpn = sessionCpn.ifEmpty(SabrCpn::generate),
-                    client = reloadClient,
-                )
-            }
+            SabrOrchestrator(
+                controller = controller,
+                reloadResolver = { event ->
+                    InnerTubeVideoStreamExtractor.resolveSabrDownload(
+                        videoId = videoId,
+                        targetHeight = reloadHeight,
+                        preferredCodec = reloadCodec,
+                        reloadToken = event.reloadToken,
+                        cpn = sessionCpn.ifEmpty(SabrCpn::generate),
+                        client = reloadClient,
+                    )
+                },
+                bandwidthEstimateProvider = bandwidthEstimateProvider,
+            )
 
         val audioDataSourceFactory =
             SabrExoPlayerDataSource

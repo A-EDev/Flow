@@ -148,27 +148,33 @@ class ViewHistory private constructor(
         if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
 
         val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
-        val existingPosition = dao.getPosition(videoId) ?: 0L // preserve saved progress
-        // Opening a video before its stream resolves passes no duration, and taking that 0 would
-        // erase the length a real playback save had recorded — leaving a row with a position but
-        // nothing to measure it against, which is exactly what drops it from the progress map.
-        val resolvedDuration = duration.takeIf { it > 0 } ?: dao.getDuration(videoId) ?: 0L
-        // A player opened from only an id knows no title yet; a blank must not erase the one on record.
-        val existing = if (title.isBlank() || channelName.isBlank() || channelId.isBlank()) dao.getEntry(videoId).first() else null
-        dao.upsert(
+        val isLocal = LocalMediaIds.isLocal(videoId)
+        val timestamp = System.currentTimeMillis()
+        dao.insertIfAbsent(
             WatchHistoryEntity(
                 videoId = videoId,
-                position = existingPosition,
-                duration = resolvedDuration,
-                timestamp = System.currentTimeMillis(),
-                title = title.ifBlank { existing?.title.orEmpty() },
+                position = 0L,
+                duration = duration.coerceAtLeast(0L),
+                timestamp = timestamp,
+                title = title,
                 thumbnailUrl = thumbnail,
-                channelName = channelName.ifBlank { existing?.channelName.orEmpty() },
-                channelId = channelId.ifBlank { existing?.channelId.orEmpty() },
+                channelName = channelName,
+                channelId = channelId,
                 isMusic = false,
                 isShort = isShort,
-                isLocal = LocalMediaIds.isLocal(videoId),
+                isLocal = isLocal,
             ),
+        )
+        dao.touchExistingEntry(
+            videoId = videoId,
+            duration = duration,
+            timestamp = timestamp,
+            title = title,
+            thumbnailUrl = thumbnail,
+            channelName = channelName,
+            channelId = channelId,
+            isShort = isShort,
+            isLocal = isLocal,
         )
     }
 

@@ -95,8 +95,8 @@ class SponsorBlockHandler(
 
     /**
      * Load SponsorBlock segments directly from a pre-fetched list (e.g. saved offline).
-     * Bypasses the network API call. Safe to call even when [isEnabled] is false —
-     * the segments are stored and will be used if SponsorBlock is later enabled.
+     * Bypasses the network API call and applies these segments independently of [isEnabled],
+     * which controls online fetching. Offline and on-device segments retain their category actions.
      */
     fun loadSegmentsFromList(
         videoId: String,

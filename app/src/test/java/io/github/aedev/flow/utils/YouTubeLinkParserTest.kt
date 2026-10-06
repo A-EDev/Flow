@@ -148,6 +148,33 @@ class YouTubeLinkParserTest {
     }
 
     @Test
+    fun `a trailing sentence mark does not become part of a shared timestamp`() {
+        val link = YouTubeLinkParser.parseVideoLink("Watch this: https://youtu.be/dQw4w9WgXcQ?si=abc&t=90s.")
+
+        assertThat(link?.startPositionMs).isEqualTo(90_000L)
+    }
+
+    @Test
+    fun `timestamp query values are decoded and an invalid t falls back to start`() {
+        val encoded = YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ?t=%39%30s")
+        val fallback = YouTubeLinkParser.parseVideoLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=later&start=45")
+
+        assertThat(encoded?.startPositionMs).isEqualTo(90_000L)
+        assertThat(fallback?.startPositionMs).isEqualTo(45_000L)
+    }
+
+    @Test
+    fun `hash timestamps are parsed after query timestamps`() {
+        val seconds = YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ#t=90")
+        val duration = YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ#t=1m30s")
+        val queryWins = YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ?t=45#t=90")
+
+        assertThat(seconds?.startPositionMs).isEqualTo(90_000L)
+        assertThat(duration?.startPositionMs).isEqualTo(90_000L)
+        assertThat(queryWins?.startPositionMs).isEqualTo(45_000L)
+    }
+
+    @Test
     fun `link without a timestamp has no start position`() {
         val link = YouTubeLinkParser.parseVideoLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
@@ -165,10 +192,18 @@ class YouTubeLinkParserTest {
     @Test
     fun `unparseable or empty timestamps are dropped`() {
         assertThat(YouTubeLinkParser.parseTimestamp("")).isNull()
-        assertThat(YouTubeLinkParser.parseTimestamp("0")).isNull()
-        assertThat(YouTubeLinkParser.parseTimestamp("0s")).isNull()
         assertThat(YouTubeLinkParser.parseTimestamp("later")).isNull()
         assertThat(YouTubeLinkParser.parseTimestamp("5x")).isNull()
+    }
+
+    @Test
+    fun `an explicit zero timestamp remains distinct from no timestamp`() {
+        assertThat(YouTubeLinkParser.parseTimestamp("0")).isEqualTo(0L)
+        assertThat(YouTubeLinkParser.parseTimestamp("0s")).isEqualTo(0L)
+        assertThat(
+            YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ?t=0s&start=90")?.startPositionMs,
+        ).isEqualTo(0L)
+        assertThat(YouTubeLinkParser.parseVideoLink("https://youtu.be/dQw4w9WgXcQ")?.startPositionMs).isNull()
     }
 
     @Test

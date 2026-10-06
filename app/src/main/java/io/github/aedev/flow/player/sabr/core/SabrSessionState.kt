@@ -14,12 +14,14 @@ class SabrSessionState {
     var videoId: String = ""
     var durationMs: Long = 0
 
+    // Written from the main playhead tick and read on the SABR request-builder thread.
+    @Volatile
     var playheadPositionMs: Long = 0
     var playbackCookie: ByteArray = ByteArray(0)
 
     // SABR contexts keyed by type; only types flagged send-by-default are echoed back
-    val sabrContexts = mutableMapOf<Int, SabrContext>()
-    val sabrContextsToSend = mutableSetOf<Int>()
+    private val sabrContexts = mutableMapOf<Int, SabrContext>()
+    private val sabrContextsToSend = mutableSetOf<Int>()
 
     var selectedAudioItag: Int = 0
     var selectedAudioLmt: Long = 0
@@ -55,8 +57,11 @@ class SabrSessionState {
     var targetVideoReadaheadMs: Long = 15_000
     var maxTimeSinceLastRequestMs: Long = 0
 
-    val audioBufferedRanges = mutableListOf<FormatBufferedRange>()
-    val videoBufferedRanges = mutableListOf<FormatBufferedRange>()
+    private val audioRanges = mutableListOf<FormatBufferedRange>()
+    private val videoRanges = mutableListOf<FormatBufferedRange>()
+
+    val audioBufferedRanges: List<FormatBufferedRange> get() = synchronized(this) { audioRanges.toList() }
+    val videoBufferedRanges: List<FormatBufferedRange> get() = synchronized(this) { videoRanges.toList() }
 
     var backoffDeadlineMs: Long = 0
     var redirectUrl: String? = null
@@ -84,11 +89,13 @@ class SabrSessionState {
         return SabrBase64.decode(poToken) ?: ByteArray(0)
     }
 
-    val initSegments = mutableMapOf<Int, ByteArray>()
-    val formatMetadata = mutableMapOf<Int, FormatInitializationMetadata>()
+    private val initSegments = mutableMapOf<Int, ByteArray>()
+    private val formatMetadata = mutableMapOf<Int, FormatInitializationMetadata>()
 
     // Itags the server has acknowledged via FORMAT_INITIALIZATION_METADATA
-    val initializedFormats = mutableSetOf<Int>()
+    private val initializedItags = mutableSetOf<Int>()
+
+    val initializedFormats: Set<Int> get() = synchronized(this) { initializedItags.toSet() }
 
     // Dedup keys (itag << 32 | sequence); the server may re-send segments
     private val consumedSegments = mutableSetOf<Long>()
@@ -97,6 +104,7 @@ class SabrSessionState {
     val effectiveUrl: String get() = redirectUrl ?: streamingUrl
 
     /** Returns true the first time a segment is seen; false for duplicates. */
+    @Synchronized
     fun markSegmentConsumed(
         itag: Int,
         sequenceNumber: Int,
@@ -115,6 +123,7 @@ class SabrSessionState {
         return (match.groupValues[1].toLongOrNull() ?: return 0L) * 1000L
     }
 
+    @Synchronized
     fun seekTo(positionMs: Long) {
         playheadPositionMs = positionMs
         lastSeekAtMs = System.currentTimeMillis()
@@ -137,6 +146,7 @@ class SabrSessionState {
         if (policy.maxTimeSinceLastRequestMs > 0) maxTimeSinceLastRequestMs = policy.maxTimeSinceLastRequestMs
     }
 
+    @Synchronized
     fun updateFromContextUpdate(update: SabrContextUpdate) {
         if (update.type < 0 || update.value.isEmpty()) return
         val existing = sabrContexts[update.type]
@@ -149,10 +159,13 @@ class SabrSessionState {
         }
     }
 
+    @Synchronized
     fun activeSabrContexts(): List<SabrContext> = sabrContextsToSend.mapNotNull { sabrContexts[it] }
 
+    @Synchronized
     fun unsentSabrContextTypes(): List<Int> = sabrContexts.keys.filterNot(sabrContextsToSend::contains)
 
+    @Synchronized
     fun updateFromContextSendingPolicy(policy: SabrContextSendingPolicy) {
         sabrContextsToSend.addAll(policy.startTypes)
         sabrContextsToSend.removeAll(policy.stopTypes.toSet())
@@ -168,6 +181,7 @@ class SabrSessionState {
         }
     }
 
+    @Synchronized
     fun applyPlayerResponseReload(
         streamingUrl: String,
         ustreamerConfig: ByteArray,
@@ -207,14 +221,15 @@ class SabrSessionState {
         backoffDeadlineMs = 0
         requestSequence = 0
         clearBufferedRanges()
-        initializedFormats.clear()
+        initializedItags.clear()
     }
 
+    @Synchronized
     fun addBufferedRange(
         isAudio: Boolean,
         range: FormatBufferedRange,
     ) {
-        val list = if (isAudio) audioBufferedRanges else videoBufferedRanges
+        val list = if (isAudio) audioRanges else videoRanges
         val last = list.lastOrNull()
         if (last != null &&
             last.formatId == range.formatId &&
@@ -230,11 +245,13 @@ class SabrSessionState {
         list.add(range)
     }
 
+    @Synchronized
     fun clearBufferedRanges() {
-        audioBufferedRanges.clear()
-        videoBufferedRanges.clear()
+        audioRanges.clear()
+        videoRanges.clear()
     }
 
+    @Synchronized
     fun storeInitSegment(
         itag: Int,
         data: ByteArray,
@@ -242,28 +259,33 @@ class SabrSessionState {
         initSegments[itag] = data
     }
 
+    @Synchronized
+    fun formatMetadataFor(itag: Int): FormatInitializationMetadata? = formatMetadata[itag]
+
+    @Synchronized
     fun storeFormatMetadata(metadata: FormatInitializationMetadata) {
         val itag = metadata.formatId?.itag ?: return
         formatMetadata[itag] = metadata
-        initializedFormats.add(itag)
+        initializedItags.add(itag)
         if (metadata.initData.isNotEmpty()) {
             storeInitSegment(itag, metadata.initData)
         }
     }
 
+    @Synchronized
     fun reset() {
         playheadPositionMs = 0
         playbackCookie = ByteArray(0)
         sabrContexts.clear()
         sabrContextsToSend.clear()
-        audioBufferedRanges.clear()
-        videoBufferedRanges.clear()
+        audioRanges.clear()
+        videoRanges.clear()
         backoffDeadlineMs = 0
         redirectUrl = null
         requestSequence = 0
         initSegments.clear()
         formatMetadata.clear()
-        initializedFormats.clear()
+        initializedItags.clear()
         consumedSegments.clear()
         consumedInitSegments.clear()
         lastSeekAtMs = 0

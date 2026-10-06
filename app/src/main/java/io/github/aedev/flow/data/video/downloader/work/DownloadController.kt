@@ -75,7 +75,7 @@ class DownloadController
                 else -> {}
             }
             downloadDao.replaceDownload(rowFor(request), listOf(pendingItemFor(request)))
-            kick()
+            enqueueQueueWork(ExistingWorkPolicy.APPEND_OR_REPLACE)
             return EnqueueOutcome.QUEUED
         }
 
@@ -122,6 +122,10 @@ class DownloadController
 
         /** Runs the queue work unless it is running already, with the network the settings allow. */
         suspend fun kick() {
+            enqueueQueueWork(ExistingWorkPolicy.KEEP)
+        }
+
+        private suspend fun enqueueQueueWork(policy: ExistingWorkPolicy) {
             val wifiOnly = preferences.downloadOverWifiOnly.first()
             val work =
                 OneTimeWorkRequestBuilder<DownloadQueueWorker>()
@@ -132,7 +136,7 @@ class DownloadController
                             .build(),
                     ).addTag(DownloadQueueWorker.TAG)
                     .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(DownloadQueueWorker.UNIQUE_NAME, ExistingWorkPolicy.KEEP, work)
+            WorkManager.getInstance(context).enqueueUniqueWork(DownloadQueueWorker.UNIQUE_NAME, policy, work)
         }
 
         /** A changed Wi-Fi-only setting has to reach work that is already waiting on the old constraint. */
@@ -148,7 +152,7 @@ class DownloadController
         ): Job =
             scope.launch {
                 downloadDao.updateAllItemsStatus(videoId, status)
-                if (status == DownloadItemStatus.PENDING) kick()
+                if (status == DownloadItemStatus.PENDING) enqueueQueueWork(ExistingWorkPolicy.APPEND_OR_REPLACE)
             }
 
         private fun rowFor(request: DownloadRequest): DownloadEntity {

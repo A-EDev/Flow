@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class SabrDownloadEngine {
@@ -85,7 +86,7 @@ class SabrDownloadEngine {
             var videoStream: FileOutputStream? = null
             var audioStream: FileOutputStream? = null
             val endOfTrackReached = AtomicBoolean(false)
-            var consecutiveErrors = 0
+            val consecutiveErrors = AtomicInteger(0)
             var success = false
 
             try {
@@ -133,7 +134,7 @@ class SabrDownloadEngine {
                                     }
 
                                     is SabrEvent.SegmentReady -> {
-                                        consecutiveErrors = 0
+                                        consecutiveErrors.set(0)
                                         val segment = event.segment
                                         if (segment.isAudio) {
                                             audioStream?.write(segment.data)
@@ -165,13 +166,13 @@ class SabrDownloadEngine {
                                     }
 
                                     is SabrEvent.Error -> {
-                                        consecutiveErrors++
+                                        val errorCount = consecutiveErrors.incrementAndGet()
                                         Log.e(
                                             TAG,
                                             "SABR download error: code=${event.code}, msg=${event.message}, " +
-                                                "recoverable=${event.recoverable}, consecutive=$consecutiveErrors",
+                                                "recoverable=${event.recoverable}, consecutive=$errorCount",
                                         )
-                                        if (!event.recoverable || consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                                        if (!event.recoverable || errorCount >= MAX_CONSECUTIVE_ERRORS) {
                                             isCancelled = true
                                         }
                                     }
@@ -205,7 +206,7 @@ class SabrDownloadEngine {
                             controller.startSession()
 
                             while (isActive && !isCancelled && !endOfTrackReached.get() &&
-                                consecutiveErrors < MAX_CONSECUTIVE_ERRORS
+                                consecutiveErrors.get() < MAX_CONSECUTIVE_ERRORS
                             ) {
                                 delay(50)
                                 if (isCancelled || endOfTrackReached.get()) break
@@ -215,10 +216,10 @@ class SabrDownloadEngine {
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
-                                    consecutiveErrors++
-                                    Log.e(TAG, "Follow-up request failed ($consecutiveErrors/$MAX_CONSECUTIVE_ERRORS)", e)
-                                    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) break
-                                    delay(1000L * consecutiveErrors)
+                                    val errorCount = consecutiveErrors.incrementAndGet()
+                                    Log.e(TAG, "Follow-up request failed ($errorCount/$MAX_CONSECUTIVE_ERRORS)", e)
+                                    if (errorCount >= MAX_CONSECUTIVE_ERRORS) break
+                                    delay(1000L * errorCount)
                                 }
                             }
                         } finally {

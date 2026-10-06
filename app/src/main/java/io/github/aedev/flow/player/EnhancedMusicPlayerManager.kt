@@ -330,6 +330,7 @@ object EnhancedMusicPlayerManager {
                             Player.REPEAT_MODE_ALL -> RepeatMode.ALL
                             else -> RepeatMode.OFF
                         }
+                    triggerQueueSave()
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -912,7 +913,11 @@ object EnhancedMusicPlayerManager {
             val enabling = !_shuffleEnabled.value
             player?.shuffleModeEnabled = false
             _shuffleEnabled.value = enabling
-            if (enabling) shuffleQueue()
+            if (enabling) {
+                shuffleQueue()
+            } else {
+                triggerQueueSave()
+            }
         }
     }
 

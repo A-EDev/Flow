@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.LinkedHashMap
 
 /**
  * Shared sleep timer for both music and video playback.
@@ -24,7 +25,6 @@ import kotlinx.coroutines.launch
  *   4. Observe [isActive], [pauseAtEndOfMedia], and [triggerTimeMs] in the UI.
  */
 object SleepTimerManager {
-
     // ── Compose-observable state ──────────────────────────────────────────────
 
     var isActive by mutableStateOf(false)
@@ -53,23 +53,39 @@ object SleepTimerManager {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var timerJob: Job? = null
-    private var pauseCallback: (() -> Unit)? = null
-    private var exitCallback: (() -> Unit)? = null
+
+    private data class PlayerOwner(
+        val owner: Any,
+        val player: Player?,
+        val pause: () -> Unit,
+        var exit: (() -> Unit)?,
+        var active: Boolean = false,
+        var activationOrder: Long = 0L,
+    )
+
+    private val playerOwners = LinkedHashMap<Any, PlayerOwner>()
+    private var nextActivationOrder = 0L
+    private var timerOwner: PlayerOwner? = null
+    private var activeOwner: PlayerOwner? = null
     private var currentPlayer: Player? = null
 
-    private val playerListener = object : Player.Listener {
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (pauseAtEndOfMedia && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                firePause()
+    private val playerListener =
+        object : Player.Listener {
+            override fun onMediaItemTransition(
+                mediaItem: MediaItem?,
+                reason: Int,
+            ) {
+                if (pauseAtEndOfMedia && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    firePause()
+                }
             }
-        }
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_ENDED && pauseAtEndOfMedia) {
-                firePause()
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && pauseAtEndOfMedia) {
+                    firePause()
+                }
             }
         }
-    }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -80,25 +96,49 @@ object SleepTimerManager {
      * @param player   The Media3 [Player] for listening to playback events.
      * @param pauseFn  Lambda that pauses the correct player (music or video).
      */
-    fun attachToPlayer(player: Player?, pauseFn: () -> Unit) {
-        currentPlayer?.removeListener(playerListener)
-        currentPlayer = player
-        pauseCallback = pauseFn
-        player?.addListener(playerListener)
+    fun attachToPlayer(
+        owner: Any,
+        player: Player?,
+        pauseFn: () -> Unit,
+        exitFn: () -> Unit,
+    ) {
+        val current = playerOwners[owner]
+        val replacement =
+            PlayerOwner(
+                owner = owner,
+                player = player,
+                pause = pauseFn,
+                exit = exitFn,
+                active = current?.active ?: false,
+                activationOrder = current?.activationOrder ?: 0L,
+            )
+        playerOwners[owner] = replacement
+        if (timerOwner?.owner === owner) timerOwner = replacement
+        updateCurrentOwner()
     }
 
-    /** Detach the current player without cancelling the timer. */
-    fun detachPlayer() {
-        currentPlayer?.removeListener(playerListener)
-        currentPlayer = null
+    fun updateOwnerActive(
+        owner: Any,
+        active: Boolean,
+    ) {
+        val attachment = playerOwners[owner] ?: return
+        if (attachment.active == active) return
+        attachment.active = active
+        if (active) {
+            attachment.activationOrder = ++nextActivationOrder
+        } else if (timerOwner === attachment) {
+            timerOwner = null
+        }
+        updateCurrentOwner()
     }
 
-    /**
-     * Register a callback invoked instead of pausing when [closeAppOnExpiry] is true.
-     * Call this alongside [attachToPlayer] wherever the timer is set up.
-     */
-    fun attachExitCallback(fn: () -> Unit) {
-        exitCallback = fn
+    /** Detach only this composition's registration; an active timer keeps its player target. */
+    fun detachPlayer(owner: Any) {
+        val detached = playerOwners.remove(owner) ?: return
+        detached.exit = null
+        if (activeOwner === detached && isActive) timerOwner = detached
+        if (timerOwner === detached && !isActive) timerOwner = null
+        updateCurrentOwner()
     }
 
     /**
@@ -106,16 +146,20 @@ object SleepTimerManager {
      *
      * @param minutes  Duration in minutes, must be > 0.
      */
-    fun start(minutes: Int, closeApp: Boolean = false) {
+    fun start(
+        minutes: Int,
+        closeApp: Boolean = false,
+    ) {
         require(minutes > 0) { "minutes must be positive" }
         clearState()
         closeAppOnExpiry = closeApp
         triggerTimeMs = System.currentTimeMillis() + minutes * 60_000L
         isActive = true
-        timerJob = scope.launch {
-            delay(minutes * 60_000L)
-            firePause()
-        }
+        timerJob =
+            scope.launch {
+                delay(minutes * 60_000L)
+                firePause()
+            }
     }
 
     /** Start end-of-media mode — player pauses (or closes the app) when the current item ends. */
@@ -138,7 +182,13 @@ object SleepTimerManager {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun firePause() {
-        if (closeAppOnExpiry) exitCallback?.invoke() else pauseCallback?.invoke()
+        val target = activeOwner
+        if (closeAppOnExpiry) {
+            val exit = target?.exit
+            if (exit != null) exit() else target?.pause?.invoke()
+        } else {
+            target?.pause?.invoke()
+        }
         cancel()
     }
 
@@ -149,5 +199,20 @@ object SleepTimerManager {
         closeAppOnExpiry = false
         triggerTimeMs = -1L
         isActive = false
+        timerOwner = null
+        updateCurrentOwner()
+    }
+
+    private fun updateCurrentOwner() {
+        val nextOwner =
+            playerOwners.values
+                .filter { it.active }
+                .maxByOrNull(PlayerOwner::activationOrder)
+                ?: timerOwner
+        if (activeOwner === nextOwner) return
+        currentPlayer?.removeListener(playerListener)
+        activeOwner = nextOwner
+        currentPlayer = nextOwner?.player
+        currentPlayer?.addListener(playerListener)
     }
 }

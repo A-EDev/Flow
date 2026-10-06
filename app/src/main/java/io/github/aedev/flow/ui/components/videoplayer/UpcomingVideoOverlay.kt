@@ -31,6 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
@@ -47,15 +50,19 @@ internal fun UpcomingVideoOverlay(
     modifier: Modifier = Modifier,
 ) {
     var nowMs by remember(releaseTimeMs) { mutableStateOf(System.currentTimeMillis()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // Stops once the premiere is due rather than ticking for the life of the composition: the
     // overlay is mounted by a warm player tree and would otherwise keep waking the frame clock
     // with the screen off, long after the countdown had run out.
-    LaunchedEffect(releaseTimeMs) {
+    LaunchedEffect(releaseTimeMs, lifecycleOwner) {
         if (releaseTimeMs == null) return@LaunchedEffect
-        while (nowMs < releaseTimeMs) {
-            delay(1000)
-            nowMs = System.currentTimeMillis()
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                nowMs = System.currentTimeMillis()
+                if (nowMs >= releaseTimeMs) break
+                delay(1000)
+            }
         }
     }
 

@@ -1475,6 +1475,10 @@
     <string name="bedtime_reminder_subtitle">Get notified when it\'s time to sleep</string>
     <string name="break_reminder_title">Break Reminder</string>
     <string name="break_reminder_subtitle">Take regular breaks while watching</string>
+    <string name="reminder_bedtime_message">It\'s bedtime! 😴</string>
+    <string name="reminder_bedtime_message_detail">Time to wind down based on your schedule.</string>
+    <string name="reminder_break_message">Take a break! ☕</string>
+    <string name="reminder_break_message_detail">You\'ve been watching for a while.</string>
     <string name="sleep_window">Sleep window:</string>
     <string name="frequency_description">How often to remind you</string>
     <string name="tools_subtitle">Set reminders to balance your viewing habits</string>
@@ -3942,4 +3946,5 @@
     <string name="songs_download_nothing_new">Everything here is already downloaded or unavailable</string>
     <string name="save_as_playlist">Save as playlist</string>
     <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
+    <string name="notification_import_starting">Starting…</string>
 </resources>

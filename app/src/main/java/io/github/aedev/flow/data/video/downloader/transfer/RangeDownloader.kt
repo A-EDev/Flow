@@ -63,7 +63,10 @@ class RangeDownloader internal constructor(
      * Runs [job] to its end. Cancelling the caller stops the job at once: the blocking reads
      * are released by cancelling their requests, which a coroutine cancellation alone cannot do.
      */
-    suspend fun run(job: TransferJob): TransferResult =
+    suspend fun run(
+        job: TransferJob,
+        savedState: TransferState? = null,
+    ): TransferResult =
         withContext(transferDispatcher) {
             coroutineScope {
                 val releaseOnCancel =
@@ -75,7 +78,7 @@ class RangeDownloader internal constructor(
                         }
                     }
                 try {
-                    transfer(client(), job)
+                    transfer(client(), job, savedState)
                 } finally {
                     releaseOnCancel.cancel()
                 }
@@ -85,17 +88,23 @@ class RangeDownloader internal constructor(
     private suspend fun transfer(
         client: OkHttpClient,
         job: TransferJob,
+        savedState: TransferState?,
     ): TransferResult {
         try {
             for (stream in job.streams) {
                 if (stream.totalBytes <= 0L) {
-                    when (val length = contentLength(client, stream.url, job.fallbackUserAgent)) {
+                    when (val length = contentLength(client, stream.url, job)) {
                         is ContentLength.Known -> stream.totalBytes = length.bytes
                         ContentLength.Denied -> job.fail(TransferResult.Denied(stream.url))
                         ContentLength.Unknown -> job.fail(TransferResult.Failed(TransferFailure.LENGTH_UNKNOWN))
                     }
                     if (!job.isRunning) return job.outcome()
                 }
+            }
+            if (savedState?.restoreInto(job.streams) == true) {
+                Log.d(TAG, "${job.videoId}: resuming saved blocks")
+            }
+            for (stream in job.streams) {
                 prepareFile(stream.file, stream.totalBytes)
                 stream.nextBlock.set(0)
                 stream.downloaded.set(restoredBytes(stream))
@@ -219,6 +228,24 @@ class RangeDownloader internal constructor(
                 }
                 val body = response.body
                 val expected = end - from + 1
+                if (response.code == 200 && from > 0L && expected < stream.totalBytes) {
+                    // A range-honouring 200 answers with this block (or, at worst, the remainder from
+                    // `from`); a 200 whose declared length is the whole file means the CDN ignored
+                    // the range and is sending from byte 0, and writing that at `from` would corrupt
+                    // the file. Content-Range, when present, is authoritative.
+                    val rangeStart =
+                        response
+                            .header("Content-Range")
+                            ?.substringAfter(' ')
+                            ?.substringBefore('-')
+                            ?.trim()
+                            ?.toLongOrNull()
+                    if (rangeStart != null) {
+                        if (rangeStart != from) return BlockOutcome.Retry("range start mismatch")
+                    } else if (body.contentLength() == stream.totalBytes) {
+                        return BlockOutcome.Retry("range ignored (full body)")
+                    }
+                }
                 RandomAccessFile(stream.file, "rw").use { file ->
                     file.seek(from)
                     val buffer = ByteArray(BUFFER_SIZE)
@@ -301,13 +328,15 @@ class RangeDownloader internal constructor(
     private fun contentLength(
         client: OkHttpClient,
         url: String,
-        fallbackUserAgent: String,
+        job: TransferJob,
     ): ContentLength {
         if (YouTubeStreamUrls.isYouTubeStreamUrl(url)) {
             YouTubeStreamUrls.extractClenFromUrl(url).takeIf { it > 0 }?.let { return ContentLength.Known(it) }
         }
+        val call = client.newCall(blockRequest(url, 0L, 0L, job.fallbackUserAgent))
+        job.track(call)
         return try {
-            client.newCall(blockRequest(url, 0L, 0L, fallbackUserAgent)).execute().use { response ->
+            call.execute().use { response ->
                 when {
                     response.code == 403 -> {
                         ContentLength.Denied
@@ -330,6 +359,8 @@ class RangeDownloader internal constructor(
         } catch (e: IOException) {
             Log.w(TAG, "Length probe failed: ${e.message}")
             ContentLength.Unknown
+        } finally {
+            job.untrack(call)
         }
     }
 

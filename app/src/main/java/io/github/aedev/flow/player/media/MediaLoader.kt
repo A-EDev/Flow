@@ -13,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -25,6 +26,7 @@ import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.renderer.subtitle.Srv3SubtitleParser
 import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
+import io.github.aedev.flow.player.sabr.core.SabrStreamController
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceFactory
 import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
 import io.github.aedev.flow.player.sabr.integration.SabrOrchestrator
@@ -51,6 +53,7 @@ class MediaLoader(
     private val stateFlow: MutableStateFlow<EnhancedPlayerState>,
     private val cacheManager: PlayerCacheManager?,
     private val surfaceManager: SurfaceManager?,
+    private val transferListener: TransferListener? = null,
 ) {
     companion object {
         private const val TAG = "MediaLoader"
@@ -69,6 +72,7 @@ class MediaLoader(
 
     private var activeSabrOrchestrator: SabrOrchestrator? = null
     private var lastSourceWasSabr = false
+    private val sabrCapacityPolicy = SabrCapacityPolicy()
     var onSabrFallbackNeeded: (() -> Unit)? = null
 
     /** Invoked with a subtitle track's index and display label once its fetch has finally given up. */
@@ -183,6 +187,7 @@ class MediaLoader(
                     } else {
                         exoPlayer.setMediaSource(mediaSource)
                     }
+                    activeSabrOrchestrator?.setPlaybackRequested(playWhenReady)
                     exoPlayer.prepare()
                     stateFlow.value = stateFlow.value.copy(isPrepared = true)
 
@@ -283,7 +288,8 @@ class MediaLoader(
     ): MediaSource? {
         val sabrAvailable =
             sabrInfo != null && sabrInfo.streamingUrl.isNotEmpty() &&
-                sabrVideoId != null && sabrInfo.audioItag > 0 && sabrInfo.videoItag > 0
+                sabrVideoId != null && sabrInfo.audioItag > 0 && sabrInfo.videoItag > 0 &&
+                sabrCapacityPolicy.allows(sabrVideoId, sabrInfo.videoItag)
 
         val overridesDefaultAudio = StreamProcessor.overridesDefaultAudioTrack(audioStream)
 
@@ -404,10 +410,16 @@ class MediaLoader(
                     startPositionMs = startPositionMs,
                     mediaId = mediaId,
                     mediaMetadata = mediaMetadata,
+                    transferListener = transferListener,
                 )
             activeSabrOrchestrator = result.orchestrator
-            result.orchestrator.onError = { _, msg, recoverable ->
+            result.orchestrator.onError = { code, msg, recoverable, itag ->
                 if (!recoverable) {
+                    if ((code == SabrOrchestrator.BUFFER_CAPACITY_ERROR || code == SabrStreamController.RESOURCE_LIMIT_ERROR) &&
+                        itag == info.videoItag
+                    ) {
+                        sabrCapacityPolicy.reject(videoId, info.videoItag)
+                    }
                     Log.w(TAG, "SABR non-recoverable error: $msg — triggering fallback")
                     onSabrFallbackNeeded?.invoke()
                 }

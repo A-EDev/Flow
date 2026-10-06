@@ -29,6 +29,8 @@ class RangeDownloaderTest {
         private val content: ByteArray,
         private val respond: (range: LongRange, attempt: Int) -> Int = { _, _ -> 200 },
         private val truncate: Boolean = false,
+        private val ignoreRange: Boolean = false,
+        private val contentRangeStart: Long? = null,
     ) : Interceptor {
         val requests = AtomicInteger()
 
@@ -50,11 +52,18 @@ class RangeDownloaderTest {
                     .code(code)
                     .message("fake")
             if (code != 200) return builder.body(ByteArray(0).toResponseBody()).build()
+            if (ignoreRange) {
+                // A 200 carrying the whole file and no Content-Range: the CDN ignored the range.
+                return builder
+                    .body(content.toResponseBody("application/octet-stream".toMediaType()))
+                    .build()
+            }
             val end = minOf(range.last, content.lastIndex.toLong()).toInt()
             val slice = content.copyOfRange(range.first.toInt(), end + 1)
             val served = if (truncate) slice.copyOf(slice.size / 2) else slice
+            val start = contentRangeStart ?: range.first
             return builder
-                .header("Content-Range", "bytes ${range.first}-$end/${content.size}")
+                .header("Content-Range", "bytes $start-$end/${content.size}")
                 .body(served.toResponseBody("application/octet-stream".toMediaType()))
                 .build()
         }
@@ -179,5 +188,87 @@ class RangeDownloaderTest {
             val job = job(withClen = false)
 
             assertThat(downloader(FakeCdn(content, respond = { _, _ -> 403 })).run(job)).isInstanceOf(TransferResult.Denied::class.java)
+        }
+
+    @Test
+    fun `saved blocks are restored after a missing size is probed`() =
+        runTest(dispatcher) {
+            val cdn = FakeCdn(content)
+            val job = job(withClen = false, threads = 1)
+            val stream = job.streams.single()
+            stream.file.writeBytes(content)
+            val saved =
+                TransferState(
+                    listOf(
+                        TransferState.StreamState(
+                            StreamRole.AUDIO,
+                            140,
+                            content.size.toLong(),
+                            listOf(0, 1),
+                            emptyMap(),
+                        ),
+                    ),
+                )
+
+            assertThat(downloader(cdn).run(job, saved)).isEqualTo(TransferResult.Completed)
+            assertThat(cdn.requests.get()).isEqualTo(2)
+            assertThat(stream.file.readBytes()).isEqualTo(content)
+            assertThat(job.downloadedBytes).isEqualTo(content.size.toLong())
+        }
+
+    @Test
+    fun `a probed size mismatch discards the saved blocks`() =
+        runTest(dispatcher) {
+            val cdn = FakeCdn(content)
+            val job = job(withClen = false, threads = 1)
+            val stream = job.streams.single()
+            stream.file.writeBytes(ByteArray(content.size - 1))
+            val saved =
+                TransferState(
+                    listOf(
+                        TransferState.StreamState(
+                            StreamRole.AUDIO,
+                            140,
+                            content.size.toLong() - 1,
+                            listOf(0, 1),
+                            emptyMap(),
+                        ),
+                    ),
+                )
+
+            assertThat(downloader(cdn).run(job, saved)).isEqualTo(TransferResult.Completed)
+            assertThat(cdn.requests.get()).isEqualTo(1 + RangeDownloader.blockCount(content.size.toLong()))
+            assertThat(stream.file.readBytes()).isEqualTo(content)
+        }
+
+    @Test
+    fun `a 200 that ignores the range fails instead of corrupting the file`() =
+        runTest(dispatcher) {
+            val cdn = FakeCdn(content, ignoreRange = true)
+            val job = job(threads = 1)
+
+            val result = downloader(cdn).run(job)
+
+            assertThat(result).isInstanceOf(TransferResult.Failed::class.java)
+            // The block from byte 0 is written correctly; the misaligned blocks must never be marked done.
+            assertThat(job.streams.single().completedBlocks).doesNotContain(1)
+            assertThat(
+                job.streams
+                    .single()
+                    .file
+                    .readBytes(),
+            ).isNotEqualTo(content)
+        }
+
+    @Test
+    fun `a 200 whose Content-Range starts elsewhere is not written`() =
+        runTest(dispatcher) {
+            val cdn = FakeCdn(content, contentRangeStart = 0L)
+            val job = job(threads = 1)
+
+            val result = downloader(cdn).run(job)
+
+            assertThat(result).isInstanceOf(TransferResult.Failed::class.java)
+            assertThat(job.streams.single().completedBlocks).doesNotContain(1)
         }
 }

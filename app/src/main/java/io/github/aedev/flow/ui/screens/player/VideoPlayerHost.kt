@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -41,6 +42,7 @@ import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 
 /**
  * VideoPlayerHost - The main video player overlay that sits above everything.
@@ -530,8 +532,14 @@ fun VideoPlayerHost(
                 modifier =
                     Modifier
                         .align(Alignment.CenterStart)
-                        .width(sidePanelState.playerWidth)
-                        .fillMaxHeight(),
+                        .layout { measurable, constraints ->
+                            val widthPx = sidePanelState.playerWidthPx().roundToInt()
+                            val placeable =
+                                measurable.measure(
+                                    constraints.copy(minWidth = widthPx, maxWidth = widthPx),
+                                )
+                            layout(widthPx, placeable.height) { placeable.place(0, 0) }
+                        }.fillMaxHeight(),
                 videoContent = { modifier ->
                     VideoStage(
                         modifier = modifier,
@@ -584,7 +592,7 @@ fun VideoPlayerHost(
                     session = stageSession,
                     sponsorSegments = sponsorSegments,
                     expandedPlayerBottom = expandedPlayerBottom,
-                    playerWidth = sidePanelState.playerWidth,
+                    playerWidthPx = sidePanelState.playerWidthPx,
                     expandedSurfacesPlaced = expandedSurfacesPlaced,
                     endPadding = sponsorSkipEndPadding,
                     bottomPadding = floatingSponsorSkipBottomPadding,

@@ -90,8 +90,12 @@ object AppProxyManager {
 
     fun currentSignature(): String = config.signature()
 
-    fun applyTo(builder: OkHttpClient.Builder): OkHttpClient.Builder {
-        val activeConfig = config
+    fun applyTo(builder: OkHttpClient.Builder): OkHttpClient.Builder = applyTo(builder, config)
+
+    fun applyTo(
+        builder: OkHttpClient.Builder,
+        activeConfig: AppProxyConfig,
+    ): OkHttpClient.Builder {
         val proxy = activeConfig.toProxy() ?: return builder
         builder.proxy(proxy)
         if (activeConfig.type == AppProxyType.HTTP) {

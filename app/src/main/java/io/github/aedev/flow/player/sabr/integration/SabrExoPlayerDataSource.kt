@@ -9,9 +9,8 @@ import androidx.media3.datasource.DataSpec
 
 @UnstableApi
 class SabrExoPlayerDataSource(
-    private val buffer: SabrSegmentBuffer
-) : BaseDataSource(true) {
-
+    private val buffer: SabrSegmentBuffer,
+) : BaseDataSource(false) {
     private var opened = false
     private var uri: Uri? = null
 
@@ -23,7 +22,11 @@ class SabrExoPlayerDataSource(
         return C.LENGTH_UNSET.toLong()
     }
 
-    override fun read(target: ByteArray, offset: Int, length: Int): Int {
+    override fun read(
+        target: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int {
         if (!opened) return C.RESULT_END_OF_INPUT
         val bytesRead = buffer.read(target, offset, length)
         if (bytesRead == -1) return C.RESULT_END_OF_INPUT
@@ -42,7 +45,7 @@ class SabrExoPlayerDataSource(
 
     class Factory(
         private val audioBuffer: SabrSegmentBuffer,
-        private val videoBuffer: SabrSegmentBuffer
+        private val videoBuffer: SabrSegmentBuffer,
     ) : DataSource.Factory {
         @Volatile
         private var isAudio = false
@@ -52,8 +55,6 @@ class SabrExoPlayerDataSource(
             return this
         }
 
-        override fun createDataSource(): DataSource {
-            return SabrExoPlayerDataSource(if (isAudio) audioBuffer else videoBuffer)
-        }
+        override fun createDataSource(): DataSource = SabrExoPlayerDataSource(if (isAudio) audioBuffer else videoBuffer)
     }
 }

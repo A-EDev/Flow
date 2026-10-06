@@ -107,12 +107,12 @@ class DownloadTransfer
                             streams.audio.contentLength ?: 0L,
                         ),
                     )
-                if (TransferState.read(staging.state)?.restoreInto(parts) == true) Log.d(TAG, "${request.videoId}: resuming saved blocks")
+                val savedState = TransferState.read(staging.state)
                 val job = TransferJob(request.videoId, parts, threads, YouTubeClient.USER_AGENT_WEB)
                 val result =
                     try {
                         reportingProgress(request, itemId, { job.downloadedBytes }, { job.totalBytes }, { saveState(staging, job) }) {
-                            rangeDownloader.run(job)
+                            rangeDownloader.run(job, savedState)
                         }
                     } finally {
                         saveState(staging, job)
@@ -252,7 +252,7 @@ class DownloadTransfer
             staging: DownloadStaging,
             job: TransferJob,
         ) {
-            runCatching { TransferState.write(staging.state, TransferState.of(job)) }
+            runCatching { TransferState.write(staging.state, job) }
                 .onFailure { Log.w(TAG, "${job.videoId}: could not save resume state", it) }
         }
 

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
+import android.app.Activity
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
@@ -8,9 +9,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -33,6 +36,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import io.github.aedev.flow.ui.screens.player.state.visibleComments
+import java.lang.ref.WeakReference
 
 @Composable
 internal fun PlayerBottomSheetsContainer(
@@ -59,27 +63,38 @@ internal fun PlayerBottomSheetsContainer(
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
     val visibleComments = commentsUiState.visibleComments(screenState)
+    val sleepTimerOwner = remember { Any() }
+    val player = EnhancedPlayerManager.getInstance().getPlayer()
+    val isActivePlaybackOwner = playerState.currentVideoId != null
+    val pauseVideo by rememberUpdatedState { EnhancedPlayerManager.getInstance().pause() }
+    val applicationContext = context.applicationContext
+    val activityReference = remember(context) { WeakReference(context as? Activity) }
+    val exitVideo by rememberUpdatedState {
+        pauseVideo()
+        EnhancedMusicPlayerManager.stop()
+        applicationContext.stopService(
+            android.content.Intent(applicationContext, io.github.aedev.flow.service.VideoPlayerService::class.java),
+        )
+        activityReference.get()?.finishAndRemoveTask()
+    }
+
+    DisposableEffect(sleepTimerOwner, player) {
+        SleepTimerManager.attachToPlayer(
+            owner = sleepTimerOwner,
+            player = player,
+            pauseFn = { pauseVideo() },
+            exitFn = { exitVideo() },
+        )
+        onDispose { SleepTimerManager.detachPlayer(sleepTimerOwner) }
+    }
+    SideEffect {
+        SleepTimerManager.updateOwnerActive(sleepTimerOwner, isActivePlaybackOwner)
+    }
 
     val handleSeek: (Long) -> Unit =
         remember {
             { positionMs -> EnhancedPlayerManager.getInstance().seekTo(positionMs) }
         }
-
-    LaunchedEffect(Unit) {
-        SleepTimerManager.attachToPlayer(
-            player = EnhancedPlayerManager.getInstance().getPlayer(),
-        ) {
-            EnhancedPlayerManager.getInstance().pause()
-        }
-        SleepTimerManager.attachExitCallback {
-            EnhancedPlayerManager.getInstance().pause()
-            EnhancedMusicPlayerManager.stop()
-            context.stopService(
-                android.content.Intent(context, io.github.aedev.flow.service.VideoPlayerService::class.java),
-            )
-            (context as? android.app.Activity)?.finishAndRemoveTask()
-        }
-    }
 
     // Comments Bottom Sheet
     if (screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled && !hostedInSidePanel) {

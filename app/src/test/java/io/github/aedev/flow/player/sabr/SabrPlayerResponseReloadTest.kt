@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.player.sabr.core.SabrSessionState
 import io.github.aedev.flow.player.sabr.proto.FormatBufferedRange
 import io.github.aedev.flow.player.sabr.proto.FormatId
+import io.github.aedev.flow.player.sabr.proto.FormatInitializationMetadata
 import org.junit.Test
 
 class SabrPlayerResponseReloadTest {
@@ -23,15 +24,18 @@ class SabrPlayerResponseReloadTest {
                 selectedVideoItag = 137
                 selectedVideoLmt = 2
                 audioTrackId = "old-track"
-                initializedFormats += setOf(140, 137)
-                audioBufferedRanges +=
+                storeFormatMetadata(FormatInitializationMetadata(formatId = FormatId(140, 1)))
+                storeFormatMetadata(FormatInitializationMetadata(formatId = FormatId(137, 2)))
+                addBufferedRange(
+                    true,
                     FormatBufferedRange(
                         formatId = FormatId(140, 1),
                         startTimeMs = 65_000,
                         durationMs = 10_000,
                         startSequence = 10,
                         endSequence = 11,
-                    )
+                    ),
+                )
             }
 
         state.applyPlayerResponseReload(

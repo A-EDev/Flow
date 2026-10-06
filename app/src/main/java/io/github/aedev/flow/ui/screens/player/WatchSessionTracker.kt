@@ -106,12 +106,13 @@ internal fun watchSignalFor(
 /**
  * The screen's position belongs to [videoId] only while the player still holds it. Autoplay swaps
  * the player to the next video a moment before the screen follows, and a save in that gap would
- * write the next video's position over this one's, emptying a finished video's progress bar.
+ * write the next video's position over this one's, emptying a finished video's progress bar. A
+ * null player id also means the screen no longer owns an item whose position it can safely save.
  */
 internal fun positionBelongsTo(
     videoId: String,
     playerVideoId: String?,
-): Boolean = playerVideoId == null || playerVideoId == videoId
+): Boolean = playerVideoId == videoId
 
 /**
  * Everything a view leaves behind: the history row, the resume position, the one terminal signal

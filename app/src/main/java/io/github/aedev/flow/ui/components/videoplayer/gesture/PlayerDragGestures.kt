@@ -110,6 +110,7 @@ internal fun Modifier.playerDragGestures(
         var exitDragTravel = 0f
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
+        var gestureOverlayHideJob: Job? = null
         var lastVolumeStep = -1
         var lastBrightnessEdge = 0
 
@@ -351,6 +352,8 @@ internal fun Modifier.playerDragGestures(
         try {
             detectPlayerDrags(
                 onDragStart = { offset ->
+                    gestureOverlayHideJob?.cancel()
+                    gestureOverlayHideJob = null
                     lastVolumeStep = -1
                     volumeGestureLevel = Float.NaN
                     brightnessGestureLevel = Float.NaN
@@ -418,11 +421,13 @@ internal fun Modifier.playerDragGestures(
 
                         PlayerDragAxis.VERTICAL -> {
                             endExitDrag(commit = isCenterZone)
-                            scope.launch {
-                                delay(500) // Delay hiding controls
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
-                            }
+                            gestureOverlayHideJob?.cancel()
+                            gestureOverlayHideJob =
+                                scope.launch {
+                                    delay(500) // Delay hiding controls
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
                         }
                     }
                     isCenterZone = false
@@ -435,10 +440,12 @@ internal fun Modifier.playerDragGestures(
                         }
 
                         PlayerDragAxis.VERTICAL -> {
-                            scope.launch {
-                                currentOnShowBrightnessChange(false)
-                                currentOnShowVolumeChange(false)
-                            }
+                            gestureOverlayHideJob?.cancel()
+                            gestureOverlayHideJob =
+                                scope.launch {
+                                    currentOnShowBrightnessChange(false)
+                                    currentOnShowVolumeChange(false)
+                                }
                         }
                     }
                     isCenterZone = false

@@ -28,6 +28,7 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -159,6 +160,18 @@ class PlaybackSessionApplierTest {
                 playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any())
             }
             verify { GlobalPlayerState.setCurrentVideo(match { it.id == VIDEO_ID && it.title == "InnerTube title" }) }
+        }
+
+    @Test
+    fun `an explicit zero resume override wins over saved history`() =
+        runTest(testDispatcher) {
+            every { harness.viewHistory.getPlaybackPosition(VIDEO_ID) } returns flowOf(84_000L)
+
+            applier().apply(vodStep(resumePositionOverrideMs = 0L), load())
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any()) }
+            verify(exactly = 0) { harness.viewHistory.getPlaybackPosition(VIDEO_ID) }
         }
 
     @Test
@@ -372,7 +385,10 @@ class PlaybackSessionApplierTest {
     private fun segment(): SponsorBlockSegment =
         SponsorBlockSegment(category = "sponsor", segment = listOf(0f, 1f), uuid = "uuid_1", actionType = "skip")
 
-    private fun vodStep(relatedVideos: List<Video> = emptyList()): ResolvedPlayback.VodFromInnerTube =
+    private fun vodStep(
+        relatedVideos: List<Video> = emptyList(),
+        resumePositionOverrideMs: Long? = null,
+    ): ResolvedPlayback.VodFromInnerTube =
         ResolvedPlayback.VodFromInnerTube(
             result = extraction(),
             relatedVideos = relatedVideos,
@@ -380,7 +396,7 @@ class PlaybackSessionApplierTest {
             preferredAudioLanguage = "original",
             preferredCodecKey = "auto",
             preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
-            resumePositionOverrideMs = null,
+            resumePositionOverrideMs = resumePositionOverrideMs,
         )
 
     private fun liveStep(): ResolvedPlayback.Live =

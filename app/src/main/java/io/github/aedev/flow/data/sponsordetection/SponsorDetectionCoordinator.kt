@@ -21,6 +21,8 @@ import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import java.io.OutputStream
 
+internal const val ON_DEVICE_UNAVAILABLE_MESSAGE = "On-device detection disabled or model not downloaded"
+
 internal data class SponsorDetectionLoadResult(
     val playbackSegments: List<SponsorBlockSegment>,
     val apiSegments: List<SponsorBlockSegment>,
@@ -41,12 +43,16 @@ internal class SponsorDetectionCoordinator(
     private val closeDetector: suspend () -> Unit = {},
     private val onDeviceEnabled: suspend () -> Boolean = { true },
     private val onDeviceModelInstalled: () -> Boolean = { true },
+    private val onlineEnabled: suspend () -> Boolean = { true },
     journalDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     constructor(
         context: Context,
         onProvisionalPlayback: suspend (String, List<SponsorBlockSegment>) -> Unit = { _, _ -> },
         playbackPositionMs: () -> Long = { 0L },
+        onlineEnabled: suspend () -> Boolean = {
+            PlayerPreferences(context.applicationContext).sponsorBlockEnabled.first()
+        },
     ) : this(
         repository = SponsorBlockRepository(),
         captionLoader = SponsorCaptionLoader(context.applicationContext),
@@ -55,6 +61,7 @@ internal class SponsorDetectionCoordinator(
         trainingSink = SponsorFeedbackJournal(context.applicationContext),
         preferences = PlayerPreferences(context.applicationContext),
         onProvisionalPlayback = onProvisionalPlayback,
+        onlineEnabled = onlineEnabled,
     )
 
     constructor(
@@ -66,6 +73,7 @@ internal class SponsorDetectionCoordinator(
         preferences: PlayerPreferences,
         onProvisionalPlayback: suspend (String, List<SponsorBlockSegment>) -> Unit = { _, _ -> },
         journalDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        onlineEnabled: suspend () -> Boolean = { preferences.sponsorBlockEnabled.first() },
     ) : this(
         fetchSegments = repository::fetchSegments,
         loadCaptions = captionLoader::load,
@@ -77,6 +85,7 @@ internal class SponsorDetectionCoordinator(
         closeDetector = detector::close,
         onDeviceEnabled = { preferences.sponsorOnDeviceEnabled.first() },
         onDeviceModelInstalled = detector::isModelInstalled,
+        onlineEnabled = onlineEnabled,
         journalDispatcher = journalDispatcher,
     )
 
@@ -98,14 +107,19 @@ internal class SponsorDetectionCoordinator(
         coroutineScope {
             val requestGeneration = begin(videoId)
             Log.i(TAG, "Sponsor evaluation started for $videoId")
+            val apiDisabled = authoritativeSegments == null && !onlineEnabled()
             var resolvedApiResult: SponsorBlockFetchResult? =
                 authoritativeSegments?.let(SponsorBlockFetchResult::Success)
             var resolvedApiSegments = authoritativeSegments.orEmpty()
+            var resolvedApiDisabled = apiDisabled
             try {
                 val apiDeferred =
                     async {
-                        authoritativeSegments?.let { SponsorBlockFetchResult.Success(it) }
-                            ?: fetchSegments(videoId)
+                        when {
+                            authoritativeSegments != null -> SponsorBlockFetchResult.Success(authoritativeSegments)
+                            apiDisabled -> SponsorBlockFetchResult.Empty
+                            else -> fetchSegments(videoId)
+                        }
                     }
                 val onDeviceActive =
                     try {
@@ -128,9 +142,9 @@ internal class SponsorDetectionCoordinator(
                         SponsorDetectionUiState(
                             videoId = videoId,
                             status = SponsorDetectionStatus.SKIPPED,
-                            apiOutcome = apiOutcome(apiResult, authoritativeSegments != null),
+                            apiOutcome = apiOutcome(apiResult, authoritativeSegments != null, apiDisabled),
                             apiSegments = apiSegments,
-                            errorMessage = "On-device detection disabled or model not downloaded",
+                            errorMessage = ON_DEVICE_UNAVAILABLE_MESSAGE,
                         ),
                     )
                     return@coroutineScope SponsorDetectionLoadResult(apiSegments, apiSegments)
@@ -143,6 +157,7 @@ internal class SponsorDetectionCoordinator(
                     update: SponsorStreamUpdate,
                 ) {
                     if (!isCurrent(requestGeneration)) throw CancellationException("superseded sponsor evaluation")
+                    if (!onDeviceEnabled() || !onDeviceModelInstalled()) return
                     if (update.spans.isEmpty()) return
                     publishIfCurrent(
                         requestGeneration,
@@ -208,7 +223,7 @@ internal class SponsorDetectionCoordinator(
                         SponsorDetectionUiState(
                             videoId = videoId,
                             status = SponsorDetectionStatus.SKIPPED,
-                            apiOutcome = apiOutcome(apiResult, authoritativeSegments != null),
+                            apiOutcome = apiOutcome(apiResult, authoritativeSegments != null, apiDisabled),
                             apiSegments = apiSegments,
                             errorMessage = "No usable English captions",
                         ),
@@ -227,7 +242,7 @@ internal class SponsorDetectionCoordinator(
                             SponsorDetectionUiState(
                                 videoId = videoId,
                                 status = SponsorDetectionStatus.ERROR,
-                                apiOutcome = apiOutcome(apiResult, authoritativeSegments != null),
+                                apiOutcome = apiOutcome(apiResult, authoritativeSegments != null, apiDisabled),
                                 apiSegments = apiSegments,
                                 errorMessage = error.message ?: error.javaClass.simpleName,
                             ),
@@ -235,7 +250,21 @@ internal class SponsorDetectionCoordinator(
                         return@coroutineScope SponsorDetectionLoadResult(apiSegments, apiSegments)
                     }
                 val (apiSponsorSpans, comparison) = compareSponsorSpans(inference.spans, apiSegments)
-                val outcome = apiOutcome(apiResult, authoritativeSegments != null)
+                if (!onDeviceEnabled() || !onDeviceModelInstalled()) {
+                    val outcome = apiOutcome(apiResult, authoritativeSegments != null, apiDisabled)
+                    publishIfCurrent(
+                        requestGeneration,
+                        SponsorDetectionUiState(
+                            videoId = videoId,
+                            status = SponsorDetectionStatus.SKIPPED,
+                            apiOutcome = outcome,
+                            apiSegments = apiSegments,
+                            errorMessage = ON_DEVICE_UNAVAILABLE_MESSAGE,
+                        ),
+                    )
+                    return@coroutineScope SponsorDetectionLoadResult(apiSegments, apiSegments)
+                }
+                val outcome = apiOutcome(apiResult, authoritativeSegments != null, apiDisabled)
                 val failureDetail = apiFailureDetail(apiResult)
                 val dedupeKey =
                     sha256(
@@ -315,7 +344,7 @@ internal class SponsorDetectionCoordinator(
                     SponsorDetectionUiState(
                         videoId = videoId,
                         status = SponsorDetectionStatus.ERROR,
-                        apiOutcome = resolvedApiResult?.let { apiOutcome(it, authoritativeSegments != null) },
+                        apiOutcome = resolvedApiResult?.let { apiOutcome(it, authoritativeSegments != null, resolvedApiDisabled) },
                         apiSegments = resolvedApiSegments,
                         errorMessage = error.message ?: error.javaClass.simpleName,
                     ),
@@ -406,6 +435,37 @@ internal class SponsorDetectionCoordinator(
         }
     }
 
+    suspend fun clearModelPredictionsPreservingApi() {
+        stateMutex.withLock {
+            generation++
+            currentEvaluationEvent = null
+            currentTranscript = null
+            val current = _state.value
+            _state.value =
+                current.copy(
+                    status =
+                        if (current.status == SponsorDetectionStatus.READY || current.status == SponsorDetectionStatus.LOADING) {
+                            SponsorDetectionStatus.SKIPPED
+                        } else {
+                            current.status
+                        },
+                    evaluationId = null,
+                    predictions = emptyList(),
+                    comparison = null,
+                    inference = null,
+                    isProvisional = false,
+                    reviewedSpanIds = emptySet(),
+                    reviewAvailable = false,
+                    errorMessage =
+                        if (current.status == SponsorDetectionStatus.READY || current.status == SponsorDetectionStatus.LOADING) {
+                            ON_DEVICE_UNAVAILABLE_MESSAGE
+                        } else {
+                            current.errorMessage
+                        },
+                )
+        }
+    }
+
     suspend fun close() {
         reset()
         closeDetector()
@@ -441,8 +501,11 @@ internal class SponsorDetectionCoordinator(
     private fun apiOutcome(
         result: SponsorBlockFetchResult,
         offlineSaved: Boolean,
+        apiDisabled: Boolean,
     ): SponsorApiOutcome =
-        if (offlineSaved) {
+        if (apiDisabled) {
+            SponsorApiOutcome.DISABLED
+        } else if (offlineSaved) {
             SponsorApiOutcome.OFFLINE_SAVED
         } else {
             when (result) {

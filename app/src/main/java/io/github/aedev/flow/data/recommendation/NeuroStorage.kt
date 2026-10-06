@@ -69,6 +69,7 @@ internal class NeuroStorage(
     @Serializable
     data class SerializableTopicEvidence(
         val positiveSignals: Int = 0,
+        val negativeSignals: Int = 0,
         val watchSignals: Int = 0,
         val explicitSignals: Int = 0,
         val positiveScore: Double = 0.0,
@@ -175,6 +176,7 @@ internal class NeuroStorage(
     fun TopicEvidence.toSerializable() =
         SerializableTopicEvidence(
             positiveSignals = positiveSignals,
+            negativeSignals = negativeSignals,
             watchSignals = watchSignals,
             explicitSignals = explicitSignals,
             positiveScore = positiveScore,
@@ -609,6 +611,7 @@ internal fun NeuroStorage.SerializableRejectionSignal.toRejectionSignal() =
 internal fun NeuroStorage.SerializableTopicEvidence.toTopicEvidence() =
     TopicEvidence(
         positiveSignals = positiveSignals,
+        negativeSignals = negativeSignals,
         watchSignals = watchSignals,
         explicitSignals = explicitSignals,
         positiveScore = positiveScore,

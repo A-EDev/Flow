@@ -211,8 +211,12 @@ object DownloadFiles {
             source.copyTo(target, overwrite = false)
             source.delete()
             target
-        }.onFailure { Log.w(TAG, "Could not move ${source.name} to $directory", it) }
-            .getOrNull()
+        }.onFailure {
+            Log.w(TAG, "Could not move ${source.name} to $directory", it)
+            // A partial copy is not the destination file; remove it so the chosen folder does not
+            // keep an orphan beside the copy the caller will retry elsewhere.
+            target.delete()
+        }.getOrNull()
     }
 
     private fun treeRoot(treeUri: String): Uri {

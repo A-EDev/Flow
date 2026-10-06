@@ -81,6 +81,7 @@ class PlaybackLoadResolver
                             offlineSegments = sponsorBlockRepository.parseSegments(storedSponsorBlockJson),
                             needsSponsorBlockBackfill = storedSponsorBlockJson == null,
                             downloadedVideo = localCopy.video,
+                            resumePositionOverrideMs = request.resumePositionOverrideMs,
                         ),
                     )
                     return
@@ -91,11 +92,6 @@ class PlaybackLoadResolver
 
                 // Startup-critical disk reads, resolved in parallel with stream extraction so the
                 // playback-preparation path below never blocks on DataStore/DB.
-                val savedPositionDeferred =
-                    scope.async(ioDispatcher) {
-                        request.resumePositionOverrideMs?.takeIf { it > 0L }
-                            ?: viewHistory.getPlaybackPosition(videoId).first()
-                    }
                 val autoplayDeferred = scope.async(ioDispatcher) { playerPreferences.autoplayEnabled.first() }
                 val preferences = withContext(ioDispatcher) { readStreamPreferences(request.isWifi) }
 
@@ -105,7 +101,6 @@ class PlaybackLoadResolver
                         request = request,
                         preferences = preferences,
                         innerTubeDeferred = innerTubeDeferred,
-                        savedPositionDeferred = savedPositionDeferred,
                         autoplayDeferred = autoplayDeferred,
                         isCurrent = isCurrent,
                         resolveUpcoming = resolveUpcoming,
@@ -131,7 +126,6 @@ class PlaybackLoadResolver
             request: PlaybackResolutionRequest,
             preferences: StreamPreferences,
             innerTubeDeferred: Deferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>,
-            savedPositionDeferred: Deferred<Long>,
             autoplayDeferred: Deferred<Boolean>,
             isCurrent: () -> Boolean,
             resolveUpcoming: suspend (String, Boolean) -> UpcomingPremiere,

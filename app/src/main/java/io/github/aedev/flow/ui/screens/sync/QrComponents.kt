@@ -10,6 +10,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -30,6 +31,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import io.github.aedev.flow.R
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /** Renders [text] as a QR code (ZXing, FOSS). */
 @Composable
@@ -81,7 +83,17 @@ fun QrScannerView(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scanned = remember { AtomicBoolean(false) }
+    val disposed = remember { AtomicBoolean(false) }
     val executor = remember { Executors.newSingleThreadExecutor() }
+    val providerRef = remember { AtomicReference<ProcessCameraProvider?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            disposed.set(true)
+            providerRef.get()?.unbindAll()
+            executor.shutdownNow()
+        }
+    }
 
     AndroidView(
         modifier = modifier,
@@ -89,7 +101,11 @@ fun QrScannerView(
             val previewView = PreviewView(ctx)
             val providerFuture = ProcessCameraProvider.getInstance(ctx)
             providerFuture.addListener({
+                // The future can resolve after the screen is gone; binding then would register an
+                // analyzer on a shut-down executor and hold the camera for the host lifecycle.
+                if (disposed.get()) return@addListener
                 val provider = providerFuture.get()
+                providerRef.set(provider)
                 val preview =
                     Preview.Builder().build().also {
                         it.setSurfaceProvider(previewView.surfaceProvider)

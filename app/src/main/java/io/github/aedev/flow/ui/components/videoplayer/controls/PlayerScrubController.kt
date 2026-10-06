@@ -11,9 +11,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -115,11 +117,10 @@ internal fun rememberPlayerScrubController(
 
     val pendingScrubTarget = scrubPosition
     if (pendingScrubTarget != null && !isScrubbing) {
-        val settledPosition = livePosition()
-        LaunchedEffect(settledPosition, pendingScrubTarget) {
-            if (abs(settledPosition - pendingScrubTarget) <= 1_000L) {
-                scrubPosition = null
-            }
+        LaunchedEffect(pendingScrubTarget) {
+            snapshotFlow { livePosition() }
+                .first { abs(it - pendingScrubTarget) <= 1_000L }
+            scrubPosition = null
         }
     }
 

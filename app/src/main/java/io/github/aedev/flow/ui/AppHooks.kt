@@ -64,8 +64,7 @@ fun HandleDeepLinks(
             // is on top and keep its old queue instead of opening the linked short.
             navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
         } else {
-            val startMs = deeplinkStartPositionMs?.takeIf { it > 0L }
-            val route = startMs?.let { "player/$videoId?startMs=$it" } ?: "player/$videoId"
+            val route = videoPlayerRouteForDeepLink(videoId, deeplinkStartPositionMs)
             navController.navigate(route) {
                 launchSingleTop = true
             }

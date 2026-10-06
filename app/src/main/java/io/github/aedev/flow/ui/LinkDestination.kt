@@ -38,6 +38,15 @@ internal fun linkDestination(link: YouTubeLink): LinkDestination? =
         else -> pageRoute(link)?.let(LinkDestination::Page)
     }
 
+internal fun videoPlayerRouteForDeepLink(
+    videoId: String,
+    startPositionMs: Long?,
+): String =
+    startPositionMs
+        ?.takeIf { it >= 0L }
+        ?.let { "player/$videoId?startMs=$it" }
+        ?: "player/$videoId"
+
 private fun pageRoute(link: YouTubeLink): String? =
     when (link) {
         is YouTubeLink.Video -> musicPlayerRoute(link.id)

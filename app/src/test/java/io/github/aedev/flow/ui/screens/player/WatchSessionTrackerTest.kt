@@ -353,7 +353,7 @@ class WatchSessionTrackerTest {
     }
 
     @Test
-    fun `a closed player no longer holds any video, so the last position still saves`() {
-        assertThat(positionBelongsTo(videoId = "a", playerVideoId = null)).isTrue()
+    fun `a closed player no longer owns a position to save`() {
+        assertThat(positionBelongsTo(videoId = "a", playerVideoId = null)).isFalse()
     }
 }

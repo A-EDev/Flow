@@ -23,8 +23,22 @@ import javax.inject.Singleton
 class SponsorBlockRepository
     @Inject
     constructor() {
-        private val client: OkHttpClient
-            get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
+        @Volatile
+        private var clientSignature: String? = null
+
+        @Volatile
+        private var client: OkHttpClient? = null
+
+        private fun httpClient(): OkHttpClient {
+            val config = AppProxyManager.currentConfig()
+            val signature = config.signature()
+            client?.takeIf { clientSignature == signature }?.let { return it }
+            return AppProxyManager.applyTo(OkHttpClient.Builder(), config).build().also {
+                client = it
+                clientSignature = signature
+            }
+        }
+
         private val gson = Gson()
         private val segmentListType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
 
@@ -42,7 +56,7 @@ class SponsorBlockRepository
                             .url(segmentsUrl(videoId))
                             .build()
 
-                    val response = client.newCall(request).execute()
+                    val response = httpClient().newCall(request).execute()
                     response.use { resp ->
                         sponsorBlockFetchOutcomeForStatus(resp.code)?.let { return@withContext it }
                         if (resp.isSuccessful) {
@@ -137,7 +151,7 @@ class SponsorBlockRepository
                             .post("".toRequestBody())
                             .build()
 
-                    val response = client.newCall(request).execute()
+                    val response = httpClient().newCall(request).execute()
                     response.use { resp -> resp.isSuccessful }
                 } catch (e: Exception) {
                     e.printStackTrace()

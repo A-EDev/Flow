@@ -354,9 +354,9 @@ class VideoPlayerViewModel
         ) {
             val isMiniPlayerCollapsed =
                 GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
-            val requestedPositionMs = startPositionOverrideMs?.takeIf { it > 0L }
+            val requestedPositionMs = startPositionOverrideMs?.coerceAtLeast(0L)
             if (requestedPositionMs != null && playerManager.isPreparedForPlayback(video.id)) {
-                playerManager.seekTo(requestedPositionMs)
+                playerManager.seekTo(requestedPositionMs, exact = true)
                 presence.showVideoPlayer()
                 _expandPlayerRequest.tryEmit(Unit)
                 return
@@ -420,6 +420,7 @@ class VideoPlayerViewModel
 
         /** Drops the load, the queue and the music player so this screen owns playback outright. */
         private fun takeOverPlayback() {
+            savePreparedPositionBeforeClear()
             cancelActivePlaybackLoad()
             recovery.onPlaybackRequested()
             playerManager.pause()
@@ -429,6 +430,7 @@ class VideoPlayerViewModel
         }
 
         fun clearVideo() {
+            savePreparedPositionBeforeClear()
             nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
             recovery.onPlaybackRequested()
@@ -447,6 +449,29 @@ class VideoPlayerViewModel
             comments.clear()
             descriptions.clear()
             transcripts.clear()
+        }
+
+        private fun savePreparedPositionBeforeClear() {
+            val playerState = playerManager.playerState.value
+            if (!playerState.isPrepared || playerState.isLive) return
+            val videoId = playerState.currentVideoId ?: return
+            val state = _uiState.value
+            if (state.isLive) return
+            val video = state.cachedVideo?.takeIf { it.id == videoId } ?: return
+            val durationMs =
+                playerManager.getDuration().takeIf { it > 0L }
+                    ?: (video.duration.toLong() * 1_000L).takeIf { it > 0L }
+                    ?: return
+            savePlaybackPosition(
+                videoId = videoId,
+                position = playerManager.getCurrentPosition().coerceAtLeast(0L),
+                duration = durationMs,
+                title = video.title,
+                thumbnailUrl = video.thumbnailUrl,
+                channelName = video.channelName,
+                channelId = video.channelId,
+                isShort = video.isShort,
+            )
         }
 
         fun startBackgroundPlayback() = presence.startBackgroundPlayback()
@@ -632,7 +657,8 @@ class VideoPlayerViewModel
             channelId: String = "",
             isShort: Boolean = false,
         ) {
-            if (!positionBelongsTo(videoId, playerManager.playerState.value.currentVideoId)) return
+            val playerState = playerManager.playerState.value
+            if (!playerState.isPrepared || !positionBelongsTo(videoId, playerState.currentVideoId)) return
             watchSessions.savePlaybackPosition(
                 videoId = videoId,
                 positionMs = position,

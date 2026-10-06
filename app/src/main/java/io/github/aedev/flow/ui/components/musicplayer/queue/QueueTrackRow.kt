@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,6 +104,9 @@ internal fun QueueTrackRow(
 
     var rowSizePx by remember { mutableStateOf(IntSize.Zero) }
     val offsetX = remember(rowKey) { Animatable(0f) }
+    // Only the settled/not-settled flip should recompose the row; the drag itself is confined to
+    // the reveal panel and the surface's graphicsLayer.
+    val swipeSettled by remember(rowKey) { derivedStateOf { offsetX.value == 0f } }
     val currentOnPlayNext by rememberUpdatedState(onPlayNext)
     val currentOnAddToQueue by rememberUpdatedState(onAddToQueue)
     val swipeHandler =
@@ -143,7 +147,7 @@ internal fun QueueTrackRow(
                 .onSizeChanged { rowSizePx = it },
     ) {
         SwipeRevealPanel(
-            offsetX = offsetX.value,
+            offsetXProvider = { offsetX.value },
             rowHeightPx = rowSizePx.height,
             isTargeted = swipeHandler.isInCommitZone,
         )
@@ -154,7 +158,7 @@ internal fun QueueTrackRow(
                     .fillMaxWidth()
                     .graphicsLayer { translationX = offsetX.value }
                     .clip(RoundedCornerShape(rowCorner))
-                    .clickable(enabled = offsetX.value == 0f, onClick = onClick)
+                    .clickable(enabled = swipeSettled, onClick = onClick)
                     .then(
                         if (swipeEnabled) {
                             Modifier.pointerInput(rowKey, swipeHandler) {
@@ -289,10 +293,11 @@ internal fun QueueTrackRow(
 
 @Composable
 private fun BoxScope.SwipeRevealPanel(
-    offsetX: Float,
+    offsetXProvider: () -> Float,
     rowHeightPx: Int,
     isTargeted: Boolean,
 ) {
+    val offsetX = offsetXProvider()
     if (offsetX == 0f) return
     val density = LocalDensity.current
     val revealWidthPx = kotlin.math.abs(offsetX)

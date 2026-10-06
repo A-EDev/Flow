@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -19,6 +19,7 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.videoplayer.overlay.SponsorBlockSkipButton
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
+import kotlin.math.roundToInt
 
 /** The floating skip button, laid over the video area only and never over the body below it. */
 @Composable
@@ -26,7 +27,7 @@ internal fun BoxScope.SponsorSkipLayer(
     session: VideoPlayerStageSession,
     sponsorSegments: List<SponsorBlockSegment>,
     expandedPlayerBottom: Dp,
-    playerWidth: Dp,
+    playerWidthPx: () -> Float,
     expandedSurfacesPlaced: () -> Boolean,
     endPadding: Dp,
     bottomPadding: Dp,
@@ -47,8 +48,14 @@ internal fun BoxScope.SponsorSkipLayer(
         modifier =
             Modifier
                 .align(Alignment.TopStart)
-                .width(playerWidth)
-                .then(sponsorLayerModifier)
+                .layout { measurable, constraints ->
+                    val widthPx = playerWidthPx().roundToInt()
+                    val placeable =
+                        measurable.measure(
+                            constraints.copy(minWidth = widthPx, maxWidth = widthPx),
+                        )
+                    layout(widthPx, placeable.height) { placeable.place(0, 0) }
+                }.then(sponsorLayerModifier)
                 .zIndex(3f)
                 .placedWhen(expandedSurfacesPlaced),
     ) {

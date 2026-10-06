@@ -19,8 +19,22 @@ import okhttp3.Request
  * Results are cached in-memory (LRU, 200 entries) to prevent redundant network calls.
  */
 object DeArrowRepository {
-    private val client: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
+    @Volatile
+    private var clientSignature: String? = null
+
+    @Volatile
+    private var client: OkHttpClient? = null
+
+    private fun httpClient(): OkHttpClient {
+        val config = AppProxyManager.currentConfig()
+        val signature = config.signature()
+        client?.takeIf { clientSignature == signature }?.let { return it }
+        return AppProxyManager.applyTo(OkHttpClient.Builder(), config).build().also {
+            client = it
+            clientSignature = signature
+        }
+    }
+
     private val gson = Gson()
 
     private const val BRANDING_BASE_URL = "https://sponsor.ajay.app/api/branding"
@@ -57,7 +71,7 @@ object DeArrowRepository {
                         .header("User-Agent", "FlowYouTube/1.0")
                         .build()
 
-                client.newCall(request).execute().use { response ->
+                httpClient().newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         return@withContext null
                     }

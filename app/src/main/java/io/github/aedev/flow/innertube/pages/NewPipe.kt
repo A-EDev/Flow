@@ -28,12 +28,12 @@ class NewPipeDownloaderImpl(
             .proxy(proxy)
             .proxyAuthenticator { _, response ->
                 proxyAuth?.let { auth ->
-                    response.request.newBuilder()
+                    response.request
+                        .newBuilder()
                         .header("Proxy-Authorization", auth)
                         .build()
                 } ?: response.request
-            }
-            .build()
+            }.build()
 
     @Throws(IOException::class, ReCaptchaException::class)
     override fun execute(request: Request): Response {
@@ -85,7 +85,10 @@ class NewPipeUtils(
             YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
         }
 
-    fun deobfuscateThrottling(videoId: String, url: String): String? =
+    fun deobfuscateThrottling(
+        videoId: String,
+        url: String,
+    ): String? =
         try {
             YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated(videoId, url)
         } catch (e: Exception) {
@@ -134,19 +137,22 @@ object NewPipeExtractor {
     private var isInitialized = false
     private var lastProxySignature: String? = null
 
+    @Synchronized
     fun init() {
         val currentSignature = listOf(YouTube.proxy?.address(), YouTube.proxyAuth).joinToString(separator = "|")
         if (!isInitialized || lastProxySignature != currentSignature) {
-            newPipeDownloader = NewPipeDownloaderImpl(
-                proxy = YouTube.proxy,
-                proxyAuth = YouTube.proxyAuth
-            )
+            newPipeDownloader =
+                NewPipeDownloaderImpl(
+                    proxy = YouTube.proxy,
+                    proxyAuth = YouTube.proxyAuth,
+                )
             newPipeUtils = NewPipeUtils(newPipeDownloader!!)
             isInitialized = true
             lastProxySignature = currentSignature
         }
     }
 
+    @Synchronized
     fun invalidateClient() {
         newPipeDownloader = null
         newPipeUtils = null
@@ -164,7 +170,10 @@ object NewPipeExtractor {
     @Volatile
     private var nsigThrewThisSession = false
 
-    fun deobfuscateThrottling(videoId: String, url: String): String? {
+    fun deobfuscateThrottling(
+        videoId: String,
+        url: String,
+    ): String? {
         if (nsigThrewThisSession) return null
         init()
         val result = newPipeUtils?.deobfuscateThrottling(videoId, url)
@@ -172,7 +181,7 @@ object NewPipeExtractor {
             nsigThrewThisSession = true
             android.util.Log.w(
                 "NewPipeExtractor",
-                "NewPipe nsig ineffective (${if (result == null) "threw" else "unchanged"}) — disabling for this session, falling back to home-grown"
+                "NewPipe nsig ineffective (${if (result == null) "threw" else "unchanged"}) — disabling for this session, falling back to home-grown",
             )
         }
         return result
@@ -180,7 +189,7 @@ object NewPipeExtractor {
 
     fun getStreamUrl(
         format: PlayerResponse.StreamingData.Format,
-        videoId: String
+        videoId: String,
     ): String? {
         init()
         return newPipeUtils?.getStreamUrl(format, videoId)
@@ -189,10 +198,11 @@ object NewPipeExtractor {
     fun newPipePlayer(videoId: String): List<Pair<Int, String>> {
         init()
         return try {
-            val streamInfo = StreamInfo.getInfo(
-                NewPipe.getService(0),
-                "https://www.youtube.com/watch?v=$videoId"
-            )
+            val streamInfo =
+                StreamInfo.getInfo(
+                    NewPipe.getService(0),
+                    "https://www.youtube.com/watch?v=$videoId",
+                )
             val streamsList = streamInfo.audioStreams + streamInfo.videoStreams + streamInfo.videoOnlyStreams
             streamsList.mapNotNull {
                 (it.itagItem?.id ?: return@mapNotNull null) to it.content

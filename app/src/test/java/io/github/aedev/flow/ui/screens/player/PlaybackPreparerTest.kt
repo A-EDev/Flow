@@ -125,6 +125,153 @@ class PlaybackPreparerTest {
         }
 
     @Test
+    fun `a VOD HLS manifest resumes saved progress and honors an explicit near-end timestamp`() =
+        runTest(testDispatcher) {
+            every { playerPreferences.rememberPlaybackSpeed } returns flowOf(true)
+            every { playerPreferences.playbackSpeed } returns flowOf(1.75f)
+            every { playerManager.isReachedByQueueAdvance(VIDEO_ID) } returns true
+            val startPosition = io.mockk.slot<Long>()
+
+            preparer.prepareMergedStreams(
+                videoId = VIDEO_ID,
+                streamInfo = streamInfo(durationSeconds = 240L),
+                videoStream = null,
+                audioStream = null,
+                videoStreams = emptyList(),
+                audioStreams = emptyList(),
+                subtitles = emptyList(),
+                savedPosition = 239_000L,
+                fallbackDurationSeconds = 0L,
+                localFilePath = null,
+                offlineSegments = null,
+                hlsUrl = HLS_URL,
+                isAdaptiveMode = true,
+                resumeOverrideRequested = true,
+                isCurrent = { true },
+            )
+
+            coVerify {
+                playerManager.setStreams(
+                    videoId = VIDEO_ID,
+                    videoStream = null,
+                    audioStream = null,
+                    videoStreams = emptyList(),
+                    audioStreams = emptyList(),
+                    subtitles = emptyList(),
+                    durationSeconds = 240L,
+                    dashManifestUrl = DASH_URL,
+                    hlsUrl = HLS_URL,
+                    streamType = StreamType.VIDEO_STREAM,
+                    startPosition = capture(startPosition),
+                    sabrInfo = null,
+                    itVideoFormats = emptyList(),
+                    itAudioFormats = emptyList(),
+                    preferredVideoCodec = "auto",
+                    preferSabr = false,
+                    preferredLiveQualityHeight = 0,
+                )
+                playerManager.setPlaybackSpeed(1.75f)
+            }
+            assertThat(startPosition.captured).isEqualTo(239_000L)
+            coVerify(exactly = 0) { playerManager.setPlaybackSpeed(1.0f) }
+        }
+
+    @Test
+    fun `a VOD HLS manifest resumes saved history when queue advancement is not active`() =
+        runTest(testDispatcher) {
+            val startPosition = io.mockk.slot<Long>()
+
+            preparer.prepareMergedStreams(
+                videoId = VIDEO_ID,
+                streamInfo = streamInfo(durationSeconds = 240L),
+                videoStream = null,
+                audioStream = null,
+                videoStreams = emptyList(),
+                audioStreams = emptyList(),
+                subtitles = emptyList(),
+                savedPosition = 30_000L,
+                fallbackDurationSeconds = 0L,
+                localFilePath = null,
+                offlineSegments = null,
+                hlsUrl = HLS_URL,
+                isAdaptiveMode = true,
+                resumeOverrideRequested = false,
+                isCurrent = { true },
+            )
+
+            coVerify {
+                playerManager.setStreams(
+                    videoId = VIDEO_ID,
+                    videoStream = null,
+                    audioStream = null,
+                    videoStreams = emptyList(),
+                    audioStreams = emptyList(),
+                    subtitles = emptyList(),
+                    durationSeconds = 240L,
+                    dashManifestUrl = DASH_URL,
+                    hlsUrl = HLS_URL,
+                    streamType = StreamType.VIDEO_STREAM,
+                    startPosition = capture(startPosition),
+                    sabrInfo = null,
+                    itVideoFormats = emptyList(),
+                    itAudioFormats = emptyList(),
+                    preferredVideoCodec = "auto",
+                    preferSabr = false,
+                    preferredLiveQualityHeight = 0,
+                )
+            }
+            assertThat(startPosition.captured).isEqualTo(30_000L)
+        }
+
+    @Test
+    fun `the InnerTube VOD path honors an explicit timestamp near completion`() =
+        runTest(testDispatcher) {
+            val startPosition = io.mockk.slot<Long>()
+
+            preparer.prepareVodStreams(
+                videoId = VIDEO_ID,
+                videoStream = null,
+                audioStream = null,
+                videoStreams = emptyList(),
+                audioStreams = emptyList(),
+                subtitles = emptyList(),
+                durationSeconds = 240L,
+                savedPositionMs = 239_000L,
+                resumeOverrideRequested = true,
+                isAdaptiveMode = true,
+                sabrInfo = null,
+                itVideoFormats = emptyList(),
+                itAudioFormats = emptyList(),
+                preferredVideoCodec = "auto",
+                preferredLiveQualityHeight = 0,
+                isCurrent = { true },
+            )
+
+            coVerify {
+                playerManager.setStreams(
+                    videoId = VIDEO_ID,
+                    videoStream = null,
+                    audioStream = null,
+                    videoStreams = emptyList(),
+                    audioStreams = emptyList(),
+                    subtitles = emptyList(),
+                    durationSeconds = 240L,
+                    dashManifestUrl = null,
+                    hlsUrl = null,
+                    streamType = StreamType.VIDEO_STREAM,
+                    startPosition = capture(startPosition),
+                    sabrInfo = null,
+                    itVideoFormats = emptyList(),
+                    itAudioFormats = emptyList(),
+                    preferredVideoCodec = "auto",
+                    preferSabr = false,
+                    preferredLiveQualityHeight = 0,
+                )
+            }
+            assertThat(startPosition.captured).isEqualTo(239_000L)
+        }
+
+    @Test
     fun `a downloaded copy of a resolved video plays through playLocalFile with the stored subtitles`() =
         runTest(testDispatcher) {
             val stored = listOf(ResolvedCaption("en", isAutoGenerated = false, url = "file:///captions/en.vtt", format = CaptionFormat.VTT))

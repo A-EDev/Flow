@@ -93,7 +93,12 @@ internal class PlaybackSessionApplier(
                 announceLocalCopy(load)
                 if (step.needsSponsorBlockBackfill) backfillSponsorBlockSegments(load.videoId)
                 armLocalCopyMetadata(load)
-                prepareLocalMedia(load, step.localFilePath, step.offlineSegments)
+                prepareLocalMedia(
+                    load = load,
+                    localFilePath = step.localFilePath,
+                    offlineSegments = step.offlineSegments,
+                    resumeOverride = step.resumePositionOverrideMs,
+                )
             }
 
             is ResolvedPlayback.Live -> {
@@ -156,12 +161,14 @@ internal class PlaybackSessionApplier(
         localFilePath: String,
         offlineSegments: List<SponsorBlockSegment>?,
         savedPosition: Long? = null,
+        resumeOverride: Long? = null,
     ) {
         playbackPreparer.prepareLocalMedia(
             videoId = load.videoId,
             localFilePath = localFilePath,
             offlineSegments = offlineSegments,
-            savedPosition = savedPosition ?: viewHistory.getPlaybackPosition(load.videoId).first(),
+            savedPosition = resumeOverride ?: savedPosition ?: viewHistory.getPlaybackPosition(load.videoId).first(),
+            explicitOverride = resumeOverride != null,
             durationMs =
                 uiState.value.cachedVideo
                     ?.takeIf { it.id == load.videoId }
@@ -354,9 +361,7 @@ internal class PlaybackSessionApplier(
         val autoplay = playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
 
         val savedPositionMs =
-            step.resumePositionOverrideMs
-                ?.takeIf { it > 0L }
-                ?: viewHistory.getPlaybackPosition(videoId).first()
+            step.resumePositionOverrideMs ?: viewHistory.getPlaybackPosition(videoId).first()
 
         Log.w(
             TAG,

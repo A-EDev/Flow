@@ -130,6 +130,7 @@ enum class SponsorApiOutcome {
     HTTP_FAILURE,
     NETWORK_FAILURE,
     OFFLINE_SAVED,
+    DISABLED,
 }
 
 @Serializable

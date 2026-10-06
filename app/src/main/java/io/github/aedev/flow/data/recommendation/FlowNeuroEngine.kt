@@ -456,7 +456,7 @@ class FlowNeuroEngine internal constructor(
     suspend fun resetBrain() {
         withBrainLock {
             currentUserBrain = UserBrain()
-            featureCache.clear()
+            synchronized(featureCache) { featureCache.clear() }
             idfWordFrequency.clear()
             idfTotalDocuments = 0
             impressionCache.clear()
@@ -1072,7 +1072,7 @@ class FlowNeuroEngine internal constructor(
             compactIdfIfNeeded()
 
             storage.save(currentUserBrain)
-            featureCache.clear()
+            synchronized(featureCache) { featureCache.clear() }
 
             Log.i(
                 TAG,
@@ -2202,7 +2202,7 @@ class FlowNeuroEngine internal constructor(
                 compactIdfIfNeeded()
 
                 if (idfTotalDocuments % 100 == 0) {
-                    featureCache.clear()
+                    synchronized(featureCache) { featureCache.clear() }
                 }
             }
 

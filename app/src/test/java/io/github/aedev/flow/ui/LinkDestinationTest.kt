@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.aedev.flow.utils.YouTubeLinkParser
 import io.github.aedev.flow.utils.parseYouTubeLink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -87,5 +88,28 @@ class LinkDestinationTest {
         )
         assertNull(linkTextOf(Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_TEXT, url)))
         assertNull(linkTextOf(Intent("io.github.aedev.flow.widget.OPEN", Uri.parse("flow://widget/video/$video"))))
+    }
+
+    @Test
+    fun `a deep link route preserves an explicit start at zero`() {
+        assertEquals("player/$video?startMs=0", videoPlayerRouteForDeepLink(video, 0L))
+        assertEquals("player/$video?startMs=90000", videoPlayerRouteForDeepLink(video, 90_000L))
+        assertEquals("player/$video", videoPlayerRouteForDeepLink(video, null))
+        assertEquals("player/$video", videoPlayerRouteForDeepLink(video, -1L))
+    }
+
+    @Test
+    fun `view and shared text keep the timestamp through the player route`() {
+        val url = "https://youtu.be/$video?si=share&t=90"
+        val viewText = linkTextOf(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        val sharedText = linkTextOf(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url))
+
+        listOf(viewText, sharedText).forEach { text ->
+            val parsed = YouTubeLinkParser.parseVideoLink(text)
+            assertEquals(video, parsed?.videoId)
+            assertEquals(90_000L, parsed?.startPositionMs)
+            assertEquals(LinkDestination.Video(video), destinationOf(text.orEmpty()))
+            assertEquals("player/$video?startMs=90000", videoPlayerRouteForDeepLink(video, parsed?.startPositionMs))
+        }
     }
 }

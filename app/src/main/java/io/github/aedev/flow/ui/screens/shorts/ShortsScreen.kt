@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.toVideo
@@ -75,7 +76,7 @@ fun ShortsScreen(
     val context = LocalContext.current
     val playerPreferences = remember(context) { PlayerPreferences(context) }
     val reelSettings = rememberShortsReelSettings(playerPreferences)
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val shareVideo = rememberVideoShareAction()
 

@@ -127,8 +127,8 @@ internal class PlaybackPreparer(
                 durationMs = durationMs,
                 resumeAllowed =
                     !isLiveStream &&
-                        hlsUrl.isNullOrEmpty() &&
                         (resumeOverrideRequested || !playerManager.isReachedByQueueAdvance(videoId)),
+                explicitOverride = resumeOverrideRequested,
             )
 
         if (localFilePath != null) {
@@ -169,7 +169,7 @@ internal class PlaybackPreparer(
                 )
             }
         }
-        applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty())
+        applyRememberedPlaybackSpeed(isLive = isLiveStream)
 
         if (!isCurrent()) return@withContext
         playerManager.play()
@@ -238,6 +238,7 @@ internal class PlaybackPreparer(
                 savedPosition = savedPositionMs,
                 durationMs = durationSeconds * 1000L,
                 resumeAllowed = resumeOverrideRequested || !playerManager.isReachedByQueueAdvance(videoId),
+                explicitOverride = resumeOverrideRequested,
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
         // An escalated reload must not force SABR: measured 2026-09-21, a session never receives an
@@ -280,6 +281,7 @@ internal class PlaybackPreparer(
         durationMs: Long,
         subtitles: List<SubtitlesStream>,
         isCurrent: () -> Boolean,
+        explicitOverride: Boolean = false,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
         if (playerManager.isPreparedForPlayback(videoId)) return@withContext
@@ -290,6 +292,7 @@ internal class PlaybackPreparer(
                 savedPosition = savedPosition,
                 durationMs = durationMs,
                 resumeAllowed = !playerManager.isReachedByQueueAdvance(videoId),
+                explicitOverride = explicitOverride,
             )
         playerManager.playLocalFile(
             videoId = videoId,
