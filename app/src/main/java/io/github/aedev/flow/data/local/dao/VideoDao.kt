@@ -9,6 +9,9 @@ import io.github.aedev.flow.data.local.entity.VideoEntity
 
 @Dao
 interface VideoDao {
+    @Query("SELECT DISTINCT channelId, channelThumbnailUrl FROM videos WHERE channelId IN (:channelIds) AND channelThumbnailUrl != ''")
+    suspend fun channelAvatars(channelIds: List<String>): List<ChannelAvatarRow>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVideo(video: VideoEntity)
 

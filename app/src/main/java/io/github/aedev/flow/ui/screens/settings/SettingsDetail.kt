@@ -27,6 +27,7 @@ import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
 import io.github.aedev.flow.ui.screens.settings.scrobbling.ScrobblingScreen
+import io.github.aedev.flow.ui.screens.settings.taste.DiscoverChannelsScreen
 import io.github.aedev.flow.ui.screens.settings.taste.FavouriteArtistsScreen
 import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
 import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
@@ -63,6 +64,10 @@ internal fun SettingsDetail(
 
         SettingsDestination.FAVOURITE_ARTISTS -> {
             FavouriteArtistsScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.DISCOVER_CHANNELS -> {
+            DiscoverChannelsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.THEME -> {

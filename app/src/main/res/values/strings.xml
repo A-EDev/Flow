@@ -4063,6 +4063,9 @@
     <string name="music_collection_suggestions">Suggestions</string>
     <string name="favourite_artists_title">Favourite artists</string>
     <string name="favourite_artists_summary">Pick artists to shape your music</string>
+    <string name="discover_channels_title">Discover channels</string>
+    <string name="discover_channels_summary">Search channels and subscribe, as at setup</string>
+    <string name="discover_channels_suggested_footer">Channels you have watched a few times without subscribing.</string>
     <string name="favourite_artists_search">Search artists</string>
     <string name="favourite_artists_picked">Your picks</string>
     <string name="favourite_artists_popular">Popular now</string>
