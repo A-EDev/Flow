@@ -3,7 +3,7 @@ package io.github.aedev.flow.data.stats
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.PrivacyGate
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -24,7 +24,8 @@ import javax.inject.Singleton
 /**
  * The one place viewing activity enters the recap ledger. Every call is fire-and-forget on the
  * recorder's own scope, so a player or ViewModel tearing down never loses its last session.
- * Deep Flow sessions and local files are never recorded, matching the music ledger.
+ * Nothing is recorded during Deep Flow, matching the music ledger, and views wait out paused watch
+ * history too; see [RecapEntry]. Local files are never recorded.
  */
 @Singleton
 class VideoStatsRecorder
@@ -32,6 +33,7 @@ class VideoStatsRecorder
     constructor(
         @ApplicationContext private val appContext: Context,
         private val watchHistoryDao: WatchHistoryDao,
+        private val privacyGate: PrivacyGate,
     ) {
         private val store =
             MonthlyLedgerStore(
@@ -41,7 +43,6 @@ class VideoStatsRecorder
                 coldFileName = "flow_video_stats_v1.json",
                 monthSerializer = VideoMonthRecord.serializer(),
             )
-        private val playerPreferences by lazy { PlayerPreferences(appContext) }
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val mutex = Mutex()
         private var ledger = VideoStatsLedger()
@@ -56,7 +57,7 @@ class VideoStatsRecorder
         fun onView(
             event: ViewEvent,
             video: Video?,
-        ) = record(requiresRecording = true) {
+        ) = record(RecapEntry.VIEW) {
             val topics =
                 if (event.counted && video != null) {
                     runCatching { FlowNeuroEngine.topTopicsFor(video, VideoStatsParams.TOPICS_PER_VIEW) }.getOrDefault(emptyList())
@@ -67,25 +68,25 @@ class VideoStatsRecorder
             locked { VideoStatsLedgerOps.recordView(it, now, event, topics) }
         }
 
-        fun onDislike(video: DislikedVideo) = record { locked { VideoStatsLedgerOps.recordDislike(it, video.at, video) } }
+        fun onDislike(video: DislikedVideo) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordDislike(it, video.at, video) } }
 
         fun onDislikeRemoved(videoId: String) =
-            record { locked { VideoStatsLedgerOps.clearDislike(it, System.currentTimeMillis(), videoId) } }
+            record(RecapEntry.FORGET) { locked { VideoStatsLedgerOps.clearDislike(it, System.currentTimeMillis(), videoId) } }
 
-        fun onAction(action: LedgerAction) = record { locked { VideoStatsLedgerOps.recordAction(it, System.currentTimeMillis(), action) } }
+        fun onAction(action: LedgerAction) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordAction(it, System.currentTimeMillis(), action) } }
 
         /** A submitted search; [query] is null when search history is off, so only the count is kept. */
-        fun onSearch(query: String?) = record { locked { VideoStatsLedgerOps.recordSearch(it, System.currentTimeMillis(), query) } }
+        fun onSearch(query: String?) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordSearch(it, System.currentTimeMillis(), query) } }
 
         fun onSponsorSkip(
             category: String,
             skippedMs: Long,
-        ) = record(requiresRecording = true) {
+        ) = record(RecapEntry.ACTIVITY) {
             locked { VideoStatsLedgerOps.recordSponsorSkip(it, System.currentTimeMillis(), category, skippedMs) }
         }
 
         /** Search history was cleared or switched off: the recap forgets every stored search text. */
-        fun onSearchHistoryCleared() = record { locked(VideoStatsLedgerOps::clearQueries) }
+        fun onSearchHistoryCleared() = record(RecapEntry.FORGET) { locked(VideoStatsLedgerOps::clearQueries) }
 
         /** Counted views in one month, without copying the ledger. */
         suspend fun monthViews(monthKey: String): Int {
@@ -112,12 +113,12 @@ class VideoStatsRecorder
         }
 
         private fun record(
-            requiresRecording: Boolean = false,
+            entry: RecapEntry,
             block: suspend () -> Unit,
         ) {
             scope.launch {
                 runCatching {
-                    if (requiresRecording && playerPreferences.isDeepFlowCurrentlyActive()) return@launch
+                    if (!entry.allowed(privacyGate)) return@launch
                     ensureInitialized()
                     block()
                     scheduleSave()
@@ -168,3 +169,29 @@ class VideoStatsRecorder
             const val SAVE_DEBOUNCE_MS = 5_000L
         }
     }
+
+/** Which privacy settings stop an entry from reaching the recap ledger. */
+internal enum class RecapEntry {
+    /** A watched video, with its title and channel: Deep Flow and paused watch history stop it. */
+    VIEW,
+
+    /** Searches, actions, dislikes and skipped segments: Deep Flow stops them. */
+    ACTIVITY,
+
+    /** Removing something already stored: always allowed. */
+    FORGET,
+    ;
+
+    fun allows(
+        deepFlowActive: Boolean,
+        watchHistoryPaused: Boolean,
+    ): Boolean =
+        when (this) {
+            VIEW -> !deepFlowActive && !watchHistoryPaused
+            ACTIVITY -> !deepFlowActive
+            FORGET -> true
+        }
+
+    suspend fun allowed(gate: PrivacyGate): Boolean =
+        this == FORGET || allows(gate.isDeepFlowActive(), this == VIEW && gate.isWatchHistoryPaused())
+}
