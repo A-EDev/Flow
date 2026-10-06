@@ -18,6 +18,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
+/** The font as Settings shows it. [customName] is set only while the custom font file is present. */
+data class AppFontSelection(
+    val font: AppFont = AppFont.SYSTEM,
+    val customName: String? = null,
+)
+
 private val Context.appFontDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "app_font")
 
 /** The app font choice. The custom font file itself lives in [CustomFontStore] and is not backed up. */
@@ -31,7 +37,17 @@ class AppFontPreferences
 
         val font: Flow<AppFont> = appContext.appFontDataStore.data.map { AppFont.fromStorage(it[FONT]) }
 
-        val customFontName: Flow<String?> = appContext.appFontDataStore.data.map { it[CUSTOM_NAME] }
+        /** A custom choice whose file is gone, such as after restoring a backup, reads as the system font. */
+        val selection: Flow<AppFontSelection> =
+            appContext.appFontDataStore.data
+                .map { prefs ->
+                    val hasFile = customFonts.file() != null
+                    val stored = AppFont.fromStorage(prefs[FONT])
+                    AppFontSelection(
+                        font = if (stored == AppFont.CUSTOM && !hasFile) AppFont.SYSTEM else stored,
+                        customName = prefs[CUSTOM_NAME].takeIf { hasFile },
+                    )
+                }.flowOn(Dispatchers.IO)
 
         /** What the app draws with, resolved off the main thread. A missing or broken custom file is the system font. */
         val fontFamily: Flow<FontFamily> =
