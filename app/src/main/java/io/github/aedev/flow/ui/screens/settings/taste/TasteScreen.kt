@@ -94,6 +94,7 @@ internal fun TasteScreen(
                 onClearChannelMemory = viewModel::clearChannelMemory,
                 onOpenHidden = { onNavigate(SettingsTarget(SettingsDestination.HIDDEN_CONTENT)) },
                 onOpenFavouriteArtists = { onNavigate(SettingsTarget(SettingsDestination.FAVOURITE_ARTISTS)) },
+                onOpenDiscoverChannels = { onNavigate(SettingsTarget(SettingsDestination.DISCOVER_CHANNELS)) },
                 onOpenRecap = onOpenRecap,
                 onExportVideo = { exportVideo.launch("flow_video_profile_${LocalDate.now()}.json") },
                 onImportVideo = { importVideo.launch(arrayOf(JSON)) },

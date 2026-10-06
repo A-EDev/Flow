@@ -358,6 +358,9 @@
     <string name="copy_description">Copy description</string>
     <string name="description_copied">Description copied to clipboard</string>
     <string name="title_copied">Title copied to clipboard</string>
+    <string name="channel_name_copied">Channel name copied to clipboard</string>
+    <string name="copy_channel_name">Copy channel name</string>
+    <string name="channel_name_clip_label">Channel name</string>
     <string name="tags">Tags</string>
     <string name="sb_manual_skip">Skip</string>
     <string name="sb_skip_segment">Skip %1$s</string>
@@ -807,7 +810,7 @@
     <string name="appearance_color_hue">Hue</string>
     <string name="appearance_color_saturation">Saturation</string>
     <string name="appearance_color_brightness">Brightness</string>
-    <string name="appearance_color_alpha">Alpha</string>
+    <string name="appearance_color_alpha">Opacity</string>
     <string name="appearance_navigate_back">Navigate back</string>
     <string name="appearance_selected">Selected</string>
     <string name="appearance_system_defaults_title">System Default Themes</string>
@@ -1916,6 +1919,7 @@
     <string name="rename_playlist_title">Rename Playlist</string>
     <string name="action_rename">Rename</string>
     <string name="link_copied">Link copied</string>
+    <string name="link_cannot_open">No app on this device can open this link</string>
     <string name="copy_video_link">Copy video link</string>
     <string name="copy_channel_link">Copy channel link</string>
     <string name="share_link_cd">Share Link</string>
@@ -3744,6 +3748,7 @@
     <string name="settings_theme_role_muted_text">Muted text</string>
     <string name="settings_theme_role_outline">Outline</string>
     <string name="settings_theme_role_error">Error</string>
+    <string name="settings_theme_color_with_opacity">%1$s · %2$d%% opacity</string>
     <string name="settings_keywords_custom_themes">custom theme, palette, colours, colors, import, export, share, desktop</string>
     <plurals name="settings_custom_theme_imported">
         <item quantity="one">%1$d theme imported</item>
@@ -4059,6 +4064,9 @@
     <string name="music_collection_suggestions">Suggestions</string>
     <string name="favourite_artists_title">Favourite artists</string>
     <string name="favourite_artists_summary">Pick artists to shape your music</string>
+    <string name="discover_channels_title">Discover channels</string>
+    <string name="discover_channels_summary">Search channels and subscribe, as at setup</string>
+    <string name="discover_channels_suggested_footer">Channels you have watched a few times without subscribing.</string>
     <string name="favourite_artists_search">Search artists</string>
     <string name="favourite_artists_picked">Your picks</string>
     <string name="favourite_artists_popular">Popular now</string>

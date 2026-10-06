@@ -94,4 +94,22 @@ class PaletteColorsTest {
         assertThat(scheme.outlineVariant).isEqualTo(colors.outline)
         assertThat(scheme.onSurfaceVariant).isEqualTo(colors.onSurfaceVariant)
     }
+
+    @Test
+    fun `opaque mixes are unchanged and translucent ones mix like CSS`() {
+        assertThat(mixColors(Color.Black, Color.White, 0.25f)).isEqualTo(Color(red = 0.75f, green = 0.75f, blue = 0.75f))
+        val faded = mixColors(Color.Red, Color.Transparent, 0.4f)
+        assertThat(faded.copy(alpha = 1f)).isEqualTo(Color.Red)
+        assertThat(faded.alpha).isWithin(0.001f).of(0.4f)
+        val container = mixColors(Color.Red.copy(alpha = 0.5f), Color.Black, 0.3f)
+        assertThat(container.alpha).isWithin(0.001f).of(0.85f)
+        assertThat(mixColors(Color.Transparent, Color.Transparent, 0.5f)).isEqualTo(Color.Transparent)
+    }
+
+    @Test
+    fun `text on a translucent accent is chosen against what shows through`() {
+        val dark = FlowPalettes.default.colorsFor(ThemeVariant.DARK)
+        val scheme = dark.copy(secondary = Color.White.copy(alpha = 0.1f)).toColorScheme(ThemeVariant.DARK)
+        assertThat(scheme.onSecondary).isEqualTo(Color.White)
+    }
 }

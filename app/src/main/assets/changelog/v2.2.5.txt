@@ -83,6 +83,8 @@ NEW FEATURES
 - Thumbnails can be turned off, separately for Wi-Fi and mobile data, in Quality settings: feeds, playlists, banners and notifications load no images, while downloads and device files keep their covers (#849)
 - Notes can hold timestamps: times like 12:34 in a video note play from that moment, the note editor inserts the current time, and a new Notes page in Library lists every note with search, filters and its video or channel, side by side on tablets (#843)
 - Subscriptions now show collaborations a channel you follow took part in, even when another channel uploaded them, with every collaborator on the card; turn it off in Content settings (#840)
+- Discover channels in Your taste: search for channels and subscribe as at setup, next to the channels you keep watching without subscribing (#804)
+- Custom theme colours can be translucent again, with an Opacity slider in the colour picker, and such themes still open in Flow Desktop
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -134,6 +136,7 @@ IMPROVEMENTS
 - Report on the crash page fills in the whole bug form, so a crash can be sent without answering questions first (#1189)
 - Shorts default quality can now be set to 1440p or 2160p (#1125)
 - Search history keeps each search's filters and applies them again when the entry is tapped, showing them under the entry (#1174)
+- Text in channel posts, a channel's About tab and the video title in the description can be selected and copied, and a long press copies a channel's name (#951)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -216,6 +219,8 @@ FIXES AND STABILITY
 - Fix YouTube requests, thumbnails, update checks, song recognition and the music player ignoring the proxy or keeping an old one until a restart
 - Fix notes never syncing from one Android device to another
 - Fix SponsorBlock categories set to Mute playing at full volume, notify-only categories showing nothing, and downloaded videos skipping segments with SponsorBlock turned off
+- Fix a custom theme carried over from an older version losing its colour opacity the first time it was saved
+- Fix a crash when tapping a link on a channel's About tab that has no https:// in front, and show a message instead of crashing when no app can open a link
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

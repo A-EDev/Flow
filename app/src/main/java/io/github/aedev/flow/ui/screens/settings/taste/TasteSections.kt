@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.PersonSearch
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -41,6 +42,7 @@ internal class TasteActions(
     val onClearChannelMemory: () -> Unit,
     val onOpenHidden: () -> Unit,
     val onOpenFavouriteArtists: () -> Unit,
+    val onOpenDiscoverChannels: () -> Unit,
     val onOpenRecap: () -> Unit,
     val onExportVideo: () -> Unit,
     val onImportVideo: () -> Unit,
@@ -69,6 +71,11 @@ internal fun SettingsListScope.tasteContent(
             DestinationIndex.entry(SettingsDestination.FAVOURITE_ARTISTS),
             onClick = actions.onOpenFavouriteArtists,
             icon = Icons.Outlined.LibraryMusic,
+        )
+        nav(
+            DestinationIndex.entry(SettingsDestination.DISCOVER_CHANNELS),
+            onClick = actions.onOpenDiscoverChannels,
+            icon = Icons.Outlined.PersonSearch,
         )
     }
     state.engine?.let { engineDetails(it, noQueriesLabel) }

@@ -1,9 +1,6 @@
 package io.github.aedev.flow.ui.screens.onboarding
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,40 +13,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.shared.FlowPopIn
+import io.github.aedev.flow.ui.components.shared.FlowQuickSearchChips
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
-import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
-import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
+import io.github.aedev.flow.ui.components.shared.MediaChannelSubscribeRow
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
-import io.github.aedev.flow.ui.components.shared.flowArtistShape
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.utils.formatSubscriberCount
 
-private val AvatarSize = 48.dp
 private val SearchLoadingSize = 24.dp
 private val ChipSpacing = 8.dp
 private val PromptPadding = 32.dp
@@ -82,7 +68,14 @@ internal fun ChannelsStep(
                 trailingContent = { if (state.searching) SearchLoading() },
             )
         }
-        item(key = "quick") { QuickSearches(state.topics, state.query, onQueryChange) }
+        item(key = "quick") {
+            FlowQuickSearchChips(
+                searches = state.topics.take(MAX_QUICK_SEARCHES),
+                query = state.query,
+                onQueryChange = onQueryChange,
+                modifier = Modifier.padding(top = ChipSpacing),
+            )
+        }
         channelResults(state, onSubscribeToggle, onNotificationsChange)
         if (state.subscribed.isNotEmpty()) {
             item(key = "added") {
@@ -115,8 +108,13 @@ private fun LazyListScope.channelResults(
             item(key = "results") { FlowSectionHeader(stringResource(R.string.onboarding_channels_results_header)) }
             itemsIndexed(state.results, key = { _, channel -> channel.id }) { index, channel ->
                 val row: @Composable () -> Unit = {
-                    ChannelRow(
-                        channel = channel,
+                    MediaChannelSubscribeRow(
+                        name = channel.name,
+                        thumbnailUrl = channel.thumbnailUrl,
+                        supportingText =
+                            channel.subscriberCount.takeIf { it > 0 }?.let {
+                                stringResource(R.string.onboarding_channels_subscribers, formatSubscriberCount(it))
+                            },
                         subscribed = state.isSubscribed(channel.id),
                         notifying = channel.id in state.notifying,
                         shape = flowSegmentShape(index, state.results.size),
@@ -138,39 +136,6 @@ private fun SearchLoading() {
 }
 
 @Composable
-private fun QuickSearches(
-    topics: Set<String>,
-    query: String,
-    onQueryChange: (String) -> Unit,
-) {
-    if (topics.isEmpty()) return
-    FlowRow(
-        modifier = Modifier.padding(top = ChipSpacing),
-        horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
-    ) {
-        topics.take(MAX_QUICK_SEARCHES).forEach { topic ->
-            SuggestionChip(
-                onClick = { onQueryChange(topic) },
-                label = { Text(topic) },
-                icon = {
-                    Icon(
-                        Icons.Outlined.Search,
-                        contentDescription = null,
-                        modifier = Modifier.size(SuggestionChipDefaults.IconSize),
-                    )
-                },
-                colors =
-                    if (query == topic) {
-                        SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                    } else {
-                        SuggestionChipDefaults.suggestionChipColors()
-                    },
-            )
-        }
-    }
-}
-
-@Composable
 private fun Prompt(text: String) {
     Text(
         text = text,
@@ -179,57 +144,4 @@ private fun Prompt(text: String) {
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(vertical = PromptPadding),
     )
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ChannelRow(
-    channel: Channel,
-    subscribed: Boolean,
-    notifying: Boolean,
-    shape: Shape,
-    onToggle: () -> Unit,
-    onNotificationsChange: (Boolean) -> Unit,
-) {
-    val colors = MaterialTheme.colorScheme
-    SegmentedListItem(
-        shapes = ListItemDefaults.shapes(shape = shape),
-        verticalAlignment = Alignment.CenterVertically,
-        colors =
-            ListItemDefaults.segmentedColors(
-                containerColor = colors.surfaceContainerHigh,
-                contentColor = colors.onSurface,
-                supportingContentColor = colors.onSurfaceVariant,
-            ),
-        leadingContent = {
-            AsyncImage(
-                model = channel.thumbnailUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .size(AvatarSize)
-                        .clip(flowArtistShape())
-                        .background(colors.surfaceContainerHighest),
-            )
-        },
-        supportingContent =
-            if (channel.subscriberCount > 0) {
-                { Text(stringResource(R.string.onboarding_channels_subscribers, formatSubscriberCount(channel.subscriberCount))) }
-            } else {
-                null
-            },
-        trailingContent = {
-            FlowSubscribeButton(
-                isSubscribed = subscribed,
-                onSubscribeClick = onToggle,
-                onUnsubscribeClick = onToggle,
-                isNotificationsEnabled = notifying,
-                onNotificationChange = onNotificationsChange,
-                size = FlowSubscribeButtonSize.Compact,
-            )
-        },
-    ) {
-        Text(text = channel.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
 }

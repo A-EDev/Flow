@@ -81,4 +81,32 @@ class FlowUriHandlerTest {
     fun `only youtube's own redirect is unwrapped`() {
         assertEquals("https://example.com/redirect?q=x", unwrapYouTubeRedirect("https://example.com/redirect?q=x"))
     }
+
+    @Test
+    fun `a bare web address opens with https`() {
+        handler.openUri("betterstack.com")
+        handler.openUri(" example.com/shop?id=1 ")
+
+        assertEquals(listOf("https://betterstack.com", "https://example.com/shop?id=1"), platform.opened)
+    }
+
+    @Test
+    fun `links that carry a scheme or are not addresses are left alone`() {
+        assertEquals("mailto:team@example.com", withWebScheme("mailto:team@example.com"))
+        assertEquals("http://example.com", withWebScheme("http://example.com"))
+        assertEquals("https://example.com:8080/x", withWebScheme("example.com:8080/x"))
+        assertEquals("not a link", withWebScheme("not a link"))
+    }
+
+    @Test
+    fun `a link no app can open is reported instead of crashing`() {
+        val refused = mutableListOf<String>()
+        val throwing =
+            object : UriHandler {
+                override fun openUri(uri: String): Unit = throw IllegalArgumentException("Can't open $uri.")
+            }
+        FlowUriHandler(navigator, throwing) { refused += it }.openUri("betterstack.com")
+
+        assertEquals(listOf("https://betterstack.com"), refused)
+    }
 }

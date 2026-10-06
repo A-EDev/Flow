@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -158,12 +159,14 @@ fun FlowDescriptionBottomSheet(
                     .padding(horizontal = SheetHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(SectionSpacing),
         ) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            SelectionContainer {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
 
             val dateSettings = rememberDateDisplaySettings()
             val stats =
