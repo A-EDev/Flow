@@ -16,17 +16,30 @@ enum class NoteKind {
     fun idFor(targetId: String): String = "${name.lowercase()}:$targetId"
 }
 
-/** What a note is about: a video and its channel, or a channel alone (then [channelName] is blank). */
+/**
+ * What a note is about: a video and its channel, or a channel alone (then [channelName] is blank and
+ * [thumbnailUrl] is its avatar).
+ */
 data class NoteSubject(
     val title: String,
     val channelName: String = "",
     val channelId: String = "",
     val thumbnailUrl: String = "",
     val durationSeconds: Int = 0,
+    val channelAvatarUrl: String = "",
+    val channelHandle: String = "",
+    val subscriberCountText: String = "",
 )
 
 fun Video.toNoteSubject(): NoteSubject =
-    NoteSubject(title = title, channelName = channelName, channelId = channelId, thumbnailUrl = thumbnailUrl, durationSeconds = duration)
+    NoteSubject(
+        title = title,
+        channelName = channelName,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
+        durationSeconds = duration,
+        channelAvatarUrl = channelThumbnailUrl,
+    )
 
 data class Note(
     val targetId: String,
@@ -34,6 +47,7 @@ data class Note(
     val text: String,
     val updatedAt: Long,
     val subject: NoteSubject? = null,
+    val position: Int? = null,
 )
 
 @Singleton
@@ -73,9 +87,9 @@ class NotesRepository
                 noteDao.deleteById(id)
                 return
             }
-            val kept = subject ?: noteDao.get(id)?.toNote()?.subject
+            val stored = noteDao.get(id)?.toNote()
             noteDao.upsert(
-                Note(targetId, kind, trimmed, System.currentTimeMillis(), kept).toEntity(),
+                Note(targetId, kind, trimmed, System.currentTimeMillis(), subject ?: stored?.subject, stored?.position).toEntity(),
             )
         }
 
@@ -90,7 +104,13 @@ class NotesRepository
             channelId = subject.channelId,
             thumbnailUrl = subject.thumbnailUrl,
             durationSeconds = subject.durationSeconds,
+            channelAvatarUrl = subject.channelAvatarUrl,
+            channelHandle = subject.channelHandle,
+            subscriberCountText = subject.subscriberCountText,
         )
+
+        /** Stores [notes] in this order, for the Custom order sort. */
+        suspend fun saveOrder(notes: List<Note>) = noteDao.updatePositions(notes.map { it.kind.idFor(it.targetId) })
 
         suspend fun delete(
             kind: NoteKind,
@@ -117,6 +137,10 @@ private fun Note.toEntity(): NoteEntity =
         channelId = subject?.channelId,
         thumbnailUrl = subject?.thumbnailUrl,
         durationSeconds = subject?.durationSeconds,
+        channelAvatarUrl = subject?.channelAvatarUrl,
+        channelHandle = subject?.channelHandle,
+        subscriberCountText = subject?.subscriberCountText,
+        position = position,
     )
 
 private fun NoteEntity.toNote(): Note? {
@@ -129,7 +153,10 @@ private fun NoteEntity.toNote(): Note? {
                 channelId = channelId.orEmpty(),
                 thumbnailUrl = thumbnailUrl.orEmpty(),
                 durationSeconds = durationSeconds ?: 0,
+                channelAvatarUrl = channelAvatarUrl.orEmpty(),
+                channelHandle = channelHandle.orEmpty(),
+                subscriberCountText = subscriberCountText.orEmpty(),
             )
         }
-    return Note(targetId = targetId, kind = parsedKind, text = text, updatedAt = updatedAt, subject = subject)
+    return Note(targetId = targetId, kind = parsedKind, text = text, updatedAt = updatedAt, subject = subject, position = position)
 }

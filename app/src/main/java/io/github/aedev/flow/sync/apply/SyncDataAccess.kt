@@ -193,12 +193,17 @@ class SyncDataAccess
                     channelId = note.channelId,
                     thumbnailUrl = note.thumbnailUrl,
                     durationSeconds = note.durationSeconds,
+                    channelAvatarUrl = note.channelAvatarUrl,
+                    channelHandle = note.channelHandle,
+                    subscriberCountText = note.subscriberCountText,
                 )
             }
 
         suspend fun writeNotes(merged: List<CanonicalNote>) {
             val live = merged.filter { !it.deleted && it.text.isNotBlank() }
             if (live.isNotEmpty()) {
+                // The hand-made order is this device's own; a peer's copy never carries it.
+                val positions = noteDao.getAll().associate { it.id to it.position }
                 noteDao.upsertAll(
                     live.map { note ->
                         NoteEntity(
@@ -212,6 +217,10 @@ class SyncDataAccess
                             channelId = note.channelId,
                             thumbnailUrl = note.thumbnailUrl,
                             durationSeconds = note.durationSeconds,
+                            channelAvatarUrl = note.channelAvatarUrl,
+                            channelHandle = note.channelHandle,
+                            subscriberCountText = note.subscriberCountText,
+                            position = positions[note.id],
                         )
                     },
                 )

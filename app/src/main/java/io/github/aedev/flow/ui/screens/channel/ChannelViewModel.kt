@@ -137,7 +137,16 @@ class ChannelViewModel
             val subject =
                 _uiState.value.header
                     ?.takeIf { it.title.isNotBlank() }
-                    ?.let { NoteSubject(title = it.title, channelId = it.id, thumbnailUrl = it.avatarUrl) }
+                    ?.let { header ->
+                        NoteSubject(
+                            title = header.title,
+                            channelId = header.id,
+                            thumbnailUrl = header.avatarUrl,
+                            channelAvatarUrl = header.avatarUrl,
+                            channelHandle = header.handle.orEmpty(),
+                            subscriberCountText = header.subscriberCountText.orEmpty(),
+                        )
+                    }
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 notesRepository.save(NoteKind.Channel, channelId, text, subject)
             }

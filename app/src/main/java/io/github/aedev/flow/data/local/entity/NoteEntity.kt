@@ -23,4 +23,9 @@ data class NoteEntity(
     val channelId: String? = null,
     val thumbnailUrl: String? = null,
     val durationSeconds: Int? = null,
+    val channelAvatarUrl: String? = null,
+    val channelHandle: String? = null,
+    val subscriberCountText: String? = null,
+    /** Where the viewer placed the note by hand; null until they reorder. */
+    val position: Int? = null,
 )

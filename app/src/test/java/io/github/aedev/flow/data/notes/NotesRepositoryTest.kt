@@ -34,6 +34,9 @@ class NotesRepositoryTest {
                 channelId: String,
                 thumbnailUrl: String,
                 durationSeconds: Int,
+                channelAvatarUrl: String,
+                channelHandle: String,
+                subscriberCountText: String,
             ) {
                 val row = rows.value[id] ?: return
                 rows.value = rows.value +
@@ -45,8 +48,19 @@ class NotesRepositoryTest {
                                 channelId = channelId,
                                 thumbnailUrl = thumbnailUrl,
                                 durationSeconds = durationSeconds,
+                                channelAvatarUrl = channelAvatarUrl,
+                                channelHandle = channelHandle,
+                                subscriberCountText = subscriberCountText,
                             )
                     )
+            }
+
+            override suspend fun updatePosition(
+                id: String,
+                position: Int,
+            ) {
+                val row = rows.value[id] ?: return
+                rows.value = rows.value + (id to row.copy(position = position))
             }
 
             override suspend fun upsert(note: NoteEntity) {
@@ -173,5 +187,18 @@ class NotesRepositoryTest {
                     .toSet(),
             )
             assertEquals(2, repository.observeCount().first())
+        }
+
+    @Test
+    fun `a hand-made order is kept, and a later edit does not lose its place`() =
+        runTest {
+            repository.save(NoteKind.Video, "v1", "first")
+            repository.save(NoteKind.Video, "v2", "second")
+            repository.saveOrder(listOf(repository.get(NoteKind.Video, "v2")!!, repository.get(NoteKind.Video, "v1")!!))
+
+            repository.save(NoteKind.Video, "v1", "first, edited")
+
+            assertEquals(0, repository.get(NoteKind.Video, "v2")?.position)
+            assertEquals(1, repository.get(NoteKind.Video, "v1")?.position)
         }
 }
