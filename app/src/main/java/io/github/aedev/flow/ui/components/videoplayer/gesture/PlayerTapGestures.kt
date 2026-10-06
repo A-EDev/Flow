@@ -19,13 +19,6 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 /** How long a further tap in the same zone keeps adding to the running double-tap seek total. */
 private const val SEEK_ACCUMULATION_WINDOW_MS = 1_000L
 
-/** Screen fraction on each side that maps to a seek zone; the middle third is play/pause. */
-private const val SEEK_ZONE_FRACTION = 1f / 3f
-
-private const val ZONE_LEFT = -1
-private const val ZONE_CENTER = 0
-private const val ZONE_RIGHT = 1
-
 internal fun Modifier.playerTapGestures(
     isSpeedBoostActive: State<Boolean>,
     onSpeedBoostChange: State<(Boolean) -> Unit>,
@@ -72,15 +65,7 @@ internal fun Modifier.playerTapGestures(
         var revealedOnTap = false
         var hidePending = false
 
-        fun zoneOf(x: Float): Int {
-            val width = size.width.toFloat()
-            if (width <= 0f) return ZONE_CENTER
-            return when {
-                x < width * SEEK_ZONE_FRACTION -> ZONE_LEFT
-                x > width * (1f - SEEK_ZONE_FRACTION) -> ZONE_RIGHT
-                else -> ZONE_CENTER
-            }
-        }
+        fun zoneOf(x: Float): TapZone = tapZoneOf(x, size.width.toFloat(), DEFAULT_SEEK_ZONE_FRACTION)
 
         fun applyZoneSeek(forward: Boolean) {
             val manager = EnhancedPlayerManager.getInstance()
@@ -142,11 +127,11 @@ internal fun Modifier.playerTapGestures(
                 if (!currentIsSpeedBoostActive) {
                     val zone = zoneOf(offset.x)
                     val continuesActiveSeek =
-                        (zone == ZONE_LEFT && currentIsSeekBackActive) ||
-                            (zone == ZONE_RIGHT && currentIsSeekForwardActive)
+                        (zone == TapZone.BACK && currentIsSeekBackActive) ||
+                            (zone == TapZone.FORWARD && currentIsSeekForwardActive)
                     when {
                         continuesActiveSeek -> {
-                            applyZoneSeek(forward = zone == ZONE_RIGHT)
+                            applyZoneSeek(forward = zone == TapZone.FORWARD)
                         }
 
                         !currentShowControls -> {
@@ -170,15 +155,15 @@ internal fun Modifier.playerTapGestures(
             onDoubleTap = { offset ->
                 hidePending = false
                 val zone = zoneOf(offset.x)
-                if (zone != ZONE_CENTER && revealedOnTap) {
+                if (zone != TapZone.CENTER && revealedOnTap) {
                     currentOnShowControlsChange(false)
                 }
                 revealedOnTap = false
 
                 when (zone) {
-                    ZONE_LEFT -> applyZoneSeek(forward = false)
-                    ZONE_RIGHT -> applyZoneSeek(forward = true)
-                    else -> togglePlayPause()
+                    TapZone.BACK -> applyZoneSeek(forward = false)
+                    TapZone.FORWARD -> applyZoneSeek(forward = true)
+                    TapZone.CENTER -> togglePlayPause()
                 }
             },
             onLongPress = { offset ->

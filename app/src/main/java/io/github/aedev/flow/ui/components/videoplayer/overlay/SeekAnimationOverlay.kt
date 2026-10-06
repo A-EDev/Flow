@@ -20,10 +20,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.videoplayer.gesture.DEFAULT_SEEK_ZONE_FRACTION
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
-// Fraction of the player width each seek zone covers; mirrors SEEK_ZONE_FRACTION in the gesture layer.
-private const val SEEK_ZONE_WIDTH_FRACTION = 1f / 3f
 private const val SEEK_RIPPLE_ALPHA = 0.15f
 private const val SEEK_RIPPLE_PULSE_ALPHA = 0.28f
 private val ChevronTravel = 24.dp
@@ -34,6 +33,7 @@ internal fun SeekAnimationOverlay(
     showSeekBack: Boolean,
     showSeekForward: Boolean,
     seekSeconds: Int = 10,
+    zoneFraction: Float = DEFAULT_SEEK_ZONE_FRACTION,
     modifier: Modifier = Modifier,
 ) {
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -47,7 +47,7 @@ internal fun SeekAnimationOverlay(
                 Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxHeight()
-                    .fillMaxWidth(SEEK_ZONE_WIDTH_FRACTION),
+                    .fillMaxWidth(zoneFraction),
         )
 
         SeekZoneRipple(
@@ -58,7 +58,7 @@ internal fun SeekAnimationOverlay(
                 Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .fillMaxWidth(SEEK_ZONE_WIDTH_FRACTION),
+                    .fillMaxWidth(zoneFraction),
         )
 
         AnimatedVisibility(
