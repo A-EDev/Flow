@@ -164,7 +164,7 @@ class TasteViewModel
 
         private suspend fun load(): TasteState {
             FlowNeuroEngine.initialize(context)
-            val brain = FlowNeuroEngine.getBrainSnapshot()
+            val brain = FlowNeuroEngine.getSavedBrainSnapshot()
             val names = channelNames()
             val profile = runCatching { musicBrain.tasteProfile() }.getOrNull()
             val strongest =
