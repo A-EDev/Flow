@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Share
@@ -110,18 +111,22 @@ fun CommunityPostCard(
 
         if (post.text.isNotBlank()) {
             Column(modifier = Modifier.padding(horizontal = PostHorizontalPadding)) {
-                Text(
-                    text = formattedText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines =
-                        when {
-                            compact -> COMPACT_TEXT_LINES
-                            textExpanded -> Int.MAX_VALUE
-                            else -> FULL_TEXT_LINES
-                        },
-                    overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { textOverflows = it.hasVisualOverflow },
-                )
+                val postText: @Composable () -> Unit = {
+                    Text(
+                        text = formattedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines =
+                            when {
+                                compact -> COMPACT_TEXT_LINES
+                                textExpanded -> Int.MAX_VALUE
+                                else -> FULL_TEXT_LINES
+                            },
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { textOverflows = it.hasVisualOverflow },
+                    )
+                }
+                // A shelf card sits in a horizontal row, where a selection drag would fight the scroll.
+                if (compact) postText() else SelectionContainer { postText() }
                 if (!compact && !textExpanded && textOverflows) {
                     TextButton(onClick = { textExpanded = true }) {
                         Text(stringResource(R.string.read_more))
