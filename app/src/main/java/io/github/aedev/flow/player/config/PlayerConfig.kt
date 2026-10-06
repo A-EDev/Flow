@@ -12,14 +12,11 @@ object PlayerConfig {
     /** Maximum cache size in bytes (500 MB — default) */
     const val CACHE_SIZE_BYTES = 500L * 1024L * 1024L
 
-    /** Cache size options (MB) shown in Settings. 0 = unlimited. */
-    val CACHE_SIZE_OPTIONS_MB = intArrayOf(100, 200, 500, 0)
-
-    /** Convert a cache size MB setting to bytes. 0 MB means unlimited (NoOpCacheEvictor). */
-    fun cacheSizeMbToBytes(mb: Int): Long = if (mb <= 0) 0L else mb * 1024L * 1024L
-
-    /** Cache directory name */
+    /** The video and Shorts cache folder; it held every player's data before songs got their own. */
     const val CACHE_DIR_NAME = "exoplayer"
+
+    /** The song and animated artwork cache folder. */
+    const val MUSIC_CACHE_DIR_NAME = "exoplayer_music"
 
     // ===== Buffer Configuration =====
 

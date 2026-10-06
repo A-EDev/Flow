@@ -12,18 +12,17 @@ import io.github.aedev.flow.player.config.PlayerConfig
 import java.io.File
 
 /**
- * Singleton that owns the single shared [SimpleCache] used by both the video player
- * ([PlayerCacheManager]) and the music player (DownloadUtil / Media3MusicService).
- *
- * Sharing the cache means:
- *  - Audio segments fetched while watching a video are reused when switching to audio-only.
- *  - The configurable cache size applies to both players at once.
+ * Owns the app's two player caches: one for videos and Shorts ([PlayerCacheManager], the Shorts
+ * pool) and one for songs and animated artwork (DownloadUtil, the music player). Each folder may
+ * only ever have one [SimpleCache] open on it, so both are created here and nowhere else.
  */
 @UnstableApi
 object SharedPlayerCacheProvider {
     private const val TAG = "SharedPlayerCache"
 
     @Volatile private var cache: SimpleCache? = null
+
+    @Volatile private var musicCache: SimpleCache? = null
 
     @Volatile private var database: DatabaseProvider? = null
 
@@ -36,7 +35,7 @@ object SharedPlayerCacheProvider {
         database ?: StandaloneDatabaseProvider(context.applicationContext).also { database = it }
 
     /**
-     * Returns the shared [SimpleCache], creating it on first call.
+     * Returns the video cache, creating it on first call.
      *
      * All callers share the same instance regardless of the [maxCacheSizeBytes] they pass; only the
      * first call's value is used.
@@ -45,22 +44,17 @@ object SharedPlayerCacheProvider {
     fun getOrCreate(
         context: Context,
         maxCacheSizeBytes: Long = PlayerConfig.CACHE_SIZE_BYTES,
-    ): SimpleCache =
-        cache ?: run {
-            val db = databaseProvider(context)
-            val cacheDir = File(context.applicationContext.cacheDir, PlayerConfig.CACHE_DIR_NAME)
-            val evictor =
-                if (maxCacheSizeBytes <= 0) {
-                    NoOpCacheEvictor()
-                } else {
-                    LeastRecentlyUsedCacheEvictor(maxCacheSizeBytes)
-                }
-            Log.d(TAG, "Creating shared SimpleCache: dir=$cacheDir, maxBytes=$maxCacheSizeBytes")
-            SimpleCache(cacheDir, evictor, db).also { cache = it }
-        }
+    ): SimpleCache = cache ?: create(context, PlayerConfig.CACHE_DIR_NAME, maxCacheSizeBytes).also { cache = it }
+
+    /** Returns the song cache, creating it on first call; only the first call's size is used. */
+    @Synchronized
+    fun getOrCreateMusic(
+        context: Context,
+        maxCacheSizeBytes: Long,
+    ): SimpleCache = musicCache ?: create(context, PlayerConfig.MUSIC_CACHE_DIR_NAME, maxCacheSizeBytes).also { musicCache = it }
 
     /**
-     * The shared cache if it already exists, without creating one.
+     * The video cache if it already exists, without creating one.
      *
      * [getOrCreate] opens a SQLite index and scans the cache directory on first call, so callers
      * that run on the main thread (the Shorts pool builds its data sources there, as ExoPlayer
@@ -68,11 +62,24 @@ object SharedPlayerCacheProvider {
      */
     fun existing(): SimpleCache? = cache
 
-    /** Release the cache (call only on full app shutdown / tests). */
+    /** Release the caches (call only on full app shutdown / tests). */
     @Synchronized
     fun release() {
         cache?.release()
         cache = null
-        Log.d(TAG, "Shared SimpleCache released")
+        musicCache?.release()
+        musicCache = null
+        Log.d(TAG, "Player caches released")
+    }
+
+    private fun create(
+        context: Context,
+        folder: String,
+        maxCacheSizeBytes: Long,
+    ): SimpleCache {
+        val cacheDir = File(context.applicationContext.cacheDir, folder)
+        val evictor = if (maxCacheSizeBytes <= 0) NoOpCacheEvictor() else LeastRecentlyUsedCacheEvictor(maxCacheSizeBytes)
+        Log.d(TAG, "Creating SimpleCache: dir=$cacheDir, maxBytes=$maxCacheSizeBytes")
+        return SimpleCache(cacheDir, evictor, databaseProvider(context))
     }
 }

@@ -350,6 +350,8 @@ class PlayerPreferences(
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
+        val MUSIC_CACHE_SIZE_MB = intPreferencesKey("music_cache_size_mb")
+        val ARTWORK_CACHE_SIZE_MB = intPreferencesKey("artwork_cache_size_mb")
 
         // Explore screen quick region picker
 
@@ -2691,16 +2693,38 @@ class PlayerPreferences(
         }
     }
 
-    // Cache size — 0 means unlimited. Default 500 MB.
+    /** The video and Shorts cache size in MB; 0 means unlimited. Stored under the original single-cache key. */
     val mediaCacheSizeMb: Flow<Int> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.MEDIA_CACHE_SIZE_MB] ?: 500
+                preferences[Keys.MEDIA_CACHE_SIZE_MB] ?: MediaCacheSizes.DEFAULT_MEDIA_MB
             }
 
     suspend fun setMediaCacheSizeMb(sizeMb: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MEDIA_CACHE_SIZE_MB] = sizeMb
+        }
+    }
+
+    /** The song cache size in MB; 0 means unlimited. */
+    val musicCacheSizeMb: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_CACHE_SIZE_MB] ?: MediaCacheSizes.DEFAULT_MEDIA_MB }
+
+    suspend fun setMusicCacheSizeMb(sizeMb: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_CACHE_SIZE_MB] = sizeMb
+        }
+    }
+
+    /** The image cache size in MB; [MediaCacheSizes.ARTWORK_AUTOMATIC_MB] leaves it to Coil. */
+    val artworkCacheSizeMb: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.ARTWORK_CACHE_SIZE_MB] ?: MediaCacheSizes.ARTWORK_AUTOMATIC_MB }
+
+    suspend fun setArtworkCacheSizeMb(sizeMb: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ARTWORK_CACHE_SIZE_MB] = sizeMb
         }
     }
 

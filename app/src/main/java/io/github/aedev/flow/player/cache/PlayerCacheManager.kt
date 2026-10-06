@@ -7,11 +7,13 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
+import io.github.aedev.flow.data.local.MediaCacheLimits
+import io.github.aedev.flow.data.local.MediaCacheSizes
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @UnstableApi
@@ -23,16 +25,16 @@ class PlayerCacheManager(
         private const val TAG = "PlayerCacheManager"
 
         /**
-         * Cache size resolved by the last [preload], or null if preload has not run.
+         * Cache sizes resolved by the last [preload], or null if preload has not run.
          *
-         * This is what keeps [initialize] off DataStore on the cold-start path: the preference
-         * has already been read on a background thread by the time the player is built.
+         * This is what keeps [initialize] off DataStore on the cold-start path: the preferences
+         * have already been read on a background thread by the time the player is built.
          */
         @Volatile
-        private var preloadedCacheSizeBytes: Long? = null
+        private var preloadedLimits: MediaCacheLimits? = null
 
         /**
-         * Warms the cache-size preference and the shared [SimpleCache] on [Dispatchers.IO].
+         * Warms the cache-size preferences and the video [SimpleCache] on [Dispatchers.IO].
          *
          * Both are disk-bound — DataStore reads and parses its backing file, and SimpleCache
          * opens a SQLite index and scans the cache directory — so neither belongs on the
@@ -42,23 +44,27 @@ class PlayerCacheManager(
         suspend fun preload(context: Context): Unit =
             withContext(Dispatchers.IO) {
                 val appContext = context.applicationContext
-                val resolved =
-                    runCatching {
-                        PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(appContext).mediaCacheSizeMb.first())
-                    }.getOrDefault(PlayerConfig.CACHE_SIZE_BYTES)
-                preloadedCacheSizeBytes = resolved
-                runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = resolved) }
+                val limits = runCatching { readLimits(appContext) }.getOrDefault(MediaCacheLimits.DEFAULT)
+                preloadedLimits = limits
+                runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = limits.videoBytes) }
                     .onFailure { Log.w(TAG, "Cache preload failed; initialize() will retry", it) }
             }
 
         /**
-         * The configured cache size, from [preload] when it has run. Otherwise a blocking read: the
-         * media service and Hilt can build a cache without going through the cold-start path.
+         * The configured cache sizes, from [preload] when it has run. Otherwise a blocking read: the
+         * media service, Hilt and Coil can build a cache without going through the cold-start path.
          */
-        fun configuredCacheSizeBytes(context: Context): Long =
-            preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
-                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context.applicationContext).mediaCacheSizeMb.first())
-            }
+        fun configuredLimits(context: Context): MediaCacheLimits =
+            preloadedLimits ?: runBlocking { readLimits(context.applicationContext) }.also { preloadedLimits = it }
+
+        private suspend fun readLimits(context: Context): MediaCacheLimits {
+            val preferences = PlayerPreferences(context)
+            return MediaCacheLimits(
+                videoBytes = MediaCacheSizes.mediaBytes(preferences.mediaCacheSizeMb.first()),
+                musicBytes = MediaCacheSizes.mediaBytes(preferences.musicCacheSizeMb.first()),
+                artworkBytes = MediaCacheSizes.artworkBytes(preferences.artworkCacheSizeMb.first()),
+            )
+        }
     }
 
     private val videoCacheKeys = VideoCacheKeys(currentVideoId)
@@ -93,7 +99,7 @@ class PlayerCacheManager(
         val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
         try {
-            cache = SharedPlayerCacheProvider.getOrCreate(context, maxCacheSizeBytes = configuredCacheSizeBytes(context))
+            cache = SharedPlayerCacheProvider.getOrCreate(context, maxCacheSizeBytes = configuredLimits(context).videoBytes)
 
             val cacheFactory =
                 CacheDataSource
