@@ -548,6 +548,15 @@
     <string name="notes_sort_recent">Recently edited</string>
     <string name="notes_sort_oldest">Oldest first</string>
     <string name="notes_sort_title">Title</string>
+    <string name="notes_sort_custom">Custom order</string>
+    <string name="notes_sort">Sort notes</string>
+    <string name="notes_select">Select notes</string>
+    <string name="notes_reorder">Reorder</string>
+    <string name="notes_reorder_title">Reorder notes</string>
+    <plurals name="notes_deleted">
+        <item quantity="one">%d note deleted</item>
+        <item quantity="other">%d notes deleted</item>
+    </plurals>
     <string name="notes_empty_title">No notes yet</string>
     <string name="notes_empty_body">Add one from a video\'s Note button or a channel\'s subscribe menu. Times like 12:34 become links.</string>
     <string name="notes_no_match_title">No notes match</string>
@@ -556,6 +565,7 @@
     <string name="note_edited">Edited %1$s</string>
     <string name="note_edited_just_now">Edited just now</string>
     <string name="note_channel_note">Channel note</string>
+    <string name="note_open_channel">Channel</string>
     <string name="note_timestamps">Timestamps</string>
     <string name="note_play_from">Play from %1$s</string>
     <string name="note_copy_text">Copy text</string>

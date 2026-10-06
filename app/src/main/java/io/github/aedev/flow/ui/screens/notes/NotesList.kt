@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.notes
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,7 +43,6 @@ import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
-import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.utils.formatDurationMillis
@@ -51,14 +52,22 @@ private const val PREVIEW_LINES = 2
 private val ListThumbnailWidth = 128.dp
 private val ChannelAvatarSize = 56.dp
 
-/** Search, kind and sort above every note, newest edit first by default. */
+/** Which notes a select mode holds; a long press on a note starts one with that note picked. */
+internal class NotesSelection(
+    val active: Boolean,
+    val keys: Set<String>,
+    val onToggle: (Note) -> Unit,
+    val onStart: (Note) -> Unit,
+)
+
+/** Search and kind above every note; the sort lives in the top bar. */
 @Composable
 internal fun NotesListPane(
     state: NotesUiState,
-    selectedKey: String?,
+    openKey: String?,
+    selection: NotesSelection,
     onQueryChange: (String) -> Unit,
     onFilterChange: (NotesFilter) -> Unit,
-    onSortChange: (NotesSort) -> Unit,
     onOpen: (Note) -> Unit,
     onPlayMoment: (Note, Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -75,30 +84,17 @@ internal fun NotesListPane(
             leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
             releaseFocusWithKeyboard = true,
         )
-        Row(
+        FlowConnectedToggleGroup(
+            options =
+                listOf(
+                    FlowToggleOption(NotesFilter.All, stringResource(R.string.notes_filter_all)),
+                    FlowToggleOption(NotesFilter.Videos, stringResource(R.string.notes_filter_videos)),
+                    FlowToggleOption(NotesFilter.Channels, stringResource(R.string.notes_filter_channels)),
+                ),
+            selected = state.filter,
+            onSelected = onFilterChange,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FlowConnectedToggleGroup(
-                options =
-                    listOf(
-                        FlowToggleOption(NotesFilter.All, stringResource(R.string.notes_filter_all)),
-                        FlowToggleOption(NotesFilter.Videos, stringResource(R.string.notes_filter_videos)),
-                        FlowToggleOption(NotesFilter.Channels, stringResource(R.string.notes_filter_channels)),
-                    ),
-                selected = state.filter,
-                onSelected = onFilterChange,
-                modifier = Modifier.weight(1f),
-            )
-            FlowSortChip(
-                options = NotesSort.entries,
-                selected = state.sort,
-                default = NotesSort.Recent,
-                label = { stringResource(it.labelRes) },
-                onSelected = onSortChange,
-            )
-        }
+        )
 
         when {
             state.all == null -> {
@@ -130,8 +126,11 @@ internal fun NotesListPane(
                     items(state.visible, key = { it.key }) { note ->
                         NoteListItem(
                             note = note,
-                            selected = note.key == selectedKey,
-                            onClick = { onOpen(note) },
+                            open = !selection.active && note.key == openKey,
+                            selecting = selection.active,
+                            picked = note.key in selection.keys,
+                            onClick = { if (selection.active) selection.onToggle(note) else onOpen(note) },
+                            onLongClick = { if (!selection.active) selection.onStart(note) },
                             onPlayMoment = { positionMs -> onPlayMoment(note, positionMs) },
                             modifier = Modifier.animateItem(),
                         )
@@ -145,8 +144,11 @@ internal fun NotesListPane(
 @Composable
 private fun NoteListItem(
     note: Note,
-    selected: Boolean,
+    open: Boolean,
+    selecting: Boolean,
+    picked: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onPlayMoment: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -157,10 +159,13 @@ private fun NoteListItem(
             if (isVideo) NoteMoments.timeline(note.text, (subject?.durationSeconds ?: 0) * 1000L).take(LIST_MOMENTS) else emptyList()
         }
     Surface(
-        onClick = onClick,
         shape = MaterialTheme.shapes.large,
-        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = modifier.fillMaxWidth(),
+        color = if (open || picked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.large)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
@@ -207,8 +212,9 @@ private fun NoteListItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (selecting) Checkbox(checked = picked, onCheckedChange = { onClick() })
             }
-            if (moments.isNotEmpty()) {
+            if (moments.isNotEmpty() && !selecting) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     moments.forEach { moment ->
                         val time = formatDurationMillis(moment.positionMs)
@@ -250,10 +256,11 @@ internal fun editedLabel(epochMs: Long): String {
     }
 }
 
-private val NotesSort.labelRes: Int
+internal val NotesSort.labelRes: Int
     get() =
         when (this) {
             NotesSort.Recent -> R.string.notes_sort_recent
             NotesSort.Oldest -> R.string.notes_sort_oldest
             NotesSort.Title -> R.string.notes_sort_title
+            NotesSort.Custom -> R.string.notes_sort_custom
         }

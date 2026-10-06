@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.MoreVert
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.notes.Note
@@ -52,7 +55,9 @@ import io.github.aedev.flow.data.notes.NoteMoments
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.DurationBadge
+import io.github.aedev.flow.ui.components.shared.FlowActionButtonPair
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowPairAction
 import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
@@ -62,13 +67,14 @@ import io.github.aedev.flow.utils.formatDurationMillis
 
 private val TwoColumnMinWidth = 720.dp
 private val ChannelAvatarLarge = 96.dp
+private val ChannelAvatarSmall = 36.dp
 
 /** [FlowRowGroup] insets its rows by this much, so everything else in the pane does too. */
 private val ContentInset = 12.dp
 
 /**
  * One note, read in full: what it is about, a row per time it mentions, and the text with every
- * time a link. Wide enough, the picture and the text sit side by side.
+ * time a link. Wide enough, the picture and the text sit side by side. Its menu is in the top bar.
  */
 @Composable
 internal fun NoteDetailPane(
@@ -76,8 +82,6 @@ internal fun NoteDetailPane(
     onPlay: (startPositionMs: Long?) -> Unit,
     onOpenChannel: (String) -> Unit,
     onEdit: () -> Unit,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isVideo = note.kind == NoteKind.Video
@@ -93,7 +97,7 @@ internal fun NoteDetailPane(
         if (twoColumns) {
             Row(modifier = padded, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    NoteSubjectHeader(note, onPlay, onOpenChannel, onEdit, onCopy, onDelete)
+                    NoteSubjectHeader(note, onPlay, onOpenChannel, onEdit)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     NoteBody(note, moments, durationMs, onPlay)
@@ -101,7 +105,7 @@ internal fun NoteDetailPane(
             }
         } else {
             Column(modifier = padded.widthIn(max = TwoColumnMinWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                NoteSubjectHeader(note, onPlay, onOpenChannel, onEdit, onCopy, onDelete)
+                NoteSubjectHeader(note, onPlay, onOpenChannel, onEdit)
                 NoteBody(note, moments, durationMs, onPlay)
             }
         }
@@ -114,101 +118,120 @@ private fun NoteSubjectHeader(
     onPlay: (Long?) -> Unit,
     onOpenChannel: (String) -> Unit,
     onEdit: () -> Unit,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit,
 ) {
-    Column(modifier = Modifier.padding(horizontal = ContentInset), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        NoteSubjectHeaderContent(note, onPlay, onOpenChannel, onEdit, onCopy, onDelete)
+    val isVideo = note.kind == NoteKind.Video
+    val channelId = if (isVideo) note.subject?.channelId?.takeIf { it.isNotBlank() } else note.targetId
+    Column(modifier = Modifier.padding(horizontal = ContentInset), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (isVideo) VideoHero(note, onPlay, onOpenChannel) else ChannelHero(note)
+        val edit = FlowPairAction(Icons.Outlined.EditNote, stringResource(R.string.note_edit), onEdit)
+        when {
+            isVideo -> {
+                FlowActionButtonPair(FlowPairAction(Icons.Rounded.PlayArrow, stringResource(R.string.resume)) { onPlay(null) }, edit)
+            }
+
+            channelId != null -> {
+                FlowActionButtonPair(
+                    FlowPairAction(Icons.Rounded.AccountCircle, stringResource(R.string.note_open_channel)) { onOpenChannel(channelId) },
+                    edit,
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun NoteSubjectHeaderContent(
+private fun VideoHero(
     note: Note,
     onPlay: (Long?) -> Unit,
     onOpenChannel: (String) -> Unit,
-    onEdit: () -> Unit,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val subject = note.subject
-    val isVideo = note.kind == NoteKind.Video
-    val channelId = if (isVideo) subject?.channelId else note.targetId
-    if (isVideo) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(MaterialTheme.shapes.large)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .clickable { onPlay(null) },
-        ) {
-            VideoThumbnailImage(
-                videoId = note.targetId,
-                model = subject?.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            subject?.durationSeconds?.takeIf { it > 0 }?.let { seconds ->
-                DurationBadge(seconds = seconds, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
-            }
-        }
-    } else {
-        ChannelAvatarImage(
-            url = subject?.thumbnailUrl,
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .clickable { onPlay(null) },
+    ) {
+        VideoThumbnailImage(
+            videoId = note.targetId,
+            model = subject?.thumbnailUrl,
             contentDescription = null,
-            modifier =
-                Modifier
-                    .size(ChannelAvatarLarge)
-                    .clip(CircleShape),
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
         )
+        subject?.durationSeconds?.takeIf { it > 0 }?.let { seconds ->
+            DurationBadge(seconds = seconds, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
+        }
     }
     Text(
-        text = subject?.title ?: stringResource(if (isVideo) R.string.note_unknown_video else R.string.note_channel_note),
+        text = subject?.title ?: stringResource(R.string.note_unknown_video),
         style = MaterialTheme.typography.titleLarge,
     )
-    if (isVideo && !subject?.channelName.isNullOrBlank()) {
+    if (!subject?.channelName.isNullOrBlank()) {
+        val channelId = subject.channelId.takeIf { it.isNotBlank() }
         Row(
             modifier =
                 Modifier
                     .clip(MaterialTheme.shapes.small)
-                    .clickable(enabled = !channelId.isNullOrBlank()) { channelId?.let(onOpenChannel) },
+                    .clickable(enabled = channelId != null) { channelId?.let(onOpenChannel) }
+                    .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.AccountCircle,
+            ChannelAvatarImage(
+                url = subject.channelAvatarUrl.takeIf { it.isNotBlank() },
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(ChannelAvatarSmall).clip(CircleShape),
             )
-            Text(text = subject.channelName, style = MaterialTheme.typography.titleSmall)
+            Text(text = subject.channelName, style = MaterialTheme.typography.titleMedium)
         }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (isVideo) {
-            Button(onClick = { onPlay(null) }) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                Text(stringResource(R.string.resume), modifier = Modifier.padding(start = ButtonDefaults.IconSpacing))
-            }
-        } else if (!channelId.isNullOrBlank()) {
-            Button(onClick = { onOpenChannel(channelId) }) { Text(stringResource(R.string.go_to_channel)) }
-        }
-        FilledTonalButton(onClick = onEdit) {
-            Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-            Text(stringResource(R.string.note_edit), modifier = Modifier.padding(start = ButtonDefaults.IconSpacing))
-        }
-        NoteMenu(onCopy = onCopy, onDelete = onDelete)
     }
 }
 
+/** The avatar with the channel's name, handle and subscribers beside it. */
 @Composable
-private fun NoteMenu(
+private fun ChannelHero(note: Note) {
+    val subject = note.subject
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        ChannelAvatarImage(
+            url = subject?.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier.size(ChannelAvatarLarge).clip(CircleShape),
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = subject?.title ?: stringResource(R.string.note_channel_note),
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subject?.channelHandle?.takeIf { it.isNotBlank() } ?: note.targetId,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            subject?.subscriberCountText?.takeIf { it.isNotBlank() }?.let { subscribers ->
+                Text(text = subscribers, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** The open note's actions, for the top bar's trailing edge. */
+@Composable
+internal fun NoteMenuButton(
+    note: Note,
     onCopy: () -> Unit,
+    onOpenChannel: (String) -> Unit,
     onDelete: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
+    val channelId = if (note.kind == NoteKind.Video) note.subject?.channelId?.takeIf { it.isNotBlank() } else null
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more_options))
@@ -216,13 +239,25 @@ private fun NoteMenu(
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.note_copy_text)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
                 onClick = {
                     open = false
                     onCopy()
                 },
             )
+            if (channelId != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.go_to_channel)) },
+                    leadingIcon = { Icon(Icons.Rounded.AccountCircle, contentDescription = null) },
+                    onClick = {
+                        open = false
+                        onOpenChannel(channelId)
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete)) },
+                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                 onClick = {
                     open = false
                     onDelete()

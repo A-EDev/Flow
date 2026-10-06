@@ -177,6 +177,7 @@ class PlayerPreferences(
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_SUBSCRIPTIONS_ENABLED = booleanPreferencesKey("home_subscriptions_enabled")
         val SUBSCRIPTION_COLLABORATIONS_ENABLED = booleanPreferencesKey("subscription_collaborations_enabled")
+        val NOTES_SORT = stringPreferencesKey("notes_sort")
         val SHOW_WATCH_PROGRESS = booleanPreferencesKey("show_watch_progress")
         val WATCH_HISTORY_PAUSED = booleanPreferencesKey("watch_history_paused")
         val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
@@ -1051,6 +1052,15 @@ class PlayerPreferences(
     suspend fun setSubscriptionCollaborationsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SUBSCRIPTION_COLLABORATIONS_ENABLED] = enabled
+        }
+    }
+
+    /** The Notes page's sort, by enum name; kept so a hand-made order is still there next visit. */
+    val notesSort: Flow<String?> = context.playerPreferencesDataStore.data.map { preferences -> preferences[Keys.NOTES_SORT] }
+
+    suspend fun setNotesSort(name: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTES_SORT] = name
         }
     }
 

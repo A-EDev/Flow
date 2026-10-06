@@ -5,10 +5,23 @@ import io.github.aedev.flow.data.notes.Note
 import io.github.aedev.flow.data.notes.NoteKind
 import io.github.aedev.flow.utils.filterBySearch
 import io.github.aedev.flow.utils.foldForSearch
+import io.github.aedev.flow.utils.youtubeWatchUrl
 
 internal enum class NotesFilter { All, Videos, Channels }
 
-internal enum class NotesSort { Recent, Oldest, Title }
+internal enum class NotesSort {
+    Recent,
+    Oldest,
+    Title,
+
+    /** The order the viewer dragged the notes into; notes never placed follow, newest edit first. */
+    Custom,
+    ;
+
+    companion object {
+        fun fromName(name: String?): NotesSort = entries.firstOrNull { it.name == name } ?: Recent
+    }
+}
 
 /** The notes the page shows: the chosen kind, matching every word of [query], in [sort] order. */
 internal fun List<Note>.visibleNotes(
@@ -30,8 +43,20 @@ internal fun List<Note>.visibleNotes(
         NotesSort.Recent -> matching.sortedByDescending { it.updatedAt }
         NotesSort.Oldest -> matching.sortedBy { it.updatedAt }
         NotesSort.Title -> matching.sortedBy { (it.subject?.title ?: it.text).foldForSearch() }
+        NotesSort.Custom -> matching.sortedWith(compareBy<Note, Int?>(nullsLast()) { it.position }.thenByDescending { it.updatedAt })
     }
 }
+
+/** [notes] as plain text to send: each one's title and link, then the note itself. */
+internal fun shareText(notes: List<Note>): String =
+    notes.joinToString("\n\n") { note ->
+        val link =
+            when (note.kind) {
+                NoteKind.Video -> youtubeWatchUrl(note.targetId)
+                NoteKind.Channel -> "https://www.youtube.com/channel/${note.targetId}"
+            }
+        listOfNotNull(note.subject?.title, link, note.text).joinToString("\n")
+    }
 
 /** A stable key for one note, for list keys and the selected note. */
 internal val Note.key: String get() = kind.idFor(targetId)

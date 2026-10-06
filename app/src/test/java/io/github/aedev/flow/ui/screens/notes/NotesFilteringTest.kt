@@ -51,4 +51,27 @@ class NotesFilteringTest {
         assertThat(video.title).isEqualTo("Router build")
         assertThat(video.channelId).isEqualTo("UC1")
     }
+
+    @Test
+    fun `custom order follows the hand-made places, unplaced notes after them newest first`() {
+        val placed = listOf(bread.copy(position = 0), router.copy(position = 1), synth)
+
+        assertThat(placed.visibleNotes("", NotesFilter.All, NotesSort.Custom).map { it.targetId })
+            .containsExactly("v2", "v1", "UC3")
+            .inOrder()
+    }
+
+    @Test
+    fun `shared notes carry their title, link and text`() {
+        val text = shareText(listOf(router, synth))
+
+        assertThat(text).contains("Router build\nhttps://www.youtube.com/watch?v=v1\n12:34 the VLAN drops packets")
+        assertThat(text).contains("Northern Synth Club\nhttps://www.youtube.com/channel/UC3\nUnsubscribed")
+    }
+
+    @Test
+    fun `an unknown stored sort reads as recently edited`() {
+        assertThat(NotesSort.fromName(null)).isEqualTo(NotesSort.Recent)
+        assertThat(NotesSort.fromName("Custom")).isEqualTo(NotesSort.Custom)
+    }
 }
