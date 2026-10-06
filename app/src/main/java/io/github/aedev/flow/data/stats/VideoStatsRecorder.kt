@@ -68,15 +68,20 @@ class VideoStatsRecorder
             locked { VideoStatsLedgerOps.recordView(it, now, event, topics) }
         }
 
-        fun onDislike(video: DislikedVideo) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordDislike(it, video.at, video) } }
+        fun onDislike(video: DislikedVideo) =
+            record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordDislike(it, video.at, video) } }
 
         fun onDislikeRemoved(videoId: String) =
             record(RecapEntry.FORGET) { locked { VideoStatsLedgerOps.clearDislike(it, System.currentTimeMillis(), videoId) } }
 
-        fun onAction(action: LedgerAction) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordAction(it, System.currentTimeMillis(), action) } }
+        fun onAction(action: LedgerAction) =
+            record(RecapEntry.ACTIVITY) {
+                locked { VideoStatsLedgerOps.recordAction(it, System.currentTimeMillis(), action) }
+            }
 
         /** A submitted search; [query] is null when search history is off, so only the count is kept. */
-        fun onSearch(query: String?) = record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordSearch(it, System.currentTimeMillis(), query) } }
+        fun onSearch(query: String?) =
+            record(RecapEntry.ACTIVITY) { locked { VideoStatsLedgerOps.recordSearch(it, System.currentTimeMillis(), query) } }
 
         fun onSponsorSkip(
             category: String,
