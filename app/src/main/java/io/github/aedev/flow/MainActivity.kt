@@ -103,6 +103,9 @@ class MainActivity : ComponentActivity() {
     lateinit var appIconController: AppIconController
 
     @Inject
+    lateinit var appFontPreferences: AppFontPreferences
+
+    @Inject
     lateinit var playlistTransfer: dagger.Lazy<PlaylistTransfer>
 
     @Inject
@@ -214,8 +217,7 @@ class MainActivity : ComponentActivity() {
 
         // Read now, alongside the rest of startup, so the theme is usually known by the first composition.
         val storedTheme = MutableStateFlow<ThemeSettings?>(null)
-        val fonts = AppFontPreferences(applicationContext)
-        lifecycleScope.launch { dataManager.themeSettings(fonts).collect { storedTheme.value = it } }
+        lifecycleScope.launch { dataManager.themeSettings(appFontPreferences).collect { storedTheme.value = it } }
 
         setContent {
             // Nothing is composed until the theme is known: the splash covers the wait, and the app
