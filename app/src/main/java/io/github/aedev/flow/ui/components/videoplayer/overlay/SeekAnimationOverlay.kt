@@ -20,7 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.videoplayer.gesture.DEFAULT_SEEK_ZONE_FRACTION
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 private const val SEEK_RIPPLE_ALPHA = 0.15f
@@ -33,7 +33,7 @@ internal fun SeekAnimationOverlay(
     showSeekBack: Boolean,
     showSeekForward: Boolean,
     seekSeconds: Int = 10,
-    zoneFraction: Float = DEFAULT_SEEK_ZONE_FRACTION,
+    zoneFraction: Float = DoubleTapSeekZone.NORMAL.sideFraction,
     modifier: Modifier = Modifier,
 ) {
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()

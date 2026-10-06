@@ -29,6 +29,7 @@ internal fun Modifier.playerTapGestures(
     onNormalSpeedChange: State<(Float) -> Unit>,
     isFullscreen: State<Boolean>,
     doubleTapSeekMs: State<Long>,
+    seekZoneFraction: State<Float>,
     longPressPlaybackSpeed: State<Float>,
     isSeekForwardActive: State<Boolean>,
     isSeekBackActive: State<Boolean>,
@@ -46,6 +47,7 @@ internal fun Modifier.playerTapGestures(
     val currentOnNormalSpeedChange by onNormalSpeedChange
     val currentIsFullscreen by isFullscreen
     val currentDoubleTapSeekMs by doubleTapSeekMs
+    val currentSeekZoneFraction by seekZoneFraction
     val currentLongPressPlaybackSpeed by longPressPlaybackSpeed
     val currentIsSeekForwardActive by isSeekForwardActive
     val currentIsSeekBackActive by isSeekBackActive
@@ -62,7 +64,7 @@ internal fun Modifier.playerTapGestures(
         var revealedOnTap = false
         var hidePending = false
 
-        fun zoneOf(x: Float): TapZone = tapZoneOf(x, size.width.toFloat(), DEFAULT_SEEK_ZONE_FRACTION)
+        fun zoneOf(x: Float): TapZone = tapZoneOf(x, size.width.toFloat(), if (currentDoubleTapSeekMs > 0L) currentSeekZoneFraction else 0f)
 
         fun applyZoneSeek(forward: Boolean) {
             val manager = EnhancedPlayerManager.getInstance()

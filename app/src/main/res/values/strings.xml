@@ -1352,6 +1352,16 @@
     </plurals>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">How far a double tap on either side jumps.</string>
+    <string name="player_settings_double_tap_seek_off">Off</string>
+    <string name="player_settings_seek_zone_width">Seek Zone Width</string>
+    <string name="player_settings_seek_zone_width_dialog_body">How much of each side a double tap seeks on.</string>
+    <string name="player_settings_seek_zone_normal">Normal</string>
+    <string name="player_settings_seek_zone_normal_desc">Thirds on every width.</string>
+    <string name="player_settings_seek_zone_narrow">Narrow</string>
+    <string name="player_settings_seek_zone_narrow_desc">A quarter each side, so the center is half.</string>
+    <string name="player_settings_seek_zone_back">−%1$d s</string>
+    <string name="player_settings_seek_zone_forward">+%1$d s</string>
+    <string name="player_settings_seek_zone_play_pause">Play / pause</string>
     <!-- Video and Music Quality Settings -->
     <string name="video_quality_title">Video Quality</string>
     <string name="video_quality_warning">Higher quality uses more data</string>

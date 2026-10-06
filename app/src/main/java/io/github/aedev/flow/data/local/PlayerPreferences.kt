@@ -209,6 +209,7 @@ class PlayerPreferences(
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
         val SHOW_RELATED_VIDEOS = booleanPreferencesKey("show_related_videos")
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
+        val DOUBLE_TAP_SEEK_ZONE = stringPreferencesKey("double_tap_seek_zone")
         val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
         val HOME_FEED_COLUMNS = stringPreferencesKey("home_feed_columns")
         val HOME_FEED_ENABLED = booleanPreferencesKey("home_feed_enabled")
@@ -1188,16 +1189,30 @@ class PlayerPreferences(
         }
     }
 
-    // Double-tap seek duration preference (default 10 seconds)
+    /** Seconds a double tap on either side jumps; 0 turns double-tap seek off. */
     val doubleTapSeekSeconds: Flow<Int> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] ?: 10
+                (preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] ?: 10).coerceAtLeast(0)
             }
 
     suspend fun setDoubleTapSeekSeconds(seconds: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds
+            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds.coerceAtLeast(0)
+        }
+    }
+
+    val doubleTapSeekZone: Flow<DoubleTapSeekZone> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.DOUBLE_TAP_SEEK_ZONE]
+                    ?.let { stored -> runCatching { DoubleTapSeekZone.valueOf(stored) }.getOrNull() }
+                    ?: DoubleTapSeekZone.NORMAL
+            }
+
+    suspend fun setDoubleTapSeekZone(zone: DoubleTapSeekZone) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOUBLE_TAP_SEEK_ZONE] = zone.name
         }
     }
 
@@ -3655,6 +3670,14 @@ enum class MusicPlayerBackgroundStyle {
     GRADIENT,
     IMMERSIVE,
     DEFAULT,
+}
+
+/** How much of the player's width each double-tap seek side takes. */
+enum class DoubleTapSeekZone(
+    val sideFraction: Float,
+) {
+    NORMAL(1f / 3f),
+    NARROW(1f / 4f),
 }
 
 /** How the volume and brightness read-outs are drawn mid-gesture. */

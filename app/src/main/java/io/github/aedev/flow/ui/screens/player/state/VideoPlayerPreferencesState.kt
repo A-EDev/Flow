@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -32,6 +33,7 @@ internal class VideoPlayerPreferencesState(
     val sbSubmitEnabled: Boolean,
     val sponsorBlockEnabled: Boolean,
     val doubleTapSeekSeconds: Int,
+    val doubleTapSeekZone: DoubleTapSeekZone,
     val longPressPlaybackSpeed: Float,
     val disableShortsPlayer: Boolean,
     val showShortsPlayerPrompt: Boolean,
@@ -65,6 +67,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val doubleTapSeekZone by playerPreferences.doubleTapSeekZone.collectAsState(initial = DoubleTapSeekZone.NORMAL)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val disableShortsPlayer by playerPreferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by playerPreferences.showShortsPlayerPrompt.collectAsState(initial = true)
@@ -96,6 +99,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         sbSubmitEnabled = sbSubmitEnabled,
         sponsorBlockEnabled = sponsorBlockEnabled,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
+        doubleTapSeekZone = doubleTapSeekZone,
         longPressPlaybackSpeed = longPressPlaybackSpeed,
         disableShortsPlayer = disableShortsPlayer,
         showShortsPlayerPrompt = showShortsPlayerPrompt,

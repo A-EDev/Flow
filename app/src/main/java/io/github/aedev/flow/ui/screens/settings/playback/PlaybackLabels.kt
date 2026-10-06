@@ -21,6 +21,14 @@ internal fun longPressSpeedLabel(speed: Float): String =
     if (speed <= 0f) stringResource(R.string.player_appearance_long_press_speed_disabled) else playbackSpeedLabel(speed)
 
 @Composable
+internal fun doubleTapSeekLabel(seconds: Int): String =
+    if (seconds <= 0) {
+        stringResource(R.string.player_settings_double_tap_seek_off)
+    } else {
+        pluralStringResource(R.plurals.player_settings_autoplay_countdown_seconds_template, seconds, seconds)
+    }
+
+@Composable
 internal fun audioLanguageLabel(code: String): String =
     if (code == PlaybackSettingsViewModel.ORIGINAL_AUDIO) {
         stringResource(R.string.player_settings_audio_original)
