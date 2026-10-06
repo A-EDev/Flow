@@ -1919,6 +1919,7 @@
     <string name="rename_playlist_title">Rename Playlist</string>
     <string name="action_rename">Rename</string>
     <string name="link_copied">Link copied</string>
+    <string name="link_cannot_open">No app on this device can open this link</string>
     <string name="copy_video_link">Copy video link</string>
     <string name="copy_channel_link">Copy channel link</string>
     <string name="share_link_cd">Share Link</string>
