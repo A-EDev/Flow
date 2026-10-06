@@ -394,6 +394,7 @@ class PlayerPreferences(
         val DEEP_FLOW_ACTIVATED_AT = longPreferencesKey("deep_flow_activated_at")
         val DEEP_FLOW_EXPIRE_HOURS = intPreferencesKey("deep_flow_expire_hours")
         val DEEP_FLOW_SAVE_HISTORY = booleanPreferencesKey("deep_flow_save_history")
+        val DEEP_FLOW_SCROBBLE = booleanPreferencesKey("deep_flow_scrobble")
 
         // Home subscription feed rotation cursor
         val HOME_SUBS_ROTATION_CURSOR = intPreferencesKey("home_subs_rotation_cursor")
@@ -3415,6 +3416,16 @@ class PlayerPreferences(
 
     suspend fun isDeepFlowSaveToHistoryEnabled(): Boolean =
         context.playerPreferencesDataStore.data.first()[Keys.DEEP_FLOW_SAVE_HISTORY] ?: false
+
+    val deepFlowScrobble: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.DEEP_FLOW_SCROBBLE] ?: false }
+
+    suspend fun setDeepFlowScrobble(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEEP_FLOW_SCROBBLE] = enabled
+        }
+    }
 
     suspend fun setDeepFlowActive(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
