@@ -358,6 +358,9 @@
     <string name="copy_description">Copy description</string>
     <string name="description_copied">Description copied to clipboard</string>
     <string name="title_copied">Title copied to clipboard</string>
+    <string name="channel_name_copied">Channel name copied to clipboard</string>
+    <string name="copy_channel_name">Copy channel name</string>
+    <string name="channel_name_clip_label">Channel name</string>
     <string name="tags">Tags</string>
     <string name="sb_manual_skip">Skip</string>
     <string name="sb_skip_segment">Skip %1$s</string>
