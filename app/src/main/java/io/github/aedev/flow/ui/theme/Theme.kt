@@ -12,9 +12,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 
 /**
  * What the theme preference points at: a built-in palette, Material You, the active custom theme,
@@ -159,6 +161,7 @@ fun FlowTheme(
     systemLightThemeMode: ThemeMode = ThemeMode.DARK,
     systemDarkThemeMode: ThemeMode = ThemeMode.DARK,
     systemDarkThemeVariant: ThemeVariant = ThemeVariant.DARK,
+    fontFamily: FontFamily = FlowFontFamily,
     content: @Composable () -> Unit,
 ) {
     val colorScheme =
@@ -186,7 +189,7 @@ fun FlowTheme(
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
             motionScheme = MotionScheme.expressive(),
-            typography = Typography,
+            typography = remember(fontFamily) { flowTypography(fontFamily) },
             content = content,
         )
     }

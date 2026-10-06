@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.aedev.flow.data.local.AppFontPreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.ui.screens.widgets.PlaylistConfigScreen
 import io.github.aedev.flow.ui.screens.widgets.QuickActionsConfigScreen
@@ -42,7 +43,7 @@ class WidgetConfigActivity : ComponentActivity() {
             return
         }
         val glanceId = GlanceAppWidgetManager(this).getGlanceIdBy(appWidgetId)
-        val theme = LocalDataManager(applicationContext).themeSettings()
+        val theme = LocalDataManager(applicationContext).themeSettings(AppFontPreferences(applicationContext))
         setContent {
             val settings = theme.collectAsState(initial = null).value ?: return@setContent
             FlowTheme(settings) {

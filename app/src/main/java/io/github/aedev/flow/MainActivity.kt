@@ -29,6 +29,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.aedev.flow.data.local.AppFontPreferences
 import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.playlist.PlaylistImport
@@ -63,6 +64,7 @@ import io.github.aedev.flow.ui.startup.SplashController
 import io.github.aedev.flow.ui.startup.ThemeSettings
 import io.github.aedev.flow.ui.startup.splashTone
 import io.github.aedev.flow.ui.startup.themeSettings
+import io.github.aedev.flow.ui.theme.FlowFontFamily
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
@@ -212,7 +214,8 @@ class MainActivity : ComponentActivity() {
 
         // Read now, alongside the rest of startup, so the theme is usually known by the first composition.
         val storedTheme = MutableStateFlow<ThemeSettings?>(null)
-        lifecycleScope.launch { dataManager.themeSettings().collect { storedTheme.value = it } }
+        val fonts = AppFontPreferences(applicationContext)
+        lifecycleScope.launch { dataManager.themeSettings(fonts).collect { storedTheme.value = it } }
 
         setContent {
             // Nothing is composed until the theme is known: the splash covers the wait, and the app
@@ -238,7 +241,7 @@ class MainActivity : ComponentActivity() {
 
             if (pendingCrashLog != null) {
                 SideEffect { splashController.contentReady = true }
-                FlowTheme(theme) {
+                FlowTheme(theme.copy(fontFamily = FlowFontFamily)) {
                     CrashReportScreen(
                         report = pendingCrashLog!!,
                         onContinue = {
