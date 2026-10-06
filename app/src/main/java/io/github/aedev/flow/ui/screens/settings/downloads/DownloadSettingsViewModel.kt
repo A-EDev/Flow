@@ -83,7 +83,6 @@ class DownloadSettingsViewModel
         val subtitleFile = preferences.downloadSubtitleFile.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
-        val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
         val retagStatus = downloadController.retagStatus.asState(null)
 
         init {
@@ -156,8 +155,6 @@ class DownloadSettingsViewModel
 
         fun setConcurrentDownloads(value: Int) = write { preferences.setConcurrentDownloads(value) }
 
-        fun setCacheSize(value: Int) = write { preferences.setMediaCacheSizeMb(value) }
-
         private fun locationUi(
             fileType: DownloadFileType,
             chosen: DownloadLocation,
@@ -189,7 +186,6 @@ class DownloadSettingsViewModel
 
         companion object {
             const val DEFAULT_THREADS = 3
-            const val DEFAULT_CACHE_MB = 500
             private const val APP_FOLDER = "Flow"
             private const val INTERNAL_FOLDER = "downloads"
         }
