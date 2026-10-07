@@ -25,14 +25,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -333,7 +331,6 @@ fun DraggablePlayerLayout(
             }
 
             val gestureMetrics = remember(state) { DraggablePlayerGestureMetrics() }
-            val haptics = LocalHapticFeedback.current
             SideEffect {
                 gestureMetrics.update(
                     geometry = geometry,
@@ -344,7 +341,6 @@ fun DraggablePlayerLayout(
                     onFullscreenGesture = onFullscreenGesture,
                     onCollapseGesture = onCollapseGesture,
                     onDismiss = onDismiss,
-                    onLongPress = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
                 )
             }
             val gestureHandler =

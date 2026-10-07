@@ -32,7 +32,6 @@ internal class DraggablePlayerGestureMetrics {
     var onFullscreenGesture: (() -> Unit)? = null
     var onCollapseGesture: (() -> Unit)? = null
     var onDismiss: () -> Unit = {}
-    var onLongPress: () -> Unit = {}
 
     val miniHeight: Float get() = miniWidth / clampedAspect.coerceAtLeast(0.01f)
 

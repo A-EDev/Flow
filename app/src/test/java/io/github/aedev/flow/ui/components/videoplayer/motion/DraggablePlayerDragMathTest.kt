@@ -160,36 +160,42 @@ class DraggablePlayerDragMathTest {
 
     private fun tuck(
         fingerX: Float,
-        currentX: Float,
+        startedOnLeft: Boolean,
         velocityX: Float = 0f,
         velocityY: Float = 0f,
-    ) = resolveMiniPlayerTuck(fingerX, currentX, tuckBounds, miniWidth = 486f, velocityX = velocityX, velocityY = velocityY)
+    ) = resolveMiniPlayerTuck(fingerX, startedOnLeft, tuckBounds, miniWidth = 486f, velocityX = velocityX, velocityY = velocityY)
 
     @Test
-    fun `dragging well past a side tucks the mini player into it`() {
-        assertThat(tuck(fingerX = 760f, currentX = 600f))
+    fun `dragging half its width past a side tucks the mini player into it`() {
+        assertThat(tuck(fingerX = 830f, startedOnLeft = false))
             .isEqualTo(MiniPlayerTuckSide.Right)
-        assertThat(tuck(fingerX = -170f, currentX = 0f))
+        assertThat(tuck(fingerX = -230f, startedOnLeft = true))
             .isEqualTo(MiniPlayerTuckSide.Left)
     }
 
     @Test
-    fun `a small push past the side snaps back instead of tucking`() {
-        assertThat(tuck(fingerX = 650f, currentX = 598f))
+    fun `a push less than half its width past the side snaps back instead of tucking`() {
+        assertThat(tuck(fingerX = 780f, startedOnLeft = false))
             .isNull()
     }
 
     @Test
-    fun `a sideways fling tucks only towards the side it is on`() {
-        assertThat(tuck(fingerX = 560f, currentX = 560f, velocityX = 2000f, velocityY = 200f))
+    fun `a sideways fling tucks only out through the side it started on`() {
+        assertThat(tuck(fingerX = 620f, startedOnLeft = false, velocityX = 3000f, velocityY = 200f))
             .isEqualTo(MiniPlayerTuckSide.Right)
-        assertThat(tuck(fingerX = 30f, currentX = 30f, velocityX = 2000f, velocityY = 200f))
+        assertThat(tuck(fingerX = 620f, startedOnLeft = true, velocityX = 3000f, velocityY = 200f))
+            .isNull()
+    }
+
+    @Test
+    fun `an ordinary sideways throw stays on screen`() {
+        assertThat(tuck(fingerX = 620f, startedOnLeft = false, velocityX = 1800f, velocityY = 100f))
             .isNull()
     }
 
     @Test
     fun `a diagonal fling picks a corner rather than tucking`() {
-        assertThat(tuck(fingerX = 560f, currentX = 560f, velocityX = 2000f, velocityY = 1500f))
+        assertThat(tuck(fingerX = 560f, startedOnLeft = false, velocityX = 3000f, velocityY = 1500f))
             .isNull()
     }
 

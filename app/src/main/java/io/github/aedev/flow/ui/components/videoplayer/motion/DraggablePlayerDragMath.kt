@@ -22,9 +22,9 @@ private const val CORNER_FLING_VELOCITY = 400f
 private const val CORNER_FLING_AXIS_DOMINANCE = 0.8f
 private const val CORNER_SWITCH_TRAVEL_FRACTION = 0.15f
 private const val CORNER_VELOCITY_PROJECTION_S = 0.3f
-private const val TUCK_TRAVEL_FRACTION = 0.35f
-private const val TUCK_FLING_VELOCITY = 1500f
-private const val TUCK_AXIS_DOMINANCE = 2f
+private const val TUCK_TRAVEL_FRACTION = 0.5f
+private const val TUCK_FLING_VELOCITY = 2500f
+private const val TUCK_AXIS_DOMINANCE = 3f
 
 /** Share of the finger's travel past a bound that the mini player still follows. */
 private const val RUBBER_BAND_FOLLOW = 0.35f
@@ -214,12 +214,13 @@ internal fun resolveMiniPlayerCorner(
 }
 
 /**
- * The edge a released mini player tucks into: the finger took it more than a third of its width past
- * a side, or flung it sideways towards the side it was already on. Null keeps it on screen.
+ * The edge a released mini player tucks into: the finger took it half its width past a side, or
+ * flung it hard and clearly sideways out through the side it started on. A fling from the other
+ * side is a throw to the opposite corner, never a tuck. Null keeps it on screen.
  */
 internal fun resolveMiniPlayerTuck(
     fingerX: Float,
-    currentX: Float,
+    startedOnLeft: Boolean,
     bounds: MiniPlayerBounds,
     miniWidth: Float,
     velocityX: Float,
@@ -227,12 +228,11 @@ internal fun resolveMiniPlayerTuck(
 ): MiniPlayerTuckSide? {
     val reach = miniWidth * TUCK_TRAVEL_FRACTION
     val sideways = abs(velocityX) > abs(velocityY) * TUCK_AXIS_DOMINANCE
-    val centerX = (bounds.minX + bounds.maxX) / 2f
     return when {
         fingerX - bounds.maxX > reach -> MiniPlayerTuckSide.Right
         bounds.minX - fingerX > reach -> MiniPlayerTuckSide.Left
-        sideways && velocityX > TUCK_FLING_VELOCITY && currentX > centerX -> MiniPlayerTuckSide.Right
-        sideways && velocityX < -TUCK_FLING_VELOCITY && currentX < centerX -> MiniPlayerTuckSide.Left
+        sideways && velocityX > TUCK_FLING_VELOCITY && !startedOnLeft -> MiniPlayerTuckSide.Right
+        sideways && velocityX < -TUCK_FLING_VELOCITY && startedOnLeft -> MiniPlayerTuckSide.Left
         else -> null
     }
 }
