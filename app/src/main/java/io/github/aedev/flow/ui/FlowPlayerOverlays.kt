@@ -10,16 +10,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.audio.eq.EqState
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -37,10 +42,12 @@ import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 import io.github.aedev.flow.ui.components.videoplayer.VideoBackgroundBar
+import io.github.aedev.flow.ui.components.videoplayer.VideoBarSwipeActions
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerQueueSheetHost
@@ -190,6 +197,28 @@ internal fun FlowPlayerOverlays(
     val playerUiState by playerUiStateResult
     var playerVisible by playerVisibleState
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val playerPreferences = remember(context) { PlayerPreferences(context) }
+    val swipeLeftAction by playerPreferences.miniBarSwipeLeftAction.collectAsState(initial = MiniBarSwipeAction.CLOSE)
+    val swipeRightAction by playerPreferences.miniBarSwipeRightAction.collectAsState(initial = MiniBarSwipeAction.CLOSE)
+    val quickActions = sharedQuickActionsViewModel()
+    val removedFromQueue = stringResource(R.string.removed_from_queue)
+    val scope = rememberCoroutineScope()
+    val closeVideo: () -> Unit = {
+        playerVisible = false
+        playerViewModel.clearVideo()
+    }
+    val videoBarActions =
+        remember(quickActions, playerViewModel, scope, removedFromQueue) {
+            VideoBarSwipeActions(
+                video = { playerViewModel.uiState.value.cachedVideo },
+                quickActions = quickActions,
+                playerViewModel = playerViewModel,
+                scope = scope,
+                removedFromQueue = removedFromQueue,
+                onClose = closeVideo,
+            )
+        }
 
     CompositionLocalProvider(
         *mediaNavigationLocals(mediaNavigator),
@@ -239,11 +268,11 @@ internal fun FlowPlayerOverlays(
                     openOrigins.holdOriginFor(barVideo.id)
                     playerViewModel.showVideoPlayer()
                 },
-                onClose = {
-                    playerVisible = false
-                    playerViewModel.clearVideo()
-                },
+                onClose = closeVideo,
                 onOpenQueue = { showBarQueue = true },
+                swipeLeftAction = swipeLeftAction,
+                swipeRightAction = swipeRightAction,
+                swipeActions = videoBarActions,
             )
         }
         if (showVideoBar && showBarQueue) {
@@ -266,6 +295,8 @@ internal fun FlowPlayerOverlays(
                 miniBounds = miniBarBounds,
                 restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
                 track = track,
+                swipeLeftAction = swipeLeftAction,
+                swipeRightAction = swipeRightAction,
                 onDismiss = {
                     EnhancedMusicPlayerManager.stop()
                     EnhancedMusicPlayerManager.clearCurrentTrack()

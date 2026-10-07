@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderDefaults
@@ -17,10 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressivePlayerSlider
@@ -28,6 +31,12 @@ import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressiveWavySli
 import io.github.aedev.flow.ui.components.musicplayer.controls.SquigglySlider
 import io.github.aedev.flow.ui.components.musicplayer.controls.expressiveSliderSpec
 import io.github.aedev.flow.ui.components.musicplayer.full.PlayerBackground
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarSwipeReveal
+import io.github.aedev.flow.ui.components.shared.MiniBarReveal
+import io.github.aedev.flow.ui.components.shared.icon
+import io.github.aedev.flow.ui.components.shared.isDestructive
+import io.github.aedev.flow.ui.components.shared.labelRes
 import io.github.aedev.flow.ui.components.videoplayer.overlay.GestureLevelHudPreview
 import io.github.aedev.flow.ui.theme.PlayerGround
 
@@ -161,4 +170,26 @@ internal fun GestureOverlayPreview(style: GestureOverlayStyle) {
                 .clip(MaterialTheme.shapes.large)
                 .background(PlayerGround),
     )
+}
+
+/** What a mini bar swipe set to [action] uncovers, as the bar shows it mid-swipe towards that side. */
+@Composable
+internal fun MiniBarSwipePreview(
+    action: MiniBarSwipeAction,
+    towardsStart: Boolean,
+) {
+    val reveal =
+        MiniBarReveal(
+            icon = action.icon,
+            label = stringResource(action.labelRes),
+            destructive = action.isDestructive,
+        )
+    Box(modifier = Modifier.fillMaxWidth().height(MediaMiniBarDefaults.Height)) {
+        MediaMiniBarSwipeReveal(
+            offset = { if (towardsStart) -Float.MAX_VALUE else Float.MAX_VALUE },
+            towardsStart = reveal,
+            towardsEnd = reveal,
+            shape = RoundedCornerShape(MediaMiniBarDefaults.CornerRadius),
+        )
+    }
 }
