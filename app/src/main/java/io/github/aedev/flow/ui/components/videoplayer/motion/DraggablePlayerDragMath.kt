@@ -62,7 +62,7 @@ internal fun shouldEnterPortraitFullscreen(
  * animation runs in. The pixel value passed straight through starts the spring hundreds of times
  * too fast, which throws the page below off screen and back before it settles.
  */
-internal fun portraitFullscreenSettleVelocity(
+internal fun fractionVelocity(
     velocityY: Float,
     travelPx: Float,
 ): Float = velocityY / travelPx.coerceAtLeast(1f)

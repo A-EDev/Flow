@@ -13,15 +13,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import coil3.memory.MemoryCache
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
-import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_SETTLE_DIP_HOLD_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.playerExpandSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerCollapseSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class PlayerSheetValue { Expanded, Collapsed }
@@ -76,14 +74,6 @@ class PlayerDraggableState(
 
     var miniVisualScale by mutableFloatStateOf(1f)
 
-    /**
-     * Extra downward travel a collapse settles through before lifting to the resting corner, so
-     * the landing reads as a rubber band rather than a stop. Added to [offsetY] in the draw phase
-     * only; the layout sets [settleDipPx] from the nav bar height.
-     */
-    val settleDip = Animatable(0f)
-    var settleDipPx = 0f
-
     /** True only while no finger is down and nothing on the sheet is still moving. */
     val isSettled: Boolean
         get() =
@@ -91,7 +81,6 @@ class PlayerDraggableState(
                 !expandFraction.isRunning &&
                 !offsetX.isRunning &&
                 !offsetY.isRunning &&
-                !settleDip.isRunning &&
                 !miniSizeScale.isRunning &&
                 !dragScale.isRunning &&
                 !expandDragScale.isRunning
@@ -120,16 +109,23 @@ class PlayerDraggableState(
 
     val fraction: Float get() = expandFraction.value
 
-    fun expand() {
+    /**
+     * [velocity] is the release speed in fraction per second; without one the sheet keeps whatever
+     * speed it already has, so a tap mid-collapse turns it around without a stop.
+     */
+    fun expand(velocity: Float? = null) {
         if (openOrigin != null) return
         corner = MiniPlayerCorner.BottomRight
         scope.launch {
             isShrinkingToCorner = false
-            val anim = playerExpandSpringSpec
+            val anim = playerOpenSpringSpec
             withSteadyFrames {
                 launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
-                launch { motion.animateDip { settleDip.animateTo(0f, anim) } }
-                launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
+                launch {
+                    motion.animateFraction {
+                        expandFraction.animateTo(0f, anim, initialVelocity = velocity ?: expandFraction.velocity)
+                    }
+                }
                 launch {
                     motion.moveOffsets {
                         launch { offsetX.animateTo(0f, anim) }
@@ -154,10 +150,9 @@ class PlayerDraggableState(
             try {
                 motion.snapSize(1f)
                 motion.snapOffsets(x = cachedTargetX, y = cachedTargetY)
-                motion.animateDip { settleDip.snapTo(0f) }
                 motion.animateFraction {
                     expandFraction.snapTo(1f)
-                    withSteadyFrames { expandFraction.animateTo(0f, playerExpandSpringSpec) }
+                    withSteadyFrames { expandFraction.animateTo(0f, playerOpenSpringSpec) }
                 }
             } finally {
                 if (generation == openGeneration) openOrigin = null
@@ -220,31 +215,25 @@ class PlayerDraggableState(
         }
     }
 
-    fun collapse() {
+    /** [velocity] is the release speed in fraction per second, as for [expand]. */
+    fun collapse(velocity: Float? = null) {
         scope.launch {
             isShrinkingToCorner = false
-            val anim = playerExpandSpringSpec
+            val anim = playerCollapseSpringSpec
             if (cachedTargetX == 0f && cachedTargetY == 0f) {
                 launch { motion.snapFraction(1f) }
             } else {
                 launch {
                     withSteadyFrames {
-                        launch { motion.animateFraction { expandFraction.animateTo(1f, anim) } }
+                        launch {
+                            motion.animateFraction {
+                                expandFraction.animateTo(1f, anim, initialVelocity = velocity ?: expandFraction.velocity)
+                            }
+                        }
                         launch {
                             motion.moveOffsets {
                                 launch { offsetX.animateTo(cachedTargetX, anim) }
                                 launch { offsetY.animateTo(cachedTargetY, anim) }
-                            }
-                        }
-                        launch {
-                            motion.animateDip {
-                                // The lift starts on a fixed beat after the landing rather than when the
-                                // spring reports done: its sub-pixel tail would hold the mini down for
-                                // most of a second.
-                                val landing = launch { settleDip.animateTo(settleDipPx, anim) }
-                                delay(MINI_SETTLE_DIP_HOLD_MS)
-                                landing.cancel()
-                                settleDip.animateTo(0f, miniSnapSpringSpec)
                             }
                         }
                     }

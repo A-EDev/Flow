@@ -34,8 +34,20 @@ internal fun openGroundCornerRadius(
     fraction: Float,
 ): Float = origin.cornerRadius * fraction.coerceIn(0f, 1f)
 
-internal fun openBodyAlpha(fraction: Float): Float {
-    val t = ((OPEN_BODY_FADE_END - fraction) / (OPEN_BODY_FADE_END - OPEN_BODY_FADE_START)).coerceIn(0f, 1f)
+/** The page behind the player clears between these fractions, the feed coming back in the second half. */
+private const val GROUND_FADE_START = 0.3f
+private const val GROUND_FADE_END = 0.95f
+
+internal fun openBodyAlpha(fraction: Float): Float = 1f - smoothStep(OPEN_BODY_FADE_START, OPEN_BODY_FADE_END, fraction)
+
+internal fun collapsingGroundAlpha(fraction: Float): Float = 1f - smoothStep(GROUND_FADE_START, GROUND_FADE_END, fraction)
+
+private fun smoothStep(
+    from: Float,
+    to: Float,
+    value: Float,
+): Float {
+    val t = ((value - from) / (to - from)).coerceIn(0f, 1f)
     return t * t * (3f - 2f * t)
 }
 

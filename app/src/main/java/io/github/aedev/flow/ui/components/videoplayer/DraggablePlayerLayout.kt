@@ -75,9 +75,6 @@ private const val DEFAULT_MINI_PLAYER_SCALE = 0.45f
 private val PortraitFullscreenActivation = 28.dp
 private val MiniPlayerShadowElevation = 8.dp
 
-/** A collapse lands this much below its corner and lifts back up: the height of the nav bar it settles behind. */
-private val MiniPlayerSettleDip = 48.dp
-
 /**
  * The video player as one box that is laid out once at its expanded size and morphed into the
  * floating mini player purely through a graphicsLayer scale and translation. Every animated
@@ -238,13 +235,11 @@ fun DraggablePlayerLayout(
                 onChanged = onExpandedPlayerBottomChanged,
             )
 
-            val settleDipPx = with(density) { MiniPlayerSettleDip.toPx() }
             SideEffect {
                 state.morphCornerRadiusPx = cornerRadiusProvider
                 state.miniVisualScale = visualMiniScale
                 state.cachedTargetX = geometry.normalTargetX
                 state.cachedTargetY = geometry.normalTargetY
-                state.settleDipPx = settleDipPx
             }
 
             val isCollapsedTarget by remember(state) {
@@ -448,7 +443,7 @@ fun DraggablePlayerLayout(
                                     translationY =
                                         lerpClamped(
                                             expandedTopY,
-                                            origin?.top ?: (state.offsetY.value + state.settleDip.value),
+                                            origin?.top ?: state.offsetY.value,
                                             fraction,
                                         ) + windowH * (1f - drag) / 2f
                                     shadowElevation =

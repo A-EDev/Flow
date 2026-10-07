@@ -230,11 +230,12 @@ internal class DraggablePlayerGestureHandler(
 
         if (isCollapseDrag) {
             val velY = velocityTracker.calculateVelocity().y
+            val collapseTravel = metrics.targetMiniY - metrics.statusBarHeight
             if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
                 metrics.onCollapseGesture?.invoke()
-                state.collapse()
+                state.collapse(fractionVelocity(velY, collapseTravel))
             } else {
-                state.expand()
+                state.expand(fractionVelocity(velY, collapseTravel))
             }
             return
         }

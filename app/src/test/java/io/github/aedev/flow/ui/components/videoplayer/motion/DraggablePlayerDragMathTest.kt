@@ -47,9 +47,9 @@ class DraggablePlayerDragMathTest {
 
     @Test
     fun `settle velocity is the fling in fractions of the travel`() {
-        assertThat(portraitFullscreenSettleVelocity(velocityY = 2000f, travelPx = 2000f)).isEqualTo(1f)
-        assertThat(portraitFullscreenSettleVelocity(velocityY = -1000f, travelPx = 2000f)).isEqualTo(-0.5f)
-        assertThat(portraitFullscreenSettleVelocity(velocityY = 800f, travelPx = 0f)).isEqualTo(800f)
+        assertThat(fractionVelocity(velocityY = 2000f, travelPx = 2000f)).isEqualTo(1f)
+        assertThat(fractionVelocity(velocityY = -1000f, travelPx = 2000f)).isEqualTo(-0.5f)
+        assertThat(fractionVelocity(velocityY = 800f, travelPx = 0f)).isEqualTo(800f)
     }
 
     @Test

@@ -5,7 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 import org.junit.Test
 
-class OpenMorphTest {
+class SheetMorphTest {
     private val card = OpenOriginRect(left = 100f, top = 900f, width = 400f, height = 225f, cornerRadius = 32f)
 
     @Test
@@ -65,5 +65,13 @@ class OpenMorphTest {
     fun `without an open the mini player's corner applies past ten percent`() {
         assertThat(morphCornerRadiusPx(0.05f, null, 1080f, 36f, 0.45f)).isEqualTo(0f)
         assertThat(morphCornerRadiusPx(0.5f, null, 1080f, 36f, 0.45f)).isWithin(0.01f).of(80f)
+    }
+
+    @Test
+    fun `the page behind the player stays opaque for the first stretch of a collapse`() {
+        assertThat(collapsingGroundAlpha(0f)).isEqualTo(1f)
+        assertThat(collapsingGroundAlpha(0.3f)).isEqualTo(1f)
+        assertThat(collapsingGroundAlpha(0.625f)).isWithin(0.001f).of(0.5f)
+        assertThat(collapsingGroundAlpha(0.95f)).isEqualTo(0f)
     }
 }

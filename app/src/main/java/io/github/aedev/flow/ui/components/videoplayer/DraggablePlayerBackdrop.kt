@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.ui.components.videoplayer.motion.OpenOriginRect
+import io.github.aedev.flow.ui.components.videoplayer.motion.collapsingGroundAlpha
 import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundCornerRadius
 import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundRect
 import io.github.aedev.flow.ui.theme.PlayerGround
@@ -73,7 +74,7 @@ internal fun CollapsingPlayerScrim(
                 val fraction = state.expandFraction.value
                 val origin = openRect()
                 if (origin == null) {
-                    val alpha = (1f - fraction).coerceIn(0f, 1f)
+                    val alpha = collapsingGroundAlpha(fraction)
                     drawRect(PlayerGround, size = Size(size.width, statusBarHeight), alpha = alpha)
                     drawRect(
                         background,
