@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.motion
 
-import android.util.Log
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -13,13 +12,13 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerTuckSide
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.canSwipeUpToFullscreen
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private const val DRAG_MODE_FRACTION = 0
 private const val DRAG_MODE_EXPAND_SCALE = 1
@@ -229,11 +228,17 @@ internal class DraggablePlayerGestureHandler(
         val press = awaitMiniPress(down)
         when (press.outcome) {
             MiniPressOutcome.Tap -> {
-                if (!downConsumedByChild && metrics.tapToExpand) state.expand()
+                if (state.tuckedSide != null) {
+                    untuck()
+                } else if (!downConsumedByChild && metrics.tapToExpand) {
+                    state.expand()
+                }
             }
 
             MiniPressOutcome.LongPress -> {
-                if (!downConsumedByChild) {
+                if (state.tuckedSide != null) {
+                    untuck()
+                } else if (!downConsumedByChild) {
                     metrics.onLongPress()
                     toggleWideMode()
                 }
@@ -277,6 +282,7 @@ internal class DraggablePlayerGestureHandler(
         initialTravel: Offset,
     ): Offset {
         state.isDragging = true
+        state.tuckedSide = null
         var fingerPath = initialTravel
         var rawX = state.offsetX.value + initialTravel.x
         var rawY = state.offsetY.value + initialTravel.y
@@ -403,39 +409,54 @@ internal class DraggablePlayerGestureHandler(
             return
         }
 
-        val dismissOffsetX =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = newCorner,
-                currentX = currentX,
-                bounds = bounds,
-                scaledVelocityX = velX,
-                scaledVelocityY = velY,
-                screenWidth = metrics.screenWidth,
-                miniWidth = metrics.miniWidth,
-                margin = metrics.margin,
-            )
-        Log.w(
-            "FlowVideoSheet",
-            "miniRelease vel=(${velX.roundToInt()},${velY.roundToInt()}) pos=(${currentX.roundToInt()},${currentY.roundToInt()}) " +
-                "corner=${state.corner}->$newCorner dismiss=${dismissOffsetX != null}",
-        )
-        if (dismissOffsetX != null) {
-            state.scope.launch {
-                launch {
-                    state.motion.moveOffsets {
-                        state.offsetX.animateTo(dismissOffsetX, miniDismissSpringSpec, initialVelocity = velX)
-                    }
-                }
-                delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
-                metrics.onDismiss()
+        val tuckSide = resolveMiniPlayerTuck(fingerAt.x, currentX, bounds, metrics.miniWidth, velX, velY)
+        if (tuckSide != null) {
+            tuck(tuckSide, currentY, velX)
+            return
+        }
+        state.corner = newCorner
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
+                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
             }
-        } else {
-            state.corner = newCorner
-            state.scope.launch {
-                state.motion.moveOffsets {
-                    launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
-                    launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
+        }
+    }
+
+    private fun tuck(
+        side: MiniPlayerTuckSide,
+        currentY: Float,
+        velocityX: Float,
+    ) {
+        val bounds = metrics.bounds
+        val restY = currentY.coerceIn(bounds.minY, bounds.maxY)
+        state.tuckedSide = side
+        state.corner = cornerFor(left = side == MiniPlayerTuckSide.Left, top = restY < (bounds.minY + bounds.maxY) / 2f)
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch {
+                    state.offsetX.animateTo(
+                        tuckedMiniX(side, metrics.screenWidth, metrics.miniWidth),
+                        miniSnapSpringSpec,
+                        initialVelocity = velocityX,
+                    )
                 }
+                launch { state.offsetY.animateTo(restY, miniSnapSpringSpec) }
+            }
+        }
+    }
+
+    /** Brings a tucked mini player back to the corner on the side it was tucked into. */
+    fun untuck() {
+        if (state.tuckedSide == null) return
+        state.tuckedSide = null
+        val bounds = metrics.bounds
+        val targetX = cornerTargetX(state.corner, bounds.minX, bounds.maxX)
+        val targetY = cornerTargetY(state.corner, bounds.minY, bounds.maxY)
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec) }
+                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec) }
             }
         }
     }

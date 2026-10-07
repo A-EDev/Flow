@@ -903,6 +903,7 @@
     <string name="mini_player_small">Small</string>
     <string name="mini_player_large">Large</string>
     <string name="mini_player_normal">Normal</string>
+    <string name="mini_player_show">Show mini player</string>
     <string name="skip_button_title">Show Skip Buttons</string>
     <string name="skip_button_subtitle">Show rewind/forward 10s buttons on the mini player</string>
     <string name="player_nav_btn_title">Show Next/Prev Buttons</string>

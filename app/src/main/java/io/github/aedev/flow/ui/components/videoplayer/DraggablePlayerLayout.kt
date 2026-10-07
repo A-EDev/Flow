@@ -333,6 +333,7 @@ fun DraggablePlayerLayout(
                 remember(state, gestureMetrics) { DraggablePlayerGestureHandler(state, gestureMetrics) }
             val pinchHandler =
                 remember(state, gestureMetrics) { MiniPlayerPinchGestureHandler(state, gestureMetrics) }
+            MiniPlayerTuckHandle(state = state, miniHeight = geometry.miniHeight, onUntuck = gestureHandler::untuck)
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(

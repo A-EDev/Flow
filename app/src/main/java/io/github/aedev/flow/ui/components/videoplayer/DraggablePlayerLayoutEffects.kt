@@ -34,7 +34,7 @@ internal fun MiniPlayerResnapEffect(
         targets.isWideMode,
         targets.isLargeScreen,
     ) {
-        if (state.expandFraction.targetValue <= 0.5f || state.isDragging) return@LaunchedEffect
+        if (state.expandFraction.targetValue <= 0.5f || state.isDragging || state.tuckedSide != null) return@LaunchedEffect
         delay(MINI_RESNAP_DEBOUNCE_MS)
         if (state.isDragging) return@LaunchedEffect
         resnapMiniPlayer(state, targets)

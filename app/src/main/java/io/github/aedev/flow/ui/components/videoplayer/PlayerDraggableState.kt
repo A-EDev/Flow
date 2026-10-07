@@ -26,6 +26,8 @@ enum class PlayerSheetValue { Expanded, Collapsed }
 
 enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
 
+enum class MiniPlayerTuckSide { Left, Right }
+
 /** Where an open grows from: the thumbnail that was tapped, or below the screen when none is in view. */
 sealed interface SheetOpenOrigin {
     data class Thumbnail(
@@ -45,6 +47,9 @@ class PlayerDraggableState(
 ) {
     var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
     var isDragging by mutableStateOf(false)
+
+    /** The edge the mini player is tucked past, with only its handle on screen; null while in view. */
+    var tuckedSide by mutableStateOf<MiniPlayerTuckSide?>(null)
 
     /** Zoom applied while dragging up to enter fullscreen, read in the draw phase only. */
     val expandDragScale = Animatable(1f)
@@ -110,6 +115,7 @@ class PlayerDraggableState(
     fun expand(velocity: Float? = null) {
         if (openOrigin != null) return
         corner = MiniPlayerCorner.BottomRight
+        tuckedSide = null
         scope.launch {
             isShrinkingToCorner = false
             val anim = playerOpenSpringSpec
@@ -136,6 +142,7 @@ class PlayerDraggableState(
      */
     fun open(origin: SheetOpenOrigin) {
         corner = MiniPlayerCorner.BottomRight
+        tuckedSide = null
         openOrigin = origin
         posterPlaceholderKey = (origin as? SheetOpenOrigin.Thumbnail)?.imageKey
         val generation = ++openGeneration

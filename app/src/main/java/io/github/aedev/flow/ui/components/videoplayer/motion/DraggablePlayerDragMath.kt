@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.motion
 
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerTuckSide
 import kotlin.math.abs
 
 /** Upward travel that commits to fullscreen; mirrors the release check. */
@@ -21,8 +22,9 @@ private const val CORNER_FLING_VELOCITY = 400f
 private const val CORNER_FLING_AXIS_DOMINANCE = 0.8f
 private const val CORNER_SWITCH_TRAVEL_FRACTION = 0.15f
 private const val CORNER_VELOCITY_PROJECTION_S = 0.3f
-private const val DISMISS_FLING_VELOCITY = 2000f
-private const val DISMISS_AXIS_DOMINANCE = 3f
+private const val TUCK_TRAVEL_FRACTION = 0.35f
+private const val TUCK_FLING_VELOCITY = 1500f
+private const val TUCK_AXIS_DOMINANCE = 2f
 
 /** Share of the finger's travel past a bound that the mini player still follows. */
 private const val RUBBER_BAND_FOLLOW = 0.35f
@@ -212,29 +214,32 @@ internal fun resolveMiniPlayerCorner(
 }
 
 /**
- * The off-screen x a horizontal fling should throw the mini player to, or null when the release
- * is not a dismiss: it needs a fast, clearly horizontal fling from the half of the screen it is
- * heading towards.
+ * The edge a released mini player tucks into: the finger took it more than a third of its width past
+ * a side, or flung it sideways towards the side it was already on. Null keeps it on screen.
  */
-internal fun resolveMiniPlayerDismissOffset(
-    targetCorner: MiniPlayerCorner,
+internal fun resolveMiniPlayerTuck(
+    fingerX: Float,
     currentX: Float,
     bounds: MiniPlayerBounds,
-    scaledVelocityX: Float,
-    scaledVelocityY: Float,
-    screenWidth: Float,
     miniWidth: Float,
-    margin: Float,
-): Float? {
+    velocityX: Float,
+    velocityY: Float,
+): MiniPlayerTuckSide? {
+    val reach = miniWidth * TUCK_TRAVEL_FRACTION
+    val sideways = abs(velocityX) > abs(velocityY) * TUCK_AXIS_DOMINANCE
     val centerX = (bounds.minX + bounds.maxX) / 2f
-    val isHorizontalFling = abs(scaledVelocityX) > abs(scaledVelocityY) * DISMISS_AXIS_DOMINANCE
-    if (!isHorizontalFling) return null
-    val goLeft = targetCorner.isLeft
-    val canDismissRight = !goLeft && scaledVelocityX > DISMISS_FLING_VELOCITY && currentX > centerX
-    val canDismissLeft = goLeft && scaledVelocityX < -DISMISS_FLING_VELOCITY && currentX < centerX
     return when {
-        canDismissRight -> screenWidth + miniWidth
-        canDismissLeft -> -(miniWidth + margin)
+        fingerX - bounds.maxX > reach -> MiniPlayerTuckSide.Right
+        bounds.minX - fingerX > reach -> MiniPlayerTuckSide.Left
+        sideways && velocityX > TUCK_FLING_VELOCITY && currentX > centerX -> MiniPlayerTuckSide.Right
+        sideways && velocityX < -TUCK_FLING_VELOCITY && currentX < centerX -> MiniPlayerTuckSide.Left
         else -> null
     }
 }
+
+/** Where a tucked mini player rests: wholly past the edge, its handle the only part on screen. */
+internal fun tuckedMiniX(
+    side: MiniPlayerTuckSide,
+    screenWidth: Float,
+    miniWidth: Float,
+): Float = if (side == MiniPlayerTuckSide.Right) screenWidth else -miniWidth
