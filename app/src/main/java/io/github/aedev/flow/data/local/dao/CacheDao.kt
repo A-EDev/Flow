@@ -50,7 +50,8 @@ interface CacheDao {
             isLive = :isLive,
             isUpcoming = :isUpcoming,
             uploadDate = :uploadDate,
-            timestamp = :timestamp
+            timestamp = :timestamp,
+            timestampIsExact = :timestampIsExact
         WHERE videoId = :videoId
         """,
     )
@@ -66,6 +67,7 @@ interface CacheDao {
         isUpcoming: Boolean,
         uploadDate: String,
         timestamp: Long,
+        timestampIsExact: Boolean,
     )
 
     /** Everything a channel brought into the feed: its uploads and its collaborations. */
