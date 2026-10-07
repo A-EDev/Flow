@@ -48,15 +48,11 @@ import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerCompactMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerLargeMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerMaxWidth
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBottomSpacer
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
-import io.github.aedev.flow.ui.components.musicplayer.sheet.miniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.mediaMiniBarBounds
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
@@ -363,16 +359,16 @@ fun FlowApp(
             )
         }
         val miniPlayerShownState = rememberUpdatedState(isMusicMiniPlayerObscuringContent)
-        val miniPlayerHeightState = rememberUpdatedState(MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer)
+        val miniPlayerHeightState = rememberUpdatedState(MediaMiniBarDefaults.Height + MediaMiniBarDefaults.BottomSpacer)
         val miniPlayerBounds =
             with(density) {
-                miniPlayerBounds(
+                mediaMiniBarBounds(
                     containerWidthPx = constraints.maxWidth.toFloat(),
                     startInsetPx = (if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp).toPx(),
                     isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth,
-                    compactMarginPx = MiniPlayerCompactMargin.toPx(),
-                    largeMarginPx = MiniPlayerLargeMargin.toPx(),
-                    maxWidthPx = MiniPlayerMaxWidth.toPx(),
+                    compactMarginPx = MediaMiniBarDefaults.CompactMargin.toPx(),
+                    largeMarginPx = MediaMiniBarDefaults.LargeMargin.toPx(),
+                    maxWidthPx = MediaMiniBarDefaults.MaxWidth.toPx(),
                 )
             }
         val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl

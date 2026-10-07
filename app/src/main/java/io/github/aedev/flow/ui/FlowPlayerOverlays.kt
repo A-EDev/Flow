@@ -31,10 +31,10 @@ import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
 import io.github.aedev.flow.ui.components.music.sheet.MusicMenus
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSheet
 import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
@@ -176,7 +176,7 @@ internal fun FlowPlayerOverlays(
     musicPlayerSheetState: MusicPlayerSheetState,
     containerWidth: Dp,
     containerHeight: Dp,
-    musicMiniBounds: MiniPlayerBounds,
+    musicMiniBounds: MediaMiniBarBounds,
     musicMenus: MusicMenus,
     equalizerState: StateFlow<EqState>,
     bottomInsets: FlowBottomInsets,

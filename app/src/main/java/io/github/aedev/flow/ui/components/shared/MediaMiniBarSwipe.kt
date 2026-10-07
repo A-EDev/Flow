@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer.motion
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -23,13 +23,13 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
-private enum class MiniDismissDragPhase { IDLE, TENSION, SNAPPING, FREE_DRAG }
+private enum class MiniBarSwipePhase { IDLE, TENSION, SNAPPING, FREE_DRAG }
 
 /**
- * Horizontal dismiss with a tension phase: the first stretch resists the finger, then the card
- * snaps to it with a haptic and tracks 1:1. Dismissal only commits past 40% of screen width.
+ * A mini bar's sideways swipe with a tension phase: the first stretch resists the finger, then the
+ * card snaps to it with a haptic and tracks 1:1. Dismissal only commits past 40% of screen width.
  */
-internal class MiniPlayerDismissGestureHandler(
+class MediaMiniBarSwipeHandler(
     private val scope: CoroutineScope,
     private val density: Density,
     private val hapticFeedback: HapticFeedback,
@@ -37,12 +37,12 @@ internal class MiniPlayerDismissGestureHandler(
     private val screenWidthPx: Float,
     private val onDismiss: () -> Unit,
 ) {
-    private var dragPhase: MiniDismissDragPhase = MiniDismissDragPhase.IDLE
+    private var dragPhase: MiniBarSwipePhase = MiniBarSwipePhase.IDLE
     private var accumulatedDragX: Float = 0f
     private var offsetJob: Job? = null
 
     fun onDragStart() {
-        dragPhase = MiniDismissDragPhase.TENSION
+        dragPhase = MiniBarSwipePhase.TENSION
         accumulatedDragX = 0f
         offsetJob?.cancel()
         offsetJob =
@@ -55,7 +55,7 @@ internal class MiniPlayerDismissGestureHandler(
         accumulatedDragX += dragAmount
 
         when (dragPhase) {
-            MiniDismissDragPhase.TENSION -> {
+            MiniBarSwipePhase.TENSION -> {
                 val snapThresholdPx = 100f * density.density
                 if (abs(accumulatedDragX) < snapThresholdPx) {
                     val maxTensionOffsetPx = 30f * density.density
@@ -67,11 +67,11 @@ internal class MiniPlayerDismissGestureHandler(
                             offsetAnimatable.snapTo(tensionOffset * accumulatedDragX.sign)
                         }
                 } else {
-                    dragPhase = MiniDismissDragPhase.SNAPPING
+                    dragPhase = MiniBarSwipePhase.SNAPPING
                 }
             }
 
-            MiniDismissDragPhase.SNAPPING -> {
+            MiniBarSwipePhase.SNAPPING -> {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 offsetJob?.cancel()
                 offsetJob =
@@ -85,10 +85,10 @@ internal class MiniPlayerDismissGestureHandler(
                                 ),
                         )
                     }
-                dragPhase = MiniDismissDragPhase.FREE_DRAG
+                dragPhase = MiniBarSwipePhase.FREE_DRAG
             }
 
-            MiniDismissDragPhase.FREE_DRAG -> {
+            MiniBarSwipePhase.FREE_DRAG -> {
                 offsetJob?.cancel()
                 offsetJob =
                     scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -103,14 +103,14 @@ internal class MiniPlayerDismissGestureHandler(
                     }
             }
 
-            MiniDismissDragPhase.IDLE -> {
+            MiniBarSwipePhase.IDLE -> {
                 Unit
             }
         }
     }
 
     fun onDragEnd() {
-        dragPhase = MiniDismissDragPhase.IDLE
+        dragPhase = MiniBarSwipePhase.IDLE
         offsetJob?.cancel()
         val dismissThreshold = screenWidthPx * 0.4f
         if (abs(accumulatedDragX) > dismissThreshold) {
@@ -145,17 +145,17 @@ internal class MiniPlayerDismissGestureHandler(
 }
 
 @Composable
-internal fun rememberMiniPlayerDismissGestureHandler(
+internal fun rememberMediaMiniBarSwipeHandler(
     scope: CoroutineScope,
     density: Density,
     hapticFeedback: HapticFeedback,
     offsetAnimatable: Animatable<Float, AnimationVector1D>,
     screenWidthPx: Float,
     onDismiss: () -> Unit,
-): MiniPlayerDismissGestureHandler {
+): MediaMiniBarSwipeHandler {
     val onDismissState = rememberUpdatedState(onDismiss)
     return remember(scope, density, hapticFeedback, offsetAnimatable, screenWidthPx) {
-        MiniPlayerDismissGestureHandler(
+        MediaMiniBarSwipeHandler(
             scope = scope,
             density = density,
             hapticFeedback = hapticFeedback,
@@ -166,9 +166,9 @@ internal fun rememberMiniPlayerDismissGestureHandler(
     }
 }
 
-internal fun Modifier.miniPlayerDismissHorizontalGesture(
+fun Modifier.mediaMiniBarSwipe(
     enabled: Boolean,
-    handler: MiniPlayerDismissGestureHandler,
+    handler: MediaMiniBarSwipeHandler,
 ): Modifier {
     if (!enabled) return this
     return this.pointerInput(handler) {

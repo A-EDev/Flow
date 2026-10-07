@@ -56,10 +56,12 @@ import io.github.aedev.flow.ui.components.musicplayer.full.FullMusicPlayerConten
 import io.github.aedev.flow.ui.components.musicplayer.mini.MiniPlayerContent
 import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSheetDragGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSheetMotionController
-import io.github.aedev.flow.ui.components.musicplayer.motion.miniPlayerDismissHorizontalGesture
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetSettleSpring
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetVerticalDragGesture
-import io.github.aedev.flow.ui.components.musicplayer.motion.rememberMiniPlayerDismissGestureHandler
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
+import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
+import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
 import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isMediumWidth
@@ -67,10 +69,6 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
 import kotlin.math.roundToInt
-
-val MusicMiniPlayerHeight = 64.dp
-val MusicMiniPlayerBottomSpacer = 8.dp
-private val CollapsedCornerRadius = 32.dp
 
 private val SheetDefaultSpring =
     spring<Float>(
@@ -90,7 +88,7 @@ internal fun UnifiedMusicPlayerSheet(
     state: MusicPlayerSheetState,
     containerWidth: Dp,
     containerHeight: Dp,
-    miniBounds: MiniPlayerBounds,
+    miniBounds: MediaMiniBarBounds,
     restingBottomPx: () -> Float,
     track: MusicTrack,
     onDismiss: () -> Unit,
@@ -102,8 +100,8 @@ internal fun UnifiedMusicPlayerSheet(
     val hapticFeedback = LocalHapticFeedback.current
 
     val containerHeightPx = with(density) { containerHeight.toPx() }
-    val miniHeightPx = with(density) { MusicMiniPlayerHeight.toPx() }
-    val miniSpacerPx = with(density) { MusicMiniPlayerBottomSpacer.toPx() }
+    val miniHeightPx = with(density) { MediaMiniBarDefaults.Height.toPx() }
+    val miniSpacerPx = with(density) { MediaMiniBarDefaults.BottomSpacer.toPx() }
     val containerWidthPx = with(density) { containerWidth.toPx() }
     val isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth
     val collapsedTargetY = (containerHeightPx - miniHeightPx - miniSpacerPx).coerceAtLeast(0f)
@@ -266,7 +264,7 @@ internal fun UnifiedMusicPlayerSheet(
             miniHeightPx = miniHeightPx,
             containerWidthPx = containerWidthPx,
             miniBounds = miniBounds,
-            collapsedRadiusPx = with(density) { CollapsedCornerRadius.toPx() },
+            collapsedRadiusPx = with(density) { MediaMiniBarDefaults.CornerRadius.toPx() },
         )
     val cardShape = remember(geometry) { MusicSheetDynamicShape(geometry::cornerRadiusPx) }
 
@@ -297,7 +295,7 @@ internal fun UnifiedMusicPlayerSheet(
             )
         }
     val dismissHandler =
-        rememberMiniPlayerDismissGestureHandler(
+        rememberMediaMiniBarSwipeHandler(
             scope = scope,
             density = density,
             hapticFeedback = hapticFeedback,
@@ -395,7 +393,7 @@ internal fun UnifiedMusicPlayerSheet(
                                 val xOffset = if (fraction > 0f) -startPx else 0
                                 placeable.placeRelative(xOffset, 0)
                             }
-                        }.miniPlayerDismissHorizontalGesture(
+                        }.mediaMiniBarSwipe(
                             enabled = state.isCollapsed,
                             handler = dismissHandler,
                         ).musicSheetVerticalDragGesture(
@@ -423,7 +421,7 @@ internal fun UnifiedMusicPlayerSheet(
                         Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
-                            .height(MusicMiniPlayerHeight)
+                            .height(MediaMiniBarDefaults.Height)
                             .graphicsLayer {
                                 alpha = (1f - state.expansionFraction.value * 2f).coerceIn(0f, 1f)
                             }.layout { measurable, constraints ->
