@@ -4286,4 +4286,13 @@
     <string name="music_home_lastfm_discover">اكتشف مع Last.fm</string>
     <string name="music_home_lastfm_discover_subtitle">اختيارات مستمعي Last.fm من أغانيك الأكثر استماعًا</string>
     <string name="remove_from_saved_shorts">إزالة من الشورتز المحفوظة</string>
+    <string name="content_settings_channel_shorts_tab_title">تبويب المقاطع القصيرة في القنوات</string>
+    <string name="content_settings_channel_shorts_tab_subtitle">إبقاء تبويب المقاطع القصيرة في القناة حتى عند إخفاء المقاطع القصيرة</string>
+    <string name="proxy_settings_bypass_vpn">تجاوز الوكيل عند استخدام VPN</string>
+    <string name="proxy_settings_bypass_vpn_subtitle">الاتصال مباشرةً عند تشغيل VPN</string>
+    <string name="proxy_settings_vpn_paused">تم إيقاف الوكيل مؤقتًا</string>
+    <string name="proxy_settings_vpn_paused_subtitle">VPN مفعّل، لذا يتم الاتصال مباشرةً.</string>
+    <string name="player_settings_start_paused">بدء تشغيل الفيديوهات المتوقفة مؤقتًا</string>
+    <string name="player_settings_start_paused_subtitle">فتح الفيديو بدون تشغيله حتى تضغط على تشغيل</string>
+    <string name="settings_section_thumbnails">الصور المصغّرة</string>
 </resources>
