@@ -4285,4 +4285,5 @@
     <string name="scrobbling_import_action">استيراد</string>
     <string name="music_home_lastfm_discover">اكتشف مع Last.fm</string>
     <string name="music_home_lastfm_discover_subtitle">اختيارات مستمعي Last.fm من أغانيك الأكثر استماعًا</string>
+    <string name="remove_from_saved_shorts">إزالة من الشورتز المحفوظة</string>
 </resources>
