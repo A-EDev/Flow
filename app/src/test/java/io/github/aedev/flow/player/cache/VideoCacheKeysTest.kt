@@ -1,21 +1,20 @@
 package io.github.aedev.flow.player.cache
 
-import android.app.Application
 import android.net.Uri
 import androidx.media3.datasource.DataSpec
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
 
-@RunWith(AndroidJUnit4::class)
-@Config(sdk = [34], application = Application::class)
 class VideoCacheKeysTest {
     private var playing: String? = "first"
     private val keys = VideoCacheKeys { playing }
 
-    private fun open(url: String) = keys.buildCacheKey(DataSpec(Uri.parse(url)))
+    private fun open(url: String): String {
+        val uri = mockk<Uri> { every { this@mockk.toString() } returns url }
+        return keys.buildCacheKey(DataSpec.Builder().setUri(uri).build())
+    }
 
     @Test
     fun `keys are Media3's own and remembered under the video that opened them`() {
