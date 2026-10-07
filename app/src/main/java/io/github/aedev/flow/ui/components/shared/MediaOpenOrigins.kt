@@ -13,13 +13,21 @@ import androidx.compose.ui.layout.LayoutBoundsHolder
 import androidx.compose.ui.layout.layoutBounds
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import coil3.memory.MemoryCache
 
 /** Where a video's thumbnail sits in the window, so the player can grow out of it. */
 @Immutable
 data class MediaOpenOrigin(
     val windowBounds: Rect,
     val cornerRadiusPx: Float,
+    val imageKey: MemoryCache.Key?,
 )
+
+/** One thumbnail's entry: where it is laid out and which cached image it drew. */
+class MediaOpenOriginRegistration internal constructor() {
+    internal val holder = LayoutBoundsHolder()
+    var imageKey: MemoryCache.Key? = null
+}
 
 /**
  * The video thumbnails currently on screen, by video id. Opening a video asks for the one the user
@@ -28,10 +36,12 @@ data class MediaOpenOrigin(
  */
 class MediaOpenOrigins {
     private class Entry(
-        val holder: LayoutBoundsHolder,
+        val registration: MediaOpenOriginRegistration,
         val shape: Shape,
         val density: Density,
-    )
+    ) {
+        val holder: LayoutBoundsHolder get() = registration.holder
+    }
 
     private val entries = HashMap<String, MutableList<Entry>>()
 
@@ -49,16 +59,20 @@ class MediaOpenOrigins {
         val bounds = entry.holder.bounds?.boundsInWindow ?: return null
         val rect = Rect(bounds.left.toFloat(), bounds.top.toFloat(), bounds.right.toFloat(), bounds.bottom.toFloat())
         val radius = (entry.shape as? CornerBasedShape)?.topStart?.toPx(rect.size, entry.density) ?: 0f
-        return MediaOpenOrigin(windowBounds = rect, cornerRadiusPx = radius.coerceAtMost(rect.minDimension / 2f))
+        return MediaOpenOrigin(
+            windowBounds = rect,
+            cornerRadiusPx = radius.coerceAtMost(rect.minDimension / 2f),
+            imageKey = entry.registration.imageKey,
+        )
     }
 
     internal fun register(
         videoId: String,
-        holder: LayoutBoundsHolder,
+        registration: MediaOpenOriginRegistration,
         shape: Shape,
         density: Density,
     ): () -> Unit {
-        val entry = Entry(holder, shape, density)
+        val entry = Entry(registration, shape, density)
         entries.getOrPut(videoId) { mutableListOf() }.add(entry)
         return {
             entries[videoId]?.let { list ->
@@ -75,18 +89,25 @@ class MediaOpenOrigins {
 
 val LocalMediaOpenOrigins = staticCompositionLocalOf<MediaOpenOrigins?> { null }
 
-/** Registers this thumbnail as where [videoId] opens from while it is in the composition. */
+/**
+ * Registers a thumbnail as where [videoId] opens from while it is in the composition, or null when no
+ * registry is installed. Its [MediaOpenOriginRegistration.holder] goes on the thumbnail through
+ * [mediaOpenOrigin].
+ */
 @Composable
-internal fun Modifier.mediaOpenOrigin(
+internal fun rememberMediaOpenOrigin(
     videoId: String,
     shape: Shape,
-): Modifier {
-    val origins = LocalMediaOpenOrigins.current ?: return this
+): MediaOpenOriginRegistration? {
+    val origins = LocalMediaOpenOrigins.current ?: return null
     val density = LocalDensity.current
-    val holder = remember { LayoutBoundsHolder() }
+    val registration = remember { MediaOpenOriginRegistration() }
     DisposableEffect(origins, videoId, shape, density) {
-        val unregister = origins.register(videoId, holder, shape, density)
+        val unregister = origins.register(videoId, registration, shape, density)
         onDispose(unregister)
     }
-    return layoutBounds(holder)
+    return registration
 }
+
+internal fun Modifier.mediaOpenOrigin(registration: MediaOpenOriginRegistration?): Modifier =
+    if (registration == null) this else layoutBounds(registration.holder)

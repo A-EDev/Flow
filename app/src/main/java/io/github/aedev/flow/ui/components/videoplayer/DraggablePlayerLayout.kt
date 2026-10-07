@@ -240,6 +240,7 @@ fun DraggablePlayerLayout(
 
             val settleDipPx = with(density) { MiniPlayerSettleDip.toPx() }
             SideEffect {
+                state.morphCornerRadiusPx = cornerRadiusProvider
                 state.miniVisualScale = visualMiniScale
                 state.cachedTargetX = geometry.normalTargetX
                 state.cachedTargetY = geometry.normalTargetY

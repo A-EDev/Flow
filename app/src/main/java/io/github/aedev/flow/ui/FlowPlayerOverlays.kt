@@ -248,5 +248,5 @@ internal fun FlowPlayerOverlays(
 private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
     videoId
         ?.let(::originFor)
-        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx) }
+        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey) }
         ?: SheetOpenOrigin.BelowScreen

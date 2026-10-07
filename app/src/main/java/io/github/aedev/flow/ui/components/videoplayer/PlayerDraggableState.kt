@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
+import coil3.memory.MemoryCache
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_SETTLE_DIP_HOLD_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
@@ -32,6 +33,7 @@ sealed interface SheetOpenOrigin {
     data class Thumbnail(
         val windowBounds: Rect,
         val cornerRadiusPx: Float,
+        val imageKey: MemoryCache.Key?,
     ) : SheetOpenOrigin
 
     data object BelowScreen : SheetOpenOrigin
@@ -60,10 +62,17 @@ class PlayerDraggableState(
     val miniSizeScale = Animatable(1f)
     var isShrinkingToCorner by mutableStateOf(false)
 
+    /** The video box's corner radius in its own pre-scale px, published by the layout for what it draws inside. */
+    internal var morphCornerRadiusPx: () -> Float = { 0f }
+
     /** Drawn in place of the mini corner while an open grows out of it; cleared once the open ends. */
     var openOrigin by mutableStateOf<SheetOpenOrigin?>(null)
         private set
     private var openGeneration = 0
+
+    /** The cached image of the card the last open grew from, drawn while the poster loads. */
+    var posterPlaceholderKey by mutableStateOf<MemoryCache.Key?>(null)
+        private set
 
     var miniVisualScale by mutableFloatStateOf(1f)
 
@@ -138,6 +147,7 @@ class PlayerDraggableState(
     fun open(origin: SheetOpenOrigin) {
         corner = MiniPlayerCorner.BottomRight
         openOrigin = origin
+        posterPlaceholderKey = (origin as? SheetOpenOrigin.Thumbnail)?.imageKey
         val generation = ++openGeneration
         scope.launch {
             isShrinkingToCorner = false

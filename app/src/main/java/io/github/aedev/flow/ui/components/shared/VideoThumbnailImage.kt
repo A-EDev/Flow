@@ -16,6 +16,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.memory.MemoryCache
+import coil3.request.ImageRequest
 import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
@@ -34,6 +37,8 @@ fun VideoThumbnailImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
     portrait: Boolean = false,
+    placeholderKey: MemoryCache.Key? = null,
+    onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
 ) {
     val quality = LocalThumbnailQuality.current
     val models =
@@ -60,6 +65,8 @@ fun VideoThumbnailImage(
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
+        placeholderKey = placeholderKey,
+        onImageKey = onImageKey,
     )
 }
 
@@ -77,6 +84,8 @@ private fun SafeAsyncImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    placeholderKey: MemoryCache.Key? = null,
+    onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
 ) {
     var index by remember(models) { mutableStateOf(0) }
     val currentModel = models.getOrNull(index)
@@ -93,11 +102,25 @@ private fun SafeAsyncImage(
         }
 
         (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> {
+            val context = LocalPlatformContext.current
+            val request =
+                remember(currentModel, placeholderKey) {
+                    if (placeholderKey == null) {
+                        currentModel
+                    } else {
+                        ImageRequest
+                            .Builder(context)
+                            .data(currentModel)
+                            .placeholderMemoryCacheKey(placeholderKey)
+                            .build()
+                    }
+                }
             AsyncImage(
-                model = currentModel,
+                model = request,
                 contentDescription = contentDescription,
                 modifier = modifier,
                 contentScale = contentScale,
+                onSuccess = onImageKey?.let { report -> { state -> report(state.result.memoryCacheKey) } },
                 onError = {
                     index = if (index < models.lastIndex) index + 1 else models.size
                 },

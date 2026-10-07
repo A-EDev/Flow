@@ -12,7 +12,7 @@ class OpenMorphTest {
     fun `a thumbnail origin is moved into the layout's own coordinates`() {
         val rect =
             resolveOpenOriginRect(
-                origin = SheetOpenOrigin.Thumbnail(Rect(120f, 950f, 520f, 1175f), cornerRadiusPx = 24f),
+                origin = SheetOpenOrigin.Thumbnail(Rect(120f, 950f, 520f, 1175f), cornerRadiusPx = 24f, imageKey = null),
                 layoutLeft = 20f,
                 layoutTop = 50f,
                 screenHeight = 2400f,
