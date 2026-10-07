@@ -1,16 +1,24 @@
-package io.github.aedev.flow.ui.components.musicplayer.sheet
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** A phone's mini player spans the window; anything wider gets one a little wider than a phone's. */
-internal val MiniPlayerMaxWidth = 480.dp
-internal val MiniPlayerCompactMargin = 12.dp
-internal val MiniPlayerLargeMargin = 16.dp
+/** The size and placement of the bottom mini bars: the music player's and the background video's. */
+object MediaMiniBarDefaults {
+    val Height: Dp = 64.dp
+    val BottomSpacer: Dp = 8.dp
+    val CornerRadius: Dp = 32.dp
 
-/** Where the collapsed mini player sits across the window, in px from the start edge. */
+    /** A phone's mini bar spans the window; anything wider gets one a little wider than a phone's. */
+    val MaxWidth: Dp = 480.dp
+    val CompactMargin: Dp = 12.dp
+    val LargeMargin: Dp = 16.dp
+}
+
+/** Where a collapsed mini bar sits across the window, in px from the start edge. */
 @Immutable
-internal data class MiniPlayerBounds(
+data class MediaMiniBarBounds(
     val start: Float,
     val width: Float,
 )
@@ -20,23 +28,23 @@ internal data class MiniPlayerBounds(
  * most [maxWidthPx], centred over the content area, which begins after the navigation rail
  * ([startInsetPx]), and never closer than [largeMarginPx] to its edges.
  */
-internal fun miniPlayerBounds(
+fun mediaMiniBarBounds(
     containerWidthPx: Float,
     startInsetPx: Float,
     isCompactWidth: Boolean,
     compactMarginPx: Float,
     largeMarginPx: Float,
     maxWidthPx: Float,
-): MiniPlayerBounds {
+): MediaMiniBarBounds {
     if (isCompactWidth) {
-        return MiniPlayerBounds(
+        return MediaMiniBarBounds(
             start = compactMarginPx,
             width = (containerWidthPx - compactMarginPx * 2).coerceAtLeast(0f),
         )
     }
     val contentWidth = (containerWidthPx - startInsetPx).coerceAtLeast(0f)
     val width = minOf(maxWidthPx, contentWidth - largeMarginPx * 2).coerceAtLeast(0f)
-    return MiniPlayerBounds(
+    return MediaMiniBarBounds(
         start = startInsetPx + (contentWidth - width) / 2f,
         width = width,
     )
