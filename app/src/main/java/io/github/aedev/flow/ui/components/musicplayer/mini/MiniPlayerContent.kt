@@ -56,15 +56,13 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 import io.github.aedev.flow.ui.theme.ArtworkScrimNowPlaying
 
 private val ArtworkRingSize = 52.dp
 private val ArtworkSize = 43.dp
 private val ProgressRingStroke = 2.5.dp
-private val PlayButtonSize = 48.dp
-private val PlayButtonPressedWidth = 60.dp
-private val PlayButtonPlayingCorner = 14.dp
 
 /**
  * The collapsed player: cover in a progress ring, title and artist, then the transport. Wider
@@ -210,7 +208,7 @@ internal fun MiniPlayerContent(
                     )
                 }
             }
-            MiniPlayPauseButton(
+            MediaPlayPauseButton(
                 isPlaying = playerState.isPlaying,
                 isBuffering = playerState.isBuffering && animationsEnabled,
                 onClick = {
@@ -225,49 +223,6 @@ internal fun MiniPlayerContent(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-}
-
-/**
- * Play or pause with the full player's motion: the corners ease between a rounded square while
- * playing and a circle while paused, and a press stretches the button on the same elastic spring.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun MiniPlayPauseButton(
-    isPlaying: Boolean,
-    isBuffering: Boolean,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val width by animateDpAsState(
-        targetValue = if (pressed) PlayButtonPressedWidth else PlayButtonSize,
-        animationSpec = spring(dampingRatio = 0.62f, stiffness = 720f),
-        label = "miniPlayWidth",
-    )
-    val corner by animateDpAsState(
-        targetValue = if (isPlaying) PlayButtonPlayingCorner else PlayButtonSize / 2,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
-        label = "miniPlayCorner",
-    )
-    FilledIconButton(
-        onClick = onClick,
-        modifier = Modifier.size(width = width, height = PlayButtonSize),
-        shape = RoundedCornerShape(corner),
-        interactionSource = interactionSource,
-    ) {
-        if (isBuffering) {
-            LoadingIndicator(
-                modifier = Modifier.size(28.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        } else {
-            Icon(
-                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
-            )
         }
     }
 }

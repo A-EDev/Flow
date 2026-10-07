@@ -1677,7 +1677,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun hasNextForSession(): Boolean = hasNext() || (autoplayEnabled && autoplayCandidates.isNotEmpty())
 
-    private fun skipToNextFromSession(): Boolean {
+    internal fun skipToNextFromSession(): Boolean {
         val expectedVideoId = nextSessionVideo()?.id
         autoNextLog("skipToNextFromSession expected=$expectedVideoId")
         if (expectedVideoId != null && advanceToPreloadedItem(expectedVideoId)) {
@@ -1720,7 +1720,7 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Autoplay countdown (delay before switching to the next video) =====
 
-    private fun nextSessionVideo(): Video? =
+    internal fun nextSessionVideo(): Video? =
         when {
             hasNext() -> if (queueAutoplayEnabled) queue.nextVideo() else null
             autoplayEnabled -> autoplayCandidates.firstOrNull()

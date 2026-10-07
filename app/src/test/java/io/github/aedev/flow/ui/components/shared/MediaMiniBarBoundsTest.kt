@@ -1,14 +1,14 @@
-package io.github.aedev.flow.ui.components.musicplayer.sheet
+package io.github.aedev.flow.ui.components.shared
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class MiniPlayerBoundsTest {
+class MediaMiniBarBoundsTest {
     private fun bounds(
         width: Float,
         startInset: Float = 0f,
         compact: Boolean,
-    ) = miniPlayerBounds(
+    ) = mediaMiniBarBounds(
         containerWidthPx = width,
         startInsetPx = startInset,
         isCompactWidth = compact,
@@ -19,22 +19,22 @@ class MiniPlayerBoundsTest {
 
     @Test
     fun `a phone spans the window minus its margins`() {
-        assertThat(bounds(411f, compact = true)).isEqualTo(MiniPlayerBounds(start = 12f, width = 387f))
+        assertThat(bounds(411f, compact = true)).isEqualTo(MediaMiniBarBounds(start = 12f, width = 387f))
     }
 
     @Test
     fun `a wide window caps the width and centres it`() {
-        assertThat(bounds(1280f, compact = false)).isEqualTo(MiniPlayerBounds(start = 400f, width = 480f))
+        assertThat(bounds(1280f, compact = false)).isEqualTo(MediaMiniBarBounds(start = 400f, width = 480f))
     }
 
     @Test
     fun `the rail moves the centre to the content area`() {
-        assertThat(bounds(1280f, startInset = 96f, compact = false)).isEqualTo(MiniPlayerBounds(start = 448f, width = 480f))
+        assertThat(bounds(1280f, startInset = 96f, compact = false)).isEqualTo(MediaMiniBarBounds(start = 448f, width = 480f))
     }
 
     @Test
     fun `a medium window narrower than the cap keeps its side margins`() {
-        assertThat(bounds(500f, compact = false)).isEqualTo(MiniPlayerBounds(start = 16f, width = 468f))
+        assertThat(bounds(500f, compact = false)).isEqualTo(MediaMiniBarBounds(start = 16f, width = 468f))
     }
 
     @Test

@@ -101,6 +101,7 @@ internal fun PlayerQueueSheetHost(
     onDismiss: () -> Unit,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
+    loadStreamsInPlayer: Boolean = false,
 ) {
     val manager = EnhancedPlayerManager.getInstance()
     val queueVideos by manager.queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -117,7 +118,7 @@ internal fun PlayerQueueSheetHost(
         isShuffled = playerState.isQueueShuffled,
         onLoopToggle = manager::toggleQueueLoop,
         onShuffleToggle = manager::toggleQueueShuffle,
-        onPlayVideoAtIndex = { index -> manager.playVideoAtIndex(index, loadStreamsInPlayer = false) },
+        onPlayVideoAtIndex = { index -> manager.playVideoAtIndex(index, loadStreamsInPlayer = loadStreamsInPlayer) },
         onRemoveVideoAtIndex = { index ->
             manager.removeVideoAtIndex(index)?.let { removed ->
                 quickActions.announce(removedFromQueue, QuickActionUndo.QueueRemoval(removed))
