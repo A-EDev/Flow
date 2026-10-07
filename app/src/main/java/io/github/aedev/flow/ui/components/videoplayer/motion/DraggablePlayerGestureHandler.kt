@@ -8,12 +8,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.canSwipeUpToFullscreen
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -21,15 +22,21 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private const val DRAG_MODE_FRACTION = 0
-private const val DRAG_MODE_POSITION = 1
-private const val DRAG_MODE_EXPAND_SCALE = 2
+private const val DRAG_MODE_EXPAND_SCALE = 1
 
 /** Screen-space movement under which a mini player press still counts as a tap. */
 private const val MINI_TAP_MOVEMENT_PX = 24f
 
+private enum class MiniPressOutcome { Tap, LongPress, Drag, Cancelled }
+
+private class MiniPress(
+    val outcome: MiniPressOutcome,
+    val travel: Offset = Offset.Zero,
+)
+
 /**
  * The one-finger gesture on the video box: collapse drag and swipe-to-fullscreen while expanded,
- * free 2-D drag, tap, double tap, corner fling and dismiss fling while mini.
+ * free 2-D drag, tap, long press, corner fling and dismiss fling while mini.
  *
  * Hand-rolled on purpose. `anchoredDraggable` and `draggable2D` apply touch slop and report
  * deltas in local space, but this node sits under the morph's graphicsLayer scale, so the same
@@ -53,8 +60,6 @@ internal class DraggablePlayerGestureHandler(
     private val metrics: DraggablePlayerGestureMetrics,
 ) {
     private val velocityTracker = VelocityTracker()
-    private val tapDecider = MiniPlayerTapDecider()
-    private var singleTapJob: Job? = null
 
     suspend fun AwaitPointerEventScope.handleGesture() {
         val gestureTargetMiniX = metrics.targetMiniX
@@ -67,8 +72,11 @@ internal class DraggablePlayerGestureHandler(
             return
         }
 
+        if (state.expandFraction.value > 0.8f) {
+            handleMiniGesture(down, downConsumedByChild)
+            return
+        }
         val isCollapseDrag = state.expandFraction.value < 0.4f
-        val isMiniDrag = state.expandFraction.value > 0.8f
 
         val canSwipeToFullscreen =
             isCollapseDrag &&
@@ -87,11 +95,6 @@ internal class DraggablePlayerGestureHandler(
             state.scope.launch {
                 state.motion.stopFraction()
                 state.motion.snapOffsets(x = gestureTargetMiniX, y = gestureTargetMiniY)
-            }
-        } else if (isMiniDrag) {
-            state.scope.launch {
-                state.motion.stopOffsets()
-                state.dragScale.animateTo(0.97f, dragPressSpringSpec)
             }
         }
 
@@ -129,7 +132,6 @@ internal class DraggablePlayerGestureHandler(
         }
 
         var cumulativeDragY = startDragY
-        var totalMovement = 0f
         val startFraction = state.expandFraction.value
         var totalUpwardDrag = 0f
 
@@ -137,8 +139,6 @@ internal class DraggablePlayerGestureHandler(
             state.isDragging = true
             val snapSignal = Channel<Unit>(Channel.CONFLATED)
             var pendingFraction = state.expandFraction.value
-            var pendingX = state.offsetX.value
-            var pendingY = state.offsetY.value
             var pendingMode = DRAG_MODE_FRACTION
             var pendingExpandScale = 1f
             val snapDriver =
@@ -149,13 +149,8 @@ internal class DraggablePlayerGestureHandler(
                                 state.expandFraction.snapTo(pendingFraction)
                             }
 
-                            DRAG_MODE_EXPAND_SCALE -> {
-                                state.expandDragScale.snapTo(pendingExpandScale)
-                            }
-
                             else -> {
-                                state.offsetX.snapTo(pendingX)
-                                state.offsetY.snapTo(pendingY)
+                                state.expandDragScale.snapTo(pendingExpandScale)
                             }
                         }
                     }
@@ -163,7 +158,6 @@ internal class DraggablePlayerGestureHandler(
             try {
                 drag(dragPointerId) { change ->
                     val delta = change.positionChange() * metrics.liveGestureScale(state)
-                    totalMovement += delta.getDistance()
                     fingerPath += delta
                     velocityTracker.addPosition(change.uptimeMillis, fingerPath)
 
@@ -180,26 +174,12 @@ internal class DraggablePlayerGestureHandler(
                         pendingExpandScale = expandDragZoomFor(totalUpwardDrag)
                         pendingMode = DRAG_MODE_EXPAND_SCALE
                         snapSignal.trySend(Unit)
-                    } else if (isMiniDrag) {
-                        if (totalMovement > viewConfiguration.touchSlop * 0.5f) {
-                            change.consume()
-                            val clampedY = (state.offsetY.value + delta.y).coerceIn(metrics.minY, metrics.maxY)
-                            if (state.isInlineMode && !metrics.isLargeScreen) {
-                                pendingX = metrics.stablePhoneCenteredX
-                            } else {
-                                pendingX = (state.offsetX.value + delta.x).coerceIn(metrics.minX, metrics.maxX)
-                            }
-                            pendingY = clampedY
-                            pendingMode = DRAG_MODE_POSITION
-                            snapSignal.trySend(Unit)
-                        }
                     }
                 }
             } finally {
                 snapSignal.close()
                 snapDriver.cancel()
                 state.isDragging = false
-                state.scope.launch { state.dragScale.animateTo(1f, dragReleaseSpringSpec) }
                 state.scope.launch { state.expandDragScale.animateTo(1f, dragReleaseSpringSpec) }
             }
         } else {
@@ -211,13 +191,6 @@ internal class DraggablePlayerGestureHandler(
             } finally {
                 state.isDragging = false
             }
-        }
-
-        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) {
-            if (!downConsumedByChild && metrics.tapToExpand) {
-                onMiniTap(down.uptimeMillis, viewConfiguration.doubleTapTimeoutMillis)
-            }
-            return
         }
 
         if (isCollapseDrag && detectedDirection == -1) {
@@ -239,11 +212,111 @@ internal class DraggablePlayerGestureHandler(
             }
             return
         }
-
-        if (!isMiniDrag) return
-
-        releaseMini()
     }
+
+    /**
+     * A press on the mini player: a release before it travels is a tap and expands at once, a hold
+     * past the long-press timeout toggles wide mode, and travel starts a drag that follows the finger.
+     */
+    private suspend fun AwaitPointerEventScope.handleMiniGesture(
+        down: PointerInputChange,
+        downConsumedByChild: Boolean,
+    ) {
+        velocityTracker.resetTracking()
+        velocityTracker.addPosition(down.uptimeMillis, Offset.Zero)
+        state.scope.launch {
+            state.motion.stopOffsets()
+            state.dragScale.animateTo(0.97f, dragPressSpringSpec)
+        }
+        try {
+            val press = awaitMiniPress(down)
+            when (press.outcome) {
+                MiniPressOutcome.Tap -> {
+                    if (!downConsumedByChild && metrics.tapToExpand) state.expand()
+                }
+
+                MiniPressOutcome.LongPress -> {
+                    if (!downConsumedByChild) {
+                        metrics.onLongPress()
+                        toggleWideMode()
+                    }
+                    awaitAllPointersUp()
+                }
+
+                MiniPressOutcome.Cancelled -> {
+                    Unit
+                }
+
+                MiniPressOutcome.Drag -> {
+                    dragMini(down.id, press.travel)
+                    releaseMini()
+                }
+            }
+        } finally {
+            state.scope.launch { state.dragScale.animateTo(1f, dragReleaseSpringSpec) }
+        }
+    }
+
+    private suspend fun AwaitPointerEventScope.awaitMiniPress(down: PointerInputChange): MiniPress =
+        withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Main).changes.firstOrNull { it.id == down.id }
+                if (change == null || !change.pressed) return@withTimeoutOrNull MiniPress(MiniPressOutcome.Tap)
+                if (change.isConsumed) return@withTimeoutOrNull MiniPress(MiniPressOutcome.Cancelled)
+                val travel = (change.position - down.position) * metrics.liveGestureScale(state)
+                velocityTracker.addPosition(change.uptimeMillis, travel)
+                if (travel.getDistance() > MINI_TAP_MOVEMENT_PX) {
+                    change.consume()
+                    return@withTimeoutOrNull MiniPress(MiniPressOutcome.Drag, travel)
+                }
+            }
+            @Suppress("UNREACHABLE_CODE")
+            MiniPress(MiniPressOutcome.Cancelled)
+        } ?: MiniPress(MiniPressOutcome.LongPress)
+
+    /** Moves the mini player with the finger, starting with the [initialTravel] the press already covered. */
+    private suspend fun AwaitPointerEventScope.dragMini(
+        pointerId: PointerId,
+        initialTravel: Offset,
+    ) {
+        state.isDragging = true
+        var fingerPath = initialTravel
+        var rawX = state.offsetX.value + initialTravel.x
+        var rawY = state.offsetY.value + initialTravel.y
+        val snapSignal = Channel<Unit>(Channel.CONFLATED)
+        val snapDriver =
+            state.scope.launch {
+                for (ignored in snapSignal) {
+                    state.offsetX.snapTo(miniDragX(rawX))
+                    state.offsetY.snapTo(miniDragY(rawY))
+                }
+            }
+        snapSignal.trySend(Unit)
+        try {
+            drag(pointerId) { change ->
+                val delta = change.positionChange() * metrics.liveGestureScale(state)
+                fingerPath += delta
+                velocityTracker.addPosition(change.uptimeMillis, fingerPath)
+                change.consume()
+                rawX += delta.x
+                rawY += delta.y
+                snapSignal.trySend(Unit)
+            }
+        } finally {
+            snapSignal.close()
+            snapDriver.cancel()
+            state.isDragging = false
+        }
+    }
+
+    private fun miniDragX(rawX: Float): Float =
+        if (state.isInlineMode && !metrics.isLargeScreen) {
+            metrics.stablePhoneCenteredX
+        } else {
+            rawX.coerceIn(metrics.minX, metrics.maxX)
+        }
+
+    private fun miniDragY(rawY: Float): Float = rawY.coerceIn(metrics.minY, metrics.maxY)
 
     private suspend fun AwaitPointerEventScope.awaitAllPointersUp() {
         while (true) {
@@ -252,43 +325,26 @@ internal class DraggablePlayerGestureHandler(
         }
     }
 
-    private fun onMiniTap(
-        uptimeMillis: Long,
-        doubleTapTimeoutMillis: Long,
-    ) {
-        when (tapDecider.onTap(uptimeMillis, doubleTapTimeoutMillis)) {
-            MiniPlayerTap.DOUBLE -> {
-                singleTapJob?.cancel()
-                if (state.isInlineMode) {
-                    state.shrinkToCorner(
-                        baseMiniWidth = metrics.baseMiniWidth,
-                        screenWidth = metrics.screenWidth,
-                        margin = metrics.margin,
-                        minY = metrics.minY,
-                        screenHeight = metrics.screenHeight,
-                        bottomNavPad = metrics.bottomNavPad,
-                    )
-                } else {
-                    state.expandWide(
-                        screenWidth = metrics.screenWidth,
-                        margin = metrics.margin,
-                        baseMiniWidth = metrics.baseMiniWidth,
-                        screenHeight = metrics.screenHeight,
-                        minY = metrics.minY,
-                        bottomNavPad = metrics.bottomNavPad,
-                        isLargeWindow = metrics.isLargeScreen,
-                    )
-                }
-            }
-
-            MiniPlayerTap.SINGLE_PENDING -> {
-                singleTapJob?.cancel()
-                singleTapJob =
-                    state.scope.launch {
-                        delay(doubleTapTimeoutMillis)
-                        state.expand()
-                    }
-            }
+    private fun toggleWideMode() {
+        if (state.isInlineMode) {
+            state.shrinkToCorner(
+                baseMiniWidth = metrics.baseMiniWidth,
+                screenWidth = metrics.screenWidth,
+                margin = metrics.margin,
+                minY = metrics.minY,
+                screenHeight = metrics.screenHeight,
+                bottomNavPad = metrics.bottomNavPad,
+            )
+        } else {
+            state.expandWide(
+                screenWidth = metrics.screenWidth,
+                margin = metrics.margin,
+                baseMiniWidth = metrics.baseMiniWidth,
+                screenHeight = metrics.screenHeight,
+                minY = metrics.minY,
+                bottomNavPad = metrics.bottomNavPad,
+                isLargeWindow = metrics.isLargeScreen,
+            )
         }
     }
 

@@ -32,6 +32,7 @@ internal class DraggablePlayerGestureMetrics {
     var onFullscreenGesture: (() -> Unit)? = null
     var onCollapseGesture: (() -> Unit)? = null
     var onDismiss: () -> Unit = {}
+    var onLongPress: () -> Unit = {}
 
     val bounds: MiniPlayerBounds
         get() = MiniPlayerBounds(minX = minX, maxX = maxX, minY = minY, maxY = maxY)

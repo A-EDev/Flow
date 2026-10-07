@@ -155,6 +155,7 @@ internal fun DraggablePlayerGestureMetrics.update(
     onFullscreenGesture: (() -> Unit)?,
     onCollapseGesture: (() -> Unit)?,
     onDismiss: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     minX = geometry.minX
     maxX = geometry.maxX
@@ -180,6 +181,7 @@ internal fun DraggablePlayerGestureMetrics.update(
     this.onFullscreenGesture = onFullscreenGesture
     this.onCollapseGesture = onCollapseGesture
     this.onDismiss = onDismiss
+    this.onLongPress = onLongPress
 }
 
 /** The rectangle an open starts from, in the layout's px. */
