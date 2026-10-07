@@ -13,7 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.artwork.AnimatedArtworkRepository
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.di.PlayerCache
+import io.github.aedev.flow.di.MusicCache
 import io.github.aedev.flow.network.ProxyAwareClient
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -40,7 +40,7 @@ class AnimatedArtworkViewModel
         @ApplicationContext private val context: Context,
         private val repository: AnimatedArtworkRepository,
         private val preferences: PlayerPreferences,
-        @PlayerCache playerCache: SimpleCache,
+        @MusicCache musicCache: SimpleCache,
     ) : ViewModel() {
         val isEnabled: StateFlow<Boolean> =
             preferences.animatedArtwork.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
@@ -53,7 +53,7 @@ class AnimatedArtworkViewModel
         val dataSourceFactory: DataSource.Factory =
             CacheDataSource
                 .Factory()
-                .setCache(playerCache)
+                .setCache(musicCache)
                 .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(ProxyAwareClient().get()))
                 .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 

@@ -103,6 +103,7 @@ internal fun VideoStage(
                     seekSwipeGesturesEnabled = prefs.seekSwipeGesturesEnabled,
                     allowVolumeBoost = prefs.allowVolumeBoost,
                     doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
+                    seekZoneFraction = prefs.doubleTapSeekZone.sideFraction,
                     longPressPlaybackSpeed = prefs.longPressPlaybackSpeed,
                     onExitFullscreen = {
                         screenState.isFullscreen = false

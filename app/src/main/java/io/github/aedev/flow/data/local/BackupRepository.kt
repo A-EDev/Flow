@@ -158,6 +158,7 @@ class BackupRepository(
             .appIconController()
     }
     private val localDataManager = LocalDataManager(context)
+    private val appFontPreferences = AppFontPreferences(context)
     private val gson =
         GsonBuilder()
             .setPrettyPrinting()
@@ -191,6 +192,7 @@ class BackupRepository(
         val playerSettings = playerPreferences.getExportData()
         val localSettings = localDataManager.getExportData()
         val searchSettings = searchHistoryRepo.getSettingsBackup()
+        val fontSettings = appFontPreferences.getSettingsBackup()
         val activeIconSuffix = detectActiveIconSuffix()
         val equalizerSettings = mapOf(EqStateJson.KEY to equalizer.exportJson())
         val exportedStrings =
@@ -199,9 +201,10 @@ class BackupRepository(
                     mapOf("app_icon_suffix" to activeIconSuffix) +
                     localSettings.strings +
                     searchSettings.strings +
+                    fontSettings.strings +
                     equalizerSettings
             } else {
-                playerSettings.strings + localSettings.strings + searchSettings.strings + equalizerSettings
+                playerSettings.strings + localSettings.strings + searchSettings.strings + fontSettings.strings + equalizerSettings
             }
         return SettingsBackup(
             strings = exportedStrings,
@@ -2207,6 +2210,7 @@ class BackupRepository(
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
             searchHistoryRepo.restoreSettings(settings)
+            appFontPreferences.restoreSettings(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
             if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
                 appIconController.apply(savedIconSuffix)

@@ -209,6 +209,7 @@ class PlayerPreferences(
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
         val SHOW_RELATED_VIDEOS = booleanPreferencesKey("show_related_videos")
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
+        val DOUBLE_TAP_SEEK_ZONE = stringPreferencesKey("double_tap_seek_zone")
         val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
         val HOME_FEED_COLUMNS = stringPreferencesKey("home_feed_columns")
         val HOME_FEED_ENABLED = booleanPreferencesKey("home_feed_enabled")
@@ -349,6 +350,8 @@ class PlayerPreferences(
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
+        val MUSIC_CACHE_SIZE_MB = intPreferencesKey("music_cache_size_mb")
+        val ARTWORK_CACHE_SIZE_MB = intPreferencesKey("artwork_cache_size_mb")
 
         // Explore screen quick region picker
 
@@ -393,6 +396,7 @@ class PlayerPreferences(
         val DEEP_FLOW_ACTIVATED_AT = longPreferencesKey("deep_flow_activated_at")
         val DEEP_FLOW_EXPIRE_HOURS = intPreferencesKey("deep_flow_expire_hours")
         val DEEP_FLOW_SAVE_HISTORY = booleanPreferencesKey("deep_flow_save_history")
+        val DEEP_FLOW_SCROBBLE = booleanPreferencesKey("deep_flow_scrobble")
 
         // Home subscription feed rotation cursor
         val HOME_SUBS_ROTATION_CURSOR = intPreferencesKey("home_subs_rotation_cursor")
@@ -1188,16 +1192,30 @@ class PlayerPreferences(
         }
     }
 
-    // Double-tap seek duration preference (default 10 seconds)
+    /** Seconds a double tap on either side jumps; 0 turns double-tap seek off. */
     val doubleTapSeekSeconds: Flow<Int> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] ?: 10
+                (preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] ?: 10).coerceAtLeast(0)
             }
 
     suspend fun setDoubleTapSeekSeconds(seconds: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds
+            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds.coerceAtLeast(0)
+        }
+    }
+
+    val doubleTapSeekZone: Flow<DoubleTapSeekZone> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.DOUBLE_TAP_SEEK_ZONE]
+                    ?.let { stored -> runCatching { DoubleTapSeekZone.valueOf(stored) }.getOrNull() }
+                    ?: DoubleTapSeekZone.NORMAL
+            }
+
+    suspend fun setDoubleTapSeekZone(zone: DoubleTapSeekZone) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOUBLE_TAP_SEEK_ZONE] = zone.name
         }
     }
 
@@ -2675,16 +2693,38 @@ class PlayerPreferences(
         }
     }
 
-    // Cache size — 0 means unlimited. Default 500 MB.
+    /** The video and Shorts cache size in MB; 0 means unlimited. Stored under the original single-cache key. */
     val mediaCacheSizeMb: Flow<Int> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.MEDIA_CACHE_SIZE_MB] ?: 500
+                preferences[Keys.MEDIA_CACHE_SIZE_MB] ?: MediaCacheSizes.DEFAULT_MEDIA_MB
             }
 
     suspend fun setMediaCacheSizeMb(sizeMb: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MEDIA_CACHE_SIZE_MB] = sizeMb
+        }
+    }
+
+    /** The song cache size in MB; 0 means unlimited. */
+    val musicCacheSizeMb: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_CACHE_SIZE_MB] ?: MediaCacheSizes.DEFAULT_MEDIA_MB }
+
+    suspend fun setMusicCacheSizeMb(sizeMb: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_CACHE_SIZE_MB] = sizeMb
+        }
+    }
+
+    /** The image cache size in MB; [MediaCacheSizes.ARTWORK_AUTOMATIC_MB] leaves it to Coil. */
+    val artworkCacheSizeMb: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.ARTWORK_CACHE_SIZE_MB] ?: MediaCacheSizes.ARTWORK_AUTOMATIC_MB }
+
+    suspend fun setArtworkCacheSizeMb(sizeMb: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ARTWORK_CACHE_SIZE_MB] = sizeMb
         }
     }
 
@@ -3401,6 +3441,16 @@ class PlayerPreferences(
     suspend fun isDeepFlowSaveToHistoryEnabled(): Boolean =
         context.playerPreferencesDataStore.data.first()[Keys.DEEP_FLOW_SAVE_HISTORY] ?: false
 
+    val deepFlowScrobble: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.DEEP_FLOW_SCROBBLE] ?: false }
+
+    suspend fun setDeepFlowScrobble(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEEP_FLOW_SCROBBLE] = enabled
+        }
+    }
+
     suspend fun setDeepFlowActive(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEEP_FLOW_ACTIVE] = enabled
@@ -3655,6 +3705,14 @@ enum class MusicPlayerBackgroundStyle {
     GRADIENT,
     IMMERSIVE,
     DEFAULT,
+}
+
+/** How much of the player's width each double-tap seek side takes. */
+enum class DoubleTapSeekZone(
+    val sideFraction: Float,
+) {
+    NORMAL(1f / 3f),
+    NARROW(1f / 4f),
 }
 
 /** How the volume and brightness read-outs are drawn mid-gesture. */

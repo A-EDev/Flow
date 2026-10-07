@@ -521,7 +521,7 @@ class EnhancedPlayerManager private constructor() {
 
     private fun initializeComponents(context: Context) {
         // Initialize cache manager
-        cacheManager = PlayerCacheManager(context).also { it.initialize() }
+        cacheManager = PlayerCacheManager(context) { currentVideoId }.also { it.initialize() }
 
         // Initialize surface manager
         surfaceManager = SurfaceManager()
@@ -3020,11 +3020,10 @@ class EnhancedPlayerManager private constructor() {
 
     fun getCacheSize(): Long = cacheManager?.getCacheSize() ?: 0L
 
-    fun clearCache() = cacheManager?.clearCache()
-
     suspend fun clearCacheForCurrentVideo() {
-        Log.d(TAG, "Clearing media cache due to persistent stream errors")
-        withContext(Dispatchers.IO) { cacheManager?.clearCache() }
+        val videoId = currentVideoId ?: return
+        Log.d(TAG, "Clearing $videoId from the media cache due to persistent stream errors")
+        withContext(Dispatchers.IO) { cacheManager?.clearVideo(videoId) }
     }
 
     fun startBackgroundService(

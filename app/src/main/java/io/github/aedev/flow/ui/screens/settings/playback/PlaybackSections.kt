@@ -60,7 +60,17 @@ internal fun SettingsListScope.playbackSections(
     group(key = "playback.gestures", header = R.string.player_appearance_gestures_header) {
         choice(PlaybackIndex.doubleTapSeek, onClick = { openDialog(PlaybackDialog.DOUBLE_TAP_SEEK) }) {
             val seconds by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
-            pluralStringResource(R.plurals.player_settings_double_tap_seek_subtitle, seconds, seconds)
+            if (seconds <= 0) {
+                stringResource(R.string.player_settings_double_tap_seek_off)
+            } else {
+                pluralStringResource(R.plurals.player_settings_double_tap_seek_subtitle, seconds, seconds)
+            }
+        }
+        if (state.doubleTapSeek) {
+            choice(PlaybackIndex.seekZoneWidth, onClick = { openDialog(PlaybackDialog.SEEK_ZONE_WIDTH) }) {
+                val zone by viewModel.seekZone.collectAsStateWithLifecycle()
+                stringResource(zone.labelRes())
+            }
         }
         switch(PlaybackIndex.brightnessGesture, viewModel.brightnessGesture, viewModel::setBrightnessGesture)
         switch(PlaybackIndex.rememberBrightness, viewModel.rememberBrightness, viewModel::setRememberBrightness)

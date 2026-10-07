@@ -143,6 +143,8 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun getBrainSnapshot(): UserBrain = requireInstance().getBrainSnapshot()
 
+        suspend fun getSavedBrainSnapshot(): UserBrain = requireInstance().getSavedBrainSnapshot()
+
         suspend fun updateChannelMemory(
             bookkeeping: Boolean,
             transform: (ChannelMemoryState) -> ChannelMemoryState,
@@ -339,6 +341,8 @@ class FlowNeuroEngine internal constructor(
         NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
     }
 
+    private val deepFlowBookkeeping = NeuroDeepFlowHousekeeping()
+
     // ── Concurrency ──
     private val brainMutex = Mutex()
     private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -432,14 +436,14 @@ class FlowNeuroEngine internal constructor(
                         Log.i(TAG, "Migrated previous DataStore brain")
                     }
                 }
-                storage.save(currentUserBrain)
+                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                 storage.deleteLegacyFile()
             }
 
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
                 currentUserBrain = maintained
-                storage.save(currentUserBrain)
+                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
 
             idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
@@ -479,6 +483,14 @@ class FlowNeuroEngine internal constructor(
 
     suspend fun getBrainSnapshot(): UserBrain = withBrainLock { currentUserBrain }
 
+    /** The brain as saved: during Deep Flow, without that session's bookkeeping. */
+    suspend fun getSavedBrainSnapshot(): UserBrain = withBrainLock { deepFlowBookkeeping.persistable(currentUserBrain) }
+
+    /** Lines the bookkeeping up with Deep Flow before it is written. Call under brainMutex. */
+    private fun syncBookkeeping(deepFlowActive: Boolean) {
+        currentUserBrain = deepFlowBookkeeping.beforeWrite(currentUserBrain, deepFlowActive)
+    }
+
     private fun clustersOf(brain: UserBrain): List<NeuroClusters.TopicCluster> =
         NeuroClusters.buildClusters(
             topicScores = brain.globalVector.topics,
@@ -504,7 +516,9 @@ class FlowNeuroEngine internal constructor(
             }
             val set = InterestChips.stable(brain.interestChips, clusters, hasEvidence, now)
             if (set != brain.interestChips) {
+                val deepFlow = isLearningPaused()
                 withBrainLock {
+                    syncBookkeeping(deepFlow)
                     currentUserBrain = currentUserBrain.copy(interestChips = set)
                     scheduleDebouncedSave(bookkeeping = true)
                 }
@@ -581,13 +595,14 @@ class FlowNeuroEngine internal constructor(
     suspend fun resetBrain() {
         withBrainLock {
             currentUserBrain = currentUserBrain.keepingHiddenContent()
+            deepFlowBookkeeping.forget()
             featureCache.clear()
             idfWordFrequency.clear()
             idfTotalDocuments = 0
             impressionCache.clear()
             watchHistory.clear()
             resetSessionInternal()
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             contentStore.clear()
         }
     }
@@ -643,7 +658,7 @@ class FlowNeuroEngine internal constructor(
         saveScope.launch {
             delay(delayMs)
             brainMutex.withLock {
-                storage.save(currentUserBrain)
+                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
             contentStore.persistIfDirty()
         }
@@ -696,7 +711,7 @@ class FlowNeuroEngine internal constructor(
                     timeVectors = scrubbedTimeVectors,
                     preferredTopics = cleanedPreferred,
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -720,7 +735,7 @@ class FlowNeuroEngine internal constructor(
                         currentUserBrain.blockedTopics -
                             topic.lowercase(),
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -741,7 +756,7 @@ class FlowNeuroEngine internal constructor(
                             channelId,
                     channelScores = cleanedScores,
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -751,7 +766,7 @@ class FlowNeuroEngine internal constructor(
                 currentUserBrain.copy(
                     blockedChannels = currentUserBrain.blockedChannels - channelId,
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -784,7 +799,7 @@ class FlowNeuroEngine internal constructor(
                             topics = newTopics,
                         ),
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -829,7 +844,7 @@ class FlowNeuroEngine internal constructor(
                         currentUserBrain.hasCompletedOnboarding ||
                             normalizedPreferred.isNotEmpty(),
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -847,7 +862,7 @@ class FlowNeuroEngine internal constructor(
                             topics = newTopics,
                         ),
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -857,7 +872,7 @@ class FlowNeuroEngine internal constructor(
                 currentUserBrain.copy(
                     preferredTopics = currentUserBrain.preferredTopics - topic,
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -868,7 +883,7 @@ class FlowNeuroEngine internal constructor(
                     currentUserBrain.copy(
                         hasCompletedOnboarding = true,
                     )
-                storage.save(currentUserBrain)
+                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                 Log.i(TAG, "Onboarding completed without replacing existing topics")
                 return
             }
@@ -909,7 +924,7 @@ class FlowNeuroEngine internal constructor(
                     topicAffinities = affinities,
                     hasCompletedOnboarding = true,
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             Log.i(TAG, "Onboarding: ${selectedTopics.size} topics")
         }
     }
@@ -1110,7 +1125,7 @@ class FlowNeuroEngine internal constructor(
                     hasCompletedOnboarding = true,
                 )
 
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             Log.i(
                 TAG,
                 "Bootstrap: seeded ${topicWeights.size} topics from " +
@@ -1233,7 +1248,7 @@ class FlowNeuroEngine internal constructor(
 
             compactIdfIfNeeded()
 
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             featureCache.clear()
 
             Log.i(
@@ -1322,7 +1337,7 @@ class FlowNeuroEngine internal constructor(
                     rejectionPatterns = updatedPatterns,
                     topicEvidence = bumpNegativeEvidence(currentUserBrain.topicEvidence, videoVector),
                 )
-            storage.save(currentUserBrain)
+            storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
     }
 
@@ -1350,7 +1365,9 @@ class FlowNeuroEngine internal constructor(
 
     suspend fun generateDiscoveryQueries(resetDepth: Boolean = false): List<String> =
         withContext(Dispatchers.Default) {
+            val deepFlow = isLearningPaused()
             withBrainLock {
+                syncBookkeeping(deepFlow)
                 val brain = currentUserBrain
                 val blocked = brain.blockedTopics
 
@@ -1501,7 +1518,9 @@ class FlowNeuroEngine internal constructor(
                     topicScores = topicScores,
                 )
             if (selected.isNotEmpty()) {
+                val deepFlow = isLearningPaused()
                 withBrainLock {
+                    syncBookkeeping(deepFlow)
                     val updated = currentUserBrain.recentRelatedSeeds.toMutableMap()
                     updated.entries.removeAll { it.value < seedCooldownCutoff }
                     selected.forEach { updated[it] = now }
@@ -1544,7 +1563,9 @@ class FlowNeuroEngine internal constructor(
             }
             val selected = ShortsSeedSelector.select(candidates, maxSeeds, now, excludedChannelIds, recentSeedIds)
             if (selected.isNotEmpty()) {
+                val deepFlow = isLearningPaused()
                 withBrainLock {
+                    syncBookkeeping(deepFlow)
                     val updated = currentUserBrain.recentShortsSeeds.toMutableMap()
                     updated.entries.removeAll { it.value < seedCooldownCutoff }
                     selected.forEach { updated[it] = now }
@@ -1709,7 +1730,9 @@ class FlowNeuroEngine internal constructor(
         novelRatio: Double,
     ) {
         val key = queryStaleKey(query) ?: return
+        val deepFlow = isLearningPaused()
         withBrainLock {
+            syncBookkeeping(deepFlow)
             val now = System.currentTimeMillis()
             val expiryCutoff = now - NeuroScoring.STALE_QUERY_EXPIRY_HOURS * 60 * 60 * 1000L
             val updated = currentUserBrain.staleQueries.toMutableMap()
@@ -1960,8 +1983,10 @@ class FlowNeuroEngine internal constructor(
 
     private suspend fun recordFeedImpressionsLocked(ids: List<String>) {
         val now = System.currentTimeMillis()
+        val deepFlow = isLearningPaused()
 
         withBrainLock {
+            syncBookkeeping(deepFlow)
             // Only count items not already impressed this session (avoids re-penalizing
             // content the user keeps scrolling past within one sitting).
             val fresh = ids.filter { sessionImpressed.add(it) }
@@ -2626,7 +2651,9 @@ class FlowNeuroEngine internal constructor(
 
     suspend fun recordSeenShorts(shortIds: List<String>) {
         if (shortIds.isEmpty()) return
+        val deepFlow = isLearningPaused()
         withBrainLock {
+            syncBookkeeping(deepFlow)
             val now = System.currentTimeMillis()
             val updated = currentUserBrain.seenShortsHistory.toMutableMap()
             // Every sighting refreshes the stamp, so the seven-day window runs from the last time on screen.
@@ -2657,7 +2684,7 @@ class FlowNeuroEngine internal constructor(
     // =================================================
 
     suspend fun exportBrainToStream(output: OutputStream): Boolean {
-        val brainCopy = withBrainLock { currentUserBrain }
+        val brainCopy = withBrainLock { deepFlowBookkeeping.persistable(currentUserBrain) }
         return storage.exportToStream(brainCopy, output)
     }
 
@@ -2671,13 +2698,14 @@ class FlowNeuroEngine internal constructor(
                 withBrainLock {
                     // Imported brains may pre-date the current maintenance, so run it.
                     currentUserBrain = runMaintenanceIfNeeded(finalBrain)
+                    deepFlowBookkeeping.forget()
                     idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
                     idfTotalDocuments = finalBrain.idfTotalDocuments
                     watchHistory.clear()
                     finalBrain.watchHistoryMap.forEach { (id, pct) ->
                         watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
                     }
-                    storage.save(currentUserBrain)
+                    storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                 }
                 Log.i(
                     TAG,

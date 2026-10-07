@@ -15,7 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.DownloadCache
-import io.github.aedev.flow.di.PlayerCache
+import io.github.aedev.flow.di.MusicCache
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.datasource.GoogleVideoRequestPolicy
 import io.github.aedev.flow.player.error.StreamDenialClassifier
@@ -37,7 +37,7 @@ class DownloadUtil
     constructor(
         @ApplicationContext private val context: Context,
         @DownloadCache private val downloadCache: SimpleCache,
-        @PlayerCache private val playerCache: SimpleCache,
+        @MusicCache private val musicCache: SimpleCache,
         private val downloadDao: DownloadDao,
     ) {
         companion object {
@@ -59,7 +59,7 @@ class DownloadUtil
 
         /**
          * DataSource factory for PLAYBACK - reads from both caches.
-         * Chain: downloadCache (read-only) -> playerCache (read-write) -> network
+         * Chain: downloadCache (read-only) -> musicCache (read-write) -> network
          */
         fun getPlayerDataSourceFactory(): androidx.media3.datasource.DataSource.Factory {
             val downloadCacheFactory =
@@ -69,17 +69,17 @@ class DownloadUtil
                     .setCacheWriteDataSinkFactory(null)
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-            val playerCacheFactory =
+            val musicCacheFactory =
                 CacheDataSource
                     .Factory()
-                    .setCache(playerCache)
+                    .setCache(musicCache)
                     .setUpstreamDataSourceFactory(
                         DefaultDataSource.Factory(context, OkHttpDataSource.Factory(okHttpClient)),
                     ).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
             val cachedDataSourceFactory =
                 downloadCacheFactory
-                    .setUpstreamDataSourceFactory(playerCacheFactory)
+                    .setUpstreamDataSourceFactory(musicCacheFactory)
 
             val resolvingFactory =
                 ResolvingDataSource.Factory(cachedDataSourceFactory) { dataSpec ->
@@ -103,12 +103,12 @@ class DownloadUtil
                     }
 
                     try {
-                        if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
-                            Log.d(TAG, "[Player] Serving from playerCache: $mediaId")
+                        if (musicCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                            Log.d(TAG, "[Player] Serving from musicCache: $mediaId")
                             return@Factory dataSpec
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "[Player] playerCache check error for $mediaId", e)
+                        Log.w(TAG, "[Player] musicCache check error for $mediaId", e)
                     }
 
                     songUrlCache[mediaId]?.takeIf(::isReusable)?.let { (url, ua, _) ->
@@ -216,7 +216,7 @@ class DownloadUtil
 
         /**
          * Aggressive cache clear for error recovery.
-         * Clears URL cache, player cache, and triggers force refresh.
+         * Clears URL cache, music cache, and triggers force refresh.
          */
         fun performAggressiveCacheClear(mediaId: String) {
             Log.d(TAG, "Performing aggressive cache clear for $mediaId")
@@ -224,9 +224,9 @@ class DownloadUtil
             songUrlCache.remove(mediaId)
 
             try {
-                playerCache.removeResource(mediaId)
+                musicCache.removeResource(mediaId)
             } catch (e: Exception) {
-                Log.w(TAG, "Error clearing playerCache for $mediaId: ${e.message}")
+                Log.w(TAG, "Error clearing musicCache for $mediaId: ${e.message}")
             }
 
             MusicPlayerUtils.forceRefreshForVideo(mediaId)

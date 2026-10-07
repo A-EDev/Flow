@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.local.PrivacyGate
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.network.ProxyAwareClient
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 
 /**
  * Sends what the music player plays to every signed-in service. Finished listens are queued on the
- * device first and sent by [ScrobbleWorker], so listening offline loses nothing.
+ * device first and sent by [ScrobbleWorker], so listening offline loses nothing. During Deep Flow
+ * nothing is sent unless the user allowed it.
  */
 @Singleton
 class Scrobbler
@@ -24,6 +26,7 @@ class Scrobbler
     constructor(
         @ApplicationContext private val context: Context,
         private val store: ScrobbleStore,
+        private val privacyGate: PrivacyGate,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val http = ProxyAwareClient()
@@ -45,7 +48,7 @@ class Scrobbler
         ) {
             scope.launch {
                 val settings = store.current()
-                if (!settings.nowPlaying || !settings.accepts(track)) return@launch
+                if (!settings.nowPlaying || !settings.accepts(track) || !privacyGate.allowsScrobbling()) return@launch
                 val entry = ScrobbleRules.entryFor(track, durationMs, System.currentTimeMillis()) ?: return@launch
                 settings.accounts.forEach { (service, account) ->
                     val outcome =
@@ -68,7 +71,7 @@ class Scrobbler
             if (!ScrobbleRules.counts(durationMs, playedMs)) return
             scope.launch {
                 val settings = store.current()
-                if (settings.accounts.isEmpty() || !settings.accepts(track)) return@launch
+                if (settings.accounts.isEmpty() || !settings.accepts(track) || !privacyGate.allowsScrobbling()) return@launch
                 val entry = ScrobbleRules.entryFor(track, durationMs, startedAtMs) ?: return@launch
                 settings.accounts.keys.forEach { store.enqueue(it, entry) }
                 ScrobbleWorker.enqueue(context)

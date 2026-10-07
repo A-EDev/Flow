@@ -38,6 +38,7 @@ internal object DestinationIndex {
             SettingsDestination.DISCOVER_CHANNELS -> R.string.discover_channels_summary
             SettingsDestination.APPEARANCE -> R.string.settings_appearance_summary
             SettingsDestination.THEME -> R.string.settings_theme_summary
+            SettingsDestination.FONT -> R.string.settings_font_summary
             SettingsDestination.CUSTOM_THEME -> R.string.settings_custom_theme_summary
             SettingsDestination.CUSTOM_THEME_EDIT -> null
             SettingsDestination.NAVIGATION_BAR -> R.string.settings_navigation_bar_summary

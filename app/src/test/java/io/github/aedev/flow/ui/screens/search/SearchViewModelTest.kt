@@ -8,13 +8,17 @@ import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.runs
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,6 +52,10 @@ class SearchViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // A real engine built on the mocked context reads DataStore on its own scope and fails there,
+        // which surfaces as an uncaught exception in whichever runTest comes next.
+        mockkObject(FlowNeuroEngine.Companion)
+        coEvery { FlowNeuroEngine.onSearchQuery(any(), any()) } just runs
     }
 
     @After

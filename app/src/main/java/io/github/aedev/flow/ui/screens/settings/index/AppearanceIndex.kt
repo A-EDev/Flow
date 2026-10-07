@@ -300,3 +300,24 @@ internal object DateTimeIndex {
 
     val all = listOf(mode, format, listsOverride, watchOverride, descriptionOverride)
 }
+
+internal object FontIndex {
+    private val page = SettingsDestination.FONT
+
+    val font =
+        SettingEntry(
+            key = "font.choice",
+            title = R.string.settings_font_title,
+            keywords = R.string.settings_keywords_font,
+            destination = page,
+        )
+    val customFile =
+        SettingEntry(
+            key = "font.custom_file",
+            title = R.string.font_choose_file,
+            keywords = R.string.settings_keywords_font,
+            destination = page,
+        )
+
+    val all = listOf(font, customFile)
+}

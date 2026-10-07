@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.playback
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
@@ -48,6 +49,7 @@ class PlaybackSettingsViewModel
         val longPressSpeed = preferences.longPressPlaybackSpeed.asState(DEFAULT_LONG_PRESS_SPEED)
 
         val doubleTapSeek = preferences.doubleTapSeekSeconds.asState(DEFAULT_DOUBLE_TAP_SEEK)
+        val seekZone = preferences.doubleTapSeekZone.asState(DoubleTapSeekZone.NORMAL)
         val brightnessGesture = preferences.brightnessSwipeGesturesEnabled.asState(true)
         val rememberBrightness = preferences.rememberBrightnessEnabled.asState(false)
         val volumeGesture = preferences.volumeSwipeGesturesEnabled.asState(true)
@@ -137,6 +139,8 @@ class PlaybackSettingsViewModel
         fun setLongPressSpeed(value: Float) = write { preferences.setLongPressPlaybackSpeed(value) }
 
         fun setDoubleTapSeek(value: Int) = write { preferences.setDoubleTapSeekSeconds(value) }
+
+        fun setSeekZone(zone: DoubleTapSeekZone) = write { preferences.setDoubleTapSeekZone(zone) }
 
         fun setBrightnessGesture(value: Boolean) = write { preferences.setBrightnessSwipeGesturesEnabled(value) }
 

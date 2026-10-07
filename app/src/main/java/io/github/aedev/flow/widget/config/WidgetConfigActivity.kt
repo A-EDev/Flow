@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.aedev.flow.data.local.AppFontPreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.ui.screens.widgets.PlaylistConfigScreen
 import io.github.aedev.flow.ui.screens.widgets.QuickActionsConfigScreen
@@ -16,6 +17,7 @@ import io.github.aedev.flow.ui.startup.FlowTheme
 import io.github.aedev.flow.ui.startup.themeSettings
 import io.github.aedev.flow.widget.playlist.PlaylistWidgetReceiver
 import io.github.aedev.flow.widget.quickactions.QuickActionsWidgetReceiver
+import javax.inject.Inject
 
 /**
  * The launcher opens this when a configurable widget is placed or long-pressed to reconfigure.
@@ -23,6 +25,9 @@ import io.github.aedev.flow.widget.quickactions.QuickActionsWidgetReceiver
  */
 @AndroidEntryPoint
 class WidgetConfigActivity : ComponentActivity() {
+    @Inject
+    lateinit var appFontPreferences: AppFontPreferences
+
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +47,7 @@ class WidgetConfigActivity : ComponentActivity() {
             return
         }
         val glanceId = GlanceAppWidgetManager(this).getGlanceIdBy(appWidgetId)
-        val theme = LocalDataManager(applicationContext).themeSettings()
+        val theme = LocalDataManager(applicationContext).themeSettings(appFontPreferences)
         setContent {
             val settings = theme.collectAsState(initial = null).value ?: return@setContent
             FlowTheme(settings) {

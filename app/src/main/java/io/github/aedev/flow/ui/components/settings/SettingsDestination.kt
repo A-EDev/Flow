@@ -21,6 +21,7 @@ enum class SettingsDestination(
     DISCOVER_CHANNELS("discover_channels", R.string.discover_channels_title, TASTE),
     APPEARANCE("appearance", R.string.appearance_title),
     THEME("theme", R.string.settings_item_theme, APPEARANCE),
+    FONT("font", R.string.settings_font_title, APPEARANCE),
     CUSTOM_THEME("custom_theme", R.string.settings_custom_themes_title, THEME),
     CUSTOM_THEME_EDIT("custom_theme_edit", R.string.settings_custom_theme_editor_title, CUSTOM_THEME),
     NAVIGATION_BAR("navigation_bar", R.string.settings_navigation_bar_title, APPEARANCE),

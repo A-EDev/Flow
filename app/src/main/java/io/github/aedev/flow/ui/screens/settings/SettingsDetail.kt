@@ -7,6 +7,7 @@ import io.github.aedev.flow.ui.screens.equalizer.EqualizerScreen
 import io.github.aedev.flow.ui.screens.settings.about.AboutScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.FontScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.player.PlayerAppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeEditorScreen
@@ -72,6 +73,10 @@ internal fun SettingsDetail(
 
         SettingsDestination.THEME -> {
             ThemeScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.FONT -> {
+            FontScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.CUSTOM_THEME -> {

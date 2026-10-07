@@ -138,6 +138,14 @@ internal object PlaybackIndex {
             section = R.string.player_appearance_gestures_header,
             destination = page,
         )
+    val seekZoneWidth =
+        SettingEntry(
+            key = "playback.seek_zone_width",
+            title = R.string.player_settings_seek_zone_width,
+            keywords = R.string.settings_keywords_gestures,
+            section = R.string.player_appearance_gestures_header,
+            destination = page,
+        )
     val brightnessGesture =
         SettingEntry(
             key = "playback.brightness_gesture",
@@ -464,6 +472,7 @@ internal object PlaybackIndex {
             speedSlider,
             longPressSpeed,
             doubleTapSeek,
+            seekZoneWidth,
             brightnessGesture,
             rememberBrightness,
             volumeGesture,

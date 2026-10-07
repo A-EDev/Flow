@@ -11,6 +11,7 @@ internal object SettingsIndex {
             AppearanceIndex.all +
             ThemeIndex.all +
             CustomThemeIndex.all +
+            FontIndex.all +
             NavigationBarIndex.all +
             DateTimeIndex.all +
             PlayerAppearanceIndex.all +

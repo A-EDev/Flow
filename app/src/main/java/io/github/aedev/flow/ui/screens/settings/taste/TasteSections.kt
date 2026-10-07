@@ -82,6 +82,16 @@ internal fun SettingsListScope.tasteContent(
     data(actions)
 }
 
+/** Deep Flow has learning paused; only shown, since it is switched in Settings and from the Home logo. */
+internal fun SettingsListScope.learningPaused(
+    title: String,
+    status: String,
+) {
+    group(key = "taste.deep_flow") {
+        info(key = "taste.deep_flow.status", title = title, value = status, icon = Icons.Outlined.VisibilityOff)
+    }
+}
+
 /** What the video engine currently remembers, read without changing any of it. */
 private fun SettingsListScope.engineDetails(
     details: EngineDetails,

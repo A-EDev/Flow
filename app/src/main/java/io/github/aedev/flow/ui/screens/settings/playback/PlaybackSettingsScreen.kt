@@ -17,6 +17,7 @@ internal enum class PlaybackDialog {
     AUTOPLAY_COUNTDOWN,
     LONG_PRESS_SPEED,
     DOUBLE_TAP_SEEK,
+    SEEK_ZONE_WIDTH,
     AUDIO_LANGUAGE,
     SUBTITLE_LANGUAGE,
     SHORTS_MODE,
@@ -36,6 +37,7 @@ internal fun PlaybackSettingsScreen(
 ) {
     val loopAll by viewModel.loopAll.collectAsStateWithLifecycle()
     val customSpeeds by viewModel.customSpeeds.collectAsStateWithLifecycle()
+    val doubleTapSeek by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
     val disableShortsPlayer by viewModel.disableShortsPlayer.collectAsStateWithLifecycle()
@@ -48,7 +50,7 @@ internal fun PlaybackSettingsScreen(
     ) {
         playbackSections(
             viewModel = viewModel,
-            state = PlaybackStructure(loopAll, customSpeeds, comments, shortsContent, disableShortsPlayer),
+            state = PlaybackStructure(loopAll, customSpeeds, doubleTapSeek > 0, comments, shortsContent, disableShortsPlayer),
             openDialog = { dialog = it },
             onNavigate = onNavigate,
         )
@@ -63,6 +65,7 @@ internal fun PlaybackSettingsScreen(
 internal data class PlaybackStructure(
     val loopAll: Boolean,
     val customSpeeds: Boolean,
+    val doubleTapSeek: Boolean,
     val comments: Boolean,
     val shortsContent: Boolean,
     val disableShortsPlayer: Boolean,

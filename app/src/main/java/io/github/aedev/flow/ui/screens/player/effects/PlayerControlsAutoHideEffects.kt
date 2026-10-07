@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.effects
 
 import androidx.compose.runtime.*
+import io.github.aedev.flow.ui.components.videoplayer.gesture.DOUBLE_TAP_SEEK_WINDOW_MS
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -57,7 +58,7 @@ internal fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
 
     LaunchedEffect(screenState.seekAccumulation, screenState.showSeekForwardAnimation) {
         if (screenState.showSeekForwardAnimation) {
-            delay(800)
+            delay(DOUBLE_TAP_SEEK_WINDOW_MS)
             screenState.showSeekForwardAnimation = false
             delay(400)
             screenState.seekAccumulation = 10
@@ -66,7 +67,7 @@ internal fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
 
     LaunchedEffect(screenState.seekAccumulation, screenState.showSeekBackAnimation) {
         if (screenState.showSeekBackAnimation) {
-            delay(800)
+            delay(DOUBLE_TAP_SEEK_WINDOW_MS)
             screenState.showSeekBackAnimation = false
             delay(400)
             screenState.seekAccumulation = 10
