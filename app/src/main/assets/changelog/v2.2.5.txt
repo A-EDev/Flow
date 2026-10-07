@@ -85,6 +85,9 @@ NEW FEATURES
 - Subscriptions now show collaborations a channel you follow took part in, even when another channel uploaded them, with every collaborator on the card; turn it off in Content settings (#840)
 - Discover channels in Your taste: search for channels and subscribe as at setup, next to the channels you keep watching without subscribing (#804)
 - Custom theme colours can be translucent again, with an Opacity slider in the colour picker, and such themes still open in Flow Desktop
+- Choose the app font in Appearance: System default, Condensed, Serif or your own .ttf or .otf file, with a live preview (#1222)
+- Cache settings show how much space videos, songs and artwork each take, with a separate limit and a Clear button for each (#1229)
+- Double-tap seek can be turned off, and its side zones can be made narrower so the play and pause area in the middle is bigger (#1178)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -137,6 +140,7 @@ IMPROVEMENTS
 - Shorts default quality can now be set to 1440p or 2160p (#1125)
 - Search history keeps each search's filters and applies them again when the entry is tapped, showing them under the entry (#1174)
 - Text in channel posts, a channel's About tab and the video title in the description can be selected and copied, and a long press copies a channel's name (#951)
+- Deep Flow now keeps a session private: searches and actions stay out of Recap, feed and Shorts memory is not saved, and scrobbling stops unless you allow it. Long-press the FLOW wordmark or the logo to switch it (#1228)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -221,6 +225,8 @@ FIXES AND STABILITY
 - Fix SponsorBlock categories set to Mute playing at full volume, notify-only categories showing nothing, and downloaded videos skipping segments with SponsorBlock turned off
 - Fix a custom theme carried over from an older version losing its colour opacity the first time it was saved
 - Fix a crash when tapping a link on a channel's About tab that has no https:// in front, and show a message instead of crashing when no app can open a link
+- Fix the Unlimited media cache stopping at 500 MB, and a video playback error clearing cached songs
+- Fix music search showing suggestions with Search suggestions turned off, and videos watched with history paused still reaching Recap
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
