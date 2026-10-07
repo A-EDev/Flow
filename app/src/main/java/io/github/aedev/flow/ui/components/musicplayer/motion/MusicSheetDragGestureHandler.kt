@@ -29,6 +29,7 @@ internal class MusicSheetDragGestureHandler(
     private val isExpandedProvider: () -> Boolean,
     private val onDraggingChange: (Boolean) -> Unit,
     private val onSettle: (targetExpanded: Boolean, velocity: Float, dampingRatio: Float, squash: Float) -> Unit,
+    private val onCloseDownward: () -> Unit,
 ) {
     private var initialFractionOnDragStart = 0f
     private var initialYOnDragStart = 0f
@@ -63,6 +64,7 @@ internal class MusicSheetDragGestureHandler(
                 miniHeightPx = miniHeightPxProvider(),
                 initialFractionOnDragStart = initialFractionOnDragStart,
                 initialYOnDragStart = initialYOnDragStart,
+                canPullToClose = initialFractionOnDragStart == 0f,
             )
         dragSnapJob?.cancel()
         dragSnapJob =
@@ -82,6 +84,12 @@ internal class MusicSheetDragGestureHandler(
 
         val verticalVelocity = velocityTracker.calculateVelocity().y
         val currentFraction = expansionFraction.value
+        val startedCollapsed = initialFractionOnDragStart == 0f
+        if (shouldCloseMusicMiniDownward(startedCollapsed, accumulatedDragY, miniHeightPxProvider(), verticalVelocity)) {
+            accumulatedDragY = 0f
+            onCloseDownward()
+            return
+        }
         val minDragThresholdPx = with(densityProvider()) { 5.dp.toPx() }
 
         val targetExpanded =

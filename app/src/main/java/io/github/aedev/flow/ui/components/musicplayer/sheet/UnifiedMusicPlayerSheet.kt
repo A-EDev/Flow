@@ -108,6 +108,7 @@ internal fun UnifiedMusicPlayerSheet(
     val hiddenY = containerHeightPx + miniSpacerPx
 
     val collapsedTargetYState = rememberUpdatedState(collapsedTargetY)
+    val onDismissState = rememberUpdatedState(onDismiss)
     val densityState = rememberUpdatedState<Density>(density)
 
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
@@ -291,6 +292,10 @@ internal fun UnifiedMusicPlayerSheet(
                 onDraggingChange = { isDragging = it },
                 onSettle = { targetExpanded, velocity, dampingRatio, squash ->
                     state.settleFromGesture(targetExpanded, velocity, dampingRatio, squash)
+                },
+                onCloseDownward = {
+                    state.dismiss()
+                    onDismissState.value()
                 },
             )
         }
