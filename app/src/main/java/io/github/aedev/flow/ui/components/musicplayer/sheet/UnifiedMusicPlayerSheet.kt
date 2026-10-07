@@ -167,71 +167,15 @@ internal fun UnifiedMusicPlayerSheet(
         }
     }
 
-    LaunchedEffect(state.anchor, state.settleRequestId) {
-        if (!positionInitialized) return@LaunchedEffect
-        val (velocity, damping, squash) = state.consumePendingSettle()
-        val fromFraction = state.expansionFraction.value
-        when {
-            state.isExpanded -> {
-                launch {
-                    motionController.animateTo(
-                        targetExpanded = true,
-                        collapsedY = collapsedTargetYState.value,
-                        animationSpec = SheetDefaultSpring,
-                        initialVelocity = velocity,
-                    )
-                }
-                if (fromFraction < 0.95f) {
-                    launch {
-                        overshootScaleY.snapTo(1f)
-                        overshootScaleY.animateTo(
-                            targetValue = 1f,
-                            animationSpec =
-                                keyframes {
-                                    durationMillis = 250
-                                    1.0f at 0
-                                    1.045f at 125
-                                    1.0f at 250
-                                },
-                        )
-                    }
-                }
-            }
-
-            state.isCollapsed -> {
-                launch {
-                    motionController.animateTo(
-                        targetExpanded = false,
-                        collapsedY = collapsedTargetYState.value,
-                        animationSpec = musicSheetSettleSpring(damping ?: Spring.DampingRatioNoBouncy),
-                        initialVelocity = velocity,
-                    )
-                }
-                if (fromFraction > 0.05f) {
-                    launch {
-                        overshootScaleY.snapTo(squash ?: 0.96f)
-                        overshootScaleY.animateTo(
-                            targetValue = 1f,
-                            animationSpec =
-                                spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow,
-                                ),
-                        )
-                    }
-                }
-            }
-
-            else -> {
-                motionController.animateTo(
-                    targetExpanded = false,
-                    collapsedY = hiddenY,
-                    animationSpec = tween(220),
-                )
-                state.dismissSettled = true
-            }
-        }
-    }
+    MusicSheetSettleEffect(
+        state = state,
+        motionController = motionController,
+        positionInitialized = positionInitialized,
+        collapsedY = { collapsedTargetYState.value },
+        hiddenY = hiddenY,
+        overshootScaleY = overshootScaleY,
+        defaultSpring = SheetDefaultSpring,
+    )
 
     PredictiveBackHandler(enabled = state.isExpanded && positionInitialized) { progressFlow ->
         try {
