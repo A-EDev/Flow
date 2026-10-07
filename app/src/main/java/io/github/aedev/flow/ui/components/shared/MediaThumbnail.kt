@@ -48,6 +48,7 @@ fun MediaThumbnail(
             modifier
                 .width(width)
                 .aspectRatio(MediaThumbnailDefaults.VideoAspectRatio)
+                .mediaOpenOrigin(videoId, shape)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,

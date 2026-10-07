@@ -121,6 +121,55 @@ class PlayerDraggableStateTest {
         }
 
     @Test
+    fun `an open grows from its origin and lets go of it once expanded`() =
+        runTest {
+            val state = newState(collapsed = true)
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            assertThat(state.openOrigin).isEqualTo(SheetOpenOrigin.BelowScreen)
+            pumpFrames(3)
+            assertThat(state.expandFraction.value).isLessThan(1f)
+            assertThat(state.currentValue).isEqualTo(PlayerSheetValue.Expanded)
+
+            settle(state)
+            assertThat(state.expandFraction.value).isEqualTo(0f)
+            assertThat(state.openOrigin).isNull()
+            state.scope.cancel()
+        }
+
+    @Test
+    fun `an expand while an open is running leaves the open alone`() =
+        runTest {
+            val state = newState(collapsed = true)
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            state.expand()
+            pumpFrames(3)
+
+            assertThat(state.openOrigin).isEqualTo(SheetOpenOrigin.BelowScreen)
+            settle(state)
+            assertThat(state.openOrigin).isNull()
+            state.scope.cancel()
+        }
+
+    @Test
+    fun `a collapse during an open drops the origin`() =
+        runTest {
+            val state = newState(collapsed = true)
+            state.cachedTargetX = 570f
+            state.cachedTargetY = 2200f
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            pumpFrames(3)
+            state.collapse()
+            settle(state)
+
+            assertThat(state.openOrigin).isNull()
+            assertThat(state.expandFraction.value).isEqualTo(1f)
+            state.scope.cancel()
+        }
+
+    @Test
     fun `a collapse dips below its corner and lifts back before it is done`() =
         runTest {
             val state = newState(collapsed = false)

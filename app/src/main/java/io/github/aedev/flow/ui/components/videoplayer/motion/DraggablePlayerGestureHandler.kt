@@ -62,6 +62,10 @@ internal class DraggablePlayerGestureHandler(
 
         val down = awaitFirstDown(requireUnconsumed = false)
         val downConsumedByChild = down.isConsumed
+        if (state.openOrigin != null) {
+            awaitAllPointersUp()
+            return
+        }
 
         val isCollapseDrag = state.expandFraction.value < 0.4f
         val isMiniDrag = state.expandFraction.value > 0.8f
@@ -238,6 +242,13 @@ internal class DraggablePlayerGestureHandler(
         if (!isMiniDrag) return
 
         releaseMini()
+    }
+
+    private suspend fun AwaitPointerEventScope.awaitAllPointersUp() {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Main)
+            if (event.changes.all { !it.pressed }) return
+        }
     }
 
     private fun onMiniTap(

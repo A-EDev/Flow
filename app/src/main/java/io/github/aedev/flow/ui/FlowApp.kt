@@ -55,6 +55,8 @@ import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBotto
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.sheet.miniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
+import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
@@ -196,6 +198,7 @@ fun FlowApp(
         val navBarBottomInset = WindowInsets.navigationBars.getBottom(density)
 
         val playerSheetState = rememberPlayerDraggableState()
+        val mediaOpenOrigins = remember { MediaOpenOrigins() }
         val playerVisibleState = remember { mutableStateOf(false) }
         var playerVisible by playerVisibleState
 
@@ -230,6 +233,7 @@ fun FlowApp(
             playerUiStateResult = playerUiStateResult,
             playerVisibleState = playerVisibleState,
             isInPipMode = isInPipMode,
+            openOrigins = mediaOpenOrigins,
         )
 
         val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
@@ -455,6 +459,7 @@ fun FlowApp(
                             ) {
                                 CompositionLocalProvider(
                                     *mediaNavigationLocals(mediaNavigator),
+                                    LocalMediaOpenOrigins provides mediaOpenOrigins,
                                     LocalMusicMenus provides musicMenus,
                                     LocalEqualizerState provides equalizerViewModel.state,
                                     LocalFlowBottomInsets provides bottomInsets,
@@ -520,6 +525,7 @@ fun FlowApp(
             musicMenus = musicMenus,
             equalizerState = equalizerViewModel.state,
             bottomInsets = bottomInsets,
+            openOrigins = mediaOpenOrigins,
             snackbarHostState = snackbarHostState,
         )
 

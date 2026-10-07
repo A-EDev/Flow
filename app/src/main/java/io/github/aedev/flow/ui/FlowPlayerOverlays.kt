@@ -34,9 +34,12 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicMenus
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSheet
+import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
+import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
@@ -50,6 +53,7 @@ internal fun FlowPlayerSessionEffects(
     playerUiStateResult: State<VideoPlayerUiState>,
     playerVisibleState: MutableState<Boolean>,
     isInPipMode: Boolean,
+    openOrigins: MediaOpenOrigins,
 ) {
     val activity = LocalContext.current as? ComponentActivity
     val playerUiState by playerUiStateResult
@@ -87,8 +91,13 @@ internal fun FlowPlayerSessionEffects(
 
     LaunchedEffect(playerViewModel) {
         playerViewModel.expandPlayerRequest.collect {
+            val videoId = playerUiState.cachedVideo?.id
+            if (!playerVisible && videoId != null) {
+                playerSheetState.open(openOrigins.sheetOriginFor(videoId))
+            } else {
+                playerSheetState.expand()
+            }
             playerVisible = true
-            playerSheetState.expand()
         }
     }
 
@@ -101,6 +110,7 @@ internal fun FlowPlayerSessionEffects(
                 return@LaunchedEffect
             }
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
+            val wasExpanded = playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded
             playerVisible = true
             val isQueueAutoAdvanceInMiniPlayer =
                 keepMiniOnQueueAutoAdvance &&
@@ -113,8 +123,10 @@ internal fun FlowPlayerSessionEffects(
                 isQueueAutoAdvanceInMiniPlayer
             ) {
                 playerSheetState.collapse()
-            } else {
+            } else if (wasExpanded) {
                 playerSheetState.expand()
+            } else {
+                playerSheetState.open(openOrigins.sheetOriginFor(playerUiState.cachedVideo?.id))
             }
 
             keepMiniOnQueueAutoAdvance = false
@@ -168,6 +180,7 @@ internal fun FlowPlayerOverlays(
     musicMenus: MusicMenus,
     equalizerState: StateFlow<EqState>,
     bottomInsets: FlowBottomInsets,
+    openOrigins: MediaOpenOrigins,
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
 ) {
     val density = LocalDensity.current
@@ -177,6 +190,7 @@ internal fun FlowPlayerOverlays(
 
     CompositionLocalProvider(
         *mediaNavigationLocals(mediaNavigator),
+        LocalMediaOpenOrigins provides openOrigins,
         LocalMusicMenus provides musicMenus,
         LocalEqualizerState provides equalizerState,
         LocalFlowBottomInsets provides bottomInsets,
@@ -229,3 +243,10 @@ internal fun FlowPlayerOverlays(
         QuickActionsHost(snackbarHostState)
     }
 }
+
+/** The tapped thumbnail for [videoId] when one is in view, else the player rises from below. */
+private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
+    videoId
+        ?.let(::originFor)
+        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx) }
+        ?: SheetOpenOrigin.BelowScreen

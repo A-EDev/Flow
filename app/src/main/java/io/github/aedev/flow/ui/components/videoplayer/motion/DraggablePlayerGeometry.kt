@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.videoplayer.motion
 
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
+import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 
 private const val WIDE_MODE_SCALE_THRESHOLD = 1.5f
 
@@ -180,3 +181,48 @@ internal fun DraggablePlayerGestureMetrics.update(
     this.onCollapseGesture = onCollapseGesture
     this.onDismiss = onDismiss
 }
+
+/** The rectangle an open starts from, in the layout's px. */
+internal data class OpenOriginRect(
+    val left: Float,
+    val top: Float,
+    val width: Float,
+    val height: Float,
+    val cornerRadius: Float,
+) {
+    val right: Float get() = left + width
+    val bottom: Float get() = top + height
+}
+
+/**
+ * Where [origin] sits in a layout placed at [layoutLeft], [layoutTop] in the window. A video opened
+ * with no card on screen starts as a full-width box just below the bottom edge.
+ */
+internal fun resolveOpenOriginRect(
+    origin: SheetOpenOrigin?,
+    layoutLeft: Float,
+    layoutTop: Float,
+    screenHeight: Float,
+    expandedVideoWidth: Float,
+    expandedVideoHeight: Float,
+): OpenOriginRect? =
+    when (origin) {
+        null -> {
+            null
+        }
+
+        SheetOpenOrigin.BelowScreen -> {
+            OpenOriginRect(0f, screenHeight, expandedVideoWidth, expandedVideoHeight, 0f)
+        }
+
+        is SheetOpenOrigin.Thumbnail -> {
+            val bounds = origin.windowBounds
+            OpenOriginRect(
+                left = bounds.left - layoutLeft,
+                top = bounds.top - layoutTop,
+                width = bounds.width.coerceAtLeast(1f),
+                height = bounds.height.coerceAtLeast(1f),
+                cornerRadius = origin.cornerRadiusPx,
+            )
+        }
+    }

@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_SETTLE_DIP_HOLD_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
@@ -25,6 +26,16 @@ import kotlinx.coroutines.launch
 enum class PlayerSheetValue { Expanded, Collapsed }
 
 enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
+
+/** Where an open grows from: the thumbnail that was tapped, or below the screen when none is in view. */
+sealed interface SheetOpenOrigin {
+    data class Thumbnail(
+        val windowBounds: Rect,
+        val cornerRadiusPx: Float,
+    ) : SheetOpenOrigin
+
+    data object BelowScreen : SheetOpenOrigin
+}
 
 class PlayerDraggableState(
     val offsetX: Animatable<Float, AnimationVector1D>,
@@ -48,6 +59,11 @@ class PlayerDraggableState(
 
     val miniSizeScale = Animatable(1f)
     var isShrinkingToCorner by mutableStateOf(false)
+
+    /** Drawn in place of the mini corner while an open grows out of it; cleared once the open ends. */
+    var openOrigin by mutableStateOf<SheetOpenOrigin?>(null)
+        private set
+    private var openGeneration = 0
 
     var miniVisualScale by mutableFloatStateOf(1f)
 
@@ -96,6 +112,7 @@ class PlayerDraggableState(
     val fraction: Float get() = expandFraction.value
 
     fun expand() {
+        if (openOrigin != null) return
         corner = MiniPlayerCorner.BottomRight
         scope.launch {
             isShrinkingToCorner = false
@@ -110,6 +127,30 @@ class PlayerDraggableState(
                         launch { offsetY.animateTo(0f, anim) }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Opens a video that is not on screen yet, growing the player out of [origin]. The origin is set
+     * before the coroutine runs so an [expand] issued in the same frame leaves this open alone.
+     */
+    fun open(origin: SheetOpenOrigin) {
+        corner = MiniPlayerCorner.BottomRight
+        openOrigin = origin
+        val generation = ++openGeneration
+        scope.launch {
+            isShrinkingToCorner = false
+            try {
+                motion.snapSize(1f)
+                motion.snapOffsets(x = cachedTargetX, y = cachedTargetY)
+                motion.animateDip { settleDip.snapTo(0f) }
+                motion.animateFraction {
+                    expandFraction.snapTo(1f)
+                    withSteadyFrames { expandFraction.animateTo(0f, playerExpandSpringSpec) }
+                }
+            } finally {
+                if (generation == openGeneration) openOrigin = null
             }
         }
     }
