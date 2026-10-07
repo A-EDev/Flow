@@ -88,6 +88,7 @@ NEW FEATURES
 - Choose the app font in Appearance: System default, Condensed, Serif or your own .ttf or .otf file, with a live preview (#1222)
 - Cache settings show how much space videos, songs and artwork each take, with a separate limit and a Clear button for each (#1229)
 - Double-tap seek can be turned off, and its side zones can be made narrower so the play and pause area in the middle is bigger (#1178)
+- Tapping a video opens the player out of the card you tapped, with its thumbnail on screen until the video starts (#1091)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -141,6 +142,8 @@ IMPROVEMENTS
 - Search history keeps each search's filters and applies them again when the entry is tapped, showing them under the entry (#1174)
 - Text in channel posts, a channel's About tab and the video title in the description can be selected and copied, and a long press copies a channel's name (#951)
 - Deep Flow now keeps a session private: searches and actions stay out of Recap, feed and Shorts memory is not saved, and scrobbling stops unless you allow it. Long-press the FLOW wordmark or the logo to switch it (#1228)
+- The video mini player opens on the first tap, goes wide on a long press, closes with a swipe down (#966) and tucks into the side of the screen when flung there
+- The video mini player stays above the keyboard while you type (#1241)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -152,6 +155,7 @@ PERFORMANCE
 - A YouTube playlist is fetched once instead of twice in full on every open, Local media no longer rescans the device on every visit, and download progress updates once a second instead of four times
 - The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 - Feed ranking builds its lookups once per pass instead of once per video, impressions are recorded off the main thread, and scroll and rotation bookkeeping is saved to disk less often
+- Opening and collapsing the video player no longer jumps ahead after a slow frame, collapsing glides into the corner without a bounce, and a swipe's speed carries into the motion
 
 FIXES AND STABILITY
 - Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
