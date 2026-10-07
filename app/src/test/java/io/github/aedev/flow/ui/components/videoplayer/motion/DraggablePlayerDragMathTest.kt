@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.videoplayer.motion
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerTuckSide
 import org.junit.Test
 
 class DraggablePlayerDragMathTest {
@@ -47,9 +48,9 @@ class DraggablePlayerDragMathTest {
 
     @Test
     fun `settle velocity is the fling in fractions of the travel`() {
-        assertThat(portraitFullscreenSettleVelocity(velocityY = 2000f, travelPx = 2000f)).isEqualTo(1f)
-        assertThat(portraitFullscreenSettleVelocity(velocityY = -1000f, travelPx = 2000f)).isEqualTo(-0.5f)
-        assertThat(portraitFullscreenSettleVelocity(velocityY = 800f, travelPx = 0f)).isEqualTo(800f)
+        assertThat(fractionVelocity(velocityY = 2000f, travelPx = 2000f)).isEqualTo(1f)
+        assertThat(fractionVelocity(velocityY = -1000f, travelPx = 2000f)).isEqualTo(-0.5f)
+        assertThat(fractionVelocity(velocityY = 800f, travelPx = 0f)).isEqualTo(800f)
     }
 
     @Test
@@ -128,73 +129,79 @@ class DraggablePlayerDragMathTest {
     }
 
     @Test
-    fun `a fast horizontal fling from the matching half dismisses`() {
-        val right =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = MiniPlayerCorner.BottomRight,
-                currentX = 500f,
-                bounds = bounds,
-                scaledVelocityX = 2500f,
-                scaledVelocityY = 100f,
-                screenWidth = 1080f,
-                miniWidth = 486f,
-                margin = 24f,
-            )
-        assertThat(right).isEqualTo(1080f + 486f)
-
-        val left =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = MiniPlayerCorner.TopLeft,
-                currentX = 100f,
-                bounds = bounds,
-                scaledVelocityX = -2500f,
-                scaledVelocityY = -100f,
-                screenWidth = 1080f,
-                miniWidth = 486f,
-                margin = 24f,
-            )
-        assertThat(left).isEqualTo(-(486f + 24f))
+    fun `inside the bounds the mini player stays under the finger`() {
+        assertThat(rubberBand(500f, 100f, 900f)).isEqualTo(500f)
     }
 
     @Test
-    fun `dismiss needs a horizontal fling from the side it is heading to`() {
-        val wrongHalf =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = MiniPlayerCorner.BottomRight,
-                currentX = 100f,
-                bounds = bounds,
-                scaledVelocityX = 2500f,
-                scaledVelocityY = 0f,
-                screenWidth = 1080f,
-                miniWidth = 486f,
-                margin = 24f,
-            )
-        assertThat(wrongHalf).isNull()
+    fun `past a bound the mini player follows a third of the overshoot`() {
+        assertThat(rubberBand(1100f, 100f, 900f)).isWithin(0.01f).of(970f)
+        assertThat(rubberBand(0f, 100f, 900f)).isWithin(0.01f).of(65f)
+    }
 
-        val tooDiagonal =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = MiniPlayerCorner.BottomRight,
-                currentX = 500f,
-                bounds = bounds,
-                scaledVelocityX = 2500f,
-                scaledVelocityY = 1000f,
-                screenWidth = 1080f,
-                miniWidth = 486f,
-                margin = 24f,
-            )
-        assertThat(tooDiagonal).isNull()
+    @Test
+    fun `pulling well below the lowest corner closes the mini player`() {
+        assertThat(shouldCloseMiniDownward(1500f, 1400f, 200f, startedAtBottom = false, velocityX = 0f, velocityY = 0f)).isTrue()
+        assertThat(shouldCloseMiniDownward(1460f, 1400f, 200f, startedAtBottom = true, velocityX = 0f, velocityY = 0f)).isFalse()
+    }
 
-        val tooSlow =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = MiniPlayerCorner.BottomRight,
-                currentX = 500f,
-                bounds = bounds,
-                scaledVelocityX = 1500f,
-                scaledVelocityY = 0f,
-                screenWidth = 1080f,
-                miniWidth = 486f,
-                margin = 24f,
-            )
-        assertThat(tooSlow).isNull()
+    @Test
+    fun `a downward flick closes it only from a bottom corner`() {
+        assertThat(shouldCloseMiniDownward(1400f, 1400f, 200f, startedAtBottom = true, velocityX = 100f, velocityY = 1500f)).isTrue()
+        assertThat(shouldCloseMiniDownward(600f, 1400f, 200f, startedAtBottom = false, velocityX = 100f, velocityY = 1500f)).isFalse()
+    }
+
+    @Test
+    fun `a diagonal flick moves to a corner instead of closing`() {
+        assertThat(shouldCloseMiniDownward(1400f, 1400f, 200f, startedAtBottom = true, velocityX = 1200f, velocityY = 1500f)).isFalse()
+    }
+
+    private val tuckBounds = MiniPlayerBounds(minX = 24f, maxX = 570f, minY = 272f, maxY = 2200f)
+
+    private fun tuck(
+        fingerX: Float,
+        startedOnLeft: Boolean,
+        velocityX: Float = 0f,
+        velocityY: Float = 0f,
+    ) = resolveMiniPlayerTuck(fingerX, startedOnLeft, tuckBounds, miniWidth = 486f, velocityX = velocityX, velocityY = velocityY)
+
+    @Test
+    fun `dragging half its width past a side tucks the mini player into it`() {
+        assertThat(tuck(fingerX = 830f, startedOnLeft = false))
+            .isEqualTo(MiniPlayerTuckSide.Right)
+        assertThat(tuck(fingerX = -230f, startedOnLeft = true))
+            .isEqualTo(MiniPlayerTuckSide.Left)
+    }
+
+    @Test
+    fun `a push less than half its width past the side snaps back instead of tucking`() {
+        assertThat(tuck(fingerX = 780f, startedOnLeft = false))
+            .isNull()
+    }
+
+    @Test
+    fun `a sideways fling tucks only out through the side it started on`() {
+        assertThat(tuck(fingerX = 620f, startedOnLeft = false, velocityX = 3000f, velocityY = 200f))
+            .isEqualTo(MiniPlayerTuckSide.Right)
+        assertThat(tuck(fingerX = 620f, startedOnLeft = true, velocityX = 3000f, velocityY = 200f))
+            .isNull()
+    }
+
+    @Test
+    fun `an ordinary sideways throw stays on screen`() {
+        assertThat(tuck(fingerX = 620f, startedOnLeft = false, velocityX = 1800f, velocityY = 100f))
+            .isNull()
+    }
+
+    @Test
+    fun `a diagonal fling picks a corner rather than tucking`() {
+        assertThat(tuck(fingerX = 560f, startedOnLeft = false, velocityX = 3000f, velocityY = 1500f))
+            .isNull()
+    }
+
+    @Test
+    fun `a tucked mini player rests wholly past its edge`() {
+        assertThat(tuckedMiniX(MiniPlayerTuckSide.Right, screenWidth = 1080f, miniWidth = 486f)).isEqualTo(1080f)
+        assertThat(tuckedMiniX(MiniPlayerTuckSide.Left, screenWidth = 1080f, miniWidth = 486f)).isEqualTo(-486f)
     }
 }

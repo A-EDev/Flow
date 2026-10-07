@@ -96,7 +96,7 @@ internal class PlayerBodyNestedScrollConnection(
         animate(
             initialValue = frac,
             targetValue = if (shouldEnter) 1f else 0f,
-            initialVelocity = portraitFullscreenSettleVelocity(available.y, portraitFsTravel()),
+            initialVelocity = fractionVelocity(available.y, portraitFsTravel()),
             animationSpec = portraitFullscreenSettleSpec,
         ) { value, _ -> onPortraitFsFractionChange(value) }
         if (shouldEnter) onEnterPortraitFullscreen()?.invoke()

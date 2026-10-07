@@ -477,6 +477,11 @@ class EnhancedPlayerManager private constructor() {
     val queueVideos: StateFlow<List<Video>> = queue.videos
     val currentQueueIndexState: StateFlow<Int> = queue.currentIndexState
 
+    private val _firstFrameVideoId = MutableStateFlow<String?>(null)
+
+    /** The video whose picture is on the surface, set by its first rendered frame. */
+    val firstFrameVideoId: StateFlow<String?> = _firstFrameVideoId.asStateFlow()
+
     // Public surface ready state
     val isSurfaceReady: Boolean
         get() = surfaceManager?.isSurfaceReady ?: false
@@ -888,6 +893,7 @@ class EnhancedPlayerManager private constructor() {
 
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
+                    _firstFrameVideoId.value = currentVideoId
                     surfaceManager?.setSurfaceReady(true)
                     surfaceFirstFrameWatchdog?.cancel()
                     surfaceFirstFrameWatchdog = null
@@ -2879,6 +2885,7 @@ class EnhancedPlayerManager private constructor() {
         val hadManagedSurface = surfaceManager?.getSurfaceHolder() != null
         surfaceManager?.detachVideoSurface(holder, player, appContext)
         if (hadManagedSurface) {
+            _firstFrameVideoId.value = null
             surfaceFirstFrameWatchdog?.cancel()
             surfaceFirstFrameWatchdog = null
             pendingSurfaceFirstFrameStartedAtMs = 0L

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.memory.MemoryCache
 
 object MediaThumbnailDefaults {
     val VideoWidth: Dp = 152.dp
@@ -43,11 +45,15 @@ fun MediaThumbnail(
     placeholder: ImageVector? = null,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
+    val openOrigin = rememberMediaOpenOrigin(videoId, shape)
+    val reportImageKey: ((MemoryCache.Key?) -> Unit)? =
+        remember(openOrigin) { openOrigin?.let { registration -> { key -> registration.imageKey = key } } }
     Box(
         modifier =
             modifier
                 .width(width)
                 .aspectRatio(MediaThumbnailDefaults.VideoAspectRatio)
+                .mediaOpenOrigin(openOrigin)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
@@ -69,6 +75,7 @@ fun MediaThumbnail(
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
+            onImageKey = reportImageKey,
         )
 
         if (durationSeconds != null && durationSeconds > 0) {
