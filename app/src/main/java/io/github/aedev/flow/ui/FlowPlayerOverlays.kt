@@ -40,6 +40,7 @@ import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
+import io.github.aedev.flow.ui.components.videoplayer.VideoBackgroundBar
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
@@ -173,10 +174,11 @@ internal fun FlowPlayerOverlays(
     miniPlayerShowSkipControls: Boolean,
     miniPlayerShowNextPrevControls: Boolean,
     showMusicSheet: Boolean,
+    showVideoBar: Boolean,
     musicPlayerSheetState: MusicPlayerSheetState,
     containerWidth: Dp,
     containerHeight: Dp,
-    musicMiniBounds: MediaMiniBarBounds,
+    miniBarBounds: MediaMiniBarBounds,
     musicMenus: MusicMenus,
     equalizerState: StateFlow<EqState>,
     bottomInsets: FlowBottomInsets,
@@ -223,13 +225,32 @@ internal fun FlowPlayerOverlays(
             },
         )
 
+        val barVideo = playerUiState.cachedVideo
+        if (showVideoBar && barVideo != null) {
+            VideoBackgroundBar(
+                video = barVideo,
+                bounds = miniBarBounds,
+                containerWidthPx = with(density) { containerWidth.toPx() },
+                containerHeightPx = with(density) { containerHeight.toPx() },
+                restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
+                onRestore = {
+                    openOrigins.holdOriginFor(barVideo.id)
+                    playerViewModel.showVideoPlayer()
+                },
+                onClose = {
+                    playerVisible = false
+                    playerViewModel.clearVideo()
+                },
+            )
+        }
+
         val track = currentMusicTrack
         if (showMusicSheet && track != null) {
             UnifiedMusicPlayerSheet(
                 state = musicPlayerSheetState,
                 containerWidth = containerWidth,
                 containerHeight = containerHeight,
-                miniBounds = musicMiniBounds,
+                miniBounds = miniBarBounds,
                 restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
                 track = track,
                 onDismiss = {
