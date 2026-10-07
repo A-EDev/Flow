@@ -292,6 +292,7 @@ class RssSubscriptionService
                         thumbnailUrl = bestVideoThumbnail,
                         uploadDate = timestampSource.uploadDate,
                         timestamp = timestampSource.timestamp,
+                        timestampIsExact = timestampSource.timestampIsExact,
                         description = bestDescription,
                         channelThumbnailUrl = bestChannelThumbnail,
                         isShort = candidates.any { it.isShort },
@@ -422,6 +423,7 @@ class RssSubscriptionService
                 viewCount = viewCount,
                 uploadDate = if (isUpcoming) "" else formatRelativeTime(publishedAtMillis),
                 timestamp = publishedAtMillis,
+                timestampIsExact = true,
                 channelThumbnailUrl = "",
                 description = description.orEmpty(),
                 isShort = false,
@@ -504,6 +506,7 @@ class RssSubscriptionService
                         formatRelativeTime(uploadedAt).let { if (isArchivedLivestream) "Streamed $it" else it }
                     },
                 timestamp = uploadedAt,
+                timestampIsExact = rssUploadTimeMillis != null,
                 channelThumbnailUrl = channelAvatar.ifBlank { channelThumbnailUrl },
                 isShort = isShort || fromShortsTab,
                 isLive = !upcoming && (isLive || fromLiveTab),
