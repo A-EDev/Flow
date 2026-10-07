@@ -238,8 +238,14 @@ fun FlowApp(
         // Shows the player for a song that just started, without a route: a navigation here used to
         // swap the page out and back for a frame, which the mini player now leaves in view.
         val onMusicStarted: () -> Unit =
-            remember(musicPlayerSheetState) {
+            remember(musicPlayerSheetState, playerViewModel) {
                 {
+                    // One player at a time: a video still cached, even one playing in the
+                    // background, would keep the music from showing its own mini player.
+                    if (playerViewModel.uiState.value.cachedVideo != null) {
+                        playerVisible = false
+                        playerViewModel.clearVideo()
+                    }
                     suppressMusicMiniAfterVideo = false
                     if (openMusicPlayerOnPlay.value) {
                         musicPlayerSheetState.expand()
@@ -318,8 +324,16 @@ fun FlowApp(
             }
         }
 
-        val isMusicSheetShown =
-            currentMusicTrack != null && !suppressMusicMiniAfterVideo && playerUiState.cachedVideo == null
+        val activeMiniPlayer =
+            resolveActiveMiniPlayer(
+                hasVideo = playerUiState.cachedVideo != null,
+                videoVisible = playerVisible,
+                videoInBackground = playerUiState.isBackgroundPlaybackMode,
+                onShortsPlayer = isShortsPlayerRoute,
+                hasMusic = currentMusicTrack != null,
+                musicSuppressed = suppressMusicMiniAfterVideo,
+            )
+        val isMusicSheetShown = activeMiniPlayer == ActiveMiniPlayer.Music
         val isPlayerCoveringContent =
             (playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded) ||
                 (isMusicSheetShown && musicPlayerSheetState.isExpanded)
@@ -334,11 +348,7 @@ fun FlowApp(
                 currentDestinationRoute != "onboarding" &&
                 !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
         val isMusicMiniPlayerObscuringContent =
-            currentMusicTrack != null &&
-                !suppressMusicMiniAfterVideo &&
-                playerUiState.cachedVideo == null &&
-                !musicPlayerSheetState.isDismissed &&
-                !musicPlayerSheetState.isExpanded
+            isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded
         val motionScheme = MaterialTheme.motionScheme
         val barFraction = remember { Animatable(if (isBottomNavShown) 1f else 0f) }
         LaunchedEffect(isBottomNavShown) {
