@@ -43,6 +43,7 @@ import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 import io.github.aedev.flow.ui.components.videoplayer.VideoBackgroundBar
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerQueueSheetHost
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.flow.StateFlow
 
@@ -226,6 +227,7 @@ internal fun FlowPlayerOverlays(
         )
 
         val barVideo = playerUiState.cachedVideo
+        var showBarQueue by remember { mutableStateOf(false) }
         if (showVideoBar && barVideo != null) {
             VideoBackgroundBar(
                 video = barVideo,
@@ -241,8 +243,19 @@ internal fun FlowPlayerOverlays(
                     playerVisible = false
                     playerViewModel.clearVideo()
                 },
+                onOpenQueue = { showBarQueue = true },
             )
         }
+        if (showVideoBar && showBarQueue) {
+            // The service layer keeps a background video audio-only when the queue moves on.
+            PlayerQueueSheetHost(
+                asSidePanel = false,
+                expandedHeight = null,
+                onDismiss = { showBarQueue = false },
+                loadStreamsInPlayer = true,
+            )
+        }
+        LaunchedEffect(showVideoBar) { if (!showVideoBar) showBarQueue = false }
 
         val track = currentMusicTrack
         if (showMusicSheet && track != null) {

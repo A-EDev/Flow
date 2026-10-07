@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
@@ -50,6 +56,7 @@ import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
 import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
+import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -75,6 +82,7 @@ internal fun VideoBackgroundBar(
     restingBottomPx: () -> Float,
     onRestore: () -> Unit,
     onClose: () -> Unit,
+    onOpenQueue: () -> Unit,
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -82,6 +90,7 @@ internal fun VideoBackgroundBar(
     val spacerPx = with(density) { MediaMiniBarDefaults.BottomSpacer.toPx() }
     val shape = RoundedCornerShape(MediaMiniBarDefaults.CornerRadius)
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+    val hasQueue = hasVisibleQueue(playerState.queueTitle, playerState.queueSize)
     val motion = MaterialTheme.motionScheme
 
     val appear = remember { Animatable(0f) }
@@ -183,6 +192,15 @@ internal fun VideoBackgroundBar(
                     if (playerState.playWhenReady) manager.pause() else manager.play()
                 },
             )
+            if (hasQueue) {
+                IconButton(onClick = onOpenQueue) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = stringResource(R.string.playlist_queue),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         BackgroundBarProgress(
             isPlaying = playerState.playWhenReady,
