@@ -347,8 +347,9 @@ fun FlowApp(
                 needsOnboarding != null &&
                 currentDestinationRoute != "onboarding" &&
                 !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
-        val isMusicMiniPlayerObscuringContent =
-            isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded
+        val showVideoBar = activeMiniPlayer == ActiveMiniPlayer.VideoBar && !isInPipMode
+        val isMiniBarObscuringContent =
+            (isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded) || showVideoBar
         val motionScheme = MaterialTheme.motionScheme
         val barFraction = remember { Animatable(if (isBottomNavShown) 1f else 0f) }
         LaunchedEffect(isBottomNavShown) {
@@ -361,14 +362,14 @@ fun FlowApp(
         val systemBottomState = rememberUpdatedState(with(density) { navBarBottomInset.toDp() })
         val barHeightState = rememberUpdatedState(if (usesNavigationRail) 0.dp else navigationBarHeight)
         val barShownState = rememberUpdatedState(isBottomNavShown)
-        val miniPlayerFraction = remember { Animatable(if (isMusicMiniPlayerObscuringContent) 1f else 0f) }
-        LaunchedEffect(isMusicMiniPlayerObscuringContent) {
+        val miniPlayerFraction = remember { Animatable(if (isMiniBarObscuringContent) 1f else 0f) }
+        LaunchedEffect(isMiniBarObscuringContent) {
             miniPlayerFraction.animateTo(
-                targetValue = if (isMusicMiniPlayerObscuringContent) 1f else 0f,
+                targetValue = if (isMiniBarObscuringContent) 1f else 0f,
                 animationSpec = motionScheme.defaultSpatialSpec(),
             )
         }
-        val miniPlayerShownState = rememberUpdatedState(isMusicMiniPlayerObscuringContent)
+        val miniPlayerShownState = rememberUpdatedState(isMiniBarObscuringContent)
         val miniPlayerHeightState = rememberUpdatedState(MediaMiniBarDefaults.Height + MediaMiniBarDefaults.BottomSpacer)
         val miniPlayerBounds =
             with(density) {
@@ -524,10 +525,11 @@ fun FlowApp(
             miniPlayerShowSkipControls = miniPlayerShowSkipControls,
             miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
             showMusicSheet = isMusicSheetShown,
+            showVideoBar = showVideoBar,
             musicPlayerSheetState = musicPlayerSheetState,
             containerWidth = maxWidth,
             containerHeight = with(density) { screenHeightPx.toDp() },
-            musicMiniBounds = miniPlayerBounds,
+            miniBarBounds = miniPlayerBounds,
             musicMenus = musicMenus,
             equalizerState = equalizerViewModel.state,
             bottomInsets = bottomInsets,

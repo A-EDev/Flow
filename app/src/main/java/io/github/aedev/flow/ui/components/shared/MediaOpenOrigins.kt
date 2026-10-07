@@ -44,8 +44,24 @@ class MediaOpenOrigins {
     }
 
     private val entries = HashMap<String, MutableList<Entry>>()
+    private var held: Pair<String, MediaOpenOrigin>? = null
+
+    /**
+     * Keeps where [videoId]'s thumbnail is now for the next [originFor], for a surface that leaves
+     * the screen in the same moment it opens the player, as the background bar does.
+     */
+    fun holdOriginFor(videoId: String) {
+        held = visibleOriginFor(videoId)?.let { videoId to it }
+    }
 
     fun originFor(videoId: String): MediaOpenOrigin? {
+        val kept = held
+        held = null
+        if (kept != null && kept.first == videoId) return kept.second
+        return visibleOriginFor(videoId)
+    }
+
+    private fun visibleOriginFor(videoId: String): MediaOpenOrigin? {
         var best: Entry? = null
         var bestVisible = MIN_VISIBLE_FRACTION
         entries[videoId]?.forEach { entry ->
