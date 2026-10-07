@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,12 +49,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarSwipeReveal
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.MiniBarReveal
+import io.github.aedev.flow.ui.components.shared.icon
+import io.github.aedev.flow.ui.components.shared.isDestructive
+import io.github.aedev.flow.ui.components.shared.labelRes
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
 import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
@@ -83,6 +90,9 @@ internal fun VideoBackgroundBar(
     onRestore: () -> Unit,
     onClose: () -> Unit,
     onOpenQueue: () -> Unit,
+    swipeLeftAction: MiniBarSwipeAction,
+    swipeRightAction: MiniBarSwipeAction,
+    swipeActions: VideoBarSwipeActions,
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -104,7 +114,7 @@ internal fun VideoBackgroundBar(
             hapticFeedback = LocalHapticFeedback.current,
             offsetAnimatable = swipeX,
             screenWidthPx = containerWidthPx,
-            onDismiss = onClose,
+            onCommit = { towardsStart -> swipeActions.commit(if (towardsStart) swipeLeftAction else swipeRightAction) },
         )
 
     Box(
@@ -115,13 +125,9 @@ internal fun VideoBackgroundBar(
                     IntOffset(bounds.start.roundToInt(), restingY.roundToInt())
                 }.size(with(density) { bounds.width.toDp() }, MediaMiniBarDefaults.Height)
                 .graphicsLayer {
-                    translationX = swipeX.value
                     translationY = pullY.value + (1f - appear.value) * heightPx
                     alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f))
-                }.shadow(6.dp, shape, clip = false)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
-                .clip(shape)
-                .mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
+                }.mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
                     detectVerticalDragGestures(
@@ -157,56 +163,113 @@ internal fun VideoBackgroundBar(
                     )
                 }.clickable(onClick = onRestore),
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        MediaMiniBarSwipeReveal(
+            offset = { swipeX.value },
+            towardsStart = videoBarReveal(swipeLeftAction, swipeActions),
+            towardsEnd = videoBarReveal(swipeRightAction, swipeActions),
+            shape = shape,
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { translationX = swipeX.value }
+                    .shadow(6.dp, shape, clip = false)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+                    .clip(shape),
         ) {
-            MediaThumbnail(
-                videoId = video.id,
-                thumbnailUrl = video.thumbnailUrl,
-                width = ThumbnailWidth,
-                shape = MaterialTheme.shapes.medium,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = video.channelName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            MediaPlayPauseButton(
+            BackgroundBarContent(
+                video = video,
                 isPlaying = playerState.playWhenReady,
                 isBuffering = playerState.isBuffering,
-                onClick = {
-                    val manager = EnhancedPlayerManager.getInstance()
-                    if (playerState.playWhenReady) manager.pause() else manager.play()
-                },
+                hasQueue = hasQueue,
+                onOpenQueue = onOpenQueue,
             )
-            if (hasQueue) {
-                IconButton(onClick = onOpenQueue) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                        contentDescription = stringResource(R.string.playlist_queue),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.BackgroundBarContent(
+    video: Video,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    hasQueue: Boolean,
+    onOpenQueue: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        MediaThumbnail(
+            videoId = video.id,
+            thumbnailUrl = video.thumbnailUrl,
+            width = ThumbnailWidth,
+            shape = MaterialTheme.shapes.medium,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = video.channelName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        MediaPlayPauseButton(
+            isPlaying = isPlaying,
+            isBuffering = isBuffering,
+            onClick = {
+                val manager = EnhancedPlayerManager.getInstance()
+                if (isPlaying) manager.pause() else manager.play()
+            },
+        )
+        if (hasQueue) {
+            IconButton(onClick = onOpenQueue) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                    contentDescription = stringResource(R.string.playlist_queue),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
-        BackgroundBarProgress(
-            isPlaying = playerState.playWhenReady,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp),
-        )
     }
+    BackgroundBarProgress(
+        isPlaying = isPlaying,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp),
+    )
+}
+
+/** What a swipe towards one side uncovers: the video it moves to, or the action. */
+@Composable
+private fun videoBarReveal(
+    action: MiniBarSwipeAction,
+    actions: VideoBarSwipeActions,
+): MiniBarReveal {
+    val peek = actions.peek(action)
+    val available = actions.isAvailable(action)
+    val label =
+        when {
+            peek != null -> peek.title
+            !available && action == MiniBarSwipeAction.NEXT -> stringResource(R.string.mini_bar_nothing_next)
+            !available && action == MiniBarSwipeAction.PREVIOUS -> stringResource(R.string.mini_bar_nothing_previous)
+            else -> stringResource(action.labelRes)
+        }
+    return MiniBarReveal(
+        icon = action.icon,
+        label = label,
+        destructive = action.isDestructive,
+        enabled = available,
+        peekImageUrl = peek?.thumbnailUrl,
+    )
 }
 
 /**

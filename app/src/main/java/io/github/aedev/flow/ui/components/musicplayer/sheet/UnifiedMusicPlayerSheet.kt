@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -91,6 +92,8 @@ internal fun UnifiedMusicPlayerSheet(
     miniBounds: MediaMiniBarBounds,
     restingBottomPx: () -> Float,
     track: MusicTrack,
+    swipeLeftAction: MiniBarSwipeAction,
+    swipeRightAction: MiniBarSwipeAction,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -250,9 +253,11 @@ internal fun UnifiedMusicPlayerSheet(
             hapticFeedback = hapticFeedback,
             offsetAnimatable = dismissOffset,
             screenWidthPx = containerWidthPx,
-            onDismiss = {
-                state.dismiss()
-                onDismiss()
+            onCommit = { towardsStart ->
+                musicBarSwipeCommit(if (towardsStart) swipeLeftAction else swipeRightAction) {
+                    state.dismiss()
+                    onDismiss()
+                }
             },
         )
 
@@ -290,6 +295,27 @@ internal fun UnifiedMusicPlayerSheet(
                         }
                     },
         ) {
+            if (state.isCollapsed) {
+                MusicBarSwipeReveal(
+                    offset = { dismissOffset.value },
+                    swipeLeftAction = swipeLeftAction,
+                    swipeRightAction = swipeRightAction,
+                    shape = cardShape,
+                    modifier =
+                        Modifier.align(Alignment.TopStart).layout { measurable, constraints ->
+                            val height = geometry.cardHeightPx().roundToInt().coerceAtLeast(0)
+                            val width = geometry.cardWidthPx().roundToInt().coerceAtLeast(0)
+                            val placeable =
+                                measurable.measure(
+                                    constraints.copy(minWidth = width, maxWidth = width, minHeight = height, maxHeight = height),
+                                )
+                            layout(
+                                constraints.maxWidth,
+                                height,
+                            ) { placeable.placeRelative(geometry.cardStartPx().roundToInt().coerceAtLeast(0), 0) }
+                        },
+                )
+            }
             Box(
                 modifier =
                     Modifier
