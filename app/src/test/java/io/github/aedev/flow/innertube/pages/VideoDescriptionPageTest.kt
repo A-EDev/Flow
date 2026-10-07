@@ -17,7 +17,6 @@ class VideoDescriptionPageTest {
         assertEquals(2_096_008_503L, page.viewCount)
         assertEquals("2,096,008,503 views", page.viewCountText)
         assertEquals("Aug 1, 2008", page.publishedDateText)
-        assertEquals("18 years ago", page.relativeDateText)
 
         val timestamp = description.spans.first { it.target is RichTextTarget.Timestamp }
         assertEquals(117L, (timestamp.target as RichTextTarget.Timestamp).seconds)

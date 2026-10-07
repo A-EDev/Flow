@@ -36,4 +36,14 @@ class ChannelTabUploadsMergeTest {
         assertThat(updates.single().viewCount).isEqualTo(77)
         assertThat(updates.single().timestamp).isEqualTo(1_234L)
     }
+
+    @Test
+    fun `a stored RSS row stays exact when a channel tab fills it in`() {
+        val stored = listOf(video("known", duration = 0, timestamp = 1_234L).copy(timestampIsExact = true))
+        val tab = listOf(video("known", duration = 540, timestamp = 9_000L))
+
+        val (_, updates) = splitChannelTabUploads(tab, stored)
+
+        assertThat(updates.single().timestampIsExact).isTrue()
+    }
 }

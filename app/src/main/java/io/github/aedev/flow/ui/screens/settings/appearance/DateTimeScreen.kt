@@ -54,10 +54,12 @@ internal fun DateTimeScreen(
     val settings = DateDisplaySettings(mode, formatStyle, listsMode, watchMode, descriptionMode)
     val previews =
         listOf(
-            stringResource(R.string.datetime_context_lists) to settings.format(sampleRelative, DateContext.LISTS, sampleTimestamp),
-            stringResource(R.string.datetime_context_watch) to settings.format(sampleRelative, DateContext.WATCH, sampleTimestamp),
+            stringResource(R.string.datetime_context_lists) to
+                settings.format(sampleRelative, DateContext.LISTS, sampleTimestamp, timestampIsExact = true),
+            stringResource(R.string.datetime_context_watch) to
+                settings.format(sampleRelative, DateContext.WATCH, sampleTimestamp, timestampIsExact = true),
             stringResource(R.string.datetime_context_description) to
-                settings.format(sampleRelative, DateContext.DESCRIPTION, sampleTimestamp),
+                settings.format(sampleRelative, DateContext.DESCRIPTION, sampleTimestamp, timestampIsExact = true),
         )
     val modeLabels =
         listOf(

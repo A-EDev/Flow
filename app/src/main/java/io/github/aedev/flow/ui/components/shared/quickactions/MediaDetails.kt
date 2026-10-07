@@ -51,6 +51,7 @@ data class MediaDetailsSubject(
     val likeCount: Long? = null,
     val uploadDate: String? = null,
     val timestamp: Long? = null,
+    val timestampIsExact: Boolean = false,
     val durationSeconds: Int? = null,
 )
 
@@ -162,6 +163,7 @@ private fun mediaDetailLines(
                         it,
                         DateContext.WATCH,
                         subject.timestamp ?: 0L,
+                        subject.timestampIsExact,
                     )
                 }
         )

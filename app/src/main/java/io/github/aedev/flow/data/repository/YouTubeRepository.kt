@@ -1123,10 +1123,11 @@ internal fun mergeWatchMetadata(
     response: WatchMetadataResponse,
 ): Video? {
     val uploadDate = response.uploadDate()?.takeIf { it.isNotBlank() } ?: return null
-    // The relative form first: the absolute one is a date with no time, so on its own it places
-    // every upload at midnight and reads back as however long the day has been running.
+    // A publish time the card already knew exactly wins. Then the relative form: the absolute one is
+    // a date with no time, so on its own it places every upload at midnight.
     val timestamp =
-        response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
+        video.timestamp.takeIf { video.timestampIsExact }
+            ?: response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
             ?: parseToTimestamp(uploadDate)
             ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }

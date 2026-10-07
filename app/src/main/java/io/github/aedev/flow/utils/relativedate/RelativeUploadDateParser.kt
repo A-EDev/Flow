@@ -19,12 +19,19 @@ object RelativeUploadDateParser {
         textualDate: String?,
         hl: String?,
         now: Long = System.currentTimeMillis(),
-    ): Long? {
+    ): Long? = read(textualDate, hl, now)?.timestamp
+
+    /** [parse], keeping the unit the age was given in: "1 year ago" places the upload within a year, not on a day. */
+    internal fun read(
+        textualDate: String?,
+        hl: String?,
+        now: Long = System.currentTimeMillis(),
+    ): RelativeUploadAge? {
         val text = normalize(textualDate ?: return null)
         if (text.isEmpty()) return null
         val vocabulary = vocabularyFor(hl)
         if (vocabulary != null && vocabulary !== english) {
-            match(text, vocabulary)?.let { (unit, amount) -> return now - unit.millis * amount }
+            match(text, vocabulary)?.let { (unit, amount) -> return RelativeUploadAge(now - unit.millis * amount, unit) }
         }
         return parseEnglish(text, now)
     }
@@ -81,14 +88,15 @@ object RelativeUploadDateParser {
     private fun parseEnglish(
         text: String,
         now: Long,
-    ): Long? {
-        if (containsWord(text, "just now") || containsWord(text, "today")) return now
-        if (containsWord(text, "yesterday")) return now - RelativeDateUnit.DAY.millis
-        match(text, english)?.let { (unit, amount) -> return now - unit.millis * amount }
+    ): RelativeUploadAge? {
+        if (containsWord(text, "just now")) return RelativeUploadAge(now, RelativeDateUnit.SECOND)
+        if (containsWord(text, "today")) return RelativeUploadAge(now, RelativeDateUnit.DAY)
+        if (containsWord(text, "yesterday")) return RelativeUploadAge(now - RelativeDateUnit.DAY.millis, RelativeDateUnit.DAY)
+        match(text, english)?.let { (unit, amount) -> return RelativeUploadAge(now - unit.millis * amount, unit) }
         val compact = compactEnglish.matchEntire(text) ?: return null
         val amount = compact.groupValues[1].toLongOrNull() ?: return null
         val unit = compactUnits.getValue(compact.groupValues[2])
-        return now - unit.millis * amount
+        return RelativeUploadAge(now - unit.millis * amount, unit)
     }
 
     private fun match(
@@ -168,4 +176,12 @@ object RelativeUploadDateParser {
 
     private const val ZERO_WIDTH = "\u200B\u200C\u200D\uFEFF"
     private const val MAX_AMOUNT = 100_000L
+}
+
+internal class RelativeUploadAge(
+    val timestamp: Long,
+    val unit: RelativeDateUnit,
+) {
+    /** Under a day the calendar date follows from the age; "3 days ago" could be either of two dates. */
+    val placesCalendarDay: Boolean get() = unit.millis < RelativeDateUnit.DAY.millis
 }

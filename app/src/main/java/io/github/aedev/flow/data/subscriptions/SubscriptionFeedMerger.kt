@@ -83,6 +83,7 @@ object SubscriptionFeedMerger {
             thumbnailUrl = bestVideoThumbnail,
             uploadDate = if (hasStableMetadata) metadataSource.uploadDate else "",
             timestamp = metadataTimestamp ?: 0L,
+            timestampIsExact = metadataSource.timestampIsExact && metadataTimestamp == metadataSource.timestamp,
             duration = candidates.maxOf { it.duration },
             description = bestDescription,
             channelThumbnailUrl = bestChannelThumbnail,

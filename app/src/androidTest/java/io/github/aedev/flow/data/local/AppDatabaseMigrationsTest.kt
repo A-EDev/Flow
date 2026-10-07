@@ -94,4 +94,24 @@ class AppDatabaseMigrationsTest {
                 }
             }
         }
+
+    @Test
+    fun migrate32To33KeepsSubscriptionRowsAsNotExact() =
+        runTest {
+            helper.createDatabase(32).use { connection ->
+                connection.execSQL(
+                    "INSERT INTO subscription_feed_cache (videoId, title, channelName, channelId, thumbnailUrl, duration, " +
+                        "viewCount, uploadDate, timestamp, channelThumbnailUrl, isShort, isLive, isUpcoming, cachedAt) " +
+                        "VALUES ('v1', 'Title', 'Channel', 'c1', '', 0, 0, '1 year ago', 1, '', 0, 0, 0, 1)",
+                )
+            }
+
+            helper.runMigrationsAndValidate(33).use { connection ->
+                connection.prepare("SELECT uploadDate, timestampIsExact FROM subscription_feed_cache WHERE videoId = 'v1'").use {
+                    assertTrue(it.step())
+                    assertEquals("1 year ago", it.getText(0))
+                    assertEquals(0L, it.getLong(1))
+                }
+            }
+        }
 }

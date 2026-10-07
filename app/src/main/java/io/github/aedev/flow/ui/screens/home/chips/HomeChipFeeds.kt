@@ -296,6 +296,7 @@ class HomeChipFeeds
                 viewCount = known.viewCount.takeIf { it > 0 } ?: viewCount,
                 uploadDate = known.uploadDate.ifBlank { uploadDate },
                 timestamp = if (known.uploadDate.isNotBlank()) known.timestamp else timestamp,
+                timestampIsExact = if (known.uploadDate.isNotBlank()) known.timestampIsExact else timestampIsExact,
             )
 
         private suspend fun search(

@@ -27,6 +27,8 @@ data class SubscriptionFeedEntity(
     @ColumnInfo(defaultValue = "") val feedChannelId: String = "",
     /** The collaborators as JSON, so a cached row keeps its avatar stack. */
     @ColumnInfo(defaultValue = "") val collaboratorsJson: String = "",
+    /** [timestamp] is a real publish time (RSS), not one read back from "3 weeks ago". */
+    @ColumnInfo(defaultValue = "0") val timestampIsExact: Boolean = false,
 )
 
 @Entity(tableName = "music_home_cache")
