@@ -40,7 +40,6 @@ data class VideoDescriptionPage(
     val viewCountText: String? = null,
     val viewCount: Long? = null,
     val publishedDateText: String? = null,
-    val relativeDateText: String? = null,
     val factoids: List<VideoDescriptionFactoid> = emptyList(),
     val channel: VideoDescriptionChannel? = null,
 ) {
@@ -89,7 +88,6 @@ internal fun JsonElement.toVideoDescriptionPage(ownVideoId: String?): VideoDescr
                     ?.let(::parseYouTubeViewCount)
                     ?.takeIf { it > 0L },
         publishedDateText = primary?.get("dateText").youtubeText(),
-        relativeDateText = primary?.get("relativeDateText").youtubeText(),
         factoids = structuredDescriptionItems().flatMap { it.toFactoids() },
         channel = structuredDescriptionItems().firstNotNullOfOrNull { it.toChannel() },
     )
