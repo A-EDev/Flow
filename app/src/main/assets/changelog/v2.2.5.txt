@@ -227,6 +227,9 @@ FIXES AND STABILITY
 - Fix a crash when tapping a link on a channel's About tab that has no https:// in front, and show a message instead of crashing when no app can open a link
 - Fix the Unlimited media cache stopping at 500 MB, and a video playback error clearing cached songs
 - Fix music search showing suggestions with Search suggestions turned off, and videos watched with history paused still reaching Recap
+- Fix videos behind a content warning showing no suggested videos and not autoplaying the next one (#1244)
+- Fix the Exact and Both date styles printing a made-up date on cards for older videos: a calendar date now shows only where Flow knows it, as in Subscriptions and on the watch page, and the Uploaded detail in the description follows the date style (#1242)
+- Fix Subscriptions sometimes placing an upload from days ago at the top of the feed, because ages like "3 days ago" were read as seconds
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
