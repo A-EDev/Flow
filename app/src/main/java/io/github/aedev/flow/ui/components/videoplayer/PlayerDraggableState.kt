@@ -17,6 +17,7 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerExpandSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -99,13 +100,15 @@ class PlayerDraggableState(
         scope.launch {
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
-            launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
-            launch { motion.animateDip { settleDip.animateTo(0f, anim) } }
-            launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
-            launch {
-                motion.moveOffsets {
-                    launch { offsetX.animateTo(0f, anim) }
-                    launch { offsetY.animateTo(0f, anim) }
+            withSteadyFrames {
+                launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
+                launch { motion.animateDip { settleDip.animateTo(0f, anim) } }
+                launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
+                launch {
+                    motion.moveOffsets {
+                        launch { offsetX.animateTo(0f, anim) }
+                        launch { offsetY.animateTo(0f, anim) }
+                    }
                 }
             }
         }
@@ -173,22 +176,26 @@ class PlayerDraggableState(
             if (cachedTargetX == 0f && cachedTargetY == 0f) {
                 launch { motion.snapFraction(1f) }
             } else {
-                launch { motion.animateFraction { expandFraction.animateTo(1f, anim) } }
                 launch {
-                    motion.moveOffsets {
-                        launch { offsetX.animateTo(cachedTargetX, anim) }
-                        launch { offsetY.animateTo(cachedTargetY, anim) }
-                    }
-                }
-                launch {
-                    motion.animateDip {
-                        // The lift starts on a fixed beat after the landing rather than when the
-                        // spring reports done: its sub-pixel tail would hold the mini down for
-                        // most of a second.
-                        val landing = launch { settleDip.animateTo(settleDipPx, anim) }
-                        delay(MINI_SETTLE_DIP_HOLD_MS)
-                        landing.cancel()
-                        settleDip.animateTo(0f, miniSnapSpringSpec)
+                    withSteadyFrames {
+                        launch { motion.animateFraction { expandFraction.animateTo(1f, anim) } }
+                        launch {
+                            motion.moveOffsets {
+                                launch { offsetX.animateTo(cachedTargetX, anim) }
+                                launch { offsetY.animateTo(cachedTargetY, anim) }
+                            }
+                        }
+                        launch {
+                            motion.animateDip {
+                                // The lift starts on a fixed beat after the landing rather than when the
+                                // spring reports done: its sub-pixel tail would hold the mini down for
+                                // most of a second.
+                                val landing = launch { settleDip.animateTo(settleDipPx, anim) }
+                                delay(MINI_SETTLE_DIP_HOLD_MS)
+                                landing.cancel()
+                                settleDip.animateTo(0f, miniSnapSpringSpec)
+                            }
+                        }
                     }
                 }
             }

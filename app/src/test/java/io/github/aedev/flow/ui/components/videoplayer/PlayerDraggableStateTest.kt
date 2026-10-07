@@ -102,6 +102,25 @@ class PlayerDraggableStateTest {
         }
 
     @Test
+    fun `a long frame pauses a collapse instead of skipping it ahead`() =
+        runTest {
+            val state = newState(collapsed = false)
+            state.cachedTargetX = 570f
+            state.cachedTargetY = 2200f
+
+            state.collapse()
+            pumpFrames(2)
+            val beforeLongFrame = state.expandFraction.value
+            frameNanos += 200_000_000L
+            clock.sendFrame(frameNanos)
+            runCurrent()
+
+            assertThat(state.expandFraction.value).isGreaterThan(beforeLongFrame)
+            assertThat(state.expandFraction.value).isLessThan(0.6f)
+            state.scope.cancel()
+        }
+
+    @Test
     fun `a collapse dips below its corner and lifts back before it is done`() =
         runTest {
             val state = newState(collapsed = false)
