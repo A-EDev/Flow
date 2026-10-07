@@ -38,6 +38,7 @@ private val HandleHeight = 64.dp
 @Composable
 internal fun BoxScope.MiniPlayerTuckHandle(
     state: PlayerDraggableState,
+    miniY: () -> Float,
     miniHeight: Float,
     onUntuck: () -> Unit,
 ) {
@@ -52,7 +53,7 @@ internal fun BoxScope.MiniPlayerTuckHandle(
                 .align(if (side == MiniPlayerTuckSide.Left) Alignment.TopStart else Alignment.TopEnd)
                 .offset {
                     val handleHeight = HandleHeight.toPx()
-                    IntOffset(0, (state.offsetY.value + (miniHeight - handleHeight) / 2f).roundToInt())
+                    IntOffset(0, (miniY() + (miniHeight - handleHeight) / 2f).roundToInt())
                 },
     ) {
         val onLeft = side == MiniPlayerTuckSide.Left

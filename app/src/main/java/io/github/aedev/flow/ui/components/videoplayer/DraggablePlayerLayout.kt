@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -46,6 +47,7 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.PlayerBodyNestedScr
 import io.github.aedev.flow.ui.components.videoplayer.motion.RoundRectClipShape
 import io.github.aedev.flow.ui.components.videoplayer.motion.computeDraggablePlayerGeometry
 import io.github.aedev.flow.ui.components.videoplayer.motion.draggablePlayerGestures
+import io.github.aedev.flow.ui.components.videoplayer.motion.keyboardSafeMiniY
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGesture
 import io.github.aedev.flow.ui.components.videoplayer.motion.morphCornerRadiusPx
@@ -218,6 +220,22 @@ fun DraggablePlayerLayout(
                     }
                 }
             val miniCornerRadiusPx = with(density) { MINI_PLAYER_CORNER_RADIUS_DP.dp.toPx() }
+            val imeInsets = WindowInsets.ime
+            val miniMarginPx = with(density) { MiniPlayerMargin.toPx() }
+            // The keyboard is read in the layout and draw phases only, so it moving does not recompose.
+            val miniRestingY =
+                remember(geometry.miniHeight, geometry.minY, screenHeight, miniMarginPx, density) {
+                    {
+                        keyboardSafeMiniY(
+                            offsetY = state.offsetY.value,
+                            miniHeight = geometry.miniHeight,
+                            screenHeight = screenHeight,
+                            imeBottom = imeInsets.getBottom(density).toFloat(),
+                            margin = miniMarginPx,
+                            minY = geometry.minY,
+                        )
+                    }
+                }
             val cornerRadiusProvider =
                 remember(openRectProvider, expandedVideoWidth, miniCornerRadiusPx, visualMiniScale) {
                     {
@@ -333,7 +351,12 @@ fun DraggablePlayerLayout(
                 remember(state, gestureMetrics) { DraggablePlayerGestureHandler(state, gestureMetrics) }
             val pinchHandler =
                 remember(state, gestureMetrics) { MiniPlayerPinchGestureHandler(state, gestureMetrics) }
-            MiniPlayerTuckHandle(state = state, miniHeight = geometry.miniHeight, onUntuck = gestureHandler::untuck)
+            MiniPlayerTuckHandle(
+                state = state,
+                miniY = miniRestingY,
+                miniHeight = geometry.miniHeight,
+                onUntuck = gestureHandler::untuck,
+            )
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(
@@ -389,7 +412,7 @@ fun DraggablePlayerLayout(
                                     translationY =
                                         lerpClamped(
                                             expandedTopY,
-                                            origin?.top ?: state.offsetY.value,
+                                            origin?.top ?: miniRestingY(),
                                             fraction,
                                         ) + windowH * (1f - drag) / 2f
                                     shadowElevation =

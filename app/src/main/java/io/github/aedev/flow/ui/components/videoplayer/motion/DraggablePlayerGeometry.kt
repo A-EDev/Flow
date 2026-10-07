@@ -228,3 +228,20 @@ internal fun resolveOpenOriginRect(
             )
         }
     }
+
+/**
+ * The y a mini player resting at [offsetY] is drawn at so its bottom edge stays above a keyboard
+ * [imeBottom] px tall: unchanged when the keyboard is closed or nowhere near it, never above [minY].
+ */
+internal fun keyboardSafeMiniY(
+    offsetY: Float,
+    miniHeight: Float,
+    screenHeight: Float,
+    imeBottom: Float,
+    margin: Float,
+    minY: Float,
+): Float {
+    if (imeBottom <= 0f) return offsetY
+    val highestBottom = screenHeight - imeBottom - margin
+    return offsetY.coerceAtMost((highestBottom - miniHeight).coerceAtLeast(minY))
+}
