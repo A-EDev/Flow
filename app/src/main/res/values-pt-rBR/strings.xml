@@ -3307,4 +3307,23 @@
     <string name="settings_pause_music_muted_title">Pausar música quando estiver mudo</string>
     <string name="settings_pause_music_muted_summary">Voltar a tocar quando o volume voltar</string>
     <string name="music_watch_video_desc">Abrir o vídeo da música no reprodutor de vídeo</string>
+    <string name="lyrics_source_local_file">Arquivo de letras</string>
+    <string name="lyrics_source_embedded">Letras embutidas</string>
+    <string name="channel_name_copied">Nome do canal copiado para a área de transferência</string>
+    <string name="copy_channel_name">Copiar nome do canal</string>
+    <string name="channel_name_clip_label">Nome do canal</string>
+    <string name="note_insert_time">Inserir %1$s</string>
+    <string name="note_at_time">Nota em %1$s</string>
+    <string name="notes_title">Notas</string>
+    <string name="notes_filter_all">Todos</string>
+    <string name="notes_filter_videos">Vídeos</string>
+    <string name="notes_filter_channels">Canais</string>
+    <string name="notes_sort_recent">Recentemente editado</string>
+    <string name="notes_sort_oldest">Mais antigos primeiro</string>
+    <string name="notes_sort_title">Título</string>
+    <string name="notes_sort_custom">Ordem personalizada</string>
+    <string name="notes_sort">Classificar notas por</string>
+    <string name="notes_select">Selecionar notas</string>
+    <string name="notes_reorder">Reordenar</string>
+    <string name="notes_empty_title">Sem notas</string>
 </resources>
