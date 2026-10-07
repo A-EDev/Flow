@@ -45,13 +45,8 @@ class PlayerDraggableState(
 ) {
     var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
     var isDragging by mutableStateOf(false)
-    val dragScale = Animatable(1f)
 
-    /**
-     * Zoom applied while dragging up to enter fullscreen. Separate from [dragScale] so the
-     * mini-player's press effect and this cannot overwrite each other; they apply at opposite ends
-     * of [expandFraction] and are read in the draw phase only.
-     */
+    /** Zoom applied while dragging up to enter fullscreen, read in the draw phase only. */
     val expandDragScale = Animatable(1f)
 
     var cachedTargetX by mutableFloatStateOf(0f)
@@ -82,7 +77,6 @@ class PlayerDraggableState(
                 !offsetX.isRunning &&
                 !offsetY.isRunning &&
                 !miniSizeScale.isRunning &&
-                !dragScale.isRunning &&
                 !expandDragScale.isRunning
 
     internal val motion =

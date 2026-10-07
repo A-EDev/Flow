@@ -429,12 +429,7 @@ fun DraggablePlayerLayout(
                                             endWidth / expandedVideoWidth.coerceAtLeast(1f),
                                             fraction,
                                         )
-                                    val drag =
-                                        if (fraction > 0.6f) {
-                                            state.dragScale.value
-                                        } else {
-                                            state.expandDragScale.value
-                                        }
+                                    val drag = if (fraction > 0.6f) 1f else state.expandDragScale.value
                                     transformOrigin = TransformOrigin(0f, 0f)
                                     scaleX = visualScale * drag
                                     scaleY = visualScale * drag

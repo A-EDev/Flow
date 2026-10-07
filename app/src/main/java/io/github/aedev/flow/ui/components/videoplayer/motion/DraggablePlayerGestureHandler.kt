@@ -224,36 +224,30 @@ internal class DraggablePlayerGestureHandler(
     ) {
         velocityTracker.resetTracking()
         velocityTracker.addPosition(down.uptimeMillis, Offset.Zero)
-        state.scope.launch {
-            state.motion.stopOffsets()
-            state.dragScale.animateTo(0.97f, dragPressSpringSpec)
-        }
-        try {
-            val press = awaitMiniPress(down)
-            when (press.outcome) {
-                MiniPressOutcome.Tap -> {
-                    if (!downConsumedByChild && metrics.tapToExpand) state.expand()
-                }
-
-                MiniPressOutcome.LongPress -> {
-                    if (!downConsumedByChild) {
-                        metrics.onLongPress()
-                        toggleWideMode()
-                    }
-                    awaitAllPointersUp()
-                }
-
-                MiniPressOutcome.Cancelled -> {
-                    Unit
-                }
-
-                MiniPressOutcome.Drag -> {
-                    dragMini(down.id, press.travel)
-                    releaseMini()
-                }
+        val startedAtBottom = !state.corner.isTop
+        state.scope.launch { state.motion.stopOffsets() }
+        val press = awaitMiniPress(down)
+        when (press.outcome) {
+            MiniPressOutcome.Tap -> {
+                if (!downConsumedByChild && metrics.tapToExpand) state.expand()
             }
-        } finally {
-            state.scope.launch { state.dragScale.animateTo(1f, dragReleaseSpringSpec) }
+
+            MiniPressOutcome.LongPress -> {
+                if (!downConsumedByChild) {
+                    metrics.onLongPress()
+                    toggleWideMode()
+                }
+                awaitAllPointersUp()
+            }
+
+            MiniPressOutcome.Cancelled -> {
+                Unit
+            }
+
+            MiniPressOutcome.Drag -> {
+                val fingerAt = dragMini(down.id, press.travel)
+                releaseMini(fingerAt, startedAtBottom)
+            }
         }
     }
 
@@ -274,11 +268,14 @@ internal class DraggablePlayerGestureHandler(
             MiniPress(MiniPressOutcome.Cancelled)
         } ?: MiniPress(MiniPressOutcome.LongPress)
 
-    /** Moves the mini player with the finger, starting with the [initialTravel] the press already covered. */
+    /**
+     * Moves the mini player with the finger, starting with the [initialTravel] the press already
+     * covered, and returns where the finger would have put it with no bounds in the way.
+     */
     private suspend fun AwaitPointerEventScope.dragMini(
         pointerId: PointerId,
         initialTravel: Offset,
-    ) {
+    ): Offset {
         state.isDragging = true
         var fingerPath = initialTravel
         var rawX = state.offsetX.value + initialTravel.x
@@ -307,16 +304,17 @@ internal class DraggablePlayerGestureHandler(
             snapDriver.cancel()
             state.isDragging = false
         }
+        return Offset(rawX, rawY)
     }
 
     private fun miniDragX(rawX: Float): Float =
         if (state.isInlineMode && !metrics.isLargeScreen) {
             metrics.stablePhoneCenteredX
         } else {
-            rawX.coerceIn(metrics.minX, metrics.maxX)
+            rubberBand(rawX, metrics.minX, metrics.maxX)
         }
 
-    private fun miniDragY(rawY: Float): Float = rawY.coerceIn(metrics.minY, metrics.maxY)
+    private fun miniDragY(rawY: Float): Float = rubberBand(rawY, metrics.minY, metrics.maxY)
 
     private suspend fun AwaitPointerEventScope.awaitAllPointersUp() {
         while (true) {
@@ -348,10 +346,33 @@ internal class DraggablePlayerGestureHandler(
         }
     }
 
-    private fun releaseMini() {
+    private fun closeDownward(velocityY: Float) {
+        state.scope.launch {
+            launch {
+                state.motion.moveOffsets {
+                    state.offsetY.animateTo(
+                        metrics.screenHeight + metrics.margin,
+                        miniDismissSpringSpec,
+                        initialVelocity = velocityY.coerceAtLeast(0f),
+                    )
+                }
+            }
+            delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
+            metrics.onDismiss()
+        }
+    }
+
+    private fun releaseMini(
+        fingerAt: Offset,
+        startedAtBottom: Boolean,
+    ) {
         val velocity = velocityTracker.calculateVelocity()
         val velY = velocity.y
         val velX = velocity.x
+        if (shouldCloseMiniDownward(fingerAt.y, metrics.maxY, metrics.miniHeight, startedAtBottom, velX, velY)) {
+            closeDownward(velY)
+            return
+        }
         val currentX = state.offsetX.value
         val currentY = state.offsetY.value
         val bounds = metrics.bounds

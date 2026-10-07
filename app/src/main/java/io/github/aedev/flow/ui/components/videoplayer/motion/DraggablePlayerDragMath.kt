@@ -24,6 +24,14 @@ private const val CORNER_VELOCITY_PROJECTION_S = 0.3f
 private const val DISMISS_FLING_VELOCITY = 2000f
 private const val DISMISS_AXIS_DOMINANCE = 3f
 
+/** Share of the finger's travel past a bound that the mini player still follows. */
+private const val RUBBER_BAND_FOLLOW = 0.35f
+
+/** How far below its lowest resting place, in mini player heights, a release closes it. */
+private const val CLOSE_BELOW_HEIGHTS = 0.4f
+private const val CLOSE_FLING_VELOCITY = 1200f
+private const val CLOSE_AXIS_DOMINANCE = 2f
+
 /** Share of the pull, and the fling, that commits to growing into portrait fullscreen. */
 private const val PORTRAIT_FS_COMMIT_FRACTION = 0.4f
 private const val PORTRAIT_FS_COMMIT_VELOCITY = 1400f
@@ -66,6 +74,34 @@ internal fun fractionVelocity(
     velocityY: Float,
     travelPx: Float,
 ): Float = velocityY / travelPx.coerceAtLeast(1f)
+
+/** Where the mini player sits for a finger at [raw]: on it inside the bounds, 35% of the way past them. */
+internal fun rubberBand(
+    raw: Float,
+    min: Float,
+    max: Float,
+): Float =
+    when {
+        raw < min -> min - (min - raw) * RUBBER_BAND_FOLLOW
+        raw > max -> max + (raw - max) * RUBBER_BAND_FOLLOW
+        else -> raw
+    }
+
+/**
+ * Whether a released mini player closes by leaving through the bottom: the finger took it well past
+ * its lowest resting place, or flicked it down from a bottom corner. A flick down from a top corner
+ * only moves it to the bottom corner.
+ */
+internal fun shouldCloseMiniDownward(
+    fingerY: Float,
+    maxY: Float,
+    miniHeight: Float,
+    startedAtBottom: Boolean,
+    velocityX: Float,
+    velocityY: Float,
+): Boolean =
+    fingerY - maxY > miniHeight * CLOSE_BELOW_HEIGHTS ||
+        (startedAtBottom && velocityY > CLOSE_FLING_VELOCITY && velocityY > abs(velocityX) * CLOSE_AXIS_DOMINANCE)
 
 internal fun shouldCollapseOnRelease(
     fraction: Float,

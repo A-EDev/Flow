@@ -15,7 +15,6 @@ internal val playerCollapseSpringSpec = spring<Float>(dampingRatio = 1f, stiffne
 internal val miniSnapSpringSpec = spring<Float>(dampingRatio = 0.82f, stiffness = 500f)
 internal val miniResizeSpringSpec = spring<Float>(dampingRatio = 0.72f, stiffness = 280f)
 internal val miniDismissSpringSpec = spring<Float>(dampingRatio = 0.9f, stiffness = 340f)
-internal val dragPressSpringSpec = spring<Float>(dampingRatio = 0.7f, stiffness = 600f)
 internal val dragReleaseSpringSpec = spring<Float>(dampingRatio = 0.55f, stiffness = 500f)
 internal val portraitFullscreenSettleSpec = spring<Float>(dampingRatio = 1f, stiffness = 360f)
 

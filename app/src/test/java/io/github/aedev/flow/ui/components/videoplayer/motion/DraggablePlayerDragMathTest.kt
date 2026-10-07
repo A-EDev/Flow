@@ -197,4 +197,32 @@ class DraggablePlayerDragMathTest {
             )
         assertThat(tooSlow).isNull()
     }
+
+    @Test
+    fun `inside the bounds the mini player stays under the finger`() {
+        assertThat(rubberBand(500f, 100f, 900f)).isEqualTo(500f)
+    }
+
+    @Test
+    fun `past a bound the mini player follows a third of the overshoot`() {
+        assertThat(rubberBand(1100f, 100f, 900f)).isWithin(0.01f).of(970f)
+        assertThat(rubberBand(0f, 100f, 900f)).isWithin(0.01f).of(65f)
+    }
+
+    @Test
+    fun `pulling well below the lowest corner closes the mini player`() {
+        assertThat(shouldCloseMiniDownward(1500f, 1400f, 200f, startedAtBottom = false, velocityX = 0f, velocityY = 0f)).isTrue()
+        assertThat(shouldCloseMiniDownward(1460f, 1400f, 200f, startedAtBottom = true, velocityX = 0f, velocityY = 0f)).isFalse()
+    }
+
+    @Test
+    fun `a downward flick closes it only from a bottom corner`() {
+        assertThat(shouldCloseMiniDownward(1400f, 1400f, 200f, startedAtBottom = true, velocityX = 100f, velocityY = 1500f)).isTrue()
+        assertThat(shouldCloseMiniDownward(600f, 1400f, 200f, startedAtBottom = false, velocityX = 100f, velocityY = 1500f)).isFalse()
+    }
+
+    @Test
+    fun `a diagonal flick moves to a corner instead of closing`() {
+        assertThat(shouldCloseMiniDownward(1400f, 1400f, 200f, startedAtBottom = true, velocityX = 1200f, velocityY = 1500f)).isFalse()
+    }
 }

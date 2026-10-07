@@ -34,6 +34,8 @@ internal class DraggablePlayerGestureMetrics {
     var onDismiss: () -> Unit = {}
     var onLongPress: () -> Unit = {}
 
+    val miniHeight: Float get() = miniWidth / clampedAspect.coerceAtLeast(0.01f)
+
     val bounds: MiniPlayerBounds
         get() = MiniPlayerBounds(minX = minX, maxX = maxX, minY = minY, maxY = maxY)
 
