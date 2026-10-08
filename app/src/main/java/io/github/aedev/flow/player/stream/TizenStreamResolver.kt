@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.stream
 
+import android.os.SystemClock
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -8,6 +9,7 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -15,7 +17,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * A video's streams from [YouTubeClient.TV_TIZEN], the source that keeps serving a visitor GVS has
  * walled on the app clients (#921). Every format it returns is signed, so the signatures and `n`
  * parameters are solved by the remote decoder against the player whose timestamp the request
- * carried. Null when any step is unavailable; callers fall back to what they did before.
+ * carried, and an answer with a pre-roll is held until GVS will serve it ([PrerollWait]). Null when
+ * any step is unavailable; callers fall back to what they did before.
  */
 internal object TizenStreamResolver {
     private const val TAG = "TizenStreams"
@@ -35,6 +38,7 @@ internal object TizenStreamResolver {
                             apiUrl = YouTubeClient.API_URL_YOUTUBE,
                         ).getOrNull()
                 } ?: return@withContext fail(videoId, "no /player answer")
+            val answeredAtMs = SystemClock.elapsedRealtime()
             if (response.playabilityStatus.status != "OK") {
                 return@withContext fail(videoId, "status=${response.playabilityStatus.status} reason=${response.playabilityStatus.reason}")
             }
@@ -45,8 +49,14 @@ internal object TizenStreamResolver {
             if (video.isEmpty() || audio.isEmpty()) {
                 return@withContext fail(videoId, "${playable.size}/${formats.size} formats solved")
             }
-            Log.w(TAG, "TV_TIZEN streams for $videoId: ${video.size} video, ${audio.size} audio")
-            PlayerDiagnostics.logWarning(TAG, "TV_TIZEN streams for $videoId: ${video.size} video, ${audio.size} audio")
+            val prerollMs = PrerollWait.of(response.adPlacements)
+            val waitMs = prerollMs - (SystemClock.elapsedRealtime() - answeredAtMs)
+            val message =
+                "TV_TIZEN streams for $videoId: ${video.size} video, ${audio.size} audio" +
+                    if (prerollMs > 0) ", pre-roll wait ${waitMs.coerceAtLeast(0)}ms" else ""
+            Log.w(TAG, message)
+            PlayerDiagnostics.logWarning(TAG, message)
+            if (waitMs > 0) delay(waitMs)
             InnerTubeVideoStreamExtractor.VideoExtractionResult(
                 videoFormats = video,
                 audioFormats = audio,
