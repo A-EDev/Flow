@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Environment
 import android.os.StatFs
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.AutoDownloadMode
@@ -14,6 +15,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.entity.DownloadFileType
+import io.github.aedev.flow.data.video.DownloadRecoveryScanner
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import io.github.aedev.flow.data.video.storage.DownloadDestination
@@ -22,10 +24,13 @@ import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -62,6 +67,15 @@ data class DownloadLocationsUi(
     val storage: StorageStats?,
 )
 
+/** The "Find earlier downloads" row's state once it has been tapped. */
+sealed interface EarlierDownloadsSearch {
+    data object Running : EarlierDownloadsSearch
+
+    data class Found(
+        val count: Int,
+    ) : EarlierDownloadsSearch
+}
+
 @HiltViewModel
 class DownloadSettingsViewModel
     @Inject
@@ -70,6 +84,7 @@ class DownloadSettingsViewModel
         private val preferences: PlayerPreferences,
         private val downloadManager: VideoDownloadManager,
         private val downloadController: DownloadController,
+        private val recoveryScanner: DownloadRecoveryScanner,
     ) : SettingsViewModel() {
         private val refreshTick = MutableStateFlow(0)
 
@@ -100,6 +115,16 @@ class DownloadSettingsViewModel
                 )
             }.flowOn(Dispatchers.IO)
                 .asState(null)
+
+        /** Null until the row is tapped. */
+        private val _earlierDownloads = MutableStateFlow<EarlierDownloadsSearch?>(null)
+        val earlierDownloads: StateFlow<EarlierDownloadsSearch?> = _earlierDownloads.asStateFlow()
+
+        fun findEarlierDownloads() {
+            if (_earlierDownloads.value == EarlierDownloadsSearch.Running) return
+            _earlierDownloads.value = EarlierDownloadsSearch.Running
+            viewModelScope.launch { _earlierDownloads.value = EarlierDownloadsSearch.Found(recoveryScanner.scanAndRecoverDownloads()) }
+        }
 
         /** Reads the folders again, as storage access may have changed while the page was away. */
         fun refresh() = refreshTick.update { it + 1 }

@@ -84,6 +84,7 @@ internal object DownloadsIndex {
             summary = R.string.download_subtitle_file_subtitle,
         )
     val retag = entry("retag", R.string.download_retag_title, R.string.local_section_library)
+    val findEarlier = entry("find_earlier", R.string.downloads_find_earlier_title, R.string.local_section_library)
     val concurrentDownloads =
         entry(
             "concurrent_downloads",
@@ -133,6 +134,7 @@ internal object DownloadsIndex {
             wifiOnly,
             subtitleFile,
             retag,
+            findEarlier,
             concurrentDownloads,
             threads,
             allFilesAccess,

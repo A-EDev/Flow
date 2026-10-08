@@ -460,6 +460,8 @@
         <item quantity="other">Found %d downloads from an earlier install</item>
     </plurals>
     <string name="downloads_recovered_none">No downloads from an earlier install were found</string>
+    <string name="downloads_find_earlier_title">Find earlier downloads</string>
+    <string name="downloads_find_earlier_running">Searching…</string>
     <string name="play_all">Play all</string>
     <string name="remove_from_watch_later">Remove from Watch Later</string>
     <string name="explicit">E</string>
