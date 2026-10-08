@@ -235,6 +235,10 @@ FIXES AND STABILITY
 - Fix videos behind a content warning showing no suggested videos and not autoplaying the next one (#1244)
 - Fix the Exact and Both date styles printing a made-up date on cards for older videos: a calendar date now shows only where Flow knows it, as in Subscriptions and on the watch page, and the Uploaded detail in the description follows the date style (#1242)
 - Fix Subscriptions sometimes placing an upload from days ago at the top of the feed, because ages like "3 days ago" were read as seconds
+- Fix videos stopping at about one minute for some people on every network and VPN: a stream YouTube refuses partway through is now picked up from another source without stopping, and the YouTube identity it refused is replaced (#921, #1251)
+- Fix a background playlist stopping for good after a few refused videos, and reopening the app playing a stream YouTube had already refused again
+- Fix Reset YouTube session in Diagnostics being undone by the next restart, and keep the YouTube identity out of Android backups so it is never restored onto another phone
+- Diagnostics reports now list how the app's last few runs ended, so a close with no crash report still shows its cause
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
