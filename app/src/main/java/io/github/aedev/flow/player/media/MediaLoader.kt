@@ -295,6 +295,14 @@ class MediaLoader(
         mediaId: String = "",
         mediaMetadata: MediaMetadata = MediaMetadata.EMPTY,
     ): MediaSource? {
+        cacheManager?.registerStreams(
+            videoId = mediaId,
+            urls =
+                availableVideoStreams.map { it.content } +
+                    listOfNotNull(videoStream?.content, currentVideoStream?.content, audioStream?.content) +
+                    innerTubeVideoFormats.map { it.url } +
+                    innerTubeAudioFormats.map { it.url },
+        )
         val sabrAvailable =
             sabrInfo != null && sabrInfo.streamingUrl.isNotEmpty() &&
                 sabrVideoId != null && sabrInfo.audioItag > 0 && sabrInfo.videoItag > 0

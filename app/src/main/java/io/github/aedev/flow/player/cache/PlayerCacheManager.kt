@@ -5,15 +5,24 @@ import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.MediaCacheLimits
 import io.github.aedev.flow.data.local.MediaCacheSizes
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.datasource.FakeStreamWall
 import io.github.aedev.flow.player.datasource.FakeStreamWallDataSource
+import io.github.aedev.flow.player.datasource.RefusedStreamRetryDataSource
+import io.github.aedev.flow.player.datasource.RefusedStreamSwapper
+import io.github.aedev.flow.player.datasource.StreamSwapTable
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
+import io.github.aedev.flow.player.error.StreamDenialKind
+import io.github.aedev.flow.player.stream.ClientGateTracker
+import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.TizenStreamResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -72,6 +81,13 @@ class PlayerCacheManager(
 
     private val videoCacheKeys = VideoCacheKeys(currentVideoId)
 
+    private val refusedStreams =
+        RefusedStreamSwapper(
+            table = StreamSwapTable(),
+            reportDenied = ClientGateTracker::reportDenied,
+            resolve = ::resolveReplacement,
+        )
+
     private var cache: SimpleCache? = null
 
     // Data source factories
@@ -92,10 +108,11 @@ class PlayerCacheManager(
         val hlsHttpFactory = YouTubeHttpDataSource.Factory()
 
         val fakeWall = if (BuildConfig.DEBUG) FakeStreamWall.forDebugBuild(context) else null
-        val dashUpstream = DefaultDataSource.Factory(context, fakeWall.around(dashHttpFactory))
-        val progressiveUpstream = DefaultDataSource.Factory(context, fakeWall.around(progressiveHttpFactory))
+        val liveDashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
+        val dashUpstream = DefaultDataSource.Factory(context, fakeWall.around(dashHttpFactory)).swappingRefusals()
+        val progressiveUpstream = DefaultDataSource.Factory(context, fakeWall.around(progressiveHttpFactory)).swappingRefusals()
         val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
-        sharedLiveDashDataSourceFactory = dashUpstream
+        sharedLiveDashDataSourceFactory = liveDashUpstream
         sharedLiveHlsDataSourceFactory = hlsUpstream
 
         // Legacy/Fallback
@@ -147,7 +164,7 @@ class PlayerCacheManager(
             sharedDashDataSourceFactory = dashUpstream
             sharedProgressiveDataSourceFactory = progressiveUpstream
             sharedHlsDataSourceFactory = hlsUpstream
-            sharedLiveDashDataSourceFactory = dashUpstream
+            sharedLiveDashDataSourceFactory = liveDashUpstream
             sharedLiveHlsDataSourceFactory = hlsUpstream
             return false
         }
@@ -220,6 +237,35 @@ class PlayerCacheManager(
      * Check if cache is initialized and available.
      */
     fun isCacheAvailable(): Boolean = cache != null
+
+    /**
+     * Records which video [urls] belong to, so a refusal of one of them mid-playback can be served
+     * from a replacement of the same file instead of failing the player.
+     */
+    fun registerStreams(
+        videoId: String,
+        urls: Collection<String?>,
+    ) = refusedStreams.register(videoId, urls)
+
+    // A walled visitor's app clients and token-backed web clients all stop at the same minute, so a
+    // wall goes to TV_TIZEN; an expired URL only needs the same ladder to mint it again.
+    private suspend fun resolveReplacement(
+        videoId: String,
+        kind: StreamDenialKind,
+    ): List<PlayerResponse.StreamingData.Format>? {
+        val result =
+            when (kind) {
+                StreamDenialKind.URL_EXPIRED -> InnerTubeVideoStreamExtractor.extract(videoId)
+                else -> TizenStreamResolver.resolve(videoId)
+            } ?: return null
+        return result.videoFormats + result.audioFormats
+    }
+
+    private fun DataSource.Factory.swappingRefusals(): DataSource.Factory =
+        RefusedStreamRetryDataSource.Factory(
+            ResolvingDataSource.Factory(this, refusedStreams::resolveDataSpec),
+            refusedStreams::onRefused,
+        )
 
     private fun FakeStreamWall?.around(http: DataSource.Factory): DataSource.Factory =
         this?.let { FakeStreamWallDataSource.Factory(http, it) } ?: http
