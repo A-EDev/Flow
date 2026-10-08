@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.resolver
 
+import android.app.Application
 import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.exoplayer.dash.manifest.DashManifest
@@ -11,6 +12,7 @@ import io.github.aedev.flow.player.quality.LadderTestStreams.vp9
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.io.ByteArrayInputStream
 
@@ -19,6 +21,7 @@ import java.io.ByteArrayInputStream
  * one is checked against the manifest [ManifestGenerator] writes for that stream on its own.
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = Application::class)
 class AdaptiveDashManifestTest {
     private val rungs = listOf(h264(360, 700_000), h264(720, 2_500_000), h264(1080, 4_500_000))
 
