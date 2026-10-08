@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.library
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
@@ -105,6 +106,8 @@ fun DownloadsScreen(
         }
     }
     LaunchedEffect(viewModel) { viewModel.recovered.collect { snackbarHostState.showSnackbar(recoveredMessage(it)) } }
+    val deletePrompt = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
+    LaunchedEffect(viewModel) { viewModel.deleteConsent.collect { deletePrompt.launch(IntentSenderRequest.Builder(it).build()) } }
     var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
