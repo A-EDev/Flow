@@ -7,9 +7,12 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.MediaCacheLimits
 import io.github.aedev.flow.data.local.MediaCacheSizes
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.datasource.FakeStreamWall
+import io.github.aedev.flow.player.datasource.FakeStreamWallDataSource
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -88,8 +91,9 @@ class PlayerCacheManager(
         val progressiveHttpFactory = YouTubeHttpDataSource.Factory()
         val hlsHttpFactory = YouTubeHttpDataSource.Factory()
 
-        val dashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
-        val progressiveUpstream = DefaultDataSource.Factory(context, progressiveHttpFactory)
+        val fakeWall = if (BuildConfig.DEBUG) FakeStreamWall.forDebugBuild(context) else null
+        val dashUpstream = DefaultDataSource.Factory(context, fakeWall.around(dashHttpFactory))
+        val progressiveUpstream = DefaultDataSource.Factory(context, fakeWall.around(progressiveHttpFactory))
         val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
         sharedLiveDashDataSourceFactory = dashUpstream
         sharedLiveHlsDataSourceFactory = hlsUpstream
@@ -216,4 +220,7 @@ class PlayerCacheManager(
      * Check if cache is initialized and available.
      */
     fun isCacheAvailable(): Boolean = cache != null
+
+    private fun FakeStreamWall?.around(http: DataSource.Factory): DataSource.Factory =
+        this?.let { FakeStreamWallDataSource.Factory(http, it) } ?: http
 }
