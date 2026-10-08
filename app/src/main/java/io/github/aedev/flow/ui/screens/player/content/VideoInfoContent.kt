@@ -91,12 +91,6 @@ internal fun VideoInfoContent(
         )
     }
 
-    SponsorDetectionReviewControl(
-        videoId = video.id,
-        durationMs = video.duration.toLong().coerceAtLeast(0) * 1000L,
-        snackbarHostState = snackbarHostState,
-    )
-
     VideoInfoSection(
         video = video,
         title = resolvedVideoTitle,
@@ -210,6 +204,13 @@ internal fun VideoInfoContent(
             Toast.makeText(context, context.getString(R.string.link_with_timestamp_copied), Toast.LENGTH_SHORT).show()
         },
         onDescriptionClick = { screenState.open(PlayerSheet.Description) },
+        channelAction = {
+            SponsorDetectionReviewControl(
+                videoId = video.id,
+                durationMs = video.duration.toLong().coerceAtLeast(0) * 1000L,
+                snackbarHostState = snackbarHostState,
+            )
+        },
     )
 
     if (uiState.isLiveChatAvailable) {

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -41,14 +42,14 @@ class SponsorDetectionReviewTest {
             }
         }
 
-        composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review)).performClick()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.sponsor_training_review)).performClick()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review_read_only)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_confirm_none)).assertIsNotEnabled()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_add_missed)).assertIsNotEnabled()
     }
 
     @Test
-    fun reviewChipIsHiddenWhileInferenceIsRunning() {
+    fun reviewIconIsHiddenWhileInferenceIsRunning() {
         composeRule.setContent {
             MaterialTheme {
                 SponsorDetectionReviewUi(
@@ -63,7 +64,7 @@ class SponsorDetectionReviewTest {
             }
         }
 
-        composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review)).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.sponsor_training_review)).assertDoesNotExist()
     }
 
     @Test
@@ -88,7 +89,7 @@ class SponsorDetectionReviewTest {
             }
         }
 
-        composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review)).performClick()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.sponsor_training_review)).performClick()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_confirm_none)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_add_missed)).assertIsDisplayed()
     }
@@ -116,7 +117,7 @@ class SponsorDetectionReviewTest {
             }
         }
 
-        composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review)).performClick()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.sponsor_training_review)).performClick()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_accept)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_reject)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_edit)).assertIsDisplayed()
@@ -144,7 +145,7 @@ class SponsorDetectionReviewTest {
             }
         }
 
-        composeRule.onNodeWithText(context.getString(R.string.sponsor_training_review)).performClick()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.sponsor_training_review)).performClick()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_model_only)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_accept)).assertIsNotEnabled()
         composeRule.onNodeWithText(context.getString(R.string.sponsor_training_reject)).assertIsNotEnabled()

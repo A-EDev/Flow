@@ -73,6 +73,7 @@ internal fun VideoInfoSection(
     onNoteClick: (() -> Unit)? = null,
     hasNote: Boolean = false,
     isDeviceFile: Boolean = false,
+    channelAction: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
@@ -231,6 +232,8 @@ internal fun VideoInfoSection(
                     }
                 }
             }
+
+            channelAction()
 
             Spacer(modifier = Modifier.width(8.dp))
 

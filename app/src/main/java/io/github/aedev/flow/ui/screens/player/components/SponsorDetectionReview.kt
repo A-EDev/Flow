@@ -7,12 +7,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -87,13 +86,14 @@ internal fun SponsorDetectionReviewUi(
         return
     }
     var showReview by remember(videoId) { mutableStateOf(false) }
-    AssistChip(
+    IconButton(
         onClick = { showReview = true },
-        label = { Text(stringResource(R.string.sponsor_training_review)) },
-        leadingIcon = { Icon(Icons.Outlined.RateReview, contentDescription = null) },
-        colors = AssistChipDefaults.assistChipColors(),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.RateReview,
+            contentDescription = stringResource(R.string.sponsor_training_review),
+        )
+    }
     if (showReview) {
         SponsorDetectionReviewSheet(
             durationMs = durationMs,
