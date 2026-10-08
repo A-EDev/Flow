@@ -6,7 +6,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.time.Instant
 
-class YouTubeTakeoutLikesParserTest {
+class YouTubeTakeoutActivityParserTest {
     private val channelId = "UC${"b".repeat(22)}"
 
     private fun record(
@@ -117,5 +117,57 @@ class YouTubeTakeoutLikesParserTest {
         assertThat(isMyActivityYouTubeEntry("Takeout/YouTube and YouTube Music/history/watch-history.json")).isFalse()
         assertThat(isMyActivityYouTubeEntry("YouTube/MyActivity.json")).isFalse()
         assertThat(isMyActivityYouTubeEntry("Takeout/../YouTube/MyActivity.json")).isFalse()
+    }
+
+    private fun search(
+        title: String,
+        url: String,
+        time: String,
+        header: String = "YouTube",
+    ) = """{"header":"$header","title":"$title","titleUrl":"$url","time":"$time","products":["YouTube"]}"""
+
+    private fun activity(vararg records: String) = readTakeoutActivity(records.joinToString(",", "[", "]").byteInputStream())
+
+    @Test
+    fun `searches are read from the link, in any language`() {
+        val result =
+            activity(
+                search("Hai cercato lofi beats", "https://www.youtube.com/results?search_query=lofi+beats", "2026-03-01T10:00:00Z"),
+                search(
+                    "Searched for jazz",
+                    "https://music.youtube.com/search?q=late%20night%20jazz",
+                    "2026-03-02T10:00:00Z",
+                    "YouTube Music",
+                ),
+            )
+
+        assertThat(result.searches)
+            .containsExactly(
+                TakeoutSearch("lofi beats", Instant.parse("2026-03-01T10:00:00Z").toEpochMilli(), isMusic = false),
+                TakeoutSearch("late night jazz", Instant.parse("2026-03-02T10:00:00Z").toEpochMilli(), isMusic = true),
+            ).inOrder()
+        assertThat(result.likes.likes).isEmpty()
+    }
+
+    @Test
+    fun `watches keep their own time and their music flag`() {
+        val result =
+            activity(
+                record("Watched Cooking", "bbbbbbbbbbb", "2026-02-01T10:00:00Z"),
+                record("Watched Song", "ccccccccccc", "2026-02-02T10:00:00Z", header = "YouTube Music"),
+            )
+
+        assertThat(result.watches.map { Triple(it.videoId, it.title, it.isMusic) })
+            .containsExactly(Triple("bbbbbbbbbbb", "Cooking", false), Triple("ccccccccccc", "Song", true))
+            .inOrder()
+        assertThat(result.watches.first().watchedAt).isEqualTo(Instant.parse("2026-02-01T10:00:00Z").toEpochMilli())
+    }
+
+    @Test
+    fun `a search link needs its query and a YouTube host`() {
+        assertThat(takeoutSearchOf("https://www.youtube.com/results?search_query=")).isNull()
+        assertThat(takeoutSearchOf("https://example.com/results?search_query=x")).isNull()
+        assertThat(takeoutSearchOf("https://www.youtube.com/watch?v=aaaaaaaaaaa")).isNull()
+        assertThat(takeoutSearchOf("https://m.youtube.com/results?sp=EgIQAQ&search_query=caf%C3%A9")).isEqualTo("café" to false)
     }
 }

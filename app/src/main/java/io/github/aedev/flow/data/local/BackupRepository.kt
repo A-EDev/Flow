@@ -178,6 +178,7 @@ class BackupRepository(
             context = context,
             database = database,
             viewHistory = viewHistory,
+            searchHistory = searchHistoryRepo,
             subscriptions = subscriptionRepo,
             saveLikes = ::saveImportedLikes,
             channelAvatar = ::fetchChannelAvatar,

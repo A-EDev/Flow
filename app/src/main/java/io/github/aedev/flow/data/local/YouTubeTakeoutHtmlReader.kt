@@ -10,9 +10,11 @@ private const val BATCH_SIZE = 500
 private const val CHANNEL_LINK_REACH = 2_000
 
 private val watchLinkPattern =
-    Regex("""href="https://(www)\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""", RegexOption.IGNORE_CASE)
+    Regex("""href="https://(www|music)\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""", RegexOption.IGNORE_CASE)
 private val channelLinkPattern =
-    Regex("""href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""", RegexOption.IGNORE_CASE)
+    Regex("""href="https://(?:www|music)\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""", RegexOption.IGNORE_CASE)
+private val searchLinkPattern =
+    Regex("""href="(https://(?:www|music)\.youtube\.com/(?:results|search)\?[^"]+)"""", RegexOption.IGNORE_CASE)
 
 /** A video watched, as a Takeout activity file records it. */
 internal data class TakeoutWatch(
@@ -27,13 +29,16 @@ internal data class TakeoutWatch(
 /** What a Takeout activity HTML file held. [watches] counts what was handed to the batch callback. */
 internal data class TakeoutHtmlActivity(
     val watches: Int,
+    val searches: List<TakeoutSearch>,
 )
 
 /**
- * Streams a Takeout watch-history HTML file, handing the videos to [onWatches] in batches. It
- * carries no date Flow can read in every language, so entries are stamped newest first from [now],
- * as Takeout lists them. With [requireActivityMarkup], a file that never shows the My Activity
- * layout gives nothing, so other HTML in the archive is ignored.
+ * Streams a Takeout activity HTML file, handing the videos watched on YouTube and YouTube Music to
+ * [onWatches] in batches and keeping the searches. Takeout names the watch and search history files
+ * in the account's language, so both are read from every file. Neither carries a date Flow can read
+ * in every language, so entries are stamped newest first from [now], as Takeout lists them. With
+ * [requireActivityMarkup], a file that never shows the My Activity layout gives nothing, so other
+ * HTML in the archive is ignored.
  */
 internal suspend fun readTakeoutHtmlActivity(
     reader: Reader,
@@ -44,6 +49,7 @@ internal suspend fun readTakeoutHtmlActivity(
     var markupSeen = !requireActivityMarkup
     var watched = 0
     val batch = mutableListOf<TakeoutWatch>()
+    val searches = mutableListOf<TakeoutSearch>()
     val buffer = CharArray(READ_SIZE)
     val tail = StringBuilder(OVERLAP)
 
@@ -87,6 +93,12 @@ internal suspend fun readTakeoutHtmlActivity(
                 )
         }
 
+        for (match in searchLinkPattern.findAll(window)) {
+            if (match.range.last < tail.length) continue
+            val (query, isMusic) = takeoutSearchOf(match.groupValues[1].unescapedHtml()) ?: continue
+            searches += TakeoutSearch(query, now - searches.size, isMusic)
+        }
+
         tail.clear()
         tail.append(window, maxOf(0, window.length - OVERLAP), window.length)
         if (markupSeen && batch.size >= BATCH_SIZE) {
@@ -94,10 +106,10 @@ internal suspend fun readTakeoutHtmlActivity(
             flush()
         }
     }
-    if (!markupSeen) return TakeoutHtmlActivity(0)
+    if (!markupSeen) return TakeoutHtmlActivity(0, emptyList())
     watched += batch.size
     flush()
-    return TakeoutHtmlActivity(watched)
+    return TakeoutHtmlActivity(watched, searches)
 }
 
 internal fun String.unescapedHtml(): String =

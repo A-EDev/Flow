@@ -51,6 +51,12 @@ internal fun isYouTubeTakeoutHtmlEntry(entryName: String): Boolean =
         segments.size == 4 && segments.last().endsWith(".html", ignoreCase = true)
     } == true
 
+/** A JSON file one folder inside the YouTube product: the watch or search history, when the export chose JSON. */
+internal fun isYouTubeTakeoutJsonEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.let { segments ->
+        segments.size == 4 && segments.last().endsWith(".json", ignoreCase = true)
+    } == true
+
 private fun youTubeTakeoutSegments(entryName: String): List<String>? {
     if (entryName.length > MAX_TAKEOUT_ENTRY_NAME_CHARACTERS) return null
     val segments = entryName.replace('\\', '/').split('/')

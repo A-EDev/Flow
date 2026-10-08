@@ -49,4 +49,19 @@ class YouTubeTakeoutHtmlReaderTest {
             assertThat(read(page).second).isEmpty()
             assertThat(read(page, requireActivityMarkup = false).first.watches).isEqualTo(1)
         }
+
+    @Test
+    fun `youtube music watches and searches from both services are read too`() =
+        runTest {
+            val html =
+                """<div class="content-cell">Watched <a href="https://music.youtube.com/watch?v=ccccccccccc">Song</a></div>""" +
+                    """<div class="content-cell">Searched for """ +
+                    """<a href="https://www.youtube.com/results?search_query=lofi+%26+rain">lofi &amp; rain</a></div>""" +
+                    """<div class="content-cell">Searched for <a href="https://music.youtube.com/search?q=jazz">jazz</a></div>"""
+
+            val (result, watches) = read(html)
+
+            assertThat(watches.single().isMusic).isTrue()
+            assertThat(result.searches.map { it.query to it.isMusic }).containsExactly("lofi & rain" to false, "jazz" to true).inOrder()
+        }
 }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.serialization.SerializationException
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
@@ -26,6 +27,7 @@ private const val TAKEOUT_PLAYLIST_ID_PREFIX = "yt_takeout_"
 private const val NEURO_CANDIDATE_LIMIT = 800
 private const val AVATAR_FETCHES = 5
 private const val SUBSCRIPTION_BATCH = 25
+private const val WATCH_BATCH = 500
 
 /**
  * The all-in-one Google Takeout import: reads an export in a single pass and saves what it found.
@@ -36,6 +38,7 @@ internal class YouTubeTakeoutImporter(
     private val context: Context,
     private val database: AppDatabase,
     private val viewHistory: ViewHistory,
+    private val searchHistory: SearchHistoryRepository,
     private val subscriptions: SubscriptionRepository,
     private val saveLikes: suspend (List<TakeoutLike>) -> Int,
     private val channelAvatar: suspend (String) -> String,
@@ -46,6 +49,7 @@ internal class YouTubeTakeoutImporter(
         val playlistsByDirectory = mutableMapOf<String, MutableList<TakeoutPlaylistInfo>>()
         val playlistVideos = mutableMapOf<String, List<String>>()
         var likes: List<TakeoutLike>? = null
+        val searches = mutableListOf<TakeoutSearch>()
         var watches = 0
         val learnable = LinkedHashMap<String, VideoHistoryEntry>()
     }
@@ -63,10 +67,10 @@ internal class YouTubeTakeoutImporter(
                 val subscriptionsImported = saveSubscriptions(found.subscriptions, onProgress)
                 val (playlistsImported, playlistVideosImported) = savePlaylists(found)
                 val likesImported = found.likes?.let { saveLikes(it) } ?: 0
+                val searchesImported = saveSearches(found.searches)
 
-                if (subscriptionsImported == 0 && found.watches == 0 && playlistsImported == 0 && likesImported == 0) {
-                    return@withContext Result.failure(Exception("no_content"))
-                }
+                val counts = listOf(subscriptionsImported, found.watches, playlistsImported, likesImported, searchesImported)
+                if (counts.all { it == 0 }) return@withContext Result.failure(Exception("no_content"))
                 if (found.watches > 0) runCatching { learnFromHistory(found.learnable.values) }
 
                 Result.success(
@@ -75,6 +79,15 @@ internal class YouTubeTakeoutImporter(
                         if (found.watches > 0) add("${found.watches} history entries")
                         if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
                         if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
+                        if (searchesImported > 0) {
+                            add(
+                                context.resources.getQuantityString(
+                                    R.plurals.import_takeout_part_searches,
+                                    searchesImported,
+                                    searchesImported,
+                                ),
+                            )
+                        }
                     }.joinToString(", "),
                 )
             } catch (e: Exception) {
@@ -82,14 +95,15 @@ internal class YouTubeTakeoutImporter(
             }
         }
 
-    /** A Takeout watch-history HTML file on its own, as the single-file history import takes it; returns how many were saved. */
+    /** A Takeout watch or search history HTML file on its own, as the single-file history import takes it; returns how many were saved. */
     suspend fun importHtmlHistory(input: InputStream): Int {
         val found = Found()
-        input.bufferedReader(Charsets.UTF_8).use { reader ->
-            readTakeoutHtmlActivity(reader, System.currentTimeMillis(), requireActivityMarkup = false) { saveWatches(it, found) }
-        }
+        val read =
+            input.bufferedReader(Charsets.UTF_8).use { reader ->
+                readTakeoutHtmlActivity(reader, System.currentTimeMillis(), requireActivityMarkup = false) { saveWatches(it, found) }
+            }
         if (found.watches > 0) runCatching { learnFromHistory(found.learnable.values) }
-        return found.watches
+        return found.watches + saveSearches(read.searches)
     }
 
     private suspend fun readArchive(
@@ -107,15 +121,29 @@ internal class YouTubeTakeoutImporter(
                     english || isYouTubeTakeoutHtmlEntry(name) -> {
                         onProgress?.invoke("Watch history", 0, 0)
                         // Each file is stamped below the last, so two history files never share a time.
-                        val start = System.currentTimeMillis() - found.watches
-                        readTakeoutHtmlActivity(zip.bufferedReader(Charsets.UTF_8), start, requireActivityMarkup = !english) {
-                            saveWatches(it, found)
+                        val start = System.currentTimeMillis() - found.watches - found.searches.size
+                        val read =
+                            readTakeoutHtmlActivity(zip.bufferedReader(Charsets.UTF_8), start, requireActivityMarkup = !english) {
+                                saveWatches(it, found)
+                            }
+                        found.searches += read.searches
+                    }
+
+                    !entry.isDirectory && isYouTubeTakeoutJsonEntry(name) -> {
+                        onProgress?.invoke("Watch history", 0, 0)
+                        readActivity(zip, keepWatches = true)?.let { activity ->
+                            activity.watches.chunked(WATCH_BATCH).forEach { saveWatches(it, found) }
+                            found.searches += activity.searches
                         }
                     }
 
-                    !entry.isDirectory && found.likes == null && isMyActivityYouTubeEntry(name) -> {
+                    // My Activity repeats the watch history, which the YouTube folder already gave.
+                    !entry.isDirectory && isMyActivityYouTubeEntry(name) -> {
                         onProgress?.invoke(context.getString(R.string.import_label_youtube_likes), 0, 0)
-                        found.likes = readMyActivityLikes(zip).likes
+                        readActivity(zip, keepWatches = false)?.let { activity ->
+                            if (found.likes == null) found.likes = activity.likes.likes
+                            found.searches += activity.searches
+                        }
                     }
 
                     !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
@@ -145,6 +173,28 @@ internal class YouTubeTakeoutImporter(
             }
         }
     }
+
+    /** Any other JSON the archive holds is not an activity file; it is skipped, not a failed import. */
+    private fun readActivity(
+        input: InputStream,
+        keepWatches: Boolean,
+    ): TakeoutActivity? =
+        try {
+            readTakeoutActivity(input, keepWatches = keepWatches)
+        } catch (_: SerializationException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+
+    /** Video and music searches go to their own lists; returns how many were kept. */
+    private suspend fun saveSearches(searches: List<TakeoutSearch>): Int =
+        searches
+            .groupBy { if (it.isMusic) SearchHistoryScope.MUSIC else SearchHistoryScope.VIDEO }
+            .entries
+            .sumOf { (scope, inScope) ->
+                searchHistory.importSearches(inScope.map { SearchHistoryItem(query = it.query, timestamp = it.searchedAt) }, scope)
+            }
 
     private suspend fun saveWatches(
         watches: List<TakeoutWatch>,
