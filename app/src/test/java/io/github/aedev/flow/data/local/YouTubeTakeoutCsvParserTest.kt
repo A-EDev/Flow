@@ -166,7 +166,26 @@ class YouTubeTakeoutCsvParserTest {
                     listOf(YouTubeTakeoutSubscription(channelId, "Channel")),
                 ),
             )
-        assertThat(parse(metadata)).isEqualTo(YouTubeTakeoutCsvContent.PlaylistMetadata(listOf("Road")))
+        assertThat(parse(metadata))
+            .isEqualTo(YouTubeTakeoutCsvContent.PlaylistMetadata(listOf(TakeoutPlaylistInfo(playlistId, "Road", createdAt = null))))
+    }
+
+    @Test
+    fun `playlist metadata keeps the youtube id and the create timestamp wherever its column is`() {
+        val playlistId = "PL${"d".repeat(20)}"
+        val metadata =
+            "Playlist ID,Add new videos to top,Created,Updated,c4,c5,c6,c7,c8,c9,Title\n" +
+                "$playlistId,False,2019-12-01T08:30:00+00:00,2024-06-02T10:00:00+00:00,,,,,,,Favourites 2019"
+
+        val playlist = (parse(metadata) as YouTubeTakeoutCsvContent.PlaylistMetadata).playlists.single()
+
+        assertThat(playlist.id).isEqualTo(playlistId)
+        assertThat(playlist.title).isEqualTo("Favourites 2019")
+        assertThat(playlist.createdAt).isEqualTo(
+            java.time.Instant
+                .parse("2019-12-01T08:30:00Z")
+                .toEpochMilli(),
+        )
     }
 
     @Test
@@ -276,7 +295,7 @@ class YouTubeTakeoutCsvParserTest {
         val metadata = parse(metadataCsv) as YouTubeTakeoutCsvContent.PlaylistMetadata
         val wrappedFilename = "Takeout/YouTube وYouTube Music/قوائم تشغيل/فيديوهات _Japan_s, favorites_.csv"
 
-        assertThat(resolvePlaylistNames(listOf(wrappedFilename), metadata.titles))
+        assertThat(resolvePlaylistNames(listOf(wrappedFilename), metadata.playlists.map { it.title }))
             .containsExactly(wrappedFilename, "Japan's, favorites")
     }
 

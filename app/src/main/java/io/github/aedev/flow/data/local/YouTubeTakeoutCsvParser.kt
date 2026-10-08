@@ -11,6 +11,13 @@ internal data class YouTubeTakeoutSubscription(
     val channelName: String,
 )
 
+/** A playlist as `playlists.csv` lists it; [createdAt] is null when the row carries no timestamp. */
+internal data class TakeoutPlaylistInfo(
+    val id: String,
+    val title: String,
+    val createdAt: Long?,
+)
+
 internal sealed interface YouTubeTakeoutCsvContent {
     data class Subscriptions(
         val rows: List<YouTubeTakeoutSubscription>,
@@ -21,7 +28,7 @@ internal sealed interface YouTubeTakeoutCsvContent {
     ) : YouTubeTakeoutCsvContent
 
     data class PlaylistMetadata(
-        val titles: List<String>,
+        val playlists: List<TakeoutPlaylistInfo>,
     ) : YouTubeTakeoutCsvContent
 
     data object Unsupported : YouTubeTakeoutCsvContent
@@ -88,7 +95,7 @@ internal fun readYouTubeTakeoutCsv(
 
     val firstSubscription = firstData.fields.toSubscription()
     val firstPlaylistVideo = firstData.fields.toPlaylistVideoId()
-    val firstPlaylistTitle = firstData.fields.toPlaylistTitle()
+    val firstPlaylist = firstData.fields.toPlaylistInfo()
 
     return when {
         header.fields.size >= 3 && header.fields.toSubscription() == null && firstSubscription != null -> {
@@ -109,12 +116,12 @@ internal fun readYouTubeTakeoutCsv(
             )
         }
 
-        header.fields.size >= 11 && header.fields.toPlaylistTitle() == null && firstPlaylistTitle != null -> {
+        header.fields.size >= 11 && header.fields.toPlaylistInfo() == null && firstPlaylist != null -> {
             csvReader.readRows(
-                first = firstPlaylistTitle,
-                weight = String::length,
-                parse = { fields -> fields.toPlaylistTitle() },
-                build = { titles -> YouTubeTakeoutCsvContent.PlaylistMetadata(titles) },
+                first = firstPlaylist,
+                weight = { it.id.length + it.title.length },
+                parse = { fields -> fields.toPlaylistInfo() },
+                build = { playlists -> YouTubeTakeoutCsvContent.PlaylistMetadata(playlists) },
             )
         }
 
@@ -231,11 +238,20 @@ private fun List<String>.toPlaylistVideoId(): String? {
     return videoId
 }
 
-private fun List<String>.toPlaylistTitle(): String? {
+/**
+ * The create timestamp is found by its shape, not its column: the first field after the id that
+ * reads as a date, which is the create timestamp and is followed by the update one.
+ */
+private fun List<String>.toPlaylistInfo(): TakeoutPlaylistInfo? {
     if (size < 11) return null
     val playlistId = this[0].trim().trimStart('\uFEFF')
     if (!youtubePlaylistIdPattern.matches(playlistId)) return null
-    return this[10].validatedTakeoutName()
+    val title = this[10].validatedTakeoutName() ?: return null
+    val createdAt =
+        drop(1).firstNotNullOfOrNull { field ->
+            runCatching { OffsetDateTime.parse(field.trim()).toInstant().toEpochMilli() }.getOrNull()
+        }
+    return TakeoutPlaylistInfo(playlistId, title, createdAt)
 }
 
 private fun String.validatedTakeoutName(): String? =

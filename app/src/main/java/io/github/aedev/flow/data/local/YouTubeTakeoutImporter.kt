@@ -18,11 +18,11 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import java.io.InputStream
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
 
 private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
+private const val TAKEOUT_PLAYLIST_ID_PREFIX = "yt_takeout_"
 private const val NEURO_CANDIDATE_LIMIT = 800
 private const val AVATAR_FETCHES = 5
 private const val SUBSCRIPTION_BATCH = 25
@@ -43,7 +43,7 @@ internal class YouTubeTakeoutImporter(
 ) {
     private class Found {
         val subscriptions = mutableListOf<YouTubeTakeoutSubscription>()
-        val playlistTitlesByDirectory = mutableMapOf<String, MutableList<String>>()
+        val playlistsByDirectory = mutableMapOf<String, MutableList<TakeoutPlaylistInfo>>()
         val playlistVideos = mutableMapOf<String, List<String>>()
         var likes: List<TakeoutLike>? = null
         var watches = 0
@@ -131,7 +131,7 @@ internal class YouTubeTakeoutImporter(
                             }
 
                             is YouTubeTakeoutCsvContent.PlaylistMetadata -> {
-                                found.playlistTitlesByDirectory.getOrPut(name.takeoutParentPath()) { mutableListOf() } += content.titles
+                                found.playlistsByDirectory.getOrPut(name.takeoutParentPath()) { mutableListOf() } += content.playlists
                             }
 
                             YouTubeTakeoutCsvContent.Unsupported -> {
@@ -199,7 +199,7 @@ internal class YouTubeTakeoutImporter(
     private suspend fun savePlaylists(found: Found): Pair<Int, Int> {
         validateYouTubeTakeoutPlaylistCount(
             videoFileCount = found.playlistVideos.size,
-            metadataTitleCount = found.playlistTitlesByDirectory.values.sumOf { it.size },
+            metadataTitleCount = found.playlistsByDirectory.values.sumOf { it.size },
         )
         val fallbackName = context.getString(R.string.imported_playlist_fallback)
         var playlists = 0
@@ -207,10 +207,12 @@ internal class YouTubeTakeoutImporter(
         found.playlistVideos.keys
             .groupBy { it.takeoutParentPath() }
             .forEach { (directory, files) ->
-                val titles = found.playlistTitlesByDirectory[directory].orEmpty()
-                resolveYouTubeTakeoutPlaylistNames(files, titles, fallbackName).forEach { (file, name) ->
+                val infos = found.playlistsByDirectory[directory].orEmpty()
+                val unclaimed = infos.toMutableList()
+                resolveYouTubeTakeoutPlaylistNames(files, infos.map { it.title }, fallbackName).forEach { (file, name) ->
+                    val info = unclaimed.firstOrNull { it.title == name }?.also(unclaimed::remove)
                     val videoIds = found.playlistVideos.getValue(file)
-                    savePlaylist(name, videoIds)
+                    savePlaylist(file, name, info, videoIds)
                     playlists++
                     videos += videoIds.size
                 }
@@ -218,19 +220,32 @@ internal class YouTubeTakeoutImporter(
         return playlists to videos
     }
 
+    /**
+     * Saved under its YouTube id, so importing the same export again fills the same playlist instead
+     * of adding a copy, and dated when YouTube made it, so "Newest" orders playlists the way YouTube
+     * does. A file `playlists.csv` doesn't describe is keyed by its own name.
+     */
     private suspend fun savePlaylist(
+        file: String,
         name: String,
+        info: TakeoutPlaylistInfo?,
         videoIds: List<String>,
     ) {
         val isWatchLater = name.equals("watch later", ignoreCase = true)
+        val playlistId =
+            when {
+                isWatchLater -> PlaylistRepository.WATCH_LATER_ID
+                info != null -> TAKEOUT_PLAYLIST_ID_PREFIX + info.id
+                else -> TAKEOUT_PLAYLIST_ID_PREFIX + file.substringAfterLast('/').hashCode().toUInt()
+            }
         val entity =
             PlaylistEntity(
-                id = if (isWatchLater) PlaylistRepository.WATCH_LATER_ID else "yt_takeout_${UUID.randomUUID()}",
+                id = playlistId,
                 name = if (isWatchLater) "Watch Later" else name,
                 description = context.getString(R.string.imported_from_google_takeout),
                 thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first()),
                 isPrivate = isWatchLater,
-                createdAt = System.currentTimeMillis(),
+                createdAt = info?.createdAt ?: System.currentTimeMillis(),
                 isMusic = false,
                 isUserCreated = true,
             )
