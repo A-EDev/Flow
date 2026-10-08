@@ -1,4 +1,4 @@
-package io.github.aedev.flow.data.download
+package io.github.aedev.flow.player.datasource
 
 import android.net.Uri
 import androidx.media3.datasource.DataSource
@@ -20,7 +20,10 @@ class RefusedStreamRetryDataSourceTest {
             .build()
     private val refused = mutableListOf<String>()
     private val upstream = mockk<DataSource>(relaxed = true)
-    private val source = RefusedStreamRetryDataSource(upstream) { mediaId, _ -> refused += mediaId }
+    private val source =
+        RefusedStreamRetryDataSource(upstream) { dataSpec, _ ->
+            dataSpec.key?.let { refused += it } != null
+        }
 
     private fun httpError(code: Int) = HttpDataSource.InvalidResponseCodeException(code, null, null, emptyMap(), spec, ByteArray(0))
 
@@ -39,6 +42,15 @@ class RefusedStreamRetryDataSourceTest {
 
         assertThrows(HttpDataSource.InvalidResponseCodeException::class.java) { source.open(spec) }
         assertThat(refused).hasSize(1)
+    }
+
+    @Test
+    fun `a refusal the handler cannot act on goes straight to the player`() {
+        val declining = RefusedStreamRetryDataSource(upstream) { _, _ -> false }
+        every { upstream.open(spec) } throws httpError(403)
+
+        assertThrows(HttpDataSource.InvalidResponseCodeException::class.java) { declining.open(spec) }
+        verify(exactly = 1) { upstream.open(spec) }
     }
 
     @Test

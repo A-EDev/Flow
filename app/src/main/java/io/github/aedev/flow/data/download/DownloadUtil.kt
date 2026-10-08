@@ -18,6 +18,7 @@ import io.github.aedev.flow.di.DownloadCache
 import io.github.aedev.flow.di.MusicCache
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.datasource.GoogleVideoRequestPolicy
+import io.github.aedev.flow.player.datasource.RefusedStreamRetryDataSource
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.stream.ClientGateTracker
@@ -131,7 +132,11 @@ class DownloadUtil
                     buildPlaybackDataSpec(dataSpec, streamUrl, userAgent)
                 }
             val localFirst = LocalCopyDataSource.Factory(DefaultDataSource.Factory(context), resolvingFactory, ::downloadedSongUri)
-            return RefusedStreamRetryDataSource.Factory(localFirst, ::onStreamRefused)
+            return RefusedStreamRetryDataSource.Factory(localFirst) { dataSpec, url ->
+                val mediaId = dataSpec.key
+                if (mediaId != null) onStreamRefused(mediaId, url)
+                mediaId != null
+            }
         }
 
         private fun onStreamRefused(
