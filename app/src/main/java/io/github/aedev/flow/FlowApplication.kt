@@ -30,6 +30,7 @@ import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.normalizeYouTubeCountry
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
+import io.github.aedev.flow.utils.potoken.VisitorIdentityStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -65,13 +66,13 @@ class FlowApplication :
     @Inject
     lateinit var vpnStateMonitor: VpnStateMonitor
 
+    @Inject
+    lateinit var visitorIdentityStore: VisitorIdentityStore
+
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
     companion object {
         private const val TAG = "FlowApplication"
-        private const val VISITOR_DATA_KEY = "visitor_data"
-        private const val VISITOR_DATA_FETCHED_AT_KEY = "visitor_data_fetched_at"
-        private const val VISITOR_DATA_MAX_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
         lateinit var appContext: Context
             private set
     }
@@ -182,29 +183,20 @@ class FlowApplication :
                 }
         }
 
+        YouTube.onVisitorDataChanged = visitorIdentityStore::save
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
-                val cached = prefs.getString(VISITOR_DATA_KEY, null)
-                val cachedAt = prefs.getLong(VISITOR_DATA_FETCHED_AT_KEY, 0L)
-                val cacheIsFresh =
-                    cachedAt > 0L &&
-                        System.currentTimeMillis() - cachedAt < VISITOR_DATA_MAX_AGE_MS
-                if (!cached.isNullOrEmpty() && cacheIsFresh) {
-                    YouTube.visitorData = cached
-                    Log.d(TAG, "visitorData restored from prefs")
+                val restored = visitorIdentityStore.restore()
+                if (restored != null) {
+                    YouTube.visitorData = restored
+                    Log.d(TAG, "visitorData restored")
                 } else {
                     YouTube
                         .visitorData()
                         .onSuccess { data ->
                             if (!data.isNullOrEmpty()) {
-                                prefs
-                                    .edit()
-                                    .putString(VISITOR_DATA_KEY, data)
-                                    .putLong(VISITOR_DATA_FETCHED_AT_KEY, System.currentTimeMillis())
-                                    .apply()
                                 YouTube.visitorData = data
-                                Log.d(TAG, "visitorData fetched and cached")
+                                Log.d(TAG, "visitorData fetched")
                             }
                         }.onFailure { e ->
                             Log.w(TAG, "visitorData fetch failed: ${e.message}")
@@ -248,23 +240,12 @@ class FlowApplication :
             playerPreferences.trendingRegion.collectLatest { region ->
                 if (lastRegion != null && lastRegion != region) {
                     Log.d(TAG, "Trending region changed from $lastRegion to $region. Invalidate visitor data.")
-                    val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
-                    prefs
-                        .edit()
-                        .remove(VISITOR_DATA_KEY)
-                        .remove(VISITOR_DATA_FETCHED_AT_KEY)
-                        .apply()
                     YouTube.visitorData = null
 
                     YouTube
                         .visitorData()
                         .onSuccess { data ->
                             if (!data.isNullOrEmpty()) {
-                                prefs
-                                    .edit()
-                                    .putString(VISITOR_DATA_KEY, data)
-                                    .putLong(VISITOR_DATA_FETCHED_AT_KEY, System.currentTimeMillis())
-                                    .apply()
                                 YouTube.visitorData = data
                                 Log.d(TAG, "Fresh visitorData fetched for region: $region")
                             }

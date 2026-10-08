@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older. The YouTube visitor identity belongs to one install (#921). -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="youtube_identity.xml" />
+</full-backup-content>
