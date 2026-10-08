@@ -15,6 +15,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -78,14 +79,20 @@ class PlayerFactory {
         DefaultBandwidthMeter
             .Builder(context)
             .setInitialBitrateEstimate(PlayerConfig.INITIAL_BANDWIDTH_ESTIMATE)
-            .setResetOnNetworkTypeChange(false)
+            .setResetOnNetworkTypeChange(true)
             .build()
 
     fun createTrackSelector(
         context: Context,
         videoSizeCap: VideoSizeCap,
     ): DefaultTrackSelector {
-        val trackSelectionFactory = AdaptiveTrackSelection.Factory()
+        val trackSelectionFactory =
+            AdaptiveTrackSelection.Factory(
+                PlayerConfig.ABR_MIN_BUFFER_FOR_QUALITY_INCREASE_MS,
+                PlayerConfig.ABR_MAX_BUFFER_FOR_QUALITY_DECREASE_MS,
+                AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS,
+                PlayerConfig.AUTO_BANDWIDTH_FRACTION,
+            )
         val prefs = ensurePrefs(context)
 
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
@@ -136,6 +143,7 @@ class PlayerFactory {
         trackSelector: DefaultTrackSelector,
         loadControl: DefaultLoadControl,
         renderersFactory: DefaultRenderersFactory,
+        bandwidthMeter: BandwidthMeter,
         dataSourceFactory: DataSource.Factory?,
     ): ExoPlayer {
         val factory = dataSourceFactory ?: DefaultDataSource.Factory(context)
@@ -145,6 +153,7 @@ class PlayerFactory {
             .Builder(context, renderersFactory)
             .experimentalSetDynamicSchedulingEnabled(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING)
             .setTrackSelector(trackSelector)
+            .setBandwidthMeter(bandwidthMeter)
             .setAudioAttributes(
                 AudioAttributes
                     .Builder()

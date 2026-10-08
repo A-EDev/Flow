@@ -52,11 +52,13 @@ import io.github.aedev.flow.player.factory.PlayerFactory
 import io.github.aedev.flow.player.media.MediaLoader
 import io.github.aedev.flow.player.preload.GaplessPreloadController
 import io.github.aedev.flow.player.preload.PreloadTarget
+import io.github.aedev.flow.player.quality.AdaptiveLadder
 import io.github.aedev.flow.player.quality.LiveQualityPick
 import io.github.aedev.flow.player.quality.LiveQualitySelection
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.recovery.ClearedMediaRecoveryState
 import io.github.aedev.flow.player.recovery.StreamDenialReloader
+import io.github.aedev.flow.player.resolver.AdaptiveDashManifest
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
@@ -247,11 +249,12 @@ class EnhancedPlayerManager private constructor() {
             resolveStreams = { video, ctx -> resolveStreamsForVideo(video, ctx) },
             hasLocalCopy = { video -> localCopySource?.localCopyPath(video.id) != null },
             buildMediaSource = { resolved, ctx ->
+                val videoStreams = StreamProcessor.processVideoStreams(resolved.videoStreams)
                 mediaLoader?.buildPreloadMediaSource(
                     context = ctx,
                     videoStream = resolved.videoStream,
                     audioStream = resolved.audioStream,
-                    availableVideoStreams = StreamProcessor.processVideoStreams(resolved.videoStreams),
+                    availableVideoStreams = videoStreams,
                     dashManifestUrl = resolved.dashManifestUrl,
                     durationSeconds = resolved.durationSeconds,
                     captions = StreamProcessor.processCaptions(resolved.subtitles),
@@ -260,6 +263,7 @@ class EnhancedPlayerManager private constructor() {
                         resolved.enrichedVideo
                             .toVideoSessionMetadata()
                             .toMedia3Metadata(),
+                    adaptiveLadder = AdaptiveLadder.forPreload(resolved.videoStream, videoStreams, resolved.preferredCodec),
                 )
             },
             log = { autoNextLog(it) },
@@ -660,7 +664,9 @@ class EnhancedPlayerManager private constructor() {
                     qualityManager?.let { qm ->
                         if (qm.shouldCheckBandwidth()) {
                             qm.updateBandwidthCheckTime()
-                            qm.checkAdaptiveQualityUpgrade(player?.currentPosition ?: 0L)
+                            val position = player?.currentPosition ?: 0L
+                            qm.checkAdaptiveQualityDowngrade(forceCheck = false, position)
+                            qm.checkAdaptiveQualityUpgrade(position)
                         }
                     }
                 },
@@ -703,6 +709,7 @@ class EnhancedPlayerManager private constructor() {
                 trackSelector = trackSelector!!,
                 loadControl = loadControl,
                 renderersFactory = renderersFactory,
+                bandwidthMeter = bandwidthMeter!!,
                 dataSourceFactory = cacheManager?.getDataSourceFactory(),
             )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
@@ -1341,6 +1348,7 @@ class EnhancedPlayerManager private constructor() {
 
         if (localFilePath != null) {
             Log.d(TAG, "loadMediaInternal: Playing local file: $localFilePath")
+            qualityManager?.isAdaptiveLadderActive = false
             return mediaLoader?.loadMedia(
                 player = player,
                 context = appContext,
@@ -1380,6 +1388,12 @@ class EnhancedPlayerManager private constructor() {
             Log.w(TAG, "loadMediaInternal: no playable audio/video streams")
             return false
         }
+        val ladder =
+            if (audioOnly || currentIsLiveStream) {
+                emptyList()
+            } else {
+                qualityManager?.adaptiveLadder(videoStream ?: currentVideoStream).orEmpty()
+            }
         val result =
             mediaLoader?.loadMedia(
                 player = player,
@@ -1405,7 +1419,9 @@ class EnhancedPlayerManager private constructor() {
                 innerTubeAudioFormats = innerTubeAudioFormats,
                 mediaId = sessionMetadata?.mediaId.orEmpty(),
                 mediaMetadata = sessionMetadata?.toMedia3Metadata() ?: MediaMetadata.EMPTY,
+                adaptiveLadder = ladder,
             ) ?: false
+        qualityManager?.isAdaptiveLadderActive = result && mediaLoader?.lastSourceWasAdaptiveLadder == true
         if (result) {
             qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
         }
@@ -2224,7 +2240,8 @@ class EnhancedPlayerManager private constructor() {
         availableAudioStreams = StreamProcessor.processAudioStreams(data.audioStreams)
         subtitleTracks.load(data.enrichedVideo.id, StreamProcessor.processCaptions(data.subtitles), acceptsEmbedded = false)
         resetSubtitleDelayFor(data.enrichedVideo.id)
-        currentVideoStream = data.videoStream ?: availableVideoStreams.firstOrNull()
+        val ladder = AdaptiveLadder.forPreload(data.videoStream, availableVideoStreams, data.preferredCodec)
+        currentVideoStream = data.videoStream ?: ladder.lastOrNull() ?: availableVideoStreams.firstOrNull()
         currentAudioStream = data.audioStream
         applySubtitleTrackSelection()
 
@@ -2233,6 +2250,7 @@ class EnhancedPlayerManager private constructor() {
         qualityManager?.preferredCodecKey = data.preferredCodec
         qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
         qualityManager?.setCurrentStream(currentVideoStream)
+        qualityManager?.isAdaptiveLadderActive = AdaptiveDashManifest.build(ladder, data.durationSeconds) != null
         if (data.videoStream != null) {
             qualityManager?.setManualMode(VideoCodecUtils.qualityHeightFromStream(data.videoStream))
         }

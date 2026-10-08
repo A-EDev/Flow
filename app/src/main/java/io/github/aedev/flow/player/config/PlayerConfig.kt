@@ -76,25 +76,20 @@ object PlayerConfig {
     /** Initial bandwidth estimate in bits per second (5 Mbps) */
     const val INITIAL_BANDWIDTH_ESTIMATE = 5_000_000L
 
-    /** Bandwidth threshold for 4K quality (15 Mbps) */
-    const val BANDWIDTH_4K = 25_000_000L
-
-    /** Bandwidth threshold for 1440p quality (10 Mbps) */
-    const val BANDWIDTH_1440P = 15_000_000L
-
-    /** Bandwidth threshold for 1080p quality (6 Mbps) */
-    const val BANDWIDTH_1080P = 8_000_000L
-
-    /** Bandwidth threshold for 720p quality (3 Mbps) */
-    const val BANDWIDTH_720P = 4_000_000L
-
-    /** Bandwidth threshold for 480p quality (1.5 Mbps) */
-    const val BANDWIDTH_480P = 2_000_000L
-
-    /** Bandwidth threshold for 360p quality (800 Kbps) */
-    const val BANDWIDTH_360P = 800_000L
-
     // ===== Quality Adaptation =====
+
+    /** Share of the bandwidth estimate a stream may use, for Auto's own picks and Media3's ladder alike. */
+    const val AUTO_BANDWIDTH_FRACTION = 0.7f
+
+    /** Buffer a ladder needs before Media3 moves it up a quality (Media3's default is 10 s). */
+    const val ABR_MIN_BUFFER_FOR_QUALITY_INCREASE_MS = 5_000
+
+    /**
+     * Media3 holds the current quality while more than this is buffered. At its 25 s default a full
+     * 45 s buffer drains for 20 s before a collapsed network steps down; the midpoint of the main
+     * buffer window cuts that to 12.5 s.
+     */
+    const val ABR_MAX_BUFFER_FOR_QUALITY_DECREASE_MS = (MAX_SAFE_MAIN_MIN_BUFFER_MS + MAX_SAFE_MAIN_BUFFER_MS) / 2
 
     /** Interval for bandwidth checks during playback (5 seconds) */
     const val BANDWIDTH_CHECK_INTERVAL_MS = 5000L
@@ -163,35 +158,4 @@ object PlayerConfig {
     const val MAX_VIDEO_WIDTH = 3840
 
     const val MAX_VIDEO_HEIGHT = 2160
-
-    /**
-     * Calculate target quality height based on bandwidth in bits per second.
-     */
-    fun calculateTargetQualityForBandwidth(bandwidthBps: Long): Int =
-        when {
-            bandwidthBps > BANDWIDTH_4K -> 2160
-            bandwidthBps > BANDWIDTH_1440P -> 1440
-            bandwidthBps > BANDWIDTH_1080P -> 1080
-            bandwidthBps > BANDWIDTH_720P -> 720
-            bandwidthBps > BANDWIDTH_480P -> 480
-            bandwidthBps > BANDWIDTH_360P -> 360
-            else -> 240
-        }
-
-    /**
-     * Calculate initial quality target based on estimated bandwidth.
-     */
-    fun calculateInitialQualityTarget(estimatedBandwidth: Long): Int =
-        when {
-            estimatedBandwidth > 20_000_000 -> 1080
-
-            // Need very high bandwidth for default 1080p
-            estimatedBandwidth > 10_000_000 -> 720
-
-            estimatedBandwidth > 3_000_000 -> 480
-
-            estimatedBandwidth > 1_500_000 -> 360
-
-            else -> 240 // Low bandwidth = 240p
-        }
 }

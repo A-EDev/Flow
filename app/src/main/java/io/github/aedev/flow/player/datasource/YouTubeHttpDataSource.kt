@@ -32,6 +32,7 @@ class YouTubeHttpDataSource private constructor(
     HttpDataSource {
     private var dataSource: DataSource? = null
     private var currentUri: Uri? = null
+    private var opened = false
 
     class Factory : HttpDataSource.Factory {
         private val requestProperties = HashMap<String, String>()
@@ -106,8 +107,14 @@ class YouTubeHttpDataSource private constructor(
         }
 
         dataSource = factory.createDataSource()
+        // The inner source is new on every open and never sees the player's listeners, so the
+        // bandwidth meter only learns about these bytes from here.
+        transferInitializing(dataSpec)
         return try {
-            dataSource!!.open(dataSpec)
+            dataSource!!.open(dataSpec).also {
+                opened = true
+                transferStarted(dataSpec)
+            }
         } catch (e: HttpDataSource.InvalidResponseCodeException) {
             if (e.responseCode == 403) logForbidden(dataSpec)
             throw e
@@ -136,11 +143,22 @@ class YouTubeHttpDataSource private constructor(
         buffer: ByteArray,
         offset: Int,
         length: Int,
-    ): Int = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+    ): Int {
+        val read = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (read > 0) bytesTransferred(read)
+        return read
+    }
 
     override fun close() {
-        dataSource?.close()
-        dataSource = null
+        try {
+            dataSource?.close()
+        } finally {
+            dataSource = null
+            if (opened) {
+                opened = false
+                transferEnded()
+            }
+        }
     }
 
     override fun getUri(): Uri? = currentUri
