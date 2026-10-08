@@ -46,6 +46,7 @@ data class CategoriesUiState(
     val sectionKind: ExploreSectionKind = ExploreSectionKind.SHELVES,
     val shelves: List<FeedShelf> = emptyList(),
     val chartEntries: List<Video> = emptyList(),
+    val chartTitle: String? = null,
     val subTabs: List<CategorySubTab> = emptyList(),
     val selectedSubTab: String? = null,
     val openShelfTitle: String? = null,
@@ -88,6 +89,7 @@ class CategoriesViewModel
         private data class CachedSection(
             val shelves: List<FeedShelf> = emptyList(),
             val chartEntries: List<Video> = emptyList(),
+            val chartTitle: String? = null,
             val subTabs: List<CategorySubTab> = emptyList(),
             val selectedSubTab: String? = null,
             val loadedAtMs: Long = System.currentTimeMillis(),
@@ -213,6 +215,7 @@ class CategoriesViewModel
                     openShelfTitle = null,
                     shelves = cached?.shelves.orEmpty(),
                     chartEntries = cached?.chartEntries.orEmpty(),
+                    chartTitle = cached?.chartTitle,
                     // A sub-tab switch reloads within a destination, whose tab row outlives it.
                     subTabs = cached?.subTabs?.takeIf(List<CategorySubTab>::isNotEmpty) ?: it.subTabs,
                     selectedSubTab = cached?.selectedSubTab ?: it.selectedSubTab,
@@ -223,7 +226,7 @@ class CategoriesViewModel
                 viewModelScope.launch {
                     when (destination.kind) {
                         ExploreSectionKind.CHART -> {
-                            loadChart(destination, key)
+                            loadChart(key)
                         }
 
                         ExploreSectionKind.GRID -> {
@@ -301,24 +304,23 @@ class CategoriesViewModel
             _uiState.update { it.copy(isLoading = false) }
         }
 
-        private suspend fun loadChart(
-            destination: ExploreDestination,
-            key: CacheKey,
-        ) {
-            val chartType = destination.chartType ?: return
+        private suspend fun loadChart(key: CacheKey) {
             val region = preferences.trendingRegion.first()
             YouTube
-                .videoCharts(chartType, destination.chartCountryFor(region).orEmpty())
-                .onSuccess { page ->
+                .musicVideoChart(region)
+                .onSuccess { chart ->
                     _uiState.update {
                         it.copy(
-                            chartEntries = page.entries,
+                            chartEntries = chart.entries,
+                            chartTitle = chart.title.takeIf(String::isNotBlank),
                             isLoading = false,
-                            error = if (page.entries.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
+                            error = if (chart.entries.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
                         )
                     }
-                    if (page.entries.isNotEmpty()) cache[key] = CachedSection(chartEntries = page.entries)
-                    enrichChartAvatars(page.entries, key)
+                    if (chart.entries.isNotEmpty()) {
+                        cache[key] = CachedSection(chartEntries = chart.entries, chartTitle = chart.title.takeIf(String::isNotBlank))
+                    }
+                    enrichChartAvatars(chart.entries, key)
                 }.onFailure {
                     if (_uiState.value.chartEntries.isEmpty()) failed(it)
                 }

@@ -8,7 +8,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestination
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
-import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.MusicVideoChart
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.mockk.coEvery
 import io.mockk.every
@@ -50,7 +50,7 @@ class CategoriesViewModelTest {
         // The loads are not what these assert, and a real one would reach the network.
         mockkObject(YouTube)
         every { YouTube.exploreDestination(any(), any()) } returns flowOf(ExploreDestinationPage())
-        coEvery { YouTube.videoCharts(any(), any()) } returns Result.success(VideoChartsPage("", ""))
+        coEvery { YouTube.musicVideoChart(any()) } returns Result.success(MusicVideoChart(title = ""))
     }
 
     @After

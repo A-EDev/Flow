@@ -1,16 +1,21 @@
 package io.github.aedev.flow.ui.components.categories
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import io.github.aedev.flow.R
@@ -133,6 +138,7 @@ internal fun CategoryPagedGrid(
 @Composable
 internal fun CategoryChartGrid(
     entries: List<Video>,
+    title: String?,
     gridState: LazyGridState,
     feedLayout: FeedGridLayout,
     isListView: Boolean,
@@ -156,6 +162,11 @@ internal fun CategoryChartGrid(
         contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
         verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
+        if (title != null) {
+            item(key = "chart-title", span = { GridItemSpan(maxLineSpan) }, contentType = "chart-title") {
+                CategoryChartHeader(title = title)
+            }
+        }
         itemsIndexed(
             items = entries,
             key = { _, video -> video.id },
@@ -171,6 +182,24 @@ internal fun CategoryChartGrid(
         }
     }
 }
+
+@Composable
+private fun CategoryChartHeader(title: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = ChartHeaderHorizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(ChartHeaderLineSpacing),
+    ) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            text = stringResource(R.string.categories_chart_source),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private val ChartHeaderHorizontalPadding = 16.dp
+private val ChartHeaderLineSpacing = 2.dp
 
 private fun FeedItem?.gridVideo(): Video =
     when (this) {
