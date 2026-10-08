@@ -83,28 +83,21 @@ internal class YouTubeTakeoutImporter(
 
                 Result.success(
                     buildList {
-                        if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
-                        if (found.watches > 0) add("${found.watches} history entries")
-                        if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
-                        if (librarySongsImported > 0) {
+                        if (subscriptionsImported > 0) add(plural(R.plurals.import_takeout_part_subscriptions, subscriptionsImported))
+                        if (found.watches > 0) add(plural(R.plurals.import_takeout_part_history, found.watches))
+                        if (playlistsImported > 0) {
                             add(
                                 context.resources.getQuantityString(
-                                    R.plurals.import_takeout_part_music_library,
-                                    librarySongsImported,
-                                    librarySongsImported,
+                                    R.plurals.import_takeout_part_playlists,
+                                    playlistsImported,
+                                    playlistsImported,
+                                    playlistVideosImported,
                                 ),
                             )
                         }
+                        if (librarySongsImported > 0) add(plural(R.plurals.import_takeout_part_music_library, librarySongsImported))
                         if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
-                        if (searchesImported > 0) {
-                            add(
-                                context.resources.getQuantityString(
-                                    R.plurals.import_takeout_part_searches,
-                                    searchesImported,
-                                    searchesImported,
-                                ),
-                            )
-                        }
+                        if (searchesImported > 0) add(plural(R.plurals.import_takeout_part_searches, searchesImported))
                     }.joinToString(", "),
                 )
             } catch (e: Exception) {
@@ -136,7 +129,7 @@ internal class YouTubeTakeoutImporter(
                 val english = name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true)
                 when {
                     english || isYouTubeTakeoutHtmlEntry(name) -> {
-                        onProgress?.invoke("Watch history", 0, 0)
+                        onProgress?.invoke(context.getString(R.string.import_takeout_step_history), 0, 0)
                         // Each file is stamped below the last, so two history files never share a time.
                         val start = System.currentTimeMillis() - found.watches - found.searches.size
                         val read =
@@ -147,7 +140,7 @@ internal class YouTubeTakeoutImporter(
                     }
 
                     !entry.isDirectory && isYouTubeTakeoutJsonEntry(name) -> {
-                        onProgress?.invoke("Watch history", 0, 0)
+                        onProgress?.invoke(context.getString(R.string.import_takeout_step_history), 0, 0)
                         readActivity(zip, keepWatches = true)?.let { activity ->
                             activity.watches.chunked(WATCH_BATCH).forEach { saveWatches(it, found) }
                             found.searches += activity.searches
@@ -156,7 +149,7 @@ internal class YouTubeTakeoutImporter(
 
                     // My Activity repeats the watch history, which the YouTube folder already gave.
                     !entry.isDirectory && isMyActivityYouTubeEntry(name) -> {
-                        onProgress?.invoke(context.getString(R.string.import_label_youtube_likes), 0, 0)
+                        onProgress?.invoke(context.getString(R.string.import_takeout_step_activity), 0, 0)
                         readActivity(zip, keepWatches = false)?.let { activity ->
                             if (found.likes == null) found.likes = activity.likes.likes
                             found.searches += activity.searches
@@ -167,7 +160,7 @@ internal class YouTubeTakeoutImporter(
                         budget.startEntry()
                         when (val content = readYouTubeTakeoutCsv(zip.bufferedReader(Charsets.UTF_8), budget)) {
                             is YouTubeTakeoutCsvContent.Subscriptions -> {
-                                onProgress?.invoke("Subscriptions", 0, 0)
+                                onProgress?.invoke(context.getString(R.string.import_takeout_step_subscriptions), 0, 0)
                                 found.subscriptions += content.rows
                             }
 
@@ -236,7 +229,8 @@ internal class YouTubeTakeoutImporter(
         onProgress: ((String, Int, Int) -> Unit)?,
     ): Int {
         if (rows.isEmpty()) return 0
-        onProgress?.invoke("Subscriptions", 0, rows.size)
+        val label = context.getString(R.string.import_takeout_step_subscriptions)
+        onProgress?.invoke(label, 0, rows.size)
         val semaphore = Semaphore(AVATAR_FETCHES)
         val completed = AtomicInteger(0)
         val imported = mutableListOf<ChannelSubscription>()
@@ -248,7 +242,7 @@ internal class YouTubeTakeoutImporter(
                             async(Dispatchers.IO) {
                                 semaphore.withPermit {
                                     val avatar = runCatching { channelAvatar(sub.channelId) }.getOrDefault("")
-                                    onProgress?.invoke("Subscriptions", completed.incrementAndGet(), rows.size)
+                                    onProgress?.invoke(label, completed.incrementAndGet(), rows.size)
                                     ChannelSubscription(
                                         channelId = sub.channelId,
                                         channelName = sub.channelName,
@@ -342,6 +336,11 @@ internal class YouTubeTakeoutImporter(
         )
         return unique.size
     }
+
+    private fun plural(
+        res: Int,
+        count: Int,
+    ): String = context.resources.getQuantityString(res, count, count)
 
     /** Creates [playlist] if it is new, then appends the videos it does not hold yet after its last one. */
     private suspend fun fillPlaylist(

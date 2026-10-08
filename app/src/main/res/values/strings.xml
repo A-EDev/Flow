@@ -1650,6 +1650,21 @@
     <string name="import_yt_likes">Import Likes</string>
     <string name="import_yt_likes_desc">Import liked videos from a Google Takeout My Activity export (JSON).</string>
     <string name="import_takeout_part_likes">%1$d likes</string>
+    <string name="import_takeout_step_history">Watch history</string>
+    <string name="import_takeout_step_subscriptions">Subscriptions</string>
+    <string name="import_takeout_step_activity">Likes and searches</string>
+    <plurals name="import_takeout_part_subscriptions">
+        <item quantity="one">%d subscription</item>
+        <item quantity="other">%d subscriptions</item>
+    </plurals>
+    <plurals name="import_takeout_part_history">
+        <item quantity="one">%d history entry</item>
+        <item quantity="other">%d history entries</item>
+    </plurals>
+    <plurals name="import_takeout_part_playlists">
+        <item quantity="one">%1$d playlist (%2$d videos)</item>
+        <item quantity="other">%1$d playlists (%2$d videos)</item>
+    </plurals>
     <plurals name="import_takeout_part_music_library">
         <item quantity="one">%d YouTube Music library song</item>
         <item quantity="other">%d YouTube Music library songs</item>
