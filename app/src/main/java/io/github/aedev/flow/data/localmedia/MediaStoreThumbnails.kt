@@ -9,7 +9,7 @@ import android.os.Build
 import android.util.Size
 
 private const val MEDIA_AUTHORITY = "media"
-private const val AUDIO_PATH = "/audio/"
+internal const val AUDIO_MEDIA_PATH = "/audio/media/"
 
 /**
  * Artwork for a file on the device. A song shows the cover embedded in its own file first: the
@@ -39,7 +39,7 @@ object MediaStoreThumbnails {
             }
         }.getOrNull()
 
-    private fun isAudio(uri: Uri): Boolean = uri.path?.contains(AUDIO_PATH) == true
+    private fun isAudio(uri: Uri): Boolean = uri.path?.contains(AUDIO_MEDIA_PATH) == true
 
     private fun embeddedCover(
         context: Context,
