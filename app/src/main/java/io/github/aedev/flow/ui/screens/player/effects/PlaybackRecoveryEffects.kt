@@ -140,7 +140,10 @@ internal fun PlaybackRefocusEffect(
                     return@LaunchedEffect
                 }
 
-                if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {
+                // A refused source must not be fetched again: the player is already reloading it,
+                // or has given up on it (#921).
+                val streamsRefused = mgr.isRecoveringStreams(playerMgrState.currentVideoId) || mgr.hasAbandonedPlayback()
+                if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null && !streamsRefused) {
                     Log.d(TAG, "PlaybackRefocusEffect: player in IDLE after resume, calling prepare()")
                     player.prepare()
                     if (savedPosition != null && savedPosition > 500L) {
@@ -189,7 +192,7 @@ internal fun PlaybackStartupRecoveryEffect(
         var snapshot = captureStartupRecoverySnapshot(manager, videoId, uiState, screenState)
         if (!snapshot.belongsToVideo) return@LaunchedEffect
 
-        if (snapshot.hasMedia && snapshot.isIdle) {
+        if (snapshot.hasMedia && snapshot.isIdle && !manager.isRecoveringStreams(videoId)) {
             Log.w(TAG, "Startup recovery: player idle for $videoId, preparing again")
             player?.prepare()
             player?.play()

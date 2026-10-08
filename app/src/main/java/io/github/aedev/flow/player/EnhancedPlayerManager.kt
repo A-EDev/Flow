@@ -2561,7 +2561,7 @@ class EnhancedPlayerManager private constructor() {
             p.playbackState != Player.STATE_IDLE
     }
 
-    fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true
+    fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true || denialReloads.hasGivenUpOn(currentVideoId)
 
     private fun resolveSourceVideoAspectRatio(): Float? {
         val innerTubeDimensions =
@@ -3366,6 +3366,7 @@ class EnhancedPlayerManager private constructor() {
      */
     fun handleRefocusStuck(videoId: String?) {
         val p = player ?: return
+        if (isRecoveringStreams(videoId) || hasAbandonedPlayback()) return
         if (reloadClearedMediaIfNeeded()) {
             return
         }
