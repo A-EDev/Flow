@@ -71,8 +71,9 @@ internal class YouTubeTakeoutImporter(
                 }
 
                 val subscriptionsImported = saveSubscriptions(found.subscriptions, onProgress)
-                val (playlistsImported, playlistVideosImported) = savePlaylists(found)
+                // The library first: its rows carry titles, which a playlist's bare video ids would otherwise claim.
                 val librarySongsImported = saveMusicLibrary(found.librarySongs)
+                val (playlistsImported, playlistVideosImported) = savePlaylists(found)
                 val likesImported = found.likes?.let { saveLikes(it) } ?: 0
                 val searchesImported = saveSearches(found.searches)
 
