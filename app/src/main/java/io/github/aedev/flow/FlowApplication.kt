@@ -31,6 +31,7 @@ import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.normalizeYouTubeCountry
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
 import io.github.aedev.flow.utils.potoken.VisitorIdentityStore
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -184,6 +185,7 @@ class FlowApplication :
         }
 
         YouTube.onVisitorDataChanged = visitorIdentityStore::save
+        WebPoTokenSession.bindIdentityStore(visitorIdentityStore)
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val restored = visitorIdentityStore.restore()
@@ -206,8 +208,7 @@ class FlowApplication :
                 Log.w(TAG, "visitorData init error: ${e.message}")
             }
             try {
-                io.github.aedev.flow.utils.potoken.WebPoTokenSession
-                    .prewarm()
+                WebPoTokenSession.prewarm()
             } catch (e: Exception) {
                 Log.w(TAG, "WebPoTokenSession prewarm failed: ${e.message}")
             }
