@@ -89,6 +89,8 @@ NEW FEATURES
 - Cache settings show how much space videos, songs and artwork each take, with a separate limit and a Clear button for each (#1229)
 - Double-tap seek can be turned off, and its side zones can be made narrower so the play and pause area in the middle is bigger (#1178)
 - Tapping a video opens the player out of the card you tapped, with its thumbnail on screen until the video starts (#1091)
+- A video playing in the background keeps a mini bar in the music bar's place, with play and pause, its queue, and a tap or a swipe up to bring the video back (#980)
+- Choose what swiping a mini bar left or right does in Player appearance: close, next or previous with a peek at that video, save to Watch later, like, download, not interested or remove from queue (#980)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -144,6 +146,7 @@ IMPROVEMENTS
 - Deep Flow now keeps a session private: searches and actions stay out of Recap, feed and Shorts memory is not saved, and scrobbling stops unless you allow it. Long-press the FLOW wordmark or the logo to switch it (#1228)
 - The video mini player closes with a swipe down (#966) and tucks into the side of the screen when dragged well past it or thrown out through its own side
 - The video mini player stays above the keyboard while you type (#1241)
+- The music bar closes with a swipe down
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -240,6 +243,7 @@ FIXES AND STABILITY
 - Fix a background playlist stopping for good after a few refused videos, and reopening the app playing a stream YouTube had already refused again
 - Fix Reset YouTube session in Diagnostics being undone by the next restart, and keep the YouTube identity out of Android backups so it is never restored onto another phone
 - Diagnostics reports now list how the app's last few runs ended, so a close with no crash report still shows its cause
+- Fix music started while a video played in the background getting no mini player
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

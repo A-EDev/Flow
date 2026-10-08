@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.lerp
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import kotlinx.coroutines.delay
 
 /**
@@ -37,7 +38,7 @@ internal class MusicSheetGeometry(
     private val containerHeightPx: State<Float>,
     private val miniHeightPx: State<Float>,
     private val containerWidthPx: State<Float>,
-    private val miniBounds: State<MiniPlayerBounds>,
+    private val miniBounds: State<MediaMiniBarBounds>,
     private val collapsedRadiusPx: State<Float>,
 ) {
     fun fraction(): Float = (state.expansionFraction.value * (1f - predictiveBackProgress.value)).coerceIn(0f, 1f)
@@ -80,7 +81,7 @@ internal fun rememberMusicSheetGeometry(
     containerHeightPx: Float,
     miniHeightPx: Float,
     containerWidthPx: Float,
-    miniBounds: MiniPlayerBounds,
+    miniBounds: MediaMiniBarBounds,
     collapsedRadiusPx: Float,
 ): MusicSheetGeometry {
     val collapsedY = rememberUpdatedState(collapsedYPx)

@@ -144,6 +144,16 @@ internal object PlayerAppearanceIndex {
             R.string.settings_section_mini_player,
         )
 
+    val miniBarSwipeLeft =
+        entry("mini_bar_swipe_left", R.string.mini_bar_swipe_left, R.string.mini_bar_swipe_subtitle, R.string.settings_section_mini_player)
+    val miniBarSwipeRight =
+        entry(
+            "mini_bar_swipe_right",
+            R.string.mini_bar_swipe_right,
+            R.string.mini_bar_swipe_subtitle,
+            R.string.settings_section_mini_player,
+        )
+
     val all =
         listOf(
             sliderStyle,
@@ -167,5 +177,7 @@ internal object PlayerAppearanceIndex {
             miniPlayerSize,
             miniPlayerSkip,
             miniPlayerNextPrev,
+            miniBarSwipeLeft,
+            miniBarSwipeRight,
         )
 }

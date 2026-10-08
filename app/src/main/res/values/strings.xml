@@ -904,6 +904,11 @@
     <string name="mini_player_large">Large</string>
     <string name="mini_player_normal">Normal</string>
     <string name="mini_player_show">Show mini player</string>
+    <string name="mini_bar_swipe_left">Swipe left</string>
+    <string name="mini_bar_swipe_right">Swipe right</string>
+    <string name="mini_bar_swipe_subtitle">For the music bar and the background video bar</string>
+    <string name="mini_bar_nothing_next">Nothing up next</string>
+    <string name="mini_bar_nothing_previous">Nothing before this</string>
     <string name="skip_button_title">Show Skip Buttons</string>
     <string name="skip_button_subtitle">Show rewind/forward 10s buttons on the mini player</string>
     <string name="player_nav_btn_title">Show Next/Prev Buttons</string>

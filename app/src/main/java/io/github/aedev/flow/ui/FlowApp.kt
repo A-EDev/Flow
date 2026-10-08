@@ -48,15 +48,11 @@ import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerCompactMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerLargeMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerMaxWidth
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBottomSpacer
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
-import io.github.aedev.flow.ui.components.musicplayer.sheet.miniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.mediaMiniBarBounds
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
@@ -242,8 +238,14 @@ fun FlowApp(
         // Shows the player for a song that just started, without a route: a navigation here used to
         // swap the page out and back for a frame, which the mini player now leaves in view.
         val onMusicStarted: () -> Unit =
-            remember(musicPlayerSheetState) {
+            remember(musicPlayerSheetState, playerViewModel) {
                 {
+                    // One player at a time: a video still cached, even one playing in the
+                    // background, would keep the music from showing its own mini player.
+                    if (playerViewModel.uiState.value.cachedVideo != null) {
+                        playerVisible = false
+                        playerViewModel.clearVideo()
+                    }
                     suppressMusicMiniAfterVideo = false
                     if (openMusicPlayerOnPlay.value) {
                         musicPlayerSheetState.expand()
@@ -322,8 +324,16 @@ fun FlowApp(
             }
         }
 
-        val isMusicSheetShown =
-            currentMusicTrack != null && !suppressMusicMiniAfterVideo && playerUiState.cachedVideo == null
+        val activeMiniPlayer =
+            resolveActiveMiniPlayer(
+                hasVideo = playerUiState.cachedVideo != null,
+                videoVisible = playerVisible,
+                videoInBackground = playerUiState.isBackgroundPlaybackMode,
+                onShortsPlayer = isShortsPlayerRoute,
+                hasMusic = currentMusicTrack != null,
+                musicSuppressed = suppressMusicMiniAfterVideo,
+            )
+        val isMusicSheetShown = activeMiniPlayer == ActiveMiniPlayer.Music
         val isPlayerCoveringContent =
             (playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded) ||
                 (isMusicSheetShown && musicPlayerSheetState.isExpanded)
@@ -337,12 +347,9 @@ fun FlowApp(
                 needsOnboarding != null &&
                 currentDestinationRoute != "onboarding" &&
                 !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
-        val isMusicMiniPlayerObscuringContent =
-            currentMusicTrack != null &&
-                !suppressMusicMiniAfterVideo &&
-                playerUiState.cachedVideo == null &&
-                !musicPlayerSheetState.isDismissed &&
-                !musicPlayerSheetState.isExpanded
+        val showVideoBar = activeMiniPlayer == ActiveMiniPlayer.VideoBar && !isInPipMode
+        val isMiniBarObscuringContent =
+            (isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded) || showVideoBar
         val motionScheme = MaterialTheme.motionScheme
         val barFraction = remember { Animatable(if (isBottomNavShown) 1f else 0f) }
         LaunchedEffect(isBottomNavShown) {
@@ -355,24 +362,24 @@ fun FlowApp(
         val systemBottomState = rememberUpdatedState(with(density) { navBarBottomInset.toDp() })
         val barHeightState = rememberUpdatedState(if (usesNavigationRail) 0.dp else navigationBarHeight)
         val barShownState = rememberUpdatedState(isBottomNavShown)
-        val miniPlayerFraction = remember { Animatable(if (isMusicMiniPlayerObscuringContent) 1f else 0f) }
-        LaunchedEffect(isMusicMiniPlayerObscuringContent) {
+        val miniPlayerFraction = remember { Animatable(if (isMiniBarObscuringContent) 1f else 0f) }
+        LaunchedEffect(isMiniBarObscuringContent) {
             miniPlayerFraction.animateTo(
-                targetValue = if (isMusicMiniPlayerObscuringContent) 1f else 0f,
+                targetValue = if (isMiniBarObscuringContent) 1f else 0f,
                 animationSpec = motionScheme.defaultSpatialSpec(),
             )
         }
-        val miniPlayerShownState = rememberUpdatedState(isMusicMiniPlayerObscuringContent)
-        val miniPlayerHeightState = rememberUpdatedState(MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer)
+        val miniPlayerShownState = rememberUpdatedState(isMiniBarObscuringContent)
+        val miniPlayerHeightState = rememberUpdatedState(MediaMiniBarDefaults.Height + MediaMiniBarDefaults.BottomSpacer)
         val miniPlayerBounds =
             with(density) {
-                miniPlayerBounds(
+                mediaMiniBarBounds(
                     containerWidthPx = constraints.maxWidth.toFloat(),
                     startInsetPx = (if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp).toPx(),
                     isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth,
-                    compactMarginPx = MiniPlayerCompactMargin.toPx(),
-                    largeMarginPx = MiniPlayerLargeMargin.toPx(),
-                    maxWidthPx = MiniPlayerMaxWidth.toPx(),
+                    compactMarginPx = MediaMiniBarDefaults.CompactMargin.toPx(),
+                    largeMarginPx = MediaMiniBarDefaults.LargeMargin.toPx(),
+                    maxWidthPx = MediaMiniBarDefaults.MaxWidth.toPx(),
                 )
             }
         val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -518,10 +525,11 @@ fun FlowApp(
             miniPlayerShowSkipControls = miniPlayerShowSkipControls,
             miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
             showMusicSheet = isMusicSheetShown,
+            showVideoBar = showVideoBar,
             musicPlayerSheetState = musicPlayerSheetState,
             containerWidth = maxWidth,
             containerHeight = with(density) { screenHeightPx.toDp() },
-            musicMiniBounds = miniPlayerBounds,
+            miniBarBounds = miniPlayerBounds,
             musicMenus = musicMenus,
             equalizerState = equalizerViewModel.state,
             bottomInsets = bottomInsets,
