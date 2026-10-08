@@ -43,6 +43,8 @@ fun SettingsMenuDialog(
     selectedSubtitleUrl: String? = null,
     onSubtitleSelected: (Int) -> Unit = {},
     onDisableSubtitles: () -> Unit = {},
+    onAddSubtitleFile: (() -> Unit)? = null,
+    onSubtitleOffsetChange: ((Long) -> Unit)? = null,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
     onStableVolumeToggle: (Boolean) -> Unit,
@@ -54,6 +56,11 @@ fun SettingsMenuDialog(
     onCastClick: () -> Unit = {},
     onPipClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
+    sponsorBlockSegmentCount: Int = 0,
+    sponsorBlockOffForVideo: Boolean = false,
+    onSponsorBlockToggle: (off: Boolean) -> Unit = {},
+    notePositionMs: Long? = null,
+    onAddNote: () -> Unit = {},
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     enableVerticalDismiss: Boolean = true,
@@ -146,6 +153,11 @@ fun SettingsMenuDialog(
                         onSkipSilenceToggle = onSkipSilenceToggle,
                         onStableVolumeToggle = onStableVolumeToggle,
                         onAmbientModeToggle = onAmbientModeToggle,
+                        sponsorBlockSegmentCount = sponsorBlockSegmentCount,
+                        sponsorBlockOffForVideo = sponsorBlockOffForVideo,
+                        onSponsorBlockToggle = onSponsorBlockToggle,
+                        notePositionMs = notePositionMs,
+                        onAddNote = onAddNote,
                     )
                 }
 
@@ -202,6 +214,10 @@ fun SettingsMenuDialog(
                             onDisableSubtitles()
                             sheetState.dismiss()
                         },
+                        // Stays open: the picker's result comes back to this composition.
+                        onAddSubtitleFile = onAddSubtitleFile,
+                        subtitleOffsetMs = playerState.subtitleOffsetMs,
+                        onSubtitleOffsetChange = onSubtitleOffsetChange,
                         onShowStyleCustomizer = {
                             subtitleStyleReturnPage = PlayerSettingsPage.Subtitles
                             currentPage = PlayerSettingsPage.SubtitleStyle

@@ -69,6 +69,7 @@ internal fun SubscriptionsFeedContent(
     onShortClick: (ShortsQueueSource) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onViewAllClick: () -> Unit,
+    onMusicSubscriptionsClick: () -> Unit,
     onGroupSelected: (String?) -> Unit,
     onManageGroups: () -> Unit,
     onRetryFailedChannels: () -> Unit,
@@ -115,6 +116,7 @@ internal fun SubscriptionsFeedContent(
                             channels = topChannels,
                             onChannelClick = onChannelClick,
                             onViewAllClick = onViewAllClick,
+                            onMusicClick = onMusicSubscriptionsClick,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()

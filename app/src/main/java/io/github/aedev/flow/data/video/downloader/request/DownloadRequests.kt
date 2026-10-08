@@ -17,6 +17,7 @@ fun Video.toDownloadRequest(
     audioLanguage: String? = null,
     collectionId: String? = null,
     threads: Int? = null,
+    subtitle: DownloadSubtitle? = null,
 ): DownloadRequest {
     val kind =
         when {
@@ -48,6 +49,7 @@ fun Video.toDownloadRequest(
         collectionId = collectionId,
         threads = threads,
         durationSeconds = duration,
+        subtitle = subtitle,
     )
 }
 

@@ -160,6 +160,11 @@ object YouTube {
         set(value) {
             innerTube.visitorData = value
         }
+    var onVisitorDataChanged: ((String?) -> Unit)?
+        get() = innerTube.onVisitorDataChanged
+        set(value) {
+            innerTube.onVisitorDataChanged = value
+        }
     var dataSyncId: String?
         get() = innerTube.dataSyncId
         set(value) {
@@ -2780,10 +2785,6 @@ object YouTube {
         runCatching {
             innerTube.reelItemWatch(client = WEB, videoId = videoId).body<JsonObject>().toReelOverlay()
         }
-
-    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
-        io.github.aedev.flow.innertube.pages.NewPipeExtractor
-            .newPipePlayer(videoId)
 
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }

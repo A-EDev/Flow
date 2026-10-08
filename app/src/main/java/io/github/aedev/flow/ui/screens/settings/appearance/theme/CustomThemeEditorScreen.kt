@@ -32,6 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.toArgb
@@ -43,13 +46,16 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.toggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowColorPickerDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.appearance.themeVariantLabel
 import io.github.aedev.flow.ui.screens.settings.index.CustomThemeIndex
 import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.toColorScheme
+import io.github.aedev.flow.utils.toHexRgb
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private val SwatchSize = 32.dp
 private val SwatchBorder = 1.dp
@@ -61,7 +67,8 @@ private val PreviewCardHeight = 40.dp
 private val PreviewLineHeight = 8.dp
 private val PreviewFabSize = 24.dp
 private const val PREVIEW_LINE_FRACTION = 0.6f
-private const val OPAQUE = 0xFF000000L
+private val CheckerCell = 4.dp
+private const val PERCENT = 100
 
 /**
  * Edits one custom theme, style by style, over the thirteen roles Flow Desktop's editor offers.
@@ -136,13 +143,12 @@ internal fun CustomThemeEditorScreen(
 
     val theme = current ?: return
     pickingRole?.let { role ->
-        ColorPickerDialog(
+        FlowColorPickerDialog(
             title = stringResource(role.labelRes),
             initialArgb = role.read(theme.colorsFor(editing)).toArgb().toLong() and 0xFFFFFFFFL,
-            allowAlpha = false,
             onDismiss = { pickingRole = null },
             onApply = { argb ->
-                val picked = Color(argb or OPAQUE)
+                val picked = Color(argb)
                 draft = theme.withColors(editing, role.write(theme.colorsFor(editing), picked))
                 pickingRole = null
             },
@@ -176,16 +182,27 @@ private fun ColorRoleRow(
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         leadingContent = {
+            val checker = MaterialTheme.colorScheme.outlineVariant
             Box(
                 modifier =
                     Modifier
                         .size(SwatchSize)
                         .clip(CircleShape)
+                        .then(if (color.alpha < 1f) Modifier.transparencyChecker(checker) else Modifier)
                         .background(color)
                         .border(SwatchBorder, MaterialTheme.colorScheme.outlineVariant, CircleShape),
             )
         },
-        supportingContent = { Text((color.toArgb().toLong() and 0xFFFFFFFFL).toHexRgb()) },
+        supportingContent = {
+            val hex = (color.toArgb().toLong() and 0xFFFFFFFFL).toHexRgb()
+            Text(
+                if (color.alpha < 1f) {
+                    stringResource(R.string.settings_theme_color_with_opacity, hex, (color.alpha * PERCENT).roundToInt())
+                } else {
+                    hex
+                },
+            )
+        },
     ) {
         Text(label)
     }
@@ -241,3 +258,20 @@ private fun CustomThemePreview(scheme: ColorScheme) {
         }
     }
 }
+
+/** Squares of [cell] behind a translucent swatch, so its opacity reads at a glance. */
+private fun Modifier.transparencyChecker(cell: Color): Modifier =
+    drawBehind {
+        val side = CheckerCell.toPx()
+        var row = 0
+        var y = 0f
+        while (y < size.height) {
+            var x = if (row % 2 == 0) 0f else side
+            while (x < size.width) {
+                drawRect(cell, Offset(x, y), Size(side, side))
+                x += side * 2
+            }
+            y += side
+            row++
+        }
+    }

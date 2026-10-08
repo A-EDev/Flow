@@ -18,7 +18,6 @@ data class VideoPlayerUiState(
     val audioStream: AudioStream? = null,
     val availableQualities: List<VideoQuality> = emptyList(),
     val selectedQuality: VideoQuality = VideoQuality.AUTO,
-    val subtitlesEnabled: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     /** Optional secondary hint shown below the primary error in the player's error panel. */

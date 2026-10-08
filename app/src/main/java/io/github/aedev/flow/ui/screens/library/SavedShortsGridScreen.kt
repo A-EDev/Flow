@@ -81,6 +81,7 @@ fun SavedShortsGridScreen(
                             video = video,
                             onClick = { onVideoClick(video.id) },
                             modifier = Modifier.fillMaxSize(),
+                            removableFromSavedShorts = true,
                         )
                     }
                 }

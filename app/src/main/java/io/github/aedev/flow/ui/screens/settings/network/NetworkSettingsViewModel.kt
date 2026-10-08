@@ -6,11 +6,18 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
+import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +31,7 @@ data class ProxyDraft(
     val port: String,
     val username: String,
     val password: String,
+    val bypassOnVpn: Boolean = false,
 ) {
     val hostError: Boolean get() = enabled && host.isBlank()
     val portError: Boolean get() = enabled && port.toIntOrNull()?.let { it in PORT_RANGE } != true
@@ -37,13 +45,22 @@ data class ProxyDraft(
             port = port.toIntOrNull() ?: fallbackPort,
             username = username.trim(),
             password = password,
+            bypassOnVpn = bypassOnVpn,
         )
 
     companion object {
         val PORT_RANGE = 1..65535
 
         fun of(config: AppProxyConfig) =
-            ProxyDraft(config.enabled, config.type, config.host, config.port.toString(), config.username, config.password)
+            ProxyDraft(
+                config.enabled,
+                config.type,
+                config.host,
+                config.port.toString(),
+                config.username,
+                config.password,
+                config.bypassOnVpn,
+            )
     }
 }
 
@@ -51,17 +68,26 @@ data class ProxyDraft(
  * Holds the proxy form while it is edited. Nothing reaches the network stack until [save], because a
  * half-typed host would otherwise reroute every request as each key is pressed.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class NetworkSettingsViewModel
     @Inject
     constructor(
         private val preferences: PlayerPreferences,
+        vpnStateMonitor: VpnStateMonitor,
     ) : SettingsViewModel() {
         private var savedPort = DEFAULT_PORT
         private val _saved = MutableStateFlow<ProxyDraft?>(null)
         private val _draft = MutableStateFlow<ProxyDraft?>(null)
         val saved: StateFlow<ProxyDraft?> = _saved.asStateFlow()
         val draft: StateFlow<ProxyDraft?> = _draft.asStateFlow()
+
+        /** Whether a VPN is pausing the saved proxy right now. */
+        val pausedByVpn: StateFlow<Boolean> =
+            preferences.proxyConfig
+                .distinctUntilChanged()
+                .flatMapLatest { config -> if (config.watchesVpn()) vpnStateMonitor.vpnActive() else flowOf(false) }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
 
         init {
             viewModelScope.launch {
@@ -88,5 +114,6 @@ class NetworkSettingsViewModel
 
         private companion object {
             const val DEFAULT_PORT = 8080
+            const val STOP_TIMEOUT_MS = 5_000L
         }
     }

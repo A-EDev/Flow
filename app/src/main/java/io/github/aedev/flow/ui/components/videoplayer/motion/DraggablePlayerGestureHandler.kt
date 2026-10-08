@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.motion
 
-import android.util.Log
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -8,9 +7,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerTuckSide
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.canSwipeUpToFullscreen
 import kotlinx.coroutines.Job
@@ -18,18 +20,27 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private const val DRAG_MODE_FRACTION = 0
-private const val DRAG_MODE_POSITION = 1
-private const val DRAG_MODE_EXPAND_SCALE = 2
+private const val DRAG_MODE_EXPAND_SCALE = 1
 
 /** Screen-space movement under which a mini player press still counts as a tap. */
 private const val MINI_TAP_MOVEMENT_PX = 24f
 
 /**
+ * Where a mini player drag left the finger, how far it went, whether the player followed it, and
+ * whether a second finger or another handler took the gesture over.
+ */
+private class MiniDrag(
+    val fingerAt: Offset,
+    val travel: Float,
+    val moved: Boolean,
+    val interrupted: Boolean,
+)
+
+/**
  * The one-finger gesture on the video box: collapse drag and swipe-to-fullscreen while expanded,
- * free 2-D drag, tap, double tap, corner fling and dismiss fling while mini.
+ * free 2-D drag, tap, double tap, swipe down to close and tucking into an edge while mini.
  *
  * Hand-rolled on purpose. `anchoredDraggable` and `draggable2D` apply touch slop and report
  * deltas in local space, but this node sits under the morph's graphicsLayer scale, so the same
@@ -55,16 +66,25 @@ internal class DraggablePlayerGestureHandler(
     private val velocityTracker = VelocityTracker()
     private val tapDecider = MiniPlayerTapDecider()
     private var singleTapJob: Job? = null
+    private var doubleTapTimeoutMillis = 300L
 
     suspend fun AwaitPointerEventScope.handleGesture() {
         val gestureTargetMiniX = metrics.targetMiniX
         val gestureTargetMiniY = metrics.targetMiniY
 
         val down = awaitFirstDown(requireUnconsumed = false)
+        doubleTapTimeoutMillis = viewConfiguration.doubleTapTimeoutMillis
         val downConsumedByChild = down.isConsumed
+        if (state.openOrigin != null) {
+            awaitAllPointersUp()
+            return
+        }
 
+        if (state.expandFraction.value > 0.8f) {
+            handleMiniGesture(down, downConsumedByChild)
+            return
+        }
         val isCollapseDrag = state.expandFraction.value < 0.4f
-        val isMiniDrag = state.expandFraction.value > 0.8f
 
         val canSwipeToFullscreen =
             isCollapseDrag &&
@@ -83,11 +103,6 @@ internal class DraggablePlayerGestureHandler(
             state.scope.launch {
                 state.motion.stopFraction()
                 state.motion.snapOffsets(x = gestureTargetMiniX, y = gestureTargetMiniY)
-            }
-        } else if (isMiniDrag) {
-            state.scope.launch {
-                state.motion.stopOffsets()
-                state.dragScale.animateTo(0.97f, dragPressSpringSpec)
             }
         }
 
@@ -125,7 +140,6 @@ internal class DraggablePlayerGestureHandler(
         }
 
         var cumulativeDragY = startDragY
-        var totalMovement = 0f
         val startFraction = state.expandFraction.value
         var totalUpwardDrag = 0f
 
@@ -133,8 +147,6 @@ internal class DraggablePlayerGestureHandler(
             state.isDragging = true
             val snapSignal = Channel<Unit>(Channel.CONFLATED)
             var pendingFraction = state.expandFraction.value
-            var pendingX = state.offsetX.value
-            var pendingY = state.offsetY.value
             var pendingMode = DRAG_MODE_FRACTION
             var pendingExpandScale = 1f
             val snapDriver =
@@ -145,13 +157,8 @@ internal class DraggablePlayerGestureHandler(
                                 state.expandFraction.snapTo(pendingFraction)
                             }
 
-                            DRAG_MODE_EXPAND_SCALE -> {
-                                state.expandDragScale.snapTo(pendingExpandScale)
-                            }
-
                             else -> {
-                                state.offsetX.snapTo(pendingX)
-                                state.offsetY.snapTo(pendingY)
+                                state.expandDragScale.snapTo(pendingExpandScale)
                             }
                         }
                     }
@@ -159,7 +166,6 @@ internal class DraggablePlayerGestureHandler(
             try {
                 drag(dragPointerId) { change ->
                     val delta = change.positionChange() * metrics.liveGestureScale(state)
-                    totalMovement += delta.getDistance()
                     fingerPath += delta
                     velocityTracker.addPosition(change.uptimeMillis, fingerPath)
 
@@ -176,26 +182,12 @@ internal class DraggablePlayerGestureHandler(
                         pendingExpandScale = expandDragZoomFor(totalUpwardDrag)
                         pendingMode = DRAG_MODE_EXPAND_SCALE
                         snapSignal.trySend(Unit)
-                    } else if (isMiniDrag) {
-                        if (totalMovement > viewConfiguration.touchSlop * 0.5f) {
-                            change.consume()
-                            val clampedY = (state.offsetY.value + delta.y).coerceIn(metrics.minY, metrics.maxY)
-                            if (state.isInlineMode && !metrics.isLargeScreen) {
-                                pendingX = metrics.stablePhoneCenteredX
-                            } else {
-                                pendingX = (state.offsetX.value + delta.x).coerceIn(metrics.minX, metrics.maxX)
-                            }
-                            pendingY = clampedY
-                            pendingMode = DRAG_MODE_POSITION
-                            snapSignal.trySend(Unit)
-                        }
                     }
                 }
             } finally {
                 snapSignal.close()
                 snapDriver.cancel()
                 state.isDragging = false
-                state.scope.launch { state.dragScale.animateTo(1f, dragReleaseSpringSpec) }
                 state.scope.launch { state.expandDragScale.animateTo(1f, dragReleaseSpringSpec) }
             }
         } else {
@@ -209,13 +201,6 @@ internal class DraggablePlayerGestureHandler(
             }
         }
 
-        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) {
-            if (!downConsumedByChild && metrics.tapToExpand) {
-                onMiniTap(down.uptimeMillis, viewConfiguration.doubleTapTimeoutMillis)
-            }
-            return
-        }
-
         if (isCollapseDrag && detectedDirection == -1) {
             val velY = velocityTracker.calculateVelocity().y
             if (shouldEnterFullscreenFromSwipe(totalUpwardDrag, velY)) {
@@ -226,51 +211,110 @@ internal class DraggablePlayerGestureHandler(
 
         if (isCollapseDrag) {
             val velY = velocityTracker.calculateVelocity().y
+            val collapseTravel = metrics.targetMiniY - metrics.statusBarHeight
             if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
                 metrics.onCollapseGesture?.invoke()
-                state.collapse()
+                state.collapse(fractionVelocity(velY, collapseTravel))
             } else {
-                state.expand()
+                state.expand(fractionVelocity(velY, collapseTravel))
             }
             return
         }
+    }
 
-        if (!isMiniDrag) return
+    /**
+     * A press on the mini player. It follows the finger from half the touch slop, and a release that
+     * travelled less than [MINI_TAP_MOVEMENT_PX] is a tap. A second finger hands the gesture to the
+     * pinch, so the player is never dragged and re-cornered underneath a resize.
+     */
+    private suspend fun AwaitPointerEventScope.handleMiniGesture(
+        down: PointerInputChange,
+        downConsumedByChild: Boolean,
+    ) {
+        velocityTracker.resetTracking()
+        velocityTracker.addPosition(down.uptimeMillis, Offset.Zero)
+        val startCorner = state.corner
+        state.scope.launch { state.motion.stopOffsets() }
+        val drag = dragMini(down)
+        when {
+            drag.interrupted -> {
+                awaitAllPointersUp()
+            }
 
-        releaseMini()
+            drag.travel < MINI_TAP_MOVEMENT_PX -> {
+                if (drag.moved) releaseMini(drag.fingerAt, startCorner)
+                onMiniTap(down.uptimeMillis, downConsumedByChild)
+            }
+
+            else -> {
+                releaseMini(drag.fingerAt, startCorner)
+            }
+        }
+    }
+
+    /** Moves the mini player with the finger until it lifts or a second finger lands. */
+    private suspend fun AwaitPointerEventScope.dragMini(down: PointerInputChange): MiniDrag {
+        var rawX = state.offsetX.value
+        var rawY = state.offsetY.value
+        var fingerPath = Offset.Zero
+        var travel = 0f
+        var following = false
+        val snapSignal = Channel<Unit>(Channel.CONFLATED)
+        val snapDriver =
+            state.scope.launch {
+                for (ignored in snapSignal) {
+                    state.offsetX.snapTo(miniDragX(rawX))
+                    state.offsetY.snapTo(miniDragY(rawY))
+                }
+            }
+        try {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                val change = event.changes.firstOrNull { it.id == down.id }
+                if (change == null || !change.pressed) break
+                if (change.isConsumed || event.changes.count { it.pressed } > 1) {
+                    return MiniDrag(Offset(rawX, rawY), travel, following, interrupted = true)
+                }
+                val delta = change.positionChange() * metrics.liveGestureScale(state)
+                fingerPath += delta
+                travel += delta.getDistance()
+                velocityTracker.addPosition(change.uptimeMillis, fingerPath)
+                if (!following && travel > viewConfiguration.touchSlop * 0.5f) {
+                    following = true
+                    state.isDragging = true
+                    state.tuckedSide = null
+                }
+                if (following) {
+                    change.consume()
+                    rawX += delta.x
+                    rawY += delta.y
+                    snapSignal.trySend(Unit)
+                }
+            }
+        } finally {
+            snapSignal.close()
+            snapDriver.cancel()
+            state.isDragging = false
+        }
+        return MiniDrag(Offset(rawX, rawY), travel, following, interrupted = false)
     }
 
     private fun onMiniTap(
         uptimeMillis: Long,
-        doubleTapTimeoutMillis: Long,
+        downConsumedByChild: Boolean,
     ) {
+        if (state.tuckedSide != null) {
+            untuck()
+            return
+        }
+        if (downConsumedByChild || !metrics.tapToExpand) return
+        singleTapJob?.cancel()
         when (tapDecider.onTap(uptimeMillis, doubleTapTimeoutMillis)) {
             MiniPlayerTap.DOUBLE -> {
-                singleTapJob?.cancel()
-                if (state.isInlineMode) {
-                    state.shrinkToCorner(
-                        baseMiniWidth = metrics.baseMiniWidth,
-                        screenWidth = metrics.screenWidth,
-                        margin = metrics.margin,
-                        minY = metrics.minY,
-                        screenHeight = metrics.screenHeight,
-                        bottomNavPad = metrics.bottomNavPad,
-                    )
-                } else {
-                    state.expandWide(
-                        screenWidth = metrics.screenWidth,
-                        margin = metrics.margin,
-                        baseMiniWidth = metrics.baseMiniWidth,
-                        screenHeight = metrics.screenHeight,
-                        minY = metrics.minY,
-                        bottomNavPad = metrics.bottomNavPad,
-                        isLargeWindow = metrics.isLargeScreen,
-                    )
-                }
+                toggleWideMode()
             }
 
             MiniPlayerTap.SINGLE_PENDING -> {
-                singleTapJob?.cancel()
                 singleTapJob =
                     state.scope.launch {
                         delay(doubleTapTimeoutMillis)
@@ -280,10 +324,72 @@ internal class DraggablePlayerGestureHandler(
         }
     }
 
-    private fun releaseMini() {
+    private fun miniDragX(rawX: Float): Float =
+        if (state.isInlineMode && !metrics.isLargeScreen) {
+            metrics.stablePhoneCenteredX
+        } else {
+            rubberBand(rawX, metrics.minX, metrics.maxX)
+        }
+
+    private fun miniDragY(rawY: Float): Float = rubberBand(rawY, metrics.minY, metrics.maxY)
+
+    private suspend fun AwaitPointerEventScope.awaitAllPointersUp() {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Main)
+            if (event.changes.all { !it.pressed }) return
+        }
+    }
+
+    private fun toggleWideMode() {
+        if (state.isInlineMode) {
+            state.shrinkToCorner(
+                baseMiniWidth = metrics.baseMiniWidth,
+                screenWidth = metrics.screenWidth,
+                margin = metrics.margin,
+                minY = metrics.minY,
+                screenHeight = metrics.screenHeight,
+                bottomNavPad = metrics.bottomNavPad,
+            )
+        } else {
+            state.expandWide(
+                screenWidth = metrics.screenWidth,
+                margin = metrics.margin,
+                baseMiniWidth = metrics.baseMiniWidth,
+                screenHeight = metrics.screenHeight,
+                minY = metrics.minY,
+                bottomNavPad = metrics.bottomNavPad,
+                isLargeWindow = metrics.isLargeScreen,
+            )
+        }
+    }
+
+    private fun closeDownward(velocityY: Float) {
+        state.scope.launch {
+            launch {
+                state.motion.moveOffsets {
+                    state.offsetY.animateTo(
+                        metrics.screenHeight + metrics.margin,
+                        miniDismissSpringSpec,
+                        initialVelocity = velocityY.coerceAtLeast(0f),
+                    )
+                }
+            }
+            delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
+            metrics.onDismiss()
+        }
+    }
+
+    private fun releaseMini(
+        fingerAt: Offset,
+        startCorner: MiniPlayerCorner,
+    ) {
         val velocity = velocityTracker.calculateVelocity()
         val velY = velocity.y
         val velX = velocity.x
+        if (shouldCloseMiniDownward(fingerAt.y, metrics.maxY, metrics.miniHeight, !startCorner.isTop, velX, velY)) {
+            closeDownward(velY)
+            return
+        }
         val currentX = state.offsetX.value
         val currentY = state.offsetY.value
         val bounds = metrics.bounds
@@ -314,39 +420,54 @@ internal class DraggablePlayerGestureHandler(
             return
         }
 
-        val dismissOffsetX =
-            resolveMiniPlayerDismissOffset(
-                targetCorner = newCorner,
-                currentX = currentX,
-                bounds = bounds,
-                scaledVelocityX = velX,
-                scaledVelocityY = velY,
-                screenWidth = metrics.screenWidth,
-                miniWidth = metrics.miniWidth,
-                margin = metrics.margin,
-            )
-        Log.w(
-            "FlowVideoSheet",
-            "miniRelease vel=(${velX.roundToInt()},${velY.roundToInt()}) pos=(${currentX.roundToInt()},${currentY.roundToInt()}) " +
-                "corner=${state.corner}->$newCorner dismiss=${dismissOffsetX != null}",
-        )
-        if (dismissOffsetX != null) {
-            state.scope.launch {
-                launch {
-                    state.motion.moveOffsets {
-                        state.offsetX.animateTo(dismissOffsetX, miniDismissSpringSpec, initialVelocity = velX)
-                    }
-                }
-                delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
-                metrics.onDismiss()
+        val tuckSide = resolveMiniPlayerTuck(fingerAt.x, startCorner.isLeft, bounds, metrics.miniWidth, velX, velY)
+        if (tuckSide != null) {
+            tuck(tuckSide, currentY, velX)
+            return
+        }
+        state.corner = newCorner
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
+                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
             }
-        } else {
-            state.corner = newCorner
-            state.scope.launch {
-                state.motion.moveOffsets {
-                    launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
-                    launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
+        }
+    }
+
+    private fun tuck(
+        side: MiniPlayerTuckSide,
+        currentY: Float,
+        velocityX: Float,
+    ) {
+        val bounds = metrics.bounds
+        val restY = currentY.coerceIn(bounds.minY, bounds.maxY)
+        state.tuckedSide = side
+        state.corner = cornerFor(left = side == MiniPlayerTuckSide.Left, top = restY < (bounds.minY + bounds.maxY) / 2f)
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch {
+                    state.offsetX.animateTo(
+                        tuckedMiniX(side, metrics.screenWidth, metrics.miniWidth),
+                        miniSnapSpringSpec,
+                        initialVelocity = velocityX,
+                    )
                 }
+                launch { state.offsetY.animateTo(restY, miniSnapSpringSpec) }
+            }
+        }
+    }
+
+    /** Brings a tucked mini player back to the corner on the side it was tucked into. */
+    fun untuck() {
+        if (state.tuckedSide == null) return
+        state.tuckedSide = null
+        val bounds = metrics.bounds
+        val targetX = cornerTargetX(state.corner, bounds.minX, bounds.maxX)
+        val targetY = cornerTargetY(state.corner, bounds.minY, bounds.maxY)
+        state.scope.launch {
+            state.motion.moveOffsets {
+                launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec) }
+                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec) }
             }
         }
     }

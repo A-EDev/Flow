@@ -1,7 +1,9 @@
 package io.github.aedev.flow.data.model
 
+import kotlinx.serialization.Serializable
 import org.schabi.newpipe.extractor.Page
 
+@Serializable
 data class VideoCollaborator(
     val name: String,
     val channelId: String = "",
@@ -20,6 +22,8 @@ data class Video(
     val likeCount: Long = 0,
     val uploadDate: String,
     val timestamp: Long = System.currentTimeMillis(),
+    // True only when [timestamp] is a real publish time (RSS); list responses carry only "3 weeks ago".
+    val timestampIsExact: Boolean = false,
     val description: String = "",
     val channelThumbnailUrl: String = "",
     val tags: List<String> = emptyList(),

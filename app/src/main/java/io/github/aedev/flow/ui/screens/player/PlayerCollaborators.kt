@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.repository.LiveChatRepository
@@ -42,6 +43,7 @@ internal class PlayerCollaborators(
     playerPreferences: PlayerPreferences,
     videoDownloadManager: VideoDownloadManager,
     offlineSubtitleStore: OfflineSubtitleStore,
+    localSubtitles: LocalSubtitles,
     sponsorBlockRepository: SponsorBlockRepository,
     liveChatRepository: LiveChatRepository,
     homeFeedCacheRepository: HomeFeedCacheRepository,
@@ -91,6 +93,8 @@ internal class PlayerCollaborators(
             playerManager = playerManager,
             playerPreferences = playerPreferences,
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
+            cachedCategory = repository::cachedVideoCategory,
         )
 
     val secondaryMetadata =
@@ -166,6 +170,7 @@ internal class PlayerCollaborators(
             sponsorBlockRepository = sponsorBlockRepository,
             videoDownloadManager = videoDownloadManager,
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
             playerManager = playerManager,
             scope = scope,
             networkDispatcher = networkDispatcher,

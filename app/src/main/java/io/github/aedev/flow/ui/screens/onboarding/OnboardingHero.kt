@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Interests
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MoveToInbox
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Subscriptions
@@ -50,6 +51,7 @@ private fun heroShape(step: OnboardingStep): RoundedPolygon =
         OnboardingStep.WELCOME -> MaterialShapes.SoftBurst
         OnboardingStep.INTERESTS -> MaterialShapes.Clover4Leaf
         OnboardingStep.CHANNELS -> MaterialShapes.Cookie9Sided
+        OnboardingStep.ARTISTS -> MaterialShapes.Cookie6Sided
         OnboardingStep.ALERTS -> MaterialShapes.Sunny
         OnboardingStep.IMPORT -> MaterialShapes.Cookie4Sided
         OnboardingStep.READY -> MaterialShapes.Cookie12Sided
@@ -60,6 +62,7 @@ private fun backdropShapes(step: OnboardingStep): Pair<RoundedPolygon, RoundedPo
         OnboardingStep.WELCOME -> MaterialShapes.Flower to MaterialShapes.Cookie6Sided
         OnboardingStep.INTERESTS -> MaterialShapes.Clover8Leaf to MaterialShapes.Cookie4Sided
         OnboardingStep.CHANNELS -> MaterialShapes.Cookie9Sided to MaterialShapes.Sunny
+        OnboardingStep.ARTISTS -> MaterialShapes.Cookie6Sided to MaterialShapes.Burst
         OnboardingStep.ALERTS -> MaterialShapes.Burst to MaterialShapes.Cookie12Sided
         OnboardingStep.IMPORT -> MaterialShapes.Cookie4Sided to MaterialShapes.Clover4Leaf
         OnboardingStep.READY -> MaterialShapes.SoftBurst to MaterialShapes.Flower
@@ -132,6 +135,7 @@ private fun HeroMark(step: OnboardingStep) {
             OnboardingStep.WELCOME -> null
             OnboardingStep.INTERESTS -> Icons.Outlined.Interests
             OnboardingStep.CHANNELS -> Icons.Outlined.Subscriptions
+            OnboardingStep.ARTISTS -> Icons.Outlined.LibraryMusic
             OnboardingStep.ALERTS -> Icons.Outlined.NotificationsActive
             OnboardingStep.IMPORT -> Icons.Outlined.MoveToInbox
             OnboardingStep.READY -> Icons.Rounded.Check

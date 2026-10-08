@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.NO_LIKES
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.music.FavouriteArtistsStore
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.RecapBackup
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
@@ -65,6 +66,7 @@ class BackupCoordinator
         private val musicBrain: MusicBrainEngine,
         private val localDataManager: LocalDataManager,
         private val videoStats: VideoStatsRecorder,
+        private val favouriteArtists: FavouriteArtistsStore,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val _operation = MutableStateFlow<BackupOperation>(BackupOperation.Idle)
@@ -107,7 +109,12 @@ class BackupCoordinator
 
         fun exportMaster(uri: Uri) =
             exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) {
-                repository.exportMasterBackup(uri, musicBrain = musicBrainBytes(), recap = recapBytes())
+                repository.exportMasterBackup(
+                    uri,
+                    musicBrain = musicBrainBytes(),
+                    recap = recapBytes(),
+                    favouriteArtists = favouriteArtists.export(),
+                )
             }
 
         /** Writes the automatic backup now, into the chosen folder, and records when it ran. */
@@ -130,6 +137,7 @@ class BackupCoordinator
                             folder,
                             musicBrain = musicBrainBytes(),
                             recap = recapBytes(),
+                            favouriteArtists = favouriteArtists.export(),
                         )
                     }
                 }
@@ -156,6 +164,7 @@ class BackupCoordinator
                         uri,
                         onMusicBrain = { bytes -> musicBrain.importBrainFromStream(bytes.inputStream()) },
                         onRecap = ::restoreRecap,
+                        onFavouriteArtists = favouriteArtists::restore,
                     ).fold(
                         onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
                         onFailure = { failed(R.string.import_failed_template, it) },

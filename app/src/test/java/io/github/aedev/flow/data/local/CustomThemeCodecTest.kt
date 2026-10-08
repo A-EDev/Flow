@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.local
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.FlowPalettes
@@ -63,7 +64,7 @@ class CustomThemeCodecTest {
         val imported = CustomThemeCodec.decode(desktopTheme).single()
         assertThat(imported.name).isEqualTo("From desktop")
         // color-mix(in srgb, #111111 7%, #f3f3f3) = 0x11 * 0.07 + 0xf3 * 0.93 = 227 = 0xe3
-        assertThat(imported.light.surfaceContainerHigh.toHex()).isEqualTo("#e3e3e3")
+        assertThat(imported.light.surfaceContainerHigh.toThemeColor()).isEqualTo("#e3e3e3")
         assertThat(imported.amoled.background).isEqualTo(Color.Black)
     }
 
@@ -94,10 +95,59 @@ class CustomThemeCodecTest {
     @Test
     fun `colour parsing accepts desktop's forms and nothing else`() {
         assertThat(parseThemeColor("#FF0000")).isEqualTo(Color.Red)
-        assertThat(parseThemeColor("color-mix(in srgb, #000000, #ffffff 25%)")?.toHex()).isEqualTo("#404040")
+        assertThat(parseThemeColor("color-mix(in srgb, #000000, #ffffff 25%)")?.toThemeColor()).isEqualTo("#404040")
         assertThat(parseThemeColor("red")).isNull()
         assertThat(parseThemeColor("#fff")).isNull()
         assertThat(parseThemeColor("#ff000080")).isNull()
+        assertThat(parseThemeColor("transparent")).isNull()
+    }
+
+    @Test
+    fun `a translucent colour is written as desktop's color-mix with transparent`() {
+        assertThat(Color(0xD91D212B).toThemeColor()).isEqualTo("color-mix(in srgb, #1d212b 85.1%, transparent)")
+        assertThat(Color(0x801D212B).toThemeColor()).isEqualTo("color-mix(in srgb, #1d212b 50.2%, transparent)")
+        assertThat(Color(0x001D212B).toThemeColor()).isEqualTo("color-mix(in srgb, #1d212b 0.1%, transparent)")
+        assertThat(Color(0xFF1D212B).toThemeColor()).isEqualTo("#1d212b")
+    }
+
+    @Test
+    fun `desktop's transparent mix reads as the colour at that opacity`() {
+        val half = parseThemeColor("color-mix(in srgb, #ff0000 50%, transparent)")
+        assertThat(half?.copy(alpha = 1f)).isEqualTo(Color.Red)
+        assertThat(half?.alpha).isWithin(0.002f).of(0.5f)
+        assertThat(parseThemeColor("color-mix(in srgb, transparent, #ff0000 25%)")?.alpha).isWithin(0.002f).of(0.25f)
+    }
+
+    @Test
+    fun `every opacity step survives a round trip with its hue`() {
+        (0..255).forEach { alpha ->
+            val color = Color((alpha.toLong() shl 24) or 0x3366CCL)
+            val back = parseThemeColor(color.toThemeColor())
+            assertThat(back?.toArgb()).isEqualTo(color.toArgb())
+        }
+    }
+
+    @Test
+    fun `a theme with translucent roles survives export and import`() {
+        val dark =
+            theme.dark.copy(
+                surfaceContainer = theme.dark.surfaceContainer.copy(alpha = 0.85f),
+                secondary = theme.dark.secondary.copy(alpha = 0.7f),
+            )
+        val translucent = theme.withColors(ThemeVariant.DARK, dark)
+        val once = CustomThemeCodec.encodeOne(translucent)
+        val back = CustomThemeCodec.decode(once).single()
+        assertThat(back.dark.surfaceContainer.toArgb()).isEqualTo(dark.surfaceContainer.toArgb())
+        assertThat(back.dark.secondary.toArgb()).isEqualTo(dark.secondary.toArgb())
+        assertThat(CustomThemeCodec.encodeOne(back)).isEqualTo(once)
+    }
+
+    @Test
+    fun `an older palette keeps its opacity once saved in the new format`() {
+        val stored = mapOf(ThemeVariant.DARK to mapOf("SURFACE" to 0x99202020L))
+        val migrated = legacyCustomTheme(stored, "custom-android-legacy", "My theme")
+        val back = CustomThemeCodec.decode(CustomThemeCodec.encodeOne(migrated)).single()
+        assertThat(back.dark.surface.toArgb()).isEqualTo(0x99202020L.toInt())
     }
 
     @Test

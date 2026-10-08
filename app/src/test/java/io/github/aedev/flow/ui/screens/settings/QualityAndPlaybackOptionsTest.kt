@@ -1,11 +1,9 @@
 package io.github.aedev.flow.ui.screens.settings
 
 import io.github.aedev.flow.data.local.VideoCodec
-import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.ui.screens.settings.playback.parseSpeedInput
 import io.github.aedev.flow.ui.screens.settings.playback.parseSpeedPresets
 import io.github.aedev.flow.ui.screens.settings.playback.serializeSpeedPresets
-import io.github.aedev.flow.ui.screens.settings.quality.ShortsQualities
 import io.github.aedev.flow.ui.screens.settings.quality.fallbackAfterPreferredChange
 import io.github.aedev.flow.ui.screens.settings.quality.fallbackCodecs
 import org.junit.Assert.assertEquals
@@ -14,13 +12,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class QualityAndPlaybackOptionsTest {
-    @Test
-    fun `shorts quality stops at 1080p`() {
-        assertFalse(VideoQuality.Q_1440P in ShortsQualities)
-        assertFalse(VideoQuality.Q_2160P in ShortsQualities)
-        assertEquals(VideoQuality.AUTO, ShortsQualities.first())
-    }
-
     @Test
     fun `fallback codec never repeats the preferred one`() {
         assertFalse(VideoCodec.AV1 in fallbackCodecs(VideoCodec.AV1))

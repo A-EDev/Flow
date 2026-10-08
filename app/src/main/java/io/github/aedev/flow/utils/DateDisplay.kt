@@ -78,8 +78,17 @@ data class DateDisplaySettings(
         date: String?,
         context: DateContext,
         timestampFallbackMs: Long = 0L,
+        timestampIsExact: Boolean = false,
         locale: Locale = Locale.getDefault(),
-    ): String = formatUploadDateConfigured(date, resolve(context), formatStyle, timestampFallbackMs, locale)
+    ): String =
+        formatUploadDateConfigured(
+            date = date,
+            mode = resolve(context),
+            style = formatStyle,
+            timestampFallbackMs = timestampFallbackMs,
+            locale = locale,
+            timestampIsExact = timestampIsExact,
+        )
 }
 
 /**
@@ -130,13 +139,16 @@ fun formatUploadDateConfigured(
     timestampFallbackMs: Long = 0L,
     locale: Locale = Locale.getDefault(),
     hl: String? = YouTube.locale.hl,
+    timestampIsExact: Boolean = false,
+    nowMillis: Long = System.currentTimeMillis(),
 ): String {
     if (date?.trim().equals("live", ignoreCase = true)) return "LIVE"
 
-    val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs, hl = hl)
+    val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs, nowMillis, hl)
     val prefix = relativePrefix(date)
     val relative = applyRelativePrefix(relativeString(date, timestamp, locale), prefix)
-    val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
+    val exactTimestamp = exactUploadTimestamp(date, timestamp, timestampFallbackMs, timestampIsExact, nowMillis, hl)
+    val exact = if (exactTimestamp != null && exactTimestamp > 0L) formatExactDate(exactTimestamp, style, locale) else ""
     val exactWithPrefix = applyExactPrefix(exact, prefix)
     return when (mode) {
         DateDisplayMode.RELATIVE -> {
@@ -154,6 +166,29 @@ fun formatUploadDateConfigured(
                 else -> relative
             }
         }
+    }
+}
+
+/**
+ * The moment behind a calendar date, only when something actually knows it: absolute text ("Jun 18,
+ * 2025"), a timestamp from an exact source such as RSS, or an age under a day. "1 year ago" alone
+ * covers twelve months, so turning it into a date would print one the upload never had (#1242).
+ */
+internal fun exactUploadTimestamp(
+    date: String?,
+    resolvedTimestamp: Long?,
+    timestampFallbackMs: Long,
+    timestampIsExact: Boolean,
+    nowMillis: Long = System.currentTimeMillis(),
+    hl: String? = YouTube.locale.hl,
+): Long? {
+    if (timestampIsExact && timestampFallbackMs > 0L) return timestampFallbackMs
+    if (date.isNullOrBlank()) return null
+    val age = RelativeUploadDateParser.read(date, hl, nowMillis)
+    return when {
+        age != null -> resolvedTimestamp.takeIf { age.placesCalendarDay }
+        parseToTimestamp(date, hl) != null -> resolvedTimestamp
+        else -> null
     }
 }
 

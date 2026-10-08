@@ -1,11 +1,13 @@
 package io.github.aedev.flow.utils
 
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 
 object ThumbnailUrlResolver {
     private val youtubeVideoThumbnailPattern =
         Regex("""(?:https?:)?//(?:i\d*\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
     private val googleCdnSizePattern = Regex("""w\d+-h\d+""")
+    private val youtubePagePattern = Regex("""^(?:https?:)?//(?:www\.|m\.)?youtube\.com/""", RegexOption.IGNORE_CASE)
     private val googleCdnParamStartPattern = Regex("""=(?:w|s|h)""")
 
     fun buildHighQualityYoutubeThumbnail(videoId: String): String {
@@ -31,27 +33,49 @@ object ThumbnailUrlResolver {
      * that lacks it, and when it does exist it is 1920x1080 for a surface that never shows more
      * than roughly a third of those pixels. hq720 is already >= the widest phone card.
      */
-    fun youtubeThumbnailCandidates(videoId: String): List<String> {
+    fun youtubeThumbnailCandidates(
+        videoId: String,
+        quality: ThumbnailQuality = ThumbnailQuality.HIGH,
+        portrait: Boolean = false,
+    ): List<String> {
         val id = videoId.trim()
-        if (id.isEmpty()) return emptyList()
-        return listOf(
-            "https://i.ytimg.com/vi/$id/hq720.jpg",
-            "https://i.ytimg.com/vi/$id/hqdefault.jpg",
-        )
+        if (id.isEmpty() || LocalMediaIds.isLocal(id)) return emptyList()
+        return youtubeThumbnailTiers(quality, portrait).map { tier -> "https://i.ytimg.com/vi/$id/$tier.jpg" }
     }
+
+    /**
+     * Best tier first, always ending in hqdefault, the one every video has. A portrait card crops a
+     * 16:9 frame to about a third of its width, so it never drops below hqdefault.
+     */
+    private fun youtubeThumbnailTiers(
+        quality: ThumbnailQuality,
+        portrait: Boolean,
+    ): List<String> =
+        when (quality) {
+            ThumbnailQuality.HIGH -> listOf("hq720", "hqdefault")
+            ThumbnailQuality.MEDIUM -> listOf("sddefault", "hqdefault")
+            ThumbnailQuality.LOW -> if (portrait) listOf("hqdefault") else listOf("mqdefault", "hqdefault")
+            ThumbnailQuality.OFF -> emptyList()
+        }
+
+    /** A cover stored on the device: a download's saved thumbnail, or a MediaStore item. */
+    fun isDeviceUri(url: String): Boolean = url.startsWith("file:") || url.startsWith("content:") || url.startsWith("/")
 
     fun resolveVideoThumbnailCandidates(
         videoId: String,
         rawUrl: String?,
+        quality: ThumbnailQuality = ThumbnailQuality.HIGH,
+        portrait: Boolean = false,
     ): List<String> {
         val raw = rawUrl?.trim().orEmpty()
         val resolvedVideoId = resolveYoutubeThumbnailVideoId(videoId, raw)
-        val youtubeCandidates = youtubeThumbnailCandidates(resolvedVideoId)
+        val youtubeCandidates = youtubeThumbnailCandidates(resolvedVideoId, quality, portrait)
 
         val candidates =
             when {
                 raw.isEmpty() -> youtubeCandidates
                 isYoutubeVideoThumbnail(raw) -> youtubeCandidates
+                quality == ThumbnailQuality.OFF && !isDeviceUri(raw) -> youtubeCandidates
                 else -> listOf(raw) + youtubeCandidates
             }
 
@@ -208,6 +232,15 @@ object ThumbnailUrlResolver {
 
         val fallback = buildFallbackYoutubeThumbnail(resolvedVideoId)
         return fallback.takeIf { it.isNotEmpty() && it != raw }
+    }
+
+    /**
+     * A stored channel avatar that cannot be shown as one: a video thumbnail, or a YouTube page
+     * (some imported subscriptions carry the channel's own URL in the avatar field).
+     */
+    fun isUnusableChannelAvatar(rawUrl: String?): Boolean {
+        val raw = rawUrl?.trim().orEmpty()
+        return isYoutubeVideoThumbnail(raw) || youtubePagePattern.containsMatchIn(raw)
     }
 
     fun isYoutubeVideoThumbnail(rawUrl: String?): Boolean {

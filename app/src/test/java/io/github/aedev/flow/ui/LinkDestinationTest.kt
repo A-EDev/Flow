@@ -31,6 +31,23 @@ class LinkDestinationTest {
     @Test
     fun `youtube music songs play in the music player`() {
         assertEquals(page("musicPlayer/$video"), destinationOf("https://music.youtube.com/watch?v=$video&si=x"))
+        assertEquals(page("musicPlayer/$video?list=PLabcdef"), destinationOf("https://music.youtube.com/watch?v=$video&list=PLabcdef"))
+        assertEquals(page("musicPlayer/$video"), destinationOf("https://music.youtube.com/watch?v=$video&list=LM"))
+    }
+
+    @Test
+    fun `a video linked inside a playlist plays with the playlist as its queue`() {
+        assertEquals(
+            LinkDestination.Page("linkedPlaylist/PLabcdef/$video", playsVideo = true),
+            destinationOf("https://www.youtube.com/watch?v=$video&list=PLabcdef&index=3"),
+        )
+    }
+
+    @Test
+    fun `a video linked inside a mix or the account's own lists plays alone`() {
+        assertEquals(LinkDestination.Video(video), destinationOf("https://www.youtube.com/watch?v=$video&list=RDMMabc"))
+        assertEquals(LinkDestination.Video(video), destinationOf("https://www.youtube.com/watch?v=$video&list=WL"))
+        assertEquals(LinkDestination.Video(video), destinationOf("https://www.youtube.com/watch?v=$video&list=LL"))
     }
 
     @Test

@@ -92,34 +92,54 @@ fun StatRankRow(
     detail: String? = null,
     imageUrl: String = "",
     imageShape: Shape = MaterialTheme.shapes.medium,
+    onClick: (() -> Unit)? = null,
 ) {
-    SegmentedListItem(
-        verticalAlignment = Alignment.CenterVertically,
-        shapes = ListItemDefaults.shapes(shape = shape),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-        leadingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RankImageGap)) {
-                Text(
-                    text = rank.toString(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.widthIn(min = RankWidth),
+    val leading: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RankImageGap)) {
+            Text(
+                text = rank.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(min = RankWidth),
+            )
+            if (imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(RankImageSize).clip(imageShape).background(MaterialTheme.colorScheme.surfaceContainer),
                 )
-                if (imageUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(RankImageSize).clip(imageShape).background(MaterialTheme.colorScheme.surfaceContainer),
-                    )
-                }
             }
-        },
-        supportingContent = detail?.takeIf { it.isNotBlank() }?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-        trailingContent = { Text(value, style = MaterialTheme.typography.labelLarge) },
-    ) {
-        Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+    val supporting: (@Composable () -> Unit)? =
+        detail?.takeIf { it.isNotBlank() }?.let { text -> { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+    val trailing: @Composable () -> Unit = { Text(value, style = MaterialTheme.typography.labelLarge) }
+    val colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+    if (onClick != null) {
+        SegmentedListItem(
+            onClick = onClick,
+            verticalAlignment = Alignment.CenterVertically,
+            shapes = ListItemDefaults.shapes(shape = shape),
+            colors = colors,
+            leadingContent = leading,
+            supportingContent = supporting,
+            trailingContent = trailing,
+        ) {
+            Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    } else {
+        SegmentedListItem(
+            verticalAlignment = Alignment.CenterVertically,
+            shapes = ListItemDefaults.shapes(shape = shape),
+            colors = colors,
+            leadingContent = leading,
+            supportingContent = supporting,
+            trailingContent = trailing,
+        ) {
+            Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

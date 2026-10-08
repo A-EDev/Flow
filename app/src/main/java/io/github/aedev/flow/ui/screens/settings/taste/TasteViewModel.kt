@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.backup.BackupCoordinator
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
@@ -16,10 +18,14 @@ import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
+import io.github.aedev.flow.ui.screens.settings.home.DeepFlowState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -85,6 +91,8 @@ data class TasteState(
     val channels: List<TasteChannel> = emptyList(),
     val music: MusicTaste? = null,
     val hidden: HiddenContent = HiddenContent(),
+    /** Channels watched without subscribing whose uploads Home brings in, best first. */
+    val remembered: List<NamedItem> = emptyList(),
     val engine: EngineDetails? = null,
 )
 
@@ -101,9 +109,21 @@ class TasteViewModel
         private val videoStats: VideoStatsRecorder,
         private val watchHistoryDao: WatchHistoryDao,
         private val backup: BackupCoordinator,
+        private val channelMemory: ChannelMemoryRepository,
+        playerPreferences: PlayerPreferences,
     ) : SettingsViewModel() {
         private val _state = MutableStateFlow(TasteState())
         val state: StateFlow<TasteState> = _state.asStateFlow()
+
+        /** Whether Deep Flow has learning paused, shown as a status; it is switched in Settings only. */
+        val deepFlow: StateFlow<DeepFlowState> =
+            combine(
+                playerPreferences.deepFlowActive,
+                playerPreferences.deepFlowActivatedAt,
+                playerPreferences.deepFlowExpireHours,
+            ) { active, activatedAt, expireHours ->
+                DeepFlowState(active = active, activatedAt = activatedAt, expireHours = expireHours)
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), DeepFlowState())
         val operation = backup.operation
 
         init {
@@ -133,6 +153,10 @@ class TasteViewModel
 
         fun unblockArtist(artistKey: String) = act { musicBrain.unblockArtist(artistKey) }
 
+        fun forgetChannel(channelId: String) = act { channelMemory.forget(channelId) }
+
+        fun clearChannelMemory() = act { channelMemory.clear() }
+
         fun resetVideoProfile() = act { FlowNeuroEngine.resetBrain(context) }
 
         fun resetMusicProfile() = act { musicBrain.resetBrain() }
@@ -156,7 +180,7 @@ class TasteViewModel
 
         private suspend fun load(): TasteState {
             FlowNeuroEngine.initialize(context)
-            val brain = FlowNeuroEngine.getBrainSnapshot()
+            val brain = FlowNeuroEngine.getSavedBrainSnapshot()
             val names = channelNames()
             val profile = runCatching { musicBrain.tasteProfile() }.getOrNull()
             val strongest =
@@ -192,6 +216,10 @@ class TasteViewModel
                         )
                     },
                 hidden = hidden(brain, names),
+                remembered =
+                    runCatching { channelMemory.remembered() }
+                        .getOrDefault(emptyList())
+                        .map { NamedItem(it.channelId, it.name.ifBlank { names[it.channelId] ?: it.channelId }) },
                 engine = EngineDetails.of(brain),
             )
         }
@@ -240,5 +268,6 @@ class TasteViewModel
             const val CHANNEL_COUNT = 10
             const val GENRE_COUNT = 8
             const val NAME_LOOKUP_LIMIT = 2_000
+            const val STOP_TIMEOUT_MS = 5_000L
         }
     }

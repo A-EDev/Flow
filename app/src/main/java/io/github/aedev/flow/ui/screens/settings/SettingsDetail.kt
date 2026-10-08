@@ -7,6 +7,7 @@ import io.github.aedev.flow.ui.screens.equalizer.EqualizerScreen
 import io.github.aedev.flow.ui.screens.settings.about.AboutScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.FontScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.player.PlayerAppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeEditorScreen
@@ -14,6 +15,7 @@ import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemesScr
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
 import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.content.MusicHomeSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.diagnostics.DiagnosticsScreen
 import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.history.HistorySettingsScreen
@@ -25,6 +27,9 @@ import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
+import io.github.aedev.flow.ui.screens.settings.scrobbling.ScrobblingScreen
+import io.github.aedev.flow.ui.screens.settings.taste.DiscoverChannelsScreen
+import io.github.aedev.flow.ui.screens.settings.taste.FavouriteArtistsScreen
 import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
 import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
 import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
@@ -58,8 +63,20 @@ internal fun SettingsDetail(
             HiddenContentScreen(onBack = onBack, highlight = target.highlight)
         }
 
+        SettingsDestination.FAVOURITE_ARTISTS -> {
+            FavouriteArtistsScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.DISCOVER_CHANNELS -> {
+            DiscoverChannelsScreen(onBack = onBack, highlight = target.highlight)
+        }
+
         SettingsDestination.THEME -> {
             ThemeScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.FONT -> {
+            FontScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.CUSTOM_THEME -> {
@@ -79,7 +96,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.CONTENT -> {
-            ContentSettingsScreen(onBack = onBack, highlight = target.highlight)
+            ContentSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.MUSIC_HOME -> {
+            MusicHomeSettingsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.DATE_TIME -> {
@@ -115,7 +136,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.INTEGRATIONS -> {
-            IntegrationsScreen(onBack = onBack, highlight = target.highlight)
+            IntegrationsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.SCROBBLING -> {
+            ScrobblingScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.BACKUP -> {

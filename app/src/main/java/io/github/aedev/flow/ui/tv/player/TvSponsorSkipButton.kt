@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.tv.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.delay
@@ -27,6 +29,8 @@ fun TvSponsorSkipButton(
     onSkipTo: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val offForVideo by EnhancedPlayerManager.getInstance().sponsorBlockOffForVideo.collectAsState()
+    if (offForVideo) return
     var activeSegment by remember { mutableStateOf<SponsorBlockSegment?>(null) }
 
     LaunchedEffect(segments) {

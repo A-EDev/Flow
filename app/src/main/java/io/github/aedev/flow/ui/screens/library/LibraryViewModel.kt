@@ -8,6 +8,8 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.notes.NotesRepository
+import io.github.aedev.flow.data.playlist.sortedFor
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapReadiness
@@ -32,7 +34,8 @@ import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 
 internal data class LibraryCounts(
     val history: Int,
-    val playlists: Int,
+    val videoPlaylists: Int,
+    val musicPlaylists: Int,
     val watchLater: Int,
     val likedVideos: Int,
     val likedMusic: Int,
@@ -43,7 +46,8 @@ internal data class LibraryCounts(
     val isEmpty: Boolean
         get() =
             history == 0 &&
-                playlists == 0 &&
+                videoPlaylists == 0 &&
+                musicPlaylists == 0 &&
                 watchLater == 0 &&
                 likedVideos == 0 &&
                 likedMusic == 0 &&
@@ -64,8 +68,15 @@ class LibraryViewModel
         shortsContentFilter: ShortsContentFilter,
         playerPreferences: PlayerPreferences,
         private val recapReadiness: RecapReadiness,
+        notesRepository: NotesRepository,
     ) : ViewModel() {
         private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
+
+        /** Null while notes are turned off in Content settings, which hides the Notes row. */
+        internal val notesCount: StateFlow<Int?> =
+            combine(playerPreferences.notesEnabled, notesRepository.observeCount()) { enabled, count -> count.takeIf { enabled } }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, sharing, null)
 
         private val _recapReady = MutableStateFlow<RecapPeriod?>(null)
 
@@ -92,8 +103,13 @@ class LibraryViewModel
         }
 
         private val allLikes = likedVideosRepository.getAllLikedVideos().shared()
-        private val allVideoPlaylists = playlistRepository.getAllPlaylistsFlow().shared()
-        private val allMusicPlaylists = playlistRepository.getMusicPlaylistsFlow().shared()
+        private val playlistOrder = playerPreferences.playlistListOrder
+        private val allVideoPlaylists =
+            combine(playlistRepository.getAllPlaylistsFlow(), playlistOrder) { playlists, order -> playlists.sortedFor(order) }
+                .shared()
+        private val allMusicPlaylists =
+            combine(playlistRepository.getMusicPlaylistsFlow(), playlistOrder) { playlists, order -> playlists.sortedFor(order) }
+                .shared()
         private val allWatchLater = playlistRepository.getVideoOnlyWatchLaterFlow().shared()
         private val allSavedShorts = playlistRepository.getVideoOnlySavedShortsFlow().shared()
 
@@ -155,6 +171,10 @@ class LibraryViewModel
             shortsContentFilter.enabled
                 .stateIn(viewModelScope, sharing, true)
 
+        internal val separatePlaylistKinds =
+            playerPreferences.separatePlaylistKinds
+                .stateIn(viewModelScope, sharing, false)
+
         internal val shelfPreviewsEnabled =
             playerPreferences.libraryShelfPreviewsEnabled
                 .distinctUntilChanged()
@@ -168,7 +188,7 @@ class LibraryViewModel
             combine(
                 viewHistory.getLibraryHistoryCount(),
                 combine(allVideoPlaylists, allMusicPlaylists) { video, music ->
-                    if (video == null || music == null) null else video.size + music.size
+                    if (video == null || music == null) null else video.size to music.size
                 },
                 combine(allWatchLater, allSavedShorts) { later, shorts ->
                     if (later == null || shorts == null) null else later.size to shorts.size
@@ -181,7 +201,8 @@ class LibraryViewModel
                 } else {
                     LibraryCounts(
                         history = historyCount,
-                        playlists = playlistCount,
+                        videoPlaylists = playlistCount.first,
+                        musicPlaylists = playlistCount.second,
                         watchLater = saved.first,
                         likedVideos = liked.count { !it.isMusic },
                         likedMusic = liked.count { it.isMusic },

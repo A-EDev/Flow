@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.ScrubPreviewStyle
@@ -31,6 +32,7 @@ import io.github.aedev.flow.ui.components.settings.slider
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.settings.toggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
+import io.github.aedev.flow.ui.components.shared.labelRes
 import io.github.aedev.flow.ui.screens.settings.index.PlayerAppearanceIndex
 import kotlin.math.roundToInt
 
@@ -38,7 +40,7 @@ private const val SEEKBAR_STEP_DP = 4
 private val PortraitSeekbarModes = listOf(SeekbarPaddingMode.SPACED, SeekbarPaddingMode.FULL_WIDTH, SeekbarPaddingMode.CUSTOM)
 private val FullscreenSeekbarModes = listOf(SeekbarPaddingMode.FULL_WIDTH, SeekbarPaddingMode.DEFAULT, SeekbarPaddingMode.CUSTOM)
 
-private enum class PreviewSheet { SLIDER, BACKGROUND, GESTURE }
+private enum class PreviewSheet { SLIDER, BACKGROUND, GESTURE, SWIPE_LEFT, SWIPE_RIGHT }
 
 /**
  * How the players look: seek bar, music background, video player surfaces, Shorts overlay and the
@@ -60,6 +62,7 @@ internal fun PlayerAppearanceScreen(
     val musicBackground by viewModel.musicBackground.collectAsStateWithLifecycle()
     val hideMusicArtwork by viewModel.hideMusicArtwork.collectAsStateWithLifecycle()
     val artworkControlColors by viewModel.artworkControlColors.collectAsStateWithLifecycle()
+    val animatedArtwork by viewModel.animatedArtwork.collectAsStateWithLifecycle()
     val plainControlColors by viewModel.plainControlColors.collectAsStateWithLifecycle()
     val adaptiveSize by viewModel.adaptivePlayerSize.collectAsStateWithLifecycle()
     val ambientMode by viewModel.ambientMode.collectAsStateWithLifecycle()
@@ -69,6 +72,8 @@ internal fun PlayerAppearanceScreen(
     val miniPlayerScale by viewModel.miniPlayerScale.collectAsStateWithLifecycle()
     val miniPlayerSkip by viewModel.miniPlayerSkip.collectAsStateWithLifecycle()
     val miniPlayerNextPrev by viewModel.miniPlayerNextPrev.collectAsStateWithLifecycle()
+    val miniBarSwipeLeft by viewModel.miniBarSwipeLeft.collectAsStateWithLifecycle()
+    val miniBarSwipeRight by viewModel.miniBarSwipeRight.collectAsStateWithLifecycle()
     var sheet by rememberSaveable { mutableStateOf<PreviewSheet?>(null) }
 
     val portraitPadding =
@@ -107,6 +112,8 @@ internal fun PlayerAppearanceScreen(
     val sliderLabel = stringResource(sliderStyleLabel(sliderStyle))
     val backgroundLabel = stringResource(musicBackgroundLabel(musicBackground))
     val gestureLabel = stringResource(gestureOverlayLabel(gestureOverlay))
+    val swipeLeftLabel = stringResource(miniBarSwipeLeft.labelRes)
+    val swipeRightLabel = stringResource(miniBarSwipeRight.labelRes)
 
     SettingsPage(
         title = stringResource(R.string.player_appearance_title),
@@ -153,6 +160,14 @@ internal fun PlayerAppearanceScreen(
         group(key = "player_appearance.music", header = R.string.settings_section_music_player) {
             nav(PlayerAppearanceIndex.musicBackground, value = backgroundLabel, onClick = { sheet = PreviewSheet.BACKGROUND })
             switch(PlayerAppearanceIndex.hideMusicArtwork, hideMusicArtwork, viewModel::setHideMusicArtwork)
+            switch(PlayerAppearanceIndex.animatedArtwork, animatedArtwork, viewModel::setAnimatedArtwork)
+            if (animatedArtwork) {
+                switch(
+                    PlayerAppearanceIndex.animatedArtworkWifiOnly,
+                    viewModel.animatedArtworkWifiOnly,
+                    viewModel::setAnimatedArtworkWifiOnly,
+                )
+            }
             switch(PlayerAppearanceIndex.artworkControlColors, artworkControlColors, viewModel::setArtworkControlColors)
             if (!artworkControlColors) {
                 toggleGroup(
@@ -181,6 +196,16 @@ internal fun PlayerAppearanceScreen(
             )
             switch(PlayerAppearanceIndex.miniPlayerSkip, miniPlayerSkip, viewModel::setMiniPlayerSkip)
             switch(PlayerAppearanceIndex.miniPlayerNextPrev, miniPlayerNextPrev, viewModel::setMiniPlayerNextPrev)
+            nav(
+                PlayerAppearanceIndex.miniBarSwipeLeft,
+                value = swipeLeftLabel,
+                onClick = { sheet = PreviewSheet.SWIPE_LEFT },
+            )
+            nav(
+                PlayerAppearanceIndex.miniBarSwipeRight,
+                value = swipeRightLabel,
+                onClick = { sheet = PreviewSheet.SWIPE_RIGHT },
+            )
         }
     }
 
@@ -220,6 +245,20 @@ internal fun PlayerAppearanceScreen(
                 onSelect = viewModel::setGestureOverlay,
                 onDismiss = { sheet = null },
                 preview = { GestureOverlayPreview(it) },
+            )
+        }
+
+        PreviewSheet.SWIPE_LEFT, PreviewSheet.SWIPE_RIGHT -> {
+            val left = sheet == PreviewSheet.SWIPE_LEFT
+            SettingsPreviewSheet(
+                title = stringResource(if (left) R.string.mini_bar_swipe_left else R.string.mini_bar_swipe_right),
+                subtitle = stringResource(R.string.mini_bar_swipe_subtitle),
+                options = MiniBarSwipeAction.entries,
+                selected = if (left) miniBarSwipeLeft else miniBarSwipeRight,
+                label = { stringResource(it.labelRes) },
+                onSelect = { action -> if (left) viewModel.setMiniBarSwipeLeft(action) else viewModel.setMiniBarSwipeRight(action) },
+                onDismiss = { sheet = null },
+                preview = { MiniBarSwipePreview(it, towardsStart = left) },
             )
         }
 

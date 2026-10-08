@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.musicplayer.full
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -15,8 +16,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,28 +28,33 @@ fun PlayerTopBar(
     playingFrom: String,
     modifier: Modifier = Modifier,
     contentColor: Color = Color.White,
+    modeSwitch: (@Composable () -> Unit)? = null,
 ) {
     CenterAlignedTopAppBar(
         title = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.now_playing),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = contentColor.copy(alpha = 0.9f),
-                )
-                Text(
-                    text = playingFrom,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = contentColor.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                )
+            if (modeSwitch != null) {
+                modeSwitch()
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.now_playing),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = contentColor.copy(alpha = 0.9f),
+                    )
+                    Text(
+                        text = playingFrom,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         },
         colors =
@@ -58,3 +67,24 @@ fun PlayerTopBar(
                 .WindowInsets(0, 0, 0, 0),
     )
 }
+
+/** The Song/Video switch that takes the title's place when it is turned on in Settings. */
+@Composable
+internal fun PlayerModeSwitch(
+    showsVideo: Boolean,
+    onSelect: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowConnectedToggleGroup(
+        options =
+            listOf(
+                FlowToggleOption(false, stringResource(R.string.music_player_mode_song)),
+                FlowToggleOption(true, stringResource(R.string.music_player_mode_video)),
+            ),
+        selected = showsVideo,
+        onSelected = onSelect,
+        modifier = modifier.width(ModeSwitchWidth),
+    )
+}
+
+private val ModeSwitchWidth = 208.dp

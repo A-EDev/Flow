@@ -83,6 +83,7 @@ internal object NeuroSearchLearning {
                 brain.globalVector,
                 ContentVector(topics = shares.mapValues { it.value / total }),
                 LEARNING_RATE,
+                NeuroVectorMath.decayStrength(LEARNING_RATE),
             )
         val planted =
             NeuroVectorMath.plantKeys(learned, topics.phrases, NeuroScoring.TOPIC_ACQUISITION_FLOOR)

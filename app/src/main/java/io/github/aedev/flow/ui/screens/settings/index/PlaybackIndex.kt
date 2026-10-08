@@ -15,6 +15,15 @@ internal object PlaybackIndex {
             section = R.string.playback_header,
             destination = page,
         )
+    val startPaused =
+        SettingEntry(
+            key = "playback.start_paused",
+            title = R.string.player_settings_start_paused,
+            summary = R.string.player_settings_start_paused_subtitle,
+            keywords = R.string.settings_keywords_autoplay,
+            section = R.string.playback_header,
+            destination = page,
+        )
     val autoplay =
         SettingEntry(
             key = "playback.autoplay",
@@ -73,6 +82,22 @@ internal object PlaybackIndex {
             section = R.string.settings_section_speed,
             destination = page,
         )
+    val musicNormalSpeed =
+        SettingEntry(
+            key = "playback.music_normal_speed",
+            title = R.string.settings_music_normal_speed_title,
+            summary = R.string.settings_music_normal_speed_summary,
+            section = R.string.settings_section_speed,
+            destination = page,
+        )
+    val speedPerChannel =
+        SettingEntry(
+            key = "playback.speed_per_channel",
+            title = R.string.settings_speed_per_channel_title,
+            summary = R.string.settings_speed_per_channel_summary,
+            section = R.string.settings_section_speed,
+            destination = page,
+        )
     val customSpeeds =
         SettingEntry(
             key = "playback.custom_speeds",
@@ -109,6 +134,14 @@ internal object PlaybackIndex {
         SettingEntry(
             key = "playback.double_tap_seek",
             title = R.string.player_settings_double_tap_seek,
+            keywords = R.string.settings_keywords_gestures,
+            section = R.string.player_appearance_gestures_header,
+            destination = page,
+        )
+    val seekZoneWidth =
+        SettingEntry(
+            key = "playback.seek_zone_width",
+            title = R.string.player_settings_seek_zone_width,
             keywords = R.string.settings_keywords_gestures,
             section = R.string.player_appearance_gestures_header,
             destination = page,
@@ -234,6 +267,14 @@ internal object PlaybackIndex {
             key = "playback.comments_button",
             title = R.string.player_settings_overlay_comments,
             summary = R.string.player_settings_overlay_comments_subtitle,
+            section = R.string.settings_section_player_buttons,
+            destination = page,
+        )
+    val sponsorBlockButton =
+        SettingEntry(
+            key = "playback.sponsorblock_button",
+            title = R.string.player_settings_overlay_sponsorblock,
+            summary = R.string.player_settings_overlay_sponsorblock_subtitle,
             section = R.string.settings_section_player_buttons,
             destination = page,
         )
@@ -388,6 +429,22 @@ internal object PlaybackIndex {
             section = R.string.settings_section_music,
             destination = page,
         )
+    val pauseMusicWhenMuted =
+        SettingEntry(
+            key = "playback.pause_music_when_muted",
+            title = R.string.settings_pause_music_muted_title,
+            summary = R.string.settings_pause_music_muted_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
+    val musicVideoSwitch =
+        SettingEntry(
+            key = "playback.music_video_switch",
+            title = R.string.settings_music_video_switch_title,
+            summary = R.string.settings_music_video_switch_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
     val lyricsProviders =
         SettingEntry(
             key = "playback.lyrics_providers",
@@ -400,6 +457,7 @@ internal object PlaybackIndex {
     val all =
         listOf(
             backgroundPlay,
+            startPaused,
             autoplay,
             queueAutoplay,
             autoplayCountdown,
@@ -407,11 +465,14 @@ internal object PlaybackIndex {
             skipSilence,
             playDuringCalls,
             rememberSpeed,
+            musicNormalSpeed,
+            speedPerChannel,
             customSpeeds,
             speedPresets,
             speedSlider,
             longPressSpeed,
             doubleTapSeek,
+            seekZoneWidth,
             brightnessGesture,
             rememberBrightness,
             volumeGesture,
@@ -427,6 +488,7 @@ internal object PlaybackIndex {
             lockButton,
             speedIndicator,
             commentsButton,
+            sponsorBlockButton,
             autoPip,
             continueWatchingMiniPlayer,
             restoreMusicMiniPlayer,
@@ -446,6 +508,8 @@ internal object PlaybackIndex {
             shortsPip,
             shortsContinueIntoFeed,
             endlessRadio,
+            pauseMusicWhenMuted,
+            musicVideoSwitch,
             lyricsProviders,
         )
 }

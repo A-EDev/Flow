@@ -437,6 +437,19 @@ class MusicBrainEngine
             if (affinity.display.isBlank()) affinity.display = artistName.trim()
         }
 
+        suspend fun setFavouriteArtist(
+            artistId: String?,
+            artistName: String,
+            favourite: Boolean,
+        ) {
+            ensureInitialized()
+            mutex.withLock {
+                MusicBrainLearn.setFavouriteArtist(brain, musicArtistKey(artistId, artistName), artistName.trim(), favourite)
+                refreshHiddenArtistsLocked()
+            }
+            scheduleDebouncedSave()
+        }
+
         suspend fun unblockArtist(artistKey: String) {
             ensureInitialized()
             mutex.withLock {

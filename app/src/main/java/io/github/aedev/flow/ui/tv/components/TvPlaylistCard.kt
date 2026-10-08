@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /** Playlist card with a count badge over the cover art. */
@@ -45,12 +46,14 @@ fun TvPlaylistCard(
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
         ) {
-            AsyncImage(
-                model = playlist.thumbnailUrl,
-                contentDescription = playlist.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
+            thumbnailUrlOrNull(playlist.thumbnailUrl)?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = playlist.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
             Surface(
                 modifier =
                     Modifier

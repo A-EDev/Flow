@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
@@ -49,7 +50,8 @@ interface CacheDao {
             isLive = :isLive,
             isUpcoming = :isUpcoming,
             uploadDate = :uploadDate,
-            timestamp = :timestamp
+            timestamp = :timestamp,
+            timestampIsExact = :timestampIsExact
         WHERE videoId = :videoId
         """,
     )
@@ -65,14 +67,29 @@ interface CacheDao {
         isUpcoming: Boolean,
         uploadDate: String,
         timestamp: Long,
+        timestampIsExact: Boolean,
     )
 
-    @Query("DELETE FROM subscription_feed_cache WHERE channelId = :channelId")
+    /** Everything a channel brought into the feed: its uploads and its collaborations. */
+    @Query("DELETE FROM subscription_feed_cache WHERE channelId = :channelId OR feedChannelId = :channelId")
     suspend fun deleteSubscriptionFeedForChannel(channelId: String)
 
-    /** Callers must chunk [channelIds] to stay under SQLite's bound-variable limit. */
-    @Query("DELETE FROM subscription_feed_cache WHERE channelId IN (:channelIds)")
+    /**
+     * The channels' own uploads, ahead of an incremental refresh; their collaborations follow their
+     * own scan. Callers must chunk [channelIds] to stay under SQLite's bound-variable limit.
+     */
+    @Query("DELETE FROM subscription_feed_cache WHERE channelId IN (:channelIds) AND feedChannelId = ''")
     suspend fun deleteSubscriptionFeedForChannels(channelIds: List<String>)
+
+    /** Every upload row, ahead of a full refresh; collaborations stay until their own scan. */
+    @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId = ''")
+    suspend fun clearSubscriptionUploads()
+
+    @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId = :feedChannelId")
+    suspend fun deleteCollaborationsFrom(feedChannelId: String)
+
+    @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId != ''")
+    suspend fun deleteCollaborations()
 
     /**
      * Drops rows that have aged past the feed's lookback window. Upcoming items are kept because
@@ -88,6 +105,16 @@ interface CacheDao {
 
     @Query("DELETE FROM subscription_feed_cache")
     suspend fun clearSubscriptionFeed()
+
+    /** Swaps [feedChannelId]'s collaborations for [rows], leaving any video stored as an upload alone. */
+    @Transaction
+    suspend fun replaceCollaborations(
+        feedChannelId: String,
+        rows: List<SubscriptionFeedEntity>,
+    ) {
+        deleteCollaborationsFrom(feedChannelId)
+        insertSubscriptionFeedIfAbsent(rows)
+    }
 
     // Music
     @Query("SELECT * FROM music_home_cache ORDER BY orderBy ASC")

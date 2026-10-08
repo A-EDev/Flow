@@ -25,9 +25,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -64,8 +62,10 @@ internal fun SubscriptionsManageContent(
     onShortsExcludeChange: (String, Boolean) -> Unit,
     onUnsubscribe: (Channel) -> Unit,
     modifier: Modifier = Modifier,
+    showsMusic: Boolean = false,
+    onShowsMusicChange: (Boolean) -> Unit = {},
 ) {
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val selectedTabIndex = if (showsMusic) 1 else 0
 
     val activeList =
         remember(channels, selectedTabIndex) {
@@ -101,7 +101,7 @@ internal fun SubscriptionsManageContent(
                     ),
                 ),
             selected = selectedTabIndex,
-            onSelected = { selectedTabIndex = it },
+            onSelected = { onShowsMusicChange(it == 1) },
             modifier =
                 Modifier.padding(
                     horizontal = ContentHorizontalPadding,

@@ -67,7 +67,9 @@ internal fun BoxScope.MiniPlayerControlsLayer(
     progress: () -> Float,
     miniControls: @Composable (() -> Float) -> Unit,
 ) {
-    val miniControlsVisible by remember(state) { derivedStateOf { state.expandFraction.value > 0.6f } }
+    val miniControlsVisible by remember(state) {
+        derivedStateOf { state.expandFraction.value > 0.6f && state.openOrigin == null }
+    }
     if (!miniControlsVisible) return
     val density = LocalDensity.current
     val controlsScale = expandedVideoWidth / miniWidth.coerceAtLeast(1f)

@@ -61,20 +61,19 @@ class ChannelReelIndexTest {
                     listOf(video("reel1"), video("upload1"), video("reel2")),
                 )
 
-            assertEquals(listOf(true, false, true), marked.map { it.isShort })
+            assertEquals(listOf(true, false, true), marked?.map { it.isShort })
         }
 
-    // A failed lookup must leave the list alone: guessing "not a reel" is the bug being fixed.
+    // A failed lookup must not read as "no reels": the caller would store that guess as a verdict.
     @Test
-    fun `a failed lookup changes nothing`() =
+    fun `a failed lookup is reported, not guessed`() =
         runTest {
             mockkObject(YouTube)
             coEvery { YouTube.channelShorts(channelId) } returns Result.failure(IllegalStateException("offline"))
 
-            val input = listOf(video("reel1"), video("upload1", isShort = true))
-            val marked = ChannelReelIndex().markReels(channelId, input)
+            val marked = ChannelReelIndex().markReels(channelId, listOf(video("reel1"), video("upload1", isShort = true)))
 
-            assertEquals(input, marked)
+            assertEquals(null, marked)
         }
 
     @Test

@@ -13,13 +13,17 @@ object LyricsCacheManager {
     private const val LYRICS_DIR = "lyrics"
     private val lock = Any()
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        prettyPrint = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+            prettyPrint = false
+        }
 
-    private fun getCacheFile(context: Context, videoId: String): File {
+    private fun getCacheFile(
+        context: Context,
+        videoId: String,
+    ): File {
         val dir = File(context.filesDir, LYRICS_DIR)
         if (!dir.exists()) {
             dir.mkdirs()
@@ -27,9 +31,13 @@ object LyricsCacheManager {
         return File(dir, "$videoId.json")
     }
 
-    suspend fun saveLyrics(context: Context, videoId: String, entries: List<LyricsEntry>) {
+    suspend fun saveLyrics(
+        context: Context,
+        videoId: String,
+        entries: List<LyricsEntry>,
+    ) {
         if (videoId.isBlank() || entries.isEmpty()) return
-        
+
         withContext(Dispatchers.IO) {
             synchronized(lock) {
                 try {
@@ -45,9 +53,12 @@ object LyricsCacheManager {
         }
     }
 
-    suspend fun getLyrics(context: Context, videoId: String): List<LyricsEntry>? {
+    suspend fun getLyrics(
+        context: Context,
+        videoId: String,
+    ): List<LyricsEntry>? {
         if (videoId.isBlank()) return null
-        
+
         return withContext(Dispatchers.IO) {
             synchronized(lock) {
                 try {
@@ -68,9 +79,12 @@ object LyricsCacheManager {
         }
     }
 
-    suspend fun evictLyrics(context: Context, videoId: String) {
+    suspend fun evictLyrics(
+        context: Context,
+        videoId: String,
+    ) {
         if (videoId.isBlank()) return
-        
+
         withContext(Dispatchers.IO) {
             synchronized(lock) {
                 try {
@@ -86,6 +100,11 @@ object LyricsCacheManager {
             }
         }
     }
+
+    suspend fun cacheSizeBytes(context: Context): Long =
+        withContext(Dispatchers.IO) {
+            File(context.filesDir, LYRICS_DIR).walkBottomUp().filter { it.isFile }.sumOf { it.length() }
+        }
 
     suspend fun clearAllCache(context: Context) {
         withContext(Dispatchers.IO) {

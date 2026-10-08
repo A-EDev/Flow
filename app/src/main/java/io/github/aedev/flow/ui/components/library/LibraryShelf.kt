@@ -216,7 +216,7 @@ internal fun LibraryShortsShelf(
 ) {
     LibraryShelf(title = title, icon = icon, onTitleClick = onTitleClick) {
         items(shorts, key = Video::id, contentType = { "short" }) { short ->
-            MediaShortCard(video = short, onClick = { onShortClick(short) })
+            MediaShortCard(video = short, onClick = { onShortClick(short) }, removableFromSavedShorts = true)
         }
     }
 }

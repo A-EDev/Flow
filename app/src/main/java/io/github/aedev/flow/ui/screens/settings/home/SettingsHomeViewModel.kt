@@ -27,6 +27,7 @@ data class DeepFlowState(
     val activatedAt: Long = 0L,
     val expireHours: Int = DeepFlowDefaults.EXPIRE_HOURS,
     val saveToHistory: Boolean = false,
+    val scrobble: Boolean = false,
 )
 
 private object DeepFlowDefaults {
@@ -62,8 +63,9 @@ class SettingsHomeViewModel
                 playerPreferences.deepFlowActivatedAt,
                 playerPreferences.deepFlowExpireHours,
                 playerPreferences.deepFlowSaveToHistory,
-            ) { active, activatedAt, expireHours, saveToHistory ->
-                DeepFlowState(active, activatedAt, expireHours, saveToHistory)
+                playerPreferences.deepFlowScrobble,
+            ) { active, activatedAt, expireHours, saveToHistory, scrobble ->
+                DeepFlowState(active, activatedAt, expireHours, saveToHistory, scrobble)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), DeepFlowState())
 
         private val _persona = MutableStateFlow<FlowPersona?>(null)
@@ -93,6 +95,10 @@ class SettingsHomeViewModel
 
         fun setDeepFlowSaveToHistory(enabled: Boolean) {
             viewModelScope.launch { playerPreferences.setDeepFlowSaveToHistory(enabled) }
+        }
+
+        fun setDeepFlowScrobble(enabled: Boolean) {
+            viewModelScope.launch { playerPreferences.setDeepFlowScrobble(enabled) }
         }
 
         fun checkForUpdates() {

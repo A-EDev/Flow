@@ -41,11 +41,16 @@ class OfflineSubtitleStore
         /**
          * Resolve and store the video's native caption tracks. Auto-translations are skipped: they
          * are derived from a track we already keep and would multiply the stored files by twenty.
+         *
+         * @param known WebVTT tracks the caller already resolved, which spares a player request.
          */
-        suspend fun saveForVideo(videoId: String): Int =
+        suspend fun saveForVideo(
+            videoId: String,
+            known: List<ResolvedCaption> = emptyList(),
+        ): Int =
             withContext(Dispatchers.IO) {
                 try {
-                    val captions = resolveCaptionTracks(videoId)
+                    val captions = known.filter { it.format == CaptionFormat.VTT }.ifEmpty { resolveCaptionTracks(videoId) }
                     if (captions.isEmpty()) {
                         Log.d(TAG, "No caption tracks to store for $videoId")
                         markResolvedWithoutTracks(videoId)
@@ -136,12 +141,36 @@ class OfflineSubtitleStore
                 Unit
             }
 
-        private suspend fun resolveCaptionTracks(videoId: String): List<ResolvedCaption> {
+        /**
+         * The video's caption tracks as fresh WebVTT URLs, with a machine translation into
+         * [translateTo] when the video has no track in it. Caption URLs expire within hours, so
+         * nothing that waited in a queue can use an old one.
+         */
+        suspend fun resolveOnline(
+            videoId: String,
+            translateTo: String? = null,
+        ): List<ResolvedCaption> = withContext(Dispatchers.IO) { resolveCaptionTracks(videoId, translateTo) }
+
+        /** The WebVTT body at [url], or null when the fetch fails or returns something else. */
+        suspend fun fetchVtt(url: String): String? = withContext(Dispatchers.IO) { fetchVttBody(url) }
+
+        private suspend fun resolveCaptionTracks(
+            videoId: String,
+            translateTo: String? = null,
+        ): List<ResolvedCaption> {
             CAPTION_CLIENTS.forEach { client ->
                 val response = YouTube.player(videoId, client = client).getOrNull()
                 // VTT, not the default srv3: downloadTo() below validates and stores the raw
                 // WEBVTT body as-is, and offline playback only ever builds VTT captions.
-                val captions = response?.let { CaptionTrackResolver.resolve(it, format = CaptionFormat.VTT) }.orEmpty()
+                val captions =
+                    response
+                        ?.let {
+                            CaptionTrackResolver.resolve(
+                                it,
+                                format = CaptionFormat.VTT,
+                                translateTo = translateTo,
+                            )
+                        }.orEmpty()
                 if (captions.isNotEmpty()) return captions
             }
             return emptyList()
@@ -150,7 +179,13 @@ class OfflineSubtitleStore
         private fun downloadTo(
             url: String,
             target: File,
-        ): Boolean =
+        ): Boolean {
+            val body = fetchVttBody(url) ?: return false
+            target.writeText(body)
+            return true
+        }
+
+        private fun fetchVttBody(url: String): String? =
             try {
                 httpClient
                     .newCall(Request.Builder().url(url).build())
@@ -158,16 +193,15 @@ class OfflineSubtitleStore
                     .use { response ->
                         val body = response.body?.string()
                         if (!response.isSuccessful || body.isNullOrBlank() || !body.startsWith(VTT_MAGIC)) {
-                            Log.w(TAG, "Caption fetch rejected (${response.code}) for ${target.name}")
-                            false
+                            Log.w(TAG, "Caption fetch rejected (${response.code})")
+                            null
                         } else {
-                            target.writeText(body)
-                            true
+                            body
                         }
                     }
             } catch (e: Exception) {
-                Log.w(TAG, "Caption fetch failed for ${target.name}: ${e.message}")
-                false
+                Log.w(TAG, "Caption fetch failed: ${e.message}")
+                null
             }
 
         private fun captionFileName(

@@ -69,6 +69,21 @@ internal object PlayerAppearanceIndex {
             R.string.player_appearance_hide_music_artwork_subtitle,
             R.string.settings_section_music_player,
         )
+    val animatedArtwork =
+        entry(
+            "animated_artwork",
+            R.string.player_appearance_animated_artwork_title,
+            R.string.player_appearance_animated_artwork_subtitle,
+            R.string.settings_section_music_player,
+        )
+    val animatedArtworkWifiOnly =
+        entry(
+            "animated_artwork_wifi_only",
+            R.string.player_appearance_animated_artwork_wifi_title,
+            R.string.player_appearance_animated_artwork_wifi_subtitle,
+            R.string.settings_section_music_player,
+            revealVia = animatedArtwork.key,
+        )
     val artworkControlColors =
         entry(
             "artwork_control_colors",
@@ -129,6 +144,16 @@ internal object PlayerAppearanceIndex {
             R.string.settings_section_mini_player,
         )
 
+    val miniBarSwipeLeft =
+        entry("mini_bar_swipe_left", R.string.mini_bar_swipe_left, R.string.mini_bar_swipe_subtitle, R.string.settings_section_mini_player)
+    val miniBarSwipeRight =
+        entry(
+            "mini_bar_swipe_right",
+            R.string.mini_bar_swipe_right,
+            R.string.mini_bar_swipe_subtitle,
+            R.string.settings_section_mini_player,
+        )
+
     val all =
         listOf(
             sliderStyle,
@@ -140,6 +165,8 @@ internal object PlayerAppearanceIndex {
             frameStep,
             musicBackground,
             hideMusicArtwork,
+            animatedArtwork,
+            animatedArtworkWifiOnly,
             artworkControlColors,
             plainControlColors,
             adaptiveSize,
@@ -150,5 +177,7 @@ internal object PlayerAppearanceIndex {
             miniPlayerSize,
             miniPlayerSkip,
             miniPlayerNextPrev,
+            miniBarSwipeLeft,
+            miniBarSwipeRight,
         )
 }

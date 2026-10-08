@@ -10,7 +10,10 @@ import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.video.MusicVideoVersions
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.VideoDownloadOptions
 import io.github.aedev.flow.data.video.VideoDownloadOptionsLoader
@@ -28,7 +31,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -55,6 +60,8 @@ class QuickActionsViewModel
         private val downloadOptions: VideoDownloadOptionsLoader,
         private val likedMedia: LikedMediaUseCase,
         private val playerManager: Provider<EnhancedPlayerManager>,
+        private val musicVideos: MusicVideoVersions,
+        private val autoDownload: AutoDownloadTrigger,
     ) : ViewModel() {
         val watchLaterIds: StateFlow<Set<String>> =
             playlistRepository
@@ -75,6 +82,12 @@ class QuickActionsViewModel
 
         private val _messages = MutableSharedFlow<QuickActionMessage>(extraBufferCapacity = 4)
         val messages: SharedFlow<QuickActionMessage> = _messages.asSharedFlow()
+
+        init {
+            autoDownload.queued
+                .onEach { videoId -> emit(R.string.auto_download_queued, undo = QuickActionUndo.AutoDownload(videoId)) }
+                .launchIn(viewModelScope)
+        }
 
         private val _pendingDownload = MutableStateFlow<VideoDownloadOptions?>(null)
 
@@ -148,6 +161,15 @@ class QuickActionsViewModel
                         text = if (saved) R.string.toast_added_to_watch_later else R.string.toast_removed_from_watch_later,
                         undo = QuickActionUndo.WatchLater(video, saved = !saved),
                     )
+                }
+            }
+        }
+
+        fun removeFromSavedShorts(video: Video) {
+            viewModelScope.launch {
+                runAction {
+                    val removed = playlistRepository.takeVideosFromPlaylist(PlaylistRepository.SAVED_SHORTS_ID, setOf(video.id))
+                    if (removed.isNotEmpty()) emit(R.string.shorts_unsaved, undo = QuickActionUndo.PlaylistRemoval(removed))
                 }
             }
         }
@@ -258,6 +280,10 @@ class QuickActionsViewModel
                         is QuickActionUndo.QueueRemoval -> {
                             playerManager.get().restoreRemovedVideo(undo.entry)
                         }
+
+                        is QuickActionUndo.AutoDownload -> {
+                            autoDownload.undo(undo.videoId)
+                        }
                     }
                 }
             }
@@ -279,6 +305,22 @@ class QuickActionsViewModel
                 throw e
             } catch (e: Exception) {
                 emit(R.string.quick_action_failed)
+            }
+        }
+
+        /** Opens [track] as a video: itself when it is one, its official music video otherwise. */
+        fun watchVideo(
+            track: MusicTrack,
+            open: (videoId: String) -> Unit,
+        ) {
+            viewModelScope.launch {
+                try {
+                    musicVideos.videoFor(track)?.let { open(it.videoId) } ?: emit(R.string.music_video_unavailable)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(R.string.music_video_failed)
+                }
             }
         }
 

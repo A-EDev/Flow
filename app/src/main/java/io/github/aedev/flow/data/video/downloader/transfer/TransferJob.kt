@@ -52,6 +52,9 @@ sealed interface TransferResult {
         val url: String,
     ) : TransferResult
 
+    /** No bytes arrived for a while; the stream is resolved again without blaming its client. */
+    data object Stalled : TransferResult
+
     data class Failed(
         val reason: TransferFailure,
         val detail: String? = null,

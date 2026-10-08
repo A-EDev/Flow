@@ -44,6 +44,7 @@ fun QuickActionsHost(
                     innerTubeVideoFormats = options.videoFormats,
                     innerTubeAudioFormats = options.audioFormats,
                     video = options.video,
+                    subtitles = options.subtitles,
                     onDismiss = viewModel::dismissDownload,
                 )
             }
@@ -54,6 +55,7 @@ fun QuickActionsHost(
                     innerTubeVideoFormats = options.videoFormats,
                     innerTubeAudioFormats = options.audioFormats,
                     video = options.video,
+                    subtitles = options.subtitles,
                     onDismiss = viewModel::dismissDownload,
                 )
             }

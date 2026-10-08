@@ -1,7 +1,9 @@
 package io.github.aedev.flow.ui.screens.player.stage
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -81,6 +83,9 @@ internal fun VideoStageControls(
             quantised.coerceIn(0f, 1f)
         }
     }
+    val playerManager = EnhancedPlayerManager.getInstance()
+    val sponsorSegments by playerManager.sponsorSegments.collectAsState()
+    val sponsorBlockOffForVideo by playerManager.sponsorBlockOffForVideo.collectAsState()
     val controlsState =
         PlayerControlsUiState(
             isVisible = screenState.showControls || screenState.isTouchLocked,
@@ -111,13 +116,15 @@ internal fun VideoStageControls(
             chapters = playerUiState.chapters,
             storyboard = playerUiState.storyboard,
             heatmap = playerUiState.heatmap,
-            isSubtitlesEnabled = screenState.subtitlesEnabled,
+            isSubtitlesEnabled = playerState.selectedSubtitleUrl != null,
             autoplayEnabled = playerUiState.autoplayEnabled,
             isLooping = playerState.isLooping,
             hasPrevious = playerState.hasPrevious || canGoPrevious,
             hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
             hasQueue = hasVisibleQueue(playerState.queueTitle, playerState.queueSize),
             sbSubmitEnabled = prefs.sbSubmitEnabled,
+            isSponsorBlockAvailable = prefs.sponsorBlockEnabled && sponsorSegments.any { it.endTime > it.startTime },
+            isSponsorBlockOffForVideo = sponsorBlockOffForVideo,
             isCasting = DlnaCastManager.isCasting,
             isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
             isLiveChatAvailable = playerUiState.isLiveChatAvailable,
@@ -169,12 +176,11 @@ internal fun VideoStageControls(
             onQueueClick = { screenState.open(PlayerSheet.Queue) },
             onDescriptionClick = { screenState.open(PlayerSheet.Description) },
             onSubtitleClick = {
-                if (screenState.subtitlesEnabled) {
-                    SubtitleSelection.disable(screenState)
+                if (playerState.selectedSubtitleUrl != null) {
+                    SubtitleSelection.disable()
                 } else {
                     val enabled =
                         SubtitleSelection.enable(
-                            screenState = screenState,
                             subtitles = playerState.availableSubtitles,
                             languageTag = prefs.preferredSubtitleLanguage,
                             rememberLanguage = rememberSubtitleLanguage,
@@ -185,6 +191,11 @@ internal fun VideoStageControls(
             onSubtitleLongClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Subtitles)) },
             onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
             onSbSubmitClick = onSbSubmitClick,
+            onSponsorBlockToggle = { off ->
+                playerManager.setSponsorBlockOffForVideo(off)
+                val message = if (off) R.string.sb_off_for_video else R.string.sb_on_for_video
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            },
             onCastClick = onCastClick,
             onLiveClick = { EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true) },
             onLiveChatClick = {

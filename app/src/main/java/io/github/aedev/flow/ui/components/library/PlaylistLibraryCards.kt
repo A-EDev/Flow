@@ -43,39 +43,59 @@ internal fun MusicPlaylistLibraryCard(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        DropdownMenu(
+        PlaylistActionsMenu(
             expanded = showMenu,
-            onDismissRequest = { showMenu = false },
+            onDismiss = { showMenu = false },
+            onDownload = onDownload,
+            onRename = onRename,
+            onDelete = onDelete,
             modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            if (onDownload != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.download)) },
-                    onClick = {
-                        showMenu = false
-                        onDownload()
-                    },
-                    leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
-                )
-            }
-            if (onRename != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_rename)) },
-                    onClick = {
-                        showMenu = false
-                        onRename()
-                    },
-                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                )
-            }
+        )
+    }
+}
+
+/** Download, rename and delete for a playlist in the library, offering only what is passed. */
+@Composable
+internal fun PlaylistActionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onDownload: (() -> Unit)?,
+    onRename: (() -> Unit)?,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+    ) {
+        if (onDownload != null) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_delete)) },
+                text = { Text(stringResource(R.string.download)) },
                 onClick = {
-                    showMenu = false
-                    onDelete()
+                    onDismiss()
+                    onDownload()
                 },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
             )
         }
+        if (onRename != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_rename)) },
+                onClick = {
+                    onDismiss()
+                    onRename()
+                },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+            )
+        }
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.action_delete)) },
+            onClick = {
+                onDismiss()
+                onDelete()
+            },
+            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+        )
     }
 }

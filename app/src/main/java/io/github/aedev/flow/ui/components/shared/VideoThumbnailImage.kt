@@ -5,17 +5,30 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.memory.MemoryCache
+import coil3.request.ImageRequest
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
+/**
+ * The thumbnail size the viewer chose for the network they are on. Null until the preference has
+ * been read, so the first frame never fetches a size that is about to be replaced.
+ */
+val LocalThumbnailQuality = staticCompositionLocalOf<ThumbnailQuality?> { ThumbnailQuality.HIGH }
+
+/** [portrait] marks a card that crops the frame to 9:16, which keeps it from the smallest tier. */
 @Composable
 fun VideoThumbnailImage(
     videoId: String,
@@ -23,12 +36,20 @@ fun VideoThumbnailImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    portrait: Boolean = false,
+    placeholderKey: MemoryCache.Key? = null,
+    onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
 ) {
+    val quality = LocalThumbnailQuality.current
     val models =
-        remember(videoId, model) {
+        remember(videoId, model, quality, portrait) {
             when {
+                quality == null -> {
+                    emptyList()
+                }
+
                 model is String || model == null -> {
-                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
+                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String, quality, portrait)
                 }
 
                 else -> {
@@ -37,12 +58,24 @@ fun VideoThumbnailImage(
             }
         }
 
+    // Off draws nothing rather than the fallback fill, so the card's own container and badges show.
+    if (models.isEmpty() && quality == ThumbnailQuality.OFF) return
     SafeAsyncImage(
         models = models,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
+        placeholderKey = placeholderKey,
+        onImageKey = onImageKey,
     )
+}
+
+/** [url] when the viewer's thumbnail setting allows loading it here, else null. Device covers always load. */
+@Composable
+@ReadOnlyComposable
+fun thumbnailUrlOrNull(url: String?): String? {
+    val raw = url?.takeIf { it.isNotBlank() } ?: return null
+    return raw.takeUnless { LocalThumbnailQuality.current == ThumbnailQuality.OFF && !ThumbnailUrlResolver.isDeviceUri(raw) }
 }
 
 @Composable
@@ -51,6 +84,8 @@ private fun SafeAsyncImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    placeholderKey: MemoryCache.Key? = null,
+    onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
 ) {
     var index by remember(models) { mutableStateOf(0) }
     val currentModel = models.getOrNull(index)
@@ -67,11 +102,25 @@ private fun SafeAsyncImage(
         }
 
         (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> {
+            val context = LocalPlatformContext.current
+            val request =
+                remember(currentModel, placeholderKey) {
+                    if (placeholderKey == null) {
+                        currentModel
+                    } else {
+                        ImageRequest
+                            .Builder(context)
+                            .data(currentModel)
+                            .placeholderMemoryCacheKey(placeholderKey)
+                            .build()
+                    }
+                }
             AsyncImage(
-                model = currentModel,
+                model = request,
                 contentDescription = contentDescription,
                 modifier = modifier,
                 contentScale = contentScale,
+                onSuccess = onImageKey?.let { report -> { state -> report(state.result.memoryCacheKey) } },
                 onError = {
                     index = if (index < models.lastIndex) index + 1 else models.size
                 },

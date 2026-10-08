@@ -4,6 +4,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
@@ -33,6 +34,8 @@ class PlayerAppearanceViewModel
         val musicBackground = preferences.musicPlayerBackgroundStyle.asState(MusicPlayerBackgroundStyle.BLUR_GRADIENT)
         val hideMusicArtwork = preferences.hideMusicPlayerArtwork.asState(false)
         val artworkControlColors = preferences.musicArtworkControlColors.asState(true)
+        val animatedArtwork = preferences.animatedArtwork.asState(false)
+        val animatedArtworkWifiOnly = preferences.animatedArtworkWifiOnly.asState(true)
         val plainControlColors = preferences.musicPlainControlColors.asState(MusicPlainControlColors.MONOCHROME)
         val adaptivePlayerSize = preferences.adaptivePlayerSizeEnabled.asState(true)
         val ambientMode = preferences.videoAmbientModeEnabled.asState(false)
@@ -42,6 +45,8 @@ class PlayerAppearanceViewModel
         val miniPlayerScale = preferences.miniPlayerScale.asState(MiniPlayerSize.NORMAL.scale)
         val miniPlayerSkip = preferences.miniPlayerShowSkipControls.asState(false)
         val miniPlayerNextPrev = preferences.miniPlayerShowNextPrevControls.asState(false)
+        val miniBarSwipeLeft = preferences.miniBarSwipeLeftAction.asState(MiniBarSwipeAction.CLOSE)
+        val miniBarSwipeRight = preferences.miniBarSwipeRightAction.asState(MiniBarSwipeAction.CLOSE)
 
         fun setSliderStyle(value: SliderStyle) = write { preferences.setSliderStyle(value) }
 
@@ -63,6 +68,10 @@ class PlayerAppearanceViewModel
 
         fun setArtworkControlColors(value: Boolean) = write { preferences.setMusicArtworkControlColors(value) }
 
+        fun setAnimatedArtwork(value: Boolean) = write { preferences.setAnimatedArtwork(value) }
+
+        fun setAnimatedArtworkWifiOnly(value: Boolean) = write { preferences.setAnimatedArtworkWifiOnly(value) }
+
         fun setPlainControlColors(value: MusicPlainControlColors) = write { preferences.setMusicPlainControlColors(value) }
 
         fun setAdaptivePlayerSize(value: Boolean) = write { preferences.setAdaptivePlayerSizeEnabled(value) }
@@ -80,6 +89,10 @@ class PlayerAppearanceViewModel
         fun setMiniPlayerSkip(value: Boolean) = write { preferences.setMiniPlayerShowSkipControls(value) }
 
         fun setMiniPlayerNextPrev(value: Boolean) = write { preferences.setMiniPlayerShowNextPrevControls(value) }
+
+        fun setMiniBarSwipeLeft(value: MiniBarSwipeAction) = write { preferences.setMiniBarSwipeLeftAction(value) }
+
+        fun setMiniBarSwipeRight(value: MiniBarSwipeAction) = write { preferences.setMiniBarSwipeRightAction(value) }
     }
 
 /** The three mini player sizes the setting offers, stored as the player's scale factor. */

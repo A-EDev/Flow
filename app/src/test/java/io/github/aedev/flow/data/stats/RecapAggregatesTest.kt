@@ -280,4 +280,28 @@ class RecapAggregatesTest {
         assertThat(summary.music.topArtists.map { it.name }).containsExactly("Real Artist")
         assertThat(summary.music.discoveredArtists.map { it.name }).containsExactly("Real Artist")
     }
+
+    @Test
+    fun `top albums sum the plays of every track placed on an album`() {
+        val month =
+            MusicStatsStorage.SerializableMonth(
+                plays = 9,
+                trackPlays = mapOf("a1" to 3, "a2" to 2, "b1" to 4, "loose" to 7),
+            )
+        val albums =
+            mapOf(
+                "a1" to TrackAlbum("MPREb_a", "Album A", "Artist", "art_a"),
+                "a2" to TrackAlbum("MPREb_a", "Album A", "Artist", "art_a"),
+                "b1" to TrackAlbum("MPREb_b", "Album B", "Other", "art_b"),
+            )
+
+        val recap =
+            RecapAggregates
+                .summarize(RecapPeriod.Month(september), VideoStatsSnapshot(), music(september to month), trackAlbums = albums)
+                .music
+
+        assertThat(recap.topAlbums.map { it.id to it.count }).containsExactly("MPREb_a" to 5, "MPREb_b" to 4).inOrder()
+        assertThat(recap.topAlbums.first().kind).isEqualTo(RankedKind.ALBUM)
+        assertThat(recap.topTracks.first().kind).isEqualTo(RankedKind.TRACK)
+    }
 }

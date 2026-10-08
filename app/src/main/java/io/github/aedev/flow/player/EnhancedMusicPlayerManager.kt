@@ -18,6 +18,8 @@ import io.github.aedev.flow.data.local.AudioSettingsPersistence
 import io.github.aedev.flow.data.local.QueuePersistence
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.player.musicvideo.MusicVideoItems
+import io.github.aedev.flow.player.musicvideo.MusicVideoPlanner
 import io.github.aedev.flow.service.Media3MusicService
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutionException
 import kotlin.math.pow
 
@@ -272,12 +275,7 @@ object EnhancedMusicPlayerManager {
                                 currentPosition = _currentPosition.value, // Use StateFlow, not player directly
                                 currentTrackId = _currentTrack.value?.videoId,
                                 shuffleEnabled = _shuffleEnabled.value,
-                                repeatMode =
-                                    when (_repeatMode.value) {
-                                        RepeatMode.OFF -> 0
-                                        RepeatMode.ALL -> 1
-                                        RepeatMode.ONE -> 2
-                                    },
+                                repeatMode = _repeatMode.value.savedCode,
                                 savedAt = System.currentTimeMillis(),
                                 automix = _automixItems.value,
                             )
@@ -297,6 +295,8 @@ object EnhancedMusicPlayerManager {
     }
 
     private fun setupPlayerListener(controller: Player) {
+        // The service owns repeat; the button shows what the player will actually do.
+        _repeatMode.value = RepeatMode.fromPlayer(controller.repeatMode)
         controller.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -333,12 +333,7 @@ object EnhancedMusicPlayerManager {
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
-                    _repeatMode.value =
-                        when (repeatMode) {
-                            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
-                            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
-                            else -> RepeatMode.OFF
-                        }
+                    _repeatMode.value = RepeatMode.fromPlayer(repeatMode)
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -455,8 +450,39 @@ object EnhancedMusicPlayerManager {
         )
     }
 
+    // Queue entries the Song/Video switch set to play with their picture; every rebuild keeps it.
+    private val videoIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    fun showsVideo(videoId: String): Boolean = videoId in videoIds
+
     /** A device file plays from its MediaStore URI; everything else resolves through `music://`. */
-    private fun streamUri(videoId: String): Uri = LocalMediaIds.audioUri(videoId) ?: Uri.parse("music://$videoId")
+    private fun streamUri(videoId: String): Uri = LocalMediaIds.audioUri(videoId) ?: MusicVideoItems.streamUri(videoId, showsVideo(videoId))
+
+    /**
+     * Puts [track] in place of the queue entry at [index] while that entry is still [expectedId].
+     * The playing entry keeps its place in the song, within [track]'s length. Main thread only.
+     */
+    fun replaceQueueTrack(
+        index: Int,
+        expectedId: String,
+        track: MusicTrack,
+        showsVideo: Boolean,
+    ): Boolean {
+        val p = player ?: return false
+        val queue = _queue.value
+        if (queue.getOrNull(index)?.videoId != expectedId) return false
+        if (index >= p.mediaItemCount || p.getMediaItemAt(index).mediaId != expectedId) return false
+
+        videoIds -= expectedId
+        if (showsVideo) videoIds += track.videoId
+        _queue.value = queue.toMutableList().also { it[index] = track }
+        val isCurrent = p.currentMediaItemIndex == index
+        val positionMs = p.currentPosition
+        p.replaceMediaItem(index, buildMediaItem(track))
+        if (isCurrent) p.seekTo(index, MusicVideoPlanner.positionWithin(positionMs, track.duration))
+        triggerQueueSave()
+        return true
+    }
 
     private fun buildMediaItem(
         track: MusicTrack,
@@ -611,7 +637,7 @@ object EnhancedMusicPlayerManager {
             activeQueue.map { t ->
                 val localUri = localUriOverrides[t.videoId]
                 val uri =
-                    localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
+                    localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty() && !showsVideo(t.videoId)) {
                         Uri.parse(audioUrl)
                     } else {
                         streamUri(t.videoId)
@@ -741,12 +767,7 @@ object EnhancedMusicPlayerManager {
                 currentPosition = _currentPosition.value, // Use StateFlow for thread safety
                 currentTrackId = _currentTrack.value?.videoId,
                 shuffleEnabled = _shuffleEnabled.value,
-                repeatMode =
-                    when (_repeatMode.value) {
-                        RepeatMode.OFF -> 0
-                        RepeatMode.ALL -> 1
-                        RepeatMode.ONE -> 2
-                    },
+                repeatMode = _repeatMode.value.savedCode,
                 automix = _automixItems.value,
             )
         }
@@ -768,12 +789,6 @@ object EnhancedMusicPlayerManager {
             _queue.value = savedState.queue
             _currentQueueIndex.value = savedState.currentIndex.coerceIn(0, savedState.queue.size - 1)
             _shuffleEnabled.value = savedState.shuffleEnabled
-            _repeatMode.value =
-                when (savedState.repeatMode) {
-                    1 -> RepeatMode.ALL
-                    2 -> RepeatMode.ONE
-                    else -> RepeatMode.OFF
-                }
             _automixItems.value = savedState.automix
 
             val currentTrack =
@@ -806,12 +821,7 @@ object EnhancedMusicPlayerManager {
                     currentPosition = _currentPosition.value, // Use StateFlow for thread safety
                     currentTrackId = _currentTrack.value?.videoId,
                     shuffleEnabled = _shuffleEnabled.value,
-                    repeatMode =
-                        when (_repeatMode.value) {
-                            RepeatMode.OFF -> 0
-                            RepeatMode.ALL -> 1
-                            RepeatMode.ONE -> 2
-                        },
+                    repeatMode = _repeatMode.value.savedCode,
                     automix = _automixItems.value,
                 )
             }
@@ -1178,8 +1188,17 @@ data class MusicPlayerState(
 private const val PRECISE_POSITION_INTERVAL_MS = 250L
 private const val COARSE_POSITION_INTERVAL_MS = 1_000L
 
-enum class RepeatMode {
-    OFF,
-    ALL,
-    ONE,
+/** [savedCode] is how a saved queue writes the mode; [playerMode] is Media3's own value for it. */
+enum class RepeatMode(
+    val savedCode: Int,
+    val playerMode: Int,
+) {
+    OFF(0, Player.REPEAT_MODE_OFF),
+    ALL(1, Player.REPEAT_MODE_ALL),
+    ONE(2, Player.REPEAT_MODE_ONE),
+    ;
+
+    companion object {
+        fun fromPlayer(mode: Int): RepeatMode = entries.firstOrNull { it.playerMode == mode } ?: OFF
+    }
 }

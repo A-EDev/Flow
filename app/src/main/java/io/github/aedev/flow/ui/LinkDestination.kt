@@ -14,8 +14,10 @@ internal sealed interface LinkDestination {
         val videoId: String,
     ) : LinkDestination
 
+    /** [playsVideo] marks a route that starts a video and leaves, rather than a page to browse. */
     data class Page(
         val route: String,
+        val playsVideo: Boolean = false,
     ) : LinkDestination
 }
 
@@ -32,16 +34,28 @@ internal fun linkTextOf(intent: Intent): String? =
  * and cannot be browsed on its own.
  */
 internal fun linkDestination(link: YouTubeLink): LinkDestination? =
-    when {
-        link is YouTubeLink.Video && !link.isMusic -> LinkDestination.Video(link.id)
-        link is YouTubeLink.Short -> LinkDestination.Short(link.id)
+    when (link) {
+        is YouTubeLink.Video -> videoDestination(link)
+        is YouTubeLink.Short -> LinkDestination.Short(link.id)
         else -> pageRoute(link)?.let(LinkDestination::Page)
     }
 
+/**
+ * A video linked from inside a playlist plays with that playlist as its queue. A mix and the
+ * account's own lists cannot be read without the account, so those links play the video alone.
+ */
+private fun videoDestination(link: YouTubeLink.Video): LinkDestination {
+    val playlistId = link.playlistId?.takeUnless { it in ACCOUNT_LISTS }
+    return when {
+        link.isMusic -> LinkDestination.Page(musicPlayerRoute(link.id, playlistId))
+        playlistId == null || isMix(playlistId) -> LinkDestination.Video(link.id)
+        else -> LinkDestination.Page(linkedPlaylistRoute(playlistId, link.id), playsVideo = true)
+    }
+}
+
 private fun pageRoute(link: YouTubeLink): String? =
     when (link) {
-        is YouTubeLink.Video -> musicPlayerRoute(link.id)
-        is YouTubeLink.Short, is YouTubeLink.Search -> null
+        is YouTubeLink.Video, is YouTubeLink.Short, is YouTubeLink.Search -> null
         is YouTubeLink.Playlist -> playlistRoute(link)
         is YouTubeLink.Album -> musicCollectionRoute(link.browseId)
         is YouTubeLink.Channel -> if (link.isMusic) musicArtistRoute(link.id) else youtubeChannelRoute(link.id)
@@ -54,7 +68,12 @@ private fun playlistRoute(link: YouTubeLink.Playlist): String? =
         link.id == "LL" -> "playlist/${PlaylistRepository.LIKED_VIDEOS_ID}"
         link.id == "WL" -> "playlist/${PlaylistRepository.WATCH_LATER_ID}"
         link.id == "LM" -> musicCollectionRoute(PlaylistRepository.LIKED_MUSIC_ID)
-        link.id.startsWith("RD") && !link.id.startsWith("RDCLAK") -> null
+        isMix(link.id) -> null
         link.isMusic -> musicCollectionRoute(link.id)
         else -> "playlist/${link.id}"
     }
+
+/** A mix is built around a video; `RDCLAK` ids are curated music playlists that only share the prefix. */
+internal fun isMix(playlistId: String): Boolean = playlistId.startsWith("RD") && !playlistId.startsWith("RDCLAK")
+
+private val ACCOUNT_LISTS = setOf("LL", "WL", "LM")

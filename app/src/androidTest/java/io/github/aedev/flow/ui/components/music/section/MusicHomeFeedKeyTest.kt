@@ -55,6 +55,7 @@ class MusicHomeFeedKeyTest {
                     quickPickTracks = emptyList(),
                     speedDialTracks = emptyList(),
                     popularArtists = emptyList(),
+                    library = MusicHomeLibrary(),
                     quickPicksGridState = gridState,
                     onSongClick = { _, _, _ -> },
                     onVideoClick = {},

@@ -29,6 +29,7 @@ internal fun SettingsListScope.playbackSections(
 ) {
     group(key = "playback.general", header = R.string.playback_header) {
         switch(PlaybackIndex.backgroundPlay, viewModel.backgroundPlay, viewModel::setBackgroundPlay)
+        switch(PlaybackIndex.startPaused, viewModel.startPaused, viewModel::setStartPaused)
         switch(PlaybackIndex.autoplay, viewModel.autoplay, viewModel::setAutoplay, enabled = !state.loopAll)
         switch(PlaybackIndex.queueAutoplay, viewModel.queueAutoplay, viewModel::setQueueAutoplay, enabled = !state.loopAll)
         choice(PlaybackIndex.autoplayCountdown, onClick = { openDialog(PlaybackDialog.AUTOPLAY_COUNTDOWN) }) {
@@ -44,6 +45,8 @@ internal fun SettingsListScope.playbackSections(
     }
     group(key = "playback.speed", header = R.string.settings_section_speed) {
         switch(PlaybackIndex.rememberSpeed, viewModel.rememberSpeed, viewModel::setRememberSpeed)
+        switch(PlaybackIndex.musicNormalSpeed, viewModel.musicNormalSpeed, viewModel::setMusicNormalSpeed)
+        switch(PlaybackIndex.speedPerChannel, viewModel.speedPerChannel, viewModel::setSpeedPerChannel)
         switch(PlaybackIndex.customSpeeds, viewModel.customSpeeds, viewModel::setCustomSpeeds)
         if (state.customSpeeds) {
             row(PlaybackIndex.speedPresets.key) { shape -> SpeedPresetEditor(viewModel = viewModel, shape = shape) }
@@ -57,7 +60,17 @@ internal fun SettingsListScope.playbackSections(
     group(key = "playback.gestures", header = R.string.player_appearance_gestures_header) {
         choice(PlaybackIndex.doubleTapSeek, onClick = { openDialog(PlaybackDialog.DOUBLE_TAP_SEEK) }) {
             val seconds by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
-            pluralStringResource(R.plurals.player_settings_double_tap_seek_subtitle, seconds, seconds)
+            if (seconds <= 0) {
+                stringResource(R.string.player_settings_double_tap_seek_off)
+            } else {
+                pluralStringResource(R.plurals.player_settings_double_tap_seek_subtitle, seconds, seconds)
+            }
+        }
+        if (state.doubleTapSeek) {
+            choice(PlaybackIndex.seekZoneWidth, onClick = { openDialog(PlaybackDialog.SEEK_ZONE_WIDTH) }) {
+                val zone by viewModel.seekZone.collectAsStateWithLifecycle()
+                stringResource(zone.labelRes())
+            }
         }
         switch(PlaybackIndex.brightnessGesture, viewModel.brightnessGesture, viewModel::setBrightnessGesture)
         switch(PlaybackIndex.rememberBrightness, viewModel.rememberBrightness, viewModel::setRememberBrightness)
@@ -76,6 +89,7 @@ internal fun SettingsListScope.playbackSections(
         switch(PlaybackIndex.lockButton, viewModel.lockButton, viewModel::setLockButton)
         switch(PlaybackIndex.speedIndicator, viewModel.speedIndicator, viewModel::setSpeedIndicator)
         switch(PlaybackIndex.commentsButton, viewModel.commentsButton, viewModel::setCommentsButton)
+        switch(PlaybackIndex.sponsorBlockButton, viewModel.sponsorBlockButton, viewModel::setSponsorBlockButton)
     }
     group(key = "playback.pip", header = R.string.settings_section_pip) {
         switch(PlaybackIndex.autoPip, viewModel.autoPip, viewModel::setAutoPip)
@@ -98,6 +112,8 @@ internal fun SettingsListScope.playbackSections(
     shortsPlayerSection(viewModel, state, openDialog)
     group(key = "playback.music", header = R.string.settings_section_music) {
         switch(PlaybackIndex.endlessRadio, viewModel.endlessRadio, viewModel::setEndlessRadio)
+        switch(PlaybackIndex.pauseMusicWhenMuted, viewModel.pauseMusicWhenMuted, viewModel::setPauseMusicWhenMuted)
+        switch(PlaybackIndex.musicVideoSwitch, viewModel.musicVideoSwitch, viewModel::setMusicVideoSwitch)
         choice(PlaybackIndex.lyricsProviders, onClick = { openDialog(PlaybackDialog.LYRICS) }) {
             val providers by viewModel.lyricsProviders.collectAsStateWithLifecycle()
             pluralStringResource(

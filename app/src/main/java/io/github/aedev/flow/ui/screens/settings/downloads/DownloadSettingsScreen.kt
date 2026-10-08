@@ -46,10 +46,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.AutoDownloadMode
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MAX_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.VideoCodec
+import io.github.aedev.flow.data.repository.MediaCacheType
 import io.github.aedev.flow.data.video.downloader.work.RetagStatus
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
@@ -73,11 +75,10 @@ import io.github.aedev.flow.ui.screens.settings.quality.codecLabel
 import io.github.aedev.flow.ui.screens.settings.quality.musicQualityLabel
 import io.github.aedev.flow.ui.screens.settings.quality.videoQualityLabel
 
-private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, CACHE }
+private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, AUTO_DOWNLOAD }
 
 private const val MAX_THREADS = 8
 private val UsageSpacing = 8.dp
-private val CacheSizes = listOf(100, 200, 500, 0)
 
 /** Where downloads are saved, how they are made, and the storage access that lists them. */
 @Composable
@@ -86,6 +87,7 @@ internal fun DownloadSettingsScreen(
     highlight: String?,
     onNavigate: (SettingsTarget) -> Unit,
     viewModel: DownloadSettingsViewModel = hiltViewModel(),
+    cacheViewModel: DownloadCacheViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val locations by viewModel.locations.collectAsStateWithLifecycle()
@@ -97,10 +99,12 @@ internal fun DownloadSettingsScreen(
     val menuStyle by viewModel.menuStyle.collectAsStateWithLifecycle()
     val threads by viewModel.threads.collectAsStateWithLifecycle()
     val concurrentDownloads by viewModel.concurrentDownloads.collectAsStateWithLifecycle()
-    val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
+    val autoDownloadOpened by viewModel.autoDownloadOpened.collectAsStateWithLifecycle()
 
     var picker by rememberSaveable { mutableStateOf<DownloadPicker?>(null) }
     var locationTarget by rememberSaveable { mutableStateOf<DownloadTarget?>(null) }
+    var cacheLimit by rememberSaveable { mutableStateOf<MediaCacheType?>(null) }
+    LaunchedEffect(Unit) { cacheViewModel.measure() }
     var access by remember { mutableStateOf(StorageAccess.read(context)) }
     LifecycleResumeEffect(Unit) {
         access = StorageAccess.read(context)
@@ -167,8 +171,8 @@ internal fun DownloadSettingsScreen(
                 locationTarget = DownloadTarget.MUSIC
             })
             row(DownloadsIndex.usage.key) { shape -> StorageUsageRow(usage, storage?.usedFraction, shape) }
-            choice(DownloadsIndex.cacheSize, onClick = { picker = DownloadPicker.CACHE }) { stringResource(cacheSizeLabel(cacheSizeMb)) }
         }
+        downloadCacheSection(cacheViewModel, onEditLimit = { cacheLimit = it })
         group(key = "downloads.defaults", header = R.string.settings_section_download_defaults) {
             choice(DownloadsIndex.quickQuality, onClick = { picker = DownloadPicker.QUALITY }) {
                 stringResource(videoQualityLabel(quickQuality))
@@ -178,7 +182,12 @@ internal fun DownloadSettingsScreen(
                 stringResource(musicQualityLabel(musicQuality))
             }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
+            switch(DownloadsIndex.autoDownloadLikes, viewModel.autoDownloadLikes, viewModel::setAutoDownloadLikes)
+            choice(DownloadsIndex.autoDownloadOpened, onClick = { picker = DownloadPicker.AUTO_DOWNLOAD }) {
+                stringResource(autoDownloadLabel(autoDownloadOpened))
+            }
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
+            switch(DownloadsIndex.subtitleFile, viewModel.subtitleFile, viewModel::setSubtitleFile)
         }
         group(key = "downloads.library", header = R.string.local_section_library) {
             nav(
@@ -249,6 +258,7 @@ internal fun DownloadSettingsScreen(
             DownloadTarget.MUSIC -> locations?.music
             null -> null
         }
+    cacheLimit?.let { type -> DownloadCacheLimitDialog(type, cacheViewModel, onDismiss = { cacheLimit = null }) }
     if (dialogTarget != null && dialogLocation != null) {
         DownloadLocationDialog(
             target = dialogTarget,
@@ -306,12 +316,12 @@ internal fun DownloadSettingsScreen(
             )
         }
 
-        DownloadPicker.CACHE -> {
+        DownloadPicker.AUTO_DOWNLOAD -> {
             FlowChoiceDialog(
-                title = stringResource(R.string.cache_size_header),
-                options = CacheSizes.map { FlowChoice(it, stringResource(cacheSizeLabel(it))) },
-                selected = cacheSizeMb,
-                onSelect = viewModel::setCacheSize,
+                title = stringResource(R.string.settings_auto_download_opened_title),
+                options = AutoDownloadMode.entries.map { FlowChoice(it, stringResource(autoDownloadLabel(it))) },
+                selected = autoDownloadOpened,
+                onSelect = viewModel::setAutoDownloadOpened,
                 onDismiss = { picker = null },
             )
         }
@@ -349,12 +359,11 @@ private fun StorageUsageRow(
 private fun LocationUi.label(): String =
     if (notWritable) stringResource(R.string.download_location_not_writable, saveFolder) else saveFolder
 
-private fun cacheSizeLabel(megabytes: Int): Int =
-    when (megabytes) {
-        100 -> R.string.cache_size_100mb
-        200 -> R.string.cache_size_200mb
-        0 -> R.string.cache_size_unlimited
-        else -> R.string.cache_size_500mb
+private fun autoDownloadLabel(mode: AutoDownloadMode): Int =
+    when (mode) {
+        AutoDownloadMode.OFF -> R.string.off
+        AutoDownloadMode.WIFI -> R.string.auto_download_wifi
+        AutoDownloadMode.ALWAYS -> R.string.auto_download_always
     }
 
 private data class StorageAccess(

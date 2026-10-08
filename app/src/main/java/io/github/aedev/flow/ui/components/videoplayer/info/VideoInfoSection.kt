@@ -167,7 +167,7 @@ internal fun VideoInfoSection(
                         text =
                             stringResource(
                                 R.string.duration_with_dot_template,
-                                dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
+                                dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp, video.timestampIsExact),
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

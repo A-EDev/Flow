@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.math.roundToInt
 
 /**
  * Flow Desktop's `ThemeColors`, field for field. Colours are `#rrggbb`, or a `color-mix(in srgb, …)`
@@ -102,19 +103,19 @@ object CustomThemeCodec {
 
     private fun PaletteColors.toDesktop(): DesktopThemeColors =
         DesktopThemeColors(
-            primary = primary.toHex(),
-            onPrimary = onPrimary.toHex(),
-            secondary = secondary.toHex(),
-            background = background.toHex(),
-            surface = surface.toHex(),
-            surfaceContainerLow = surfaceContainerLow.toHex(),
-            surfaceContainer = surfaceContainer.toHex(),
-            surfaceContainerHigh = surfaceContainerHigh.toHex(),
-            surfaceContainerHighest = surfaceContainerHighest.toHex(),
-            outline = outline.toHex(),
-            onSurface = onSurface.toHex(),
-            onSurfaceVariant = onSurfaceVariant.toHex(),
-            error = error.toHex(),
+            primary = primary.toThemeColor(),
+            onPrimary = onPrimary.toThemeColor(),
+            secondary = secondary.toThemeColor(),
+            background = background.toThemeColor(),
+            surface = surface.toThemeColor(),
+            surfaceContainerLow = surfaceContainerLow.toThemeColor(),
+            surfaceContainer = surfaceContainer.toThemeColor(),
+            surfaceContainerHigh = surfaceContainerHigh.toThemeColor(),
+            surfaceContainerHighest = surfaceContainerHighest.toThemeColor(),
+            outline = outline.toThemeColor(),
+            onSurface = onSurface.toThemeColor(),
+            onSurfaceVariant = onSurfaceVariant.toThemeColor(),
+            error = error.toThemeColor(),
         )
 
     private fun DesktopThemeColors.toPalette(): PaletteColors? =
@@ -141,7 +142,8 @@ private val MixStop = Regex("""^(.+?)(?:\s+(\d+(?:\.\d+)?)%)?$""")
 
 /**
  * A colour as Flow Desktop writes one: `#rrggbb`, or `color-mix(in srgb, A p%, B)` with the
- * percentage on either side, as CSS allows. Anything else is rejected, as desktop rejects it.
+ * percentage on either side, as CSS allows, where a stop may be `transparent`. Anything else is
+ * rejected, as desktop rejects it.
  */
 internal fun parseThemeColor(value: String): Color? {
     val text = value.trim()
@@ -149,8 +151,8 @@ internal fun parseThemeColor(value: String): Color? {
     val mix = ColorMix.matchEntire(text) ?: return null
     val first = MixStop.matchEntire(mix.groupValues[1]) ?: return null
     val second = MixStop.matchEntire(mix.groupValues[2]) ?: return null
-    val firstColor = parseThemeColor(first.groupValues[1]) ?: return null
-    val secondColor = parseThemeColor(second.groupValues[1]) ?: return null
+    val firstColor = parseMixStop(first.groupValues[1]) ?: return null
+    val secondColor = parseMixStop(second.groupValues[1]) ?: return null
     val firstShare = first.groupValues[2].toFloatOrNull()
     val secondShare = second.groupValues[2].toFloatOrNull()
     val amount =
@@ -162,11 +164,37 @@ internal fun parseThemeColor(value: String): Color? {
     return mixColors(firstColor, secondColor, amount)
 }
 
+private fun parseMixStop(value: String): Color? =
+    if (value.equals(TRANSPARENT, ignoreCase = true)) Color.Transparent else parseThemeColor(value)
+
 private const val PERCENT = 100f
 private const val HALF = 0.5f
+private const val TRANSPARENT = "transparent"
+private const val OPAQUE_ALPHA = 0xFF
+private const val TENTHS_PER_UNIT = 1000f
+private const val TENTHS_PER_PERCENT = 10
 
-/** `#rrggbb`, the only form Flow Desktop's validator accepts. */
-internal fun Color.toHex(): String = "#%06x".format(toArgb() and 0xFFFFFF)
+/**
+ * `#rrggbb`, or for a translucent colour `color-mix(in srgb, #rrggbb N%, transparent)`, which Flow
+ * Desktop accepts and CSS draws at N % opacity. N keeps one decimal so every alpha step survives
+ * a round trip, and never reaches 0 so a fully transparent colour keeps its hue.
+ */
+internal fun Color.toThemeColor(): String {
+    val argb = toArgb()
+    val hex = "#%06x".format(argb and 0xFFFFFF)
+    val alpha = argb ushr 24
+    if (alpha == OPAQUE_ALPHA) return hex
+    val tenths = (alpha * TENTHS_PER_UNIT / OPAQUE_ALPHA).roundToInt().coerceAtLeast(1)
+    val percent =
+        if (tenths % TENTHS_PER_PERCENT ==
+            0
+        ) {
+            "${tenths / TENTHS_PER_PERCENT}"
+        } else {
+            "${tenths / TENTHS_PER_PERCENT}.${tenths % TENTHS_PER_PERCENT}"
+        }
+    return "color-mix(in srgb, $hex $percent%, $TRANSPARENT)"
+}
 
 /**
  * The single custom palette older versions kept per style, keyed by Material role name, turned into

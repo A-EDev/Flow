@@ -28,6 +28,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.screens.settings.home.deepFlowStatus
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -45,6 +46,7 @@ internal fun TasteScreen(
     viewModel: TasteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deepFlow by viewModel.deepFlow.collectAsStateWithLifecycle()
     val operation by viewModel.operation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -83,6 +85,8 @@ internal fun TasteScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> start(uri, viewModel::importMusicProfile) }
     val hiddenLabel = hiddenCountLabel(state.hidden.count)
     val noQueriesLabel = stringResource(R.string.diagnostics_engine_queries_none)
+    val pausedLabel = stringResource(R.string.taste_learning_paused)
+    val pausedStatus = deepFlowStatus(deepFlow)
 
     val actions =
         remember(viewModel) {
@@ -90,7 +94,11 @@ internal fun TasteScreen(
                 onTopicPreferred = viewModel::setTopicPreferred,
                 onBlockTopic = viewModel::blockTopic,
                 onBlockChannel = viewModel::blockChannel,
+                onForgetChannel = viewModel::forgetChannel,
+                onClearChannelMemory = viewModel::clearChannelMemory,
                 onOpenHidden = { onNavigate(SettingsTarget(SettingsDestination.HIDDEN_CONTENT)) },
+                onOpenFavouriteArtists = { onNavigate(SettingsTarget(SettingsDestination.FAVOURITE_ARTISTS)) },
+                onOpenDiscoverChannels = { onNavigate(SettingsTarget(SettingsDestination.DISCOVER_CHANNELS)) },
                 onOpenRecap = onOpenRecap,
                 onExportVideo = { exportVideo.launch("flow_video_profile_${LocalDate.now()}.json") },
                 onImportVideo = { importVideo.launch(arrayOf(JSON)) },
@@ -110,6 +118,7 @@ internal fun TasteScreen(
         if (state.loading) {
             item("taste.loading") { FlowLoadingIndicator(Modifier.fillMaxWidth().height(LoadingHeight)) }
         } else {
+            pausedStatus?.let { learningPaused(pausedLabel, it) }
             tasteContent(state, hiddenLabel, noQueriesLabel, actions)
         }
     }

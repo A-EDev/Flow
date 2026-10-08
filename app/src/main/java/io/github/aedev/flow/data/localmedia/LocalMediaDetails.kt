@@ -16,6 +16,7 @@ private const val CACHED_FILES = 32
 
 /** What a device video's own tags add to the player. */
 internal data class LocalFileTags(
+    val title: String?,
     val artist: String?,
     val description: String?,
 )
@@ -27,33 +28,41 @@ internal fun shownDescription(
     comment: String?,
 ): String? = listOf(description, longDescription, comment).firstOrNull { !it.isNullOrBlank() }?.trim()
 
-/** Reads a device video's embedded artist and description once per file, when it is opened. */
+/** Reads a device video's embedded title, artist and description once per file, when it is opened. */
 @Singleton
 class LocalMediaDetails
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
         private val tagReader: DownloadTagReader,
+        private val embeddedTags: LocalEmbeddedTags,
     ) {
         private val cache =
             object : LinkedHashMap<String, LocalFileTags>(CACHED_FILES, 0.75f, true) {
                 override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LocalFileTags>?) = size > CACHED_FILES
             }
 
-        /** [video] with the channel and description its file carries, or null when the file adds nothing. */
+        /** [video] with the title, channel and description its file carries, or null when the file adds nothing. */
         suspend fun enrich(video: Video): Video? {
             val uri = LocalMediaIds.videoUri(video.id) ?: return null
-            val tags = synchronized(cache) { cache[video.id] } ?: read(uri).also { synchronized(cache) { cache[video.id] = it } }
+            val mediaStoreId = LocalMediaIds.mediaStoreId(video.id) ?: return null
+            val tags =
+                synchronized(cache) { cache[video.id] } ?: read(mediaStoreId, uri).also { synchronized(cache) { cache[video.id] = it } }
             val enriched =
                 video.copy(
+                    title = tags.title ?: video.title,
                     channelName = tags.artist ?: video.channelName,
                     description = tags.description ?: video.description,
                 )
             return enriched.takeIf { it != video }
         }
 
-        private suspend fun read(uri: Uri): LocalFileTags =
+        private suspend fun read(
+            mediaStoreId: Long,
+            uri: Uri,
+        ): LocalFileTags =
             withContext(PerformanceDispatcher.diskIO) {
+                val text = embeddedTags.forFile(mediaStoreId, uri)
                 val embedded = tagReader.read(uri)
                 val atoms =
                     runCatching {
@@ -64,7 +73,8 @@ class LocalMediaDetails
                         }
                     }.getOrNull().orEmpty()
                 LocalFileTags(
-                    artist = embedded?.artist?.trim()?.takeIf(String::isNotEmpty),
+                    title = text.title,
+                    artist = text.artist,
                     description =
                         shownDescription(
                             description = atoms[Mp4TextAtoms.DESCRIPTION] ?: embedded?.description,

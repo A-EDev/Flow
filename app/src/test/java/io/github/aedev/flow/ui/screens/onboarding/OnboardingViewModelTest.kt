@@ -57,7 +57,16 @@ class OnboardingViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun viewModel(saved: SavedStateHandle = SavedStateHandle()) =
-        OnboardingViewModel(saved, subscriptions, backup, channelSearch, completer, preferences)
+        OnboardingViewModel(
+            saved,
+            subscriptions,
+            backup,
+            channelSearch,
+            completer,
+            preferences,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+        )
 
     @Test
     fun `a recreated screen resumes on the same step with the same choices`() =

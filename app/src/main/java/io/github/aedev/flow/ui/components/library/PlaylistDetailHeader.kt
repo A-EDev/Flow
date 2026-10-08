@@ -61,8 +61,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowActionButtonPair
+import io.github.aedev.flow.ui.components.shared.FlowPairAction
 import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 
 private val HeaderPadding: Dp = 16.dp
 private const val DESCRIPTION_COLLAPSED_LINES = 2
@@ -157,8 +160,9 @@ private fun PlaylistArtwork(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        if (url.isNotEmpty()) {
-            AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        val artworkUrl = thumbnailUrlOrNull(url)
+        if (artworkUrl != null) {
+            AsyncImage(model = artworkUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
@@ -197,44 +201,12 @@ private fun ColumnScope.PlaylistTitleBlock(state: PlaylistHeaderState) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PlaylistPrimaryActions(actions: PlaylistHeaderActions) {
-    val height = ButtonDefaults.MediumContainerHeight
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-    ) {
-        val leading = connectedButtonShapes(index = 0, count = 2)
-        val trailing = connectedButtonShapes(index = 1, count = 2)
-        Button(
-            onClick = actions.onPlayAll,
-            shapes = ButtonShapes(leading.shape, leading.pressedShape),
-            contentPadding = ButtonDefaults.contentPaddingFor(height),
-            modifier = Modifier.weight(1f).heightIn(min = height),
-        ) {
-            PrimaryActionLabel(Icons.Filled.PlayArrow, stringResource(R.string.play_all), height)
-        }
-        FilledTonalButton(
-            onClick = actions.onShuffle,
-            shapes = ButtonShapes(trailing.shape, trailing.pressedShape),
-            contentPadding = ButtonDefaults.contentPaddingFor(height),
-            modifier = Modifier.weight(1f).heightIn(min = height),
-        ) {
-            PrimaryActionLabel(Icons.Filled.Shuffle, stringResource(R.string.shuffle), height)
-        }
-    }
-}
-
-@Composable
-private fun PrimaryActionLabel(
-    icon: ImageVector,
-    label: String,
-    height: Dp,
-) {
-    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)))
-    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-    Text(text = label, style = ButtonDefaults.textStyleFor(height), maxLines = 1)
+    FlowActionButtonPair(
+        primary = FlowPairAction(Icons.Filled.PlayArrow, stringResource(R.string.play_all), actions.onPlayAll),
+        secondary = FlowPairAction(Icons.Filled.Shuffle, stringResource(R.string.shuffle), actions.onShuffle),
+    )
 }
 
 @Composable

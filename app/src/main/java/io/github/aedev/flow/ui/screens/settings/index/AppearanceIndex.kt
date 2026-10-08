@@ -58,6 +58,14 @@ internal object AppearanceIndex {
             section = R.string.settings_section_layout,
             destination = page,
         )
+    val separatePlaylists =
+        SettingEntry(
+            key = "appearance.separate_playlists",
+            title = R.string.settings_separate_playlists_title,
+            summary = R.string.settings_separate_playlists_summary,
+            section = R.string.settings_section_layout,
+            destination = page,
+        )
     val appLogo =
         SettingEntry(
             key = "appearance.app_logo",
@@ -107,6 +115,7 @@ internal object AppearanceIndex {
             homeColumns,
             musicArtworkSize,
             libraryPreviews,
+            separatePlaylists,
             appLogo,
             groupBadges,
             cardLikeButtons,
@@ -290,4 +299,25 @@ internal object DateTimeIndex {
         )
 
     val all = listOf(mode, format, listsOverride, watchOverride, descriptionOverride)
+}
+
+internal object FontIndex {
+    private val page = SettingsDestination.FONT
+
+    val font =
+        SettingEntry(
+            key = "font.choice",
+            title = R.string.settings_font_title,
+            keywords = R.string.settings_keywords_font,
+            destination = page,
+        )
+    val customFile =
+        SettingEntry(
+            key = "font.custom_file",
+            title = R.string.font_choose_file,
+            keywords = R.string.settings_keywords_font,
+            destination = page,
+        )
+
+    val all = listOf(font, customFile)
 }

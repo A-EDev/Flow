@@ -1,11 +1,36 @@
 package io.github.aedev.flow.player.stream
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.player.error.StreamDenialKind
 import org.junit.Test
 
 class ClientGateRegistryTest {
     private var nowMs = 0L
     private val registry = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs })
+
+    @Test
+    fun `every gate is announced, under the upper-cased name the url carried`() {
+        val announced = mutableListOf<String>()
+        val announcing = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs }, onGated = announced::add)
+
+        announcing.reportGated("visionos")
+        announcing.reportDenied(streamUrl(client = "ANDROID_VR", expire = 10_000L))
+        announcing.reportGated(null)
+
+        assertThat(announced).containsExactly("VISIONOS", "ANDROID_VR").inOrder()
+    }
+
+    @Test
+    fun `a refused token is never announced as a wall, even once it demotes the client`() {
+        val announced = mutableListOf<String>()
+        val announcing = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs }, onGated = announced::add)
+
+        announcing.reportRefused("MWEB")
+        announcing.reportRefused("MWEB")
+
+        assertThat(announcing.isGated("MWEB")).isTrue()
+        assertThat(announced).isEmpty()
+    }
 
     @Test
     fun `a reported client is demoted until its entry lapses`() {
@@ -106,4 +131,47 @@ class ClientGateRegistryTest {
 
         assertThat(registry.isGated("VISIONOS")).isFalse()
     }
+
+    @Test
+    fun `a refused url without a token demotes the client that minted it`() {
+        val kind = registry.reportDenied(streamUrl(client = "VISIONOS", expire = 3_600L))
+
+        assertThat(kind).isEqualTo(StreamDenialKind.ATTESTATION_GATED)
+        assertThat(registry.isGated("VISIONOS")).isTrue()
+    }
+
+    @Test
+    fun `a refused token demotes its client only on the second refusal`() {
+        val url = streamUrl(client = "MWEB", expire = 3_600L, pot = "token")
+
+        assertThat(registry.reportDenied(url)).isEqualTo(StreamDenialKind.TOKEN_REJECTED)
+        assertThat(registry.isGated("MWEB")).isFalse()
+        registry.reportDenied(url)
+        assertThat(registry.isGated("MWEB")).isTrue()
+    }
+
+    @Test
+    fun `an expired url demotes nothing because the same client can mint a fresh one`() {
+        nowMs = 7_200_000L
+
+        val kind = registry.reportDenied(streamUrl(client = "VISIONOS", expire = 3_600L))
+
+        assertThat(kind).isEqualTo(StreamDenialKind.URL_EXPIRED)
+        assertThat(registry.isGated("VISIONOS")).isFalse()
+    }
+
+    @Test
+    fun `a url that is not a stream url demotes nothing`() {
+        assertThat(registry.reportDenied("https://example.com/audio.m4a")).isEqualTo(StreamDenialKind.UNKNOWN)
+        assertThat(registry.reportDenied(null)).isEqualTo(StreamDenialKind.UNKNOWN)
+        assertThat(registry.gatedClients()).isEmpty()
+    }
+
+    private fun streamUrl(
+        client: String,
+        expire: Long,
+        pot: String? = null,
+    ): String =
+        "https://rr1---sn-a.googlevideo.com/videoplayback?expire=$expire&itag=251&c=$client" +
+            (pot?.let { "&pot=$it" } ?: "")
 }

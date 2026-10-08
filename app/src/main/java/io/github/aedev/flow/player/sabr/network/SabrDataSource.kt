@@ -25,6 +25,8 @@ class SabrDataSource(
     }
 
     private var client: OkHttpClient? = null
+
+    @Volatile
     private var currentCall: Call? = null
     private var currentResponse: Response? = null
     private var currentStream: InputStream? = null
@@ -100,17 +102,22 @@ class SabrDataSource(
         return currentStream!!
     }
 
-    fun close() {
-        // Cancelled before anything is closed. Closing an OkHttp body drains whatever is left on
-        // the socket so the connection can be pooled, and that read throws
-        // NetworkOnMainThreadException when a release arrives on the main thread — which is where
-        // ExoPlayer tears a media source down. Call.cancel() is documented safe from any thread and
-        // severs the connection itself, so the closes below have nothing left to read.
+    /**
+     * The only teardown safe while another thread reads the stream: closing a body clears the
+     * socket timeout under a concurrent read, which okio answers with an AssertionError (#1236).
+     */
+    fun cancel() {
         try {
             currentCall?.cancel()
         } catch (e: Exception) {
             Log.v(TAG, "Error cancelling call", e)
         }
+    }
+
+    /** Must run on the thread that reads the stream returned by [open]. */
+    fun close() {
+        // Cancelled first so an unfinished body is not drained just to pool the connection.
+        cancel()
         try {
             currentStream?.close()
         } catch (e: Exception) {
@@ -127,7 +134,7 @@ class SabrDataSource(
     }
 
     fun release() {
-        close()
+        cancel()
         client?.dispatcher?.executorService?.shutdown()
         client = null
     }

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -31,7 +32,9 @@ class LikedVideosRepository private constructor(
         // Keys format: "video_{videoId}" -> JSON string with video info
         private fun videoKey(videoId: String) = stringPreferencesKey("video_$videoId")
 
-        private fun likeStateKey(videoId: String) = stringPreferencesKey("like_state_$videoId")
+        private const val LIKE_STATE_PREFIX = "like_state_"
+
+        private fun likeStateKey(videoId: String) = stringPreferencesKey("$LIKE_STATE_PREFIX$videoId")
 
         private const val LIKED_VIDEOS_ORDER_KEY = "liked_videos_order"
     }
@@ -78,6 +81,15 @@ class LikedVideosRepository private constructor(
             }
         }
     }
+
+    /** Every video the viewer has disliked. */
+    suspend fun dislikedVideoIds(): Set<String> =
+        dataStore.data
+            .first()
+            .asMap()
+            .mapNotNullTo(HashSet()) { (key, value) ->
+                key.name.removePrefix(LIKE_STATE_PREFIX).takeIf { value == "DISLIKED" && key.name.startsWith(LIKE_STATE_PREFIX) }
+            }
 
     /**
      * Get like state for a video (LIKED, DISLIKED, or null)

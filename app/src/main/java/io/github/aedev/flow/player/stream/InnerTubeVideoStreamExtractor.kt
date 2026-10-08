@@ -60,11 +60,13 @@ object InnerTubeVideoStreamExtractor {
     private data class ExtractionKey(
         val videoId: String,
         val forceSabr: Boolean,
+        val audioOnly: Boolean,
     )
 
-    // The token-free direct client. VISIONOS alone: it is the only client that still serves direct
-    // adaptive URLs GVS will honour for the whole video without a PO Token, and it does so without
-    // an `n` parameter, so first frame costs neither an attestation nor an nsig decode.
+    // The token-free direct client. VISIONOS alone: it serves direct adaptive URLs with no PO Token
+    // and no `n` parameter, so first frame costs neither an attestation nor an nsig decode. GVS
+    // honours them for the whole video unless it has walled this visitor, which it does a minute in
+    // on every video (#921); then the ladder goes to TV_TIZEN and the visitor is re-rolled.
     private val FAST_CLIENTS: List<YouTubeClient> =
         listOf(
             YouTubeClient.VISIONOS,
@@ -117,20 +119,26 @@ object InnerTubeVideoStreamExtractor {
         val liveDashUrl: String? = null,
     )
 
+    /**
+     * @param audioOnly the caller plays only [VideoExtractionResult.audioFormats], so a capped
+     *   video ladder is not worth the SABR quality upgrade's wait.
+     */
     @OptIn(UnstableApi::class)
     suspend fun extract(
         videoId: String,
         forceSabr: Boolean = false,
+        audioOnly: Boolean = false,
     ): VideoExtractionResult? {
-        val key = ExtractionKey(videoId, forceSabr)
+        val key = ExtractionKey(videoId, forceSabr, audioOnly)
         return extractionCoalescer.run(key) {
-            selectStreams(videoId, forceSabr)
+            selectStreams(videoId, forceSabr, audioOnly)
         }
     }
 
     private suspend fun selectStreams(
         videoId: String,
         forceSabr: Boolean,
+        audioOnly: Boolean,
     ): VideoExtractionResult? =
         withContext(Dispatchers.IO) {
             Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
@@ -157,11 +165,18 @@ object InnerTubeVideoStreamExtractor {
             // every single video, which is what "every video stops at a minute" looks like.
             val fastClients = FAST_CLIENTS.ungated()
             if (fastClients.isEmpty()) {
-                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — starting at the attested path")
+                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — trying TV_TIZEN")
                 PlayerDiagnostics.logWarning(
                     TAG,
                     "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
                 )
+                // The walled visitor's other app clients and token-backed web clients stop at the
+                // same minute; TV_TIZEN is the measured way past it (#921).
+                TizenStreamResolver.resolve(videoId)?.let {
+                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
+                    return@withContext it
+                }
             } else {
                 // A cold start pays DNS and TLS inside the first request, which can outlast the
                 // per-client timeout; one retry on the warm connection beats falling to the web path.
@@ -172,7 +187,7 @@ object InnerTubeVideoStreamExtractor {
                     liveDetected = liveDetected,
                     retryTimeoutOnce = true,
                 )?.let { direct ->
-                    val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
+                    val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
                     Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
                     PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
                     return@withContext result
@@ -198,7 +213,7 @@ object InnerTubeVideoStreamExtractor {
             // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
             // below anything attested and are only reached when the paths above are unavailable.
             tryDirectClients(videoId, GATED_FALLBACK_CLIENTS.ungated(), failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
+                val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
                 Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)}/gated)")
                 PlayerDiagnostics.logWarning(
                     TAG,

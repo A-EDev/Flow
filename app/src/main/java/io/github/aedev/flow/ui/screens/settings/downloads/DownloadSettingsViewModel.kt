@@ -6,6 +6,7 @@ import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.AutoDownloadMode
 import io.github.aedev.flow.data.local.DEFAULT_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MusicAudioQuality
@@ -77,9 +78,11 @@ class DownloadSettingsViewModel
         val musicQuality = preferences.musicDownloadQuality.asState(MusicAudioQuality.HIGH)
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
+        val autoDownloadLikes = preferences.autoDownloadLikedMusic.asState(false)
+        val autoDownloadOpened = preferences.autoDownloadOpenedVideos.asState(AutoDownloadMode.OFF)
+        val subtitleFile = preferences.downloadSubtitleFile.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
-        val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
         val retagStatus = downloadController.retagStatus.asState(null)
 
         init {
@@ -136,17 +139,21 @@ class DownloadSettingsViewModel
         fun setMenuStyle(value: DownloadDialogStyle) = write { preferences.setDownloadDialogStyle(value) }
 
         // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
+        fun setAutoDownloadLikes(value: Boolean) = write { preferences.setAutoDownloadLikedMusic(value) }
+
+        fun setAutoDownloadOpened(value: AutoDownloadMode) = write { preferences.setAutoDownloadOpenedVideos(value) }
+
         fun setWifiOnly(value: Boolean) =
             write {
                 preferences.setDownloadOverWifiOnly(value)
                 downloadController.applyNetworkPolicy()
             }
 
+        fun setSubtitleFile(value: Boolean) = write { preferences.setDownloadSubtitleFile(value) }
+
         fun setThreads(value: Int) = write { preferences.setDownloadThreads(value) }
 
         fun setConcurrentDownloads(value: Int) = write { preferences.setConcurrentDownloads(value) }
-
-        fun setCacheSize(value: Int) = write { preferences.setMediaCacheSizeMb(value) }
 
         private fun locationUi(
             fileType: DownloadFileType,
@@ -179,7 +186,6 @@ class DownloadSettingsViewModel
 
         companion object {
             const val DEFAULT_THREADS = 3
-            const val DEFAULT_CACHE_MB = 500
             private const val APP_FOLDER = "Flow"
             private const val INTERNAL_FOLDER = "downloads"
         }

@@ -1,12 +1,9 @@
 package io.github.aedev.flow.ui
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -18,7 +15,6 @@ import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.localmedia.toMusicTrack
 import io.github.aedev.flow.data.localmedia.toVideo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.music.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
@@ -35,15 +31,11 @@ import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.library.LibraryScreen
-import io.github.aedev.flow.ui.screens.music.ArtistPage
-import io.github.aedev.flow.ui.screens.music.EnhancedMusicScreen
-import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
-import io.github.aedev.flow.ui.screens.player.state.shouldExpandInsteadOfPlaying
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.recap.RecapRoutes
@@ -108,6 +100,7 @@ fun NavGraphBuilder.flowAppGraph(
             onOpenShortsFeed = {
                 navController.openShorts(ShortsQueueSource.Feed)
             },
+            onPlayMix = { videos, title -> playerViewModel.playPlaylist(videos, 0, title, false) },
             viewModel = homeViewModel,
         )
     }
@@ -157,9 +150,14 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("subscriptions") {
+    composable("subscriptions") { backStackEntry ->
         currentRoute.value = "subscriptions"
+        val openMusic by backStackEntry.savedStateHandle
+            .getStateFlow(OPEN_MUSIC_SUBSCRIPTIONS, false)
+            .collectAsStateWithLifecycle()
         SubscriptionsScreen(
+            openMusicSubscriptions = openMusic,
+            onMusicSubscriptionsOpened = { backStackEntry.savedStateHandle[OPEN_MUSIC_SUBSCRIPTIONS] = false },
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) {
                     playerViewModel.playVideo(it)
@@ -187,12 +185,12 @@ fun NavGraphBuilder.flowAppGraph(
                 io.github.aedev.flow.R.string.library_downloads_label,
             )
         LibraryScreen(
-            onOpenRecap = { period -> navController.navigate(period?.let(RecapRoutes::story) ?: RecapRoutes.stats()) },
+            onOpenRecap = { period -> navController.navigate(period?.let { RecapRoutes.story(it) } ?: RecapRoutes.stats()) },
             onNavigateToHistory = {
                 navController.navigate("history")
             },
-            onNavigateToPlaylists = {
-                navController.navigate("playlists")
+            onNavigateToPlaylists = { kind ->
+                navController.navigate(if (kind == null) "playlists" else "playlists?kind=${kind.name}")
             },
             onNavigateToLikedVideos = {
                 navController.navigate("playlist/${PlaylistRepository.LIKED_VIDEOS_ID}")
@@ -211,6 +209,9 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onNavigateToLocalMedia = {
                 navController.navigate("localMedia")
+            },
+            onNavigateToNotes = {
+                navController.navigate("notes")
             },
             onManageData = {
                 navController.navigate("settings")
@@ -322,21 +323,33 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "recap"
         RecapScreen(
             onBack = { navController.popBackStack() },
-            onPlayStory = { period -> navController.navigate(RecapRoutes.story(period)) },
+            onPlayStory = { period, source -> navController.navigate(RecapRoutes.story(period, source)) },
             startAt = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD)),
         )
     }
 
     composable(
         route = RecapRoutes.STORY,
-        arguments = listOf(navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType }),
+        arguments =
+            listOf(
+                navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType },
+                navArgument(RecapRoutes.ARG_SOURCE) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
     ) { backStackEntry ->
         currentRoute.value = "recap_story"
         val period = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD))
         if (period == null) {
             LaunchedEffect(Unit) { navController.popBackStack() }
         } else {
-            RecapStoryScreen(period = period, onClose = { navController.popBackStack() })
+            RecapStoryScreen(
+                period = period,
+                source = RecapRoutes.decodeSource(backStackEntry.arguments?.getString(RecapRoutes.ARG_SOURCE)),
+                onClose = { navController.popBackStack() },
+            )
         }
     }
 
@@ -414,9 +427,25 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Playlists Screen
-    composable("playlists") {
+    composable(
+        route = "playlists?kind={kind}",
+        arguments =
+            listOf(
+                navArgument("kind") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
         currentRoute.value = "playlists"
+        val fixedKind =
+            backStackEntry.arguments?.getString("kind")?.let { name ->
+                io.github.aedev.flow.ui.components.shared.MediaKind.entries
+                    .firstOrNull { it.name == name }
+            }
         PlaylistsScreen(
+            fixedKind = fixedKind,
             onBackClick = { navController.popBackStack() },
             onVideoPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -495,6 +524,13 @@ fun NavGraphBuilder.flowAppGraph(
             },
         )
     }
+    composable("notes") {
+        currentRoute.value = "notes"
+        io.github.aedev.flow.ui.screens.notes.NotesScreen(
+            onBackClick = { navController.popBackStack() },
+            onPlay = { video, startPositionMs -> playerViewModel.playVideo(video, startPositionMs = startPositionMs) },
+        )
+    }
     composable("localMedia") {
         currentRoute.value = "localMedia"
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
@@ -518,386 +554,18 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("music") {
-        currentRoute.value = "music"
-
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
-        EnhancedMusicScreen(
-            onSongClick = { track, queue, source ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-
-                // Navigate to player
-                onMusicStarted()
-            },
-            onVideoClick = { track ->
-                playerViewModel.playVideo(track.toVideo())
-            },
-            onArtistClick = { channelId ->
-                mediaNavigator.openArtist(channelId)
-            },
-            onSearchClick = {
-                navController.navigate("musicSearch")
-            },
-            onRecognizeClick = {
-                navController.navigate("musicRecognize")
-            },
-            onAlbumClick = { albumId ->
-                mediaNavigator.openAlbum(albumId)
-            },
-            onMoodsClick = { item ->
-                if (item != null) {
-                    // Navigate to browse screen with browseId and params for proper content fetching
-                    val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
-                    navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
-                } else {
-                    navController.navigate("moodsAndGenres")
-                }
-            },
-        )
-    }
-
-    composable("moodsAndGenres") {
-        currentRoute.value = "moodsAndGenres"
-        io.github.aedev.flow.ui.screens.music.MoodsAndGenresScreen(
-            onBackClick = { navController.popBackStack() },
-            onGenreClick = { item ->
-                val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
-                navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
-            },
-        )
-    }
-
-    // Music Search Screen
-    composable(
-        route = "musicSearch?query={query}",
-        arguments =
-            listOf(
-                navArgument("query") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-    ) { backStackEntry ->
-        currentRoute.value = "musicSearch"
-
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        val initialQuery = backStackEntry.arguments?.getString("query")
-
-        io.github.aedev.flow.ui.screens.music.MusicSearchScreen(
-            initialQuery = initialQuery,
-            onBackClick = { navController.popBackStack() },
-            onTrackClick = { track, queue, source ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-                onMusicStarted()
-            },
-            onAlbumClick = { albumId ->
-                mediaNavigator.openAlbum(albumId)
-            },
-            onArtistClick = { channelId ->
-                mediaNavigator.openArtist(channelId)
-            },
-            onPlaylistClick = { playlistId ->
-                mediaNavigator.openMusicPlaylist(playlistId)
-            },
-        )
-    }
-
-    // Music Recognition (Shazam) Screen
-    composable("musicRecognize") {
-        currentRoute.value = "musicRecognize"
-
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
-        fun playRecognized(result: io.github.aedev.flow.data.recognition.RecognitionResult) {
-            val track =
-                io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel
-                    .toMusicTrack(result) ?: return
-            musicPlayerViewModel.loadAndPlayTrack(track, listOf(track), "Recognized")
-            onMusicStarted()
-        }
-
-        fun searchRecognized(
-            title: String,
-            artist: String,
-        ) {
-            val query =
-                io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel
-                    .searchQueryFor(title, artist)
-            navController.navigate("musicSearch?query=${android.net.Uri.encode(query)}")
-        }
-
-        io.github.aedev.flow.ui.screens.recognition.RecognitionScreen(
-            onBackClick = { navController.popBackStack() },
-            onHistoryClick = { navController.navigate("recognitionHistory") },
-            onPlay = { result -> playRecognized(result) },
-            onSearch = { result -> searchRecognized(result.title, result.artist) },
-        )
-    }
-
-    // Music Recognition History Screen
-    composable("recognitionHistory") {
-        currentRoute.value = "recognitionHistory"
-
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
-        io.github.aedev.flow.ui.screens.recognition.RecognitionHistoryScreen(
-            onBackClick = { navController.popBackStack() },
-            onItemClick = { item ->
-                val videoId = item.youtubeVideoId
-                if (!videoId.isNullOrBlank()) {
-                    val track =
-                        MusicTrack(
-                            videoId = videoId,
-                            title = item.title,
-                            artist = item.artist,
-                            thumbnailUrl = item.coverArtHqUrl ?: item.coverArtUrl ?: "",
-                            duration = 0,
-                            album = item.album.orEmpty(),
-                        )
-                    musicPlayerViewModel.loadAndPlayTrack(track, listOf(track), "Recognized")
-                    onMusicStarted()
-                } else {
-                    val query =
-                        io.github.aedev.flow.ui.screens.recognition.RecognitionViewModel
-                            .searchQueryFor(item.title, item.artist)
-                    navController.navigate("musicSearch?query=${android.net.Uri.encode(query)}")
-                }
-            },
-        )
-    }
-
-    // YouTube Browse Screen (for mood/genre content)
-    composable(
-        route = "youtube_browse/{browseId}?params={params}",
-        arguments =
-            listOf(
-                navArgument("browseId") { type = NavType.StringType },
-                navArgument("params") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-    ) {
-        currentRoute.value = "youtube_browse"
-
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
-        io.github.aedev.flow.ui.screens.music.YouTubeBrowseScreen(
-            onBackClick = { navController.popBackStack() },
-            onSongClick = { song ->
-                val track =
-                    MusicTrack(
-                        videoId = song.id,
-                        title = song.title,
-                        artist = song.artists.joinToString(", ") { it.name },
-                        thumbnailUrl = song.thumbnail,
-                        duration = song.duration ?: 0,
-                        album = song.album?.name ?: "",
-                        channelId = song.artists.firstOrNull()?.id ?: "",
-                    )
-                musicPlayerViewModel.loadAndPlayTrack(track, emptyList())
-                onMusicStarted()
-            },
-            onAlbumClick = { albumId ->
-                mediaNavigator.openAlbum(albumId)
-            },
-            onArtistClick = { channelId ->
-                mediaNavigator.openArtist(channelId)
-            },
-            onPlaylistClick = { playlistId ->
-                mediaNavigator.openMusicPlaylist(playlistId)
-            },
-        )
-    }
-
-    // Artist Page
-    composable(MUSIC_ARTIST_ROUTE_PATTERN) { backStackEntry ->
-        val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
-        val musicViewModel: MusicViewModel =
-            io.github.aedev.flow.ui.screens.music
-                .sharedMusicViewModel()
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        val uiState by musicViewModel.uiState.collectAsState()
-
-        LaunchedEffect(channelId) {
-            musicViewModel.fetchArtistDetails(channelId)
-        }
-
-        if (uiState.isArtistLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.artistLoadFailed) {
-            io.github.aedev.flow.ui.screens.music.ArtistPageError(
-                onBackClick = { navController.popBackStack() },
-                onRetry = { musicViewModel.fetchArtistDetails(channelId) },
-            )
-        } else {
-            uiState.artistDetails?.let { details ->
-                ArtistPage(
-                    artistDetails = details,
-                    downloadedTrackIds = uiState.downloadedTrackIds,
-                    insights = uiState.artistInsights,
-                    knownRelatedArtistIds = uiState.knownRelatedArtistIds,
-                    onBackClick = { navController.popBackStack() },
-                    onTrackClick = { track, queue ->
-                        musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                        onMusicStarted()
-                    },
-                    onAlbumClick = { album ->
-                        mediaNavigator.openAlbum(album.id)
-                    },
-                    onArtistClick = { id ->
-                        mediaNavigator.openArtist(id)
-                    },
-                    onFollowClick = {
-                        musicViewModel.toggleFollowArtist(details)
-                    },
-                    onSeeAllClick = { browseId, params ->
-                        val encodedParams = if (params != null) android.net.Uri.encode(params) else null
-                        navController.navigate("artistItems/$channelId/$browseId?params=$encodedParams")
-                    },
-                )
-            }
-        }
-    }
-
-    // Artist Items Page (View All)
-    composable(
-        "artistItems/{channelId}/{browseId}?params={params}",
-        arguments =
-            listOf(
-                navArgument("browseId") { type = NavType.StringType },
-                navArgument("params") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-                navArgument("channelId") { type = NavType.StringType },
-            ),
-    ) { backStackEntry ->
-        val browseId = backStackEntry.arguments?.getString("browseId") ?: return@composable
-        val params = backStackEntry.arguments?.getString("params")
-        // channelId is available if needed contextually
-
-        val musicViewModel: MusicViewModel =
-            io.github.aedev.flow.ui.screens.music
-                .sharedMusicViewModel()
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
-        io.github.aedev.flow.ui.screens.music.ArtistItemsScreen(
-            browseId = browseId,
-            params = params,
-            onBackClick = { navController.popBackStack() },
-            viewModel = musicViewModel,
-            onTrackClick = { songItem ->
-                val track =
-                    MusicTrack(
-                        videoId = songItem.id,
-                        title = songItem.title,
-                        artist = songItem.artists.joinToString(", ") { it.name },
-                        thumbnailUrl = songItem.thumbnail,
-                        duration = songItem.duration ?: 0,
-                    )
-                musicPlayerViewModel.loadAndPlayTrack(track, listOf(track))
-                onMusicStarted()
-            },
-            onAlbumClick = { albumId ->
-                mediaNavigator.openAlbum(albumId)
-            },
-            onArtistClick = { id ->
-                mediaNavigator.openArtist(id)
-            },
-            onPlaylistClick = { playlistId ->
-                mediaNavigator.openMusicPlaylist(playlistId)
-            },
-        )
-    }
-
-    // Music Playlist Page
-    composable(MUSIC_PLAYLIST_ROUTE_PATTERN) { backStackEntry ->
-        if (backStackEntry.arguments?.getString("playlistId") == null) return@composable
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        io.github.aedev.flow.ui.screens.music.collection.MusicCollectionScreen(
-            callbacks =
-                io.github.aedev.flow.ui.screens.music.collection.MusicCollectionCallbacks(
-                    onBackClick = { navController.popBackStack() },
-                    onTrackClick = { track, queue, sourceName ->
-                        musicPlayerViewModel.loadAndPlayTrack(track, queue, sourceName)
-                        onMusicStarted()
-                    },
-                    onArtistClick = { channelId -> mediaNavigator.openArtist(channelId) },
-                    onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
-                    onPlayNext = musicPlayerViewModel::playNext,
-                    onAddToQueue = musicPlayerViewModel::addToQueue,
-                ),
-        )
-    }
-
-    // A YouTube Music link: the song plays in the music player, and this route leaves at once.
-    composable(
-        route = MUSIC_PLAYER_ROUTE_PATTERN,
-        arguments = listOf(navArgument(MUSIC_PLAYER_ROUTE_ARG) { type = NavType.StringType }),
-    ) { backStackEntry ->
-        currentRoute.value = "musicPlayer"
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        val videoId = backStackEntry.arguments?.getString(MUSIC_PLAYER_ROUTE_ARG).orEmpty()
-
-        LaunchedEffect(videoId) {
-            // The music player stays hidden while a video is loaded, so a music link closes it first.
-            if (playerViewModel.uiState.value.cachedVideo != null) GlobalPlayerState.requestDismiss()
-            musicPlayerViewModel.playFromLink(videoId)
-            onMusicStarted()
-            withFrameNanos { }
-            navController.popTransientRouteOrNavigateStart(defaultStartRoute)
-        }
-    }
+    musicRoutes(navController, mediaNavigator, currentRoute, playerViewModel, defaultStartRoute, onMusicStarted)
 
     widgetPlaybackRoutes(navController, currentRoute, defaultStartRoute, playerViewModel, onMusicStarted)
 
-    composable(
-        route = "player/{videoId}",
-        arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
-    ) { backStackEntry ->
-        val videoId = backStackEntry.arguments?.getString("videoId")
-        val effectiveVideoId =
-            when {
-                !videoId.isNullOrEmpty() && videoId != "sample" -> videoId
-                else -> "jNQXAC9IVRw"
-            }
-
-        // Use passed state
-        val playerUiState = playerUiStateResult.value
-        LaunchedEffect(effectiveVideoId) {
-            if (!playerUiState.shouldExpandInsteadOfPlaying(effectiveVideoId)) {
-                val video =
-                    playerUiState.cachedVideo?.takeIf { it.id == effectiveVideoId }
-                        ?: Video(
-                            id = effectiveVideoId,
-                            title = "",
-                            channelName = "",
-                            channelId = "",
-                            thumbnailUrl = "",
-                            duration = 0,
-                            viewCount = 0L,
-                            uploadDate = "",
-                            description = "",
-                            channelThumbnailUrl = "",
-                        )
-                playerViewModel.playVideo(video)
-                GlobalPlayerState.setCurrentVideo(video)
-            } else {
-                playerViewModel.showVideoPlayer()
-                playerVisibleState.value = true
-                playerSheetState.expand()
-            }
-            withFrameNanos { }
-            navController.popTransientRouteOrNavigateStart(defaultStartRoute)
-        }
-
-        Box(modifier = Modifier.fillMaxSize())
-    }
+    linkPlaybackRoutes(
+        navController = navController,
+        currentRoute = currentRoute,
+        playerViewModel = playerViewModel,
+        playerUiStateResult = playerUiStateResult,
+        playerSheetState = playerSheetState,
+        playerVisibleState = playerVisibleState,
+        defaultStartRoute = defaultStartRoute,
+        onMusicStarted = onMusicStarted,
+    )
 }

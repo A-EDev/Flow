@@ -88,4 +88,13 @@ class NotesMergerTest {
         assertEquals(local, NotesMerger.merge(local, emptyList()))
         assertEquals(local, NotesMerger.merge(emptyList(), local))
     }
+
+    @Test
+    fun `on a tie the copy that knows what the note is about wins, from either side`() {
+        val bare = CanonicalNote(id = "video:v1", targetId = "v1", kind = "Video", text = "same", updatedAt = 5L)
+        val filled = bare.copy(title = "Router build", channelName = "Wire & Wave")
+
+        assertEquals(filled, NotesMerger.mergeOne(bare, filled))
+        assertEquals(filled, NotesMerger.mergeOne(filled, bare))
+    }
 }

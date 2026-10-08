@@ -56,7 +56,7 @@ private enum class RecapScope { MONTH, YEAR, ALL }
 @Composable
 internal fun RecapScreen(
     onBack: () -> Unit,
-    onPlayStory: (RecapPeriod) -> Unit,
+    onPlayStory: (RecapPeriod, RecapSource) -> Unit,
     startAt: RecapPeriod?,
     viewModel: RecapViewModel = hiltViewModel(),
 ) {
@@ -116,7 +116,7 @@ private fun LazyStaggeredGridScope.recapCards(
     state: RecapUiState,
     summary: RecapSummary,
     locale: Locale,
-    onPlayStory: (RecapPeriod) -> Unit,
+    onPlayStory: (RecapPeriod, RecapSource) -> Unit,
 ) {
     if (summary.isEmpty) {
         item(key = "period-empty", span = StaggeredGridItemSpan.FullLine) {
@@ -137,7 +137,7 @@ private fun LazyStaggeredGridScope.recapCards(
     val canPlay = period != RecapPeriod.AllTime
 
     item(key = "overview", span = StaggeredGridItemSpan.FullLine) {
-        OverviewCard(summary, activity, source, onPlayStory = if (canPlay) ({ onPlayStory(period) }) else null)
+        OverviewCard(summary, activity, source, onPlayStory = if (canPlay) ({ onPlayStory(period, source) }) else null)
     }
     if (summary.insights.isNotEmpty()) item(key = "insights") { InsightsCard(summary.insights) }
     item(key = "time") { TimeCard(period, activity, locale) }
@@ -165,6 +165,9 @@ private fun LazyStaggeredGridScope.recapCards(
         }
         if (music.topTracks.isNotEmpty()) {
             item(key = "tracks") { RankCard(stringResource(R.string.recap_top_tracks), music.topTracks, { playsLabel(it) }) }
+        }
+        if (music.topAlbums.isNotEmpty()) {
+            item(key = "albums") { RankCard(stringResource(R.string.recap_top_albums), music.topAlbums, { playsLabel(it) }) }
         }
         if (music.topGenres.isNotEmpty()) {
             item(key = "genres") { RankCard(stringResource(R.string.recap_top_genres), music.topGenres, { playsLabel(it) }) }

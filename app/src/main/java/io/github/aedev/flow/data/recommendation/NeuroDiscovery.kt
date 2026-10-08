@@ -36,6 +36,10 @@ internal class NeuroDiscovery(
     private val topicCategories: List<TopicCategory>,
     private val tokenizer: NeuroTokenizer,
 ) {
+    private companion object {
+        const val SPECIFIC_QUERY_MAX_WORDS = 4
+    }
+
     // ═══════════════════════════════════════════════
     // TOPIC MATURITY SYSTEM
     // A topic needs sustained engagement to be considered
@@ -116,6 +120,7 @@ internal class NeuroDiscovery(
     private data class ClusterChoice(
         val topic: MatureTopic,
         val comboWith: String?,
+        val specificQuery: String? = null,
     )
 
     private data class TopicSelection(
@@ -132,6 +137,35 @@ internal class NeuroDiscovery(
     }
 
     private fun emptySelection() = TopicSelection(emptyList(), emptyList(), emptyList())
+
+    /**
+     * A one-word anchor searched alone returns YouTube's generic popular videos for that word, which
+     * read as trending (#907). The anchor's strongest phrase from its own cluster narrows it:
+     * "guitar" becomes "guitar playalong", "phonk" becomes "drift phonk". Members of other clusters
+     * never qualify an anchor ("mma android").
+     */
+    private fun specificMember(
+        anchorName: String,
+        members: List<MatureTopic>,
+    ): String? {
+        val anchor = NeuroScoring.stripDomainTag(anchorName)
+        if (' ' in anchor) return null
+        val others =
+            members
+                .drop(1)
+                .map { NeuroScoring.stripDomainTag(it.name) }
+                .filter { it != anchor && it !in queryNoiseWords && it.split(' ').size < SPECIFIC_QUERY_MAX_WORDS }
+        return others.firstOrNull { ' ' in it && anchor in it.split(' ') }
+            ?: others.firstOrNull { ' ' in it || NeuroText.isTopicSized(it) }
+    }
+
+    private fun specificQuery(
+        anchorName: String,
+        member: String,
+    ): String {
+        val anchor = NeuroScoring.stripDomainTag(anchorName)
+        return if (anchor in member.split(' ')) member else "$anchor $member"
+    }
 
     private fun selectDiverseTopics(
         matureTopics: List<MatureTopic>,
@@ -181,14 +215,18 @@ internal class NeuroDiscovery(
                 val members = cluster.topics.mapNotNull { byBase[it] }
                 if (members.isEmpty()) return@mapNotNull null
                 val anchor = members.first().copy(clusterKey = cluster.representative)
-                val comboWith =
-                    if (depth > 0 && members.size > 1) {
-                        val branch = members[1 + ((depth - 1) % (members.size - 1))]
-                        NeuroScoring.stripDomainTag(branch.name).takeIf { it != NeuroScoring.stripDomainTag(anchor.name) }
-                    } else {
-                        null
-                    }
-                ClusterChoice(anchor, comboWith)
+                val surfaceMember = specificMember(anchor.name, members)
+                // Load-more digs the branches in turn, starting after the one the refresh's own query used.
+                val others =
+                    members
+                        .drop(1)
+                        .map { NeuroScoring.stripDomainTag(it.name) }
+                        .filter { it != NeuroScoring.stripDomainTag(anchor.name) }
+                val usedAt = others.indexOf(surfaceMember)
+                val branches = if (usedAt < 0) others else others.drop(usedAt + 1) + others.take(usedAt + 1)
+                val comboWith = if (depth > 0 && branches.isNotEmpty()) branches[(depth - 1) % branches.size] else null
+                val surfaceQuery = if (depth == 0) surfaceMember?.let { specificQuery(anchor.name, it) } else null
+                ClusterChoice(anchor, comboWith, surfaceQuery)
             }
         if (choices.isEmpty()) return emptySelection()
 
@@ -540,10 +578,10 @@ internal class NeuroDiscovery(
 
             val anchorBase = NeuroScoring.stripDomainTag(topic.name)
             val query =
-                if (choice.comboWith != null) {
-                    "$anchorBase ${choice.comboWith}"
-                } else {
-                    buildNaturalQuery(topic.name, brain)
+                when {
+                    choice.comboWith != null -> "$anchorBase ${choice.comboWith}"
+                    choice.specificQuery != null -> choice.specificQuery
+                    else -> buildNaturalQuery(topic.name, brain)
                 }
             val label = if (index == 0) "Core interest" else "Cluster interest"
             val branch = choice.comboWith?.let { " → $it" } ?: ""
@@ -909,6 +947,26 @@ internal class NeuroDiscovery(
     ) {
         // Always reserve at least one exploration slot — no decay-to-zero bubble.
         val explorationBudget = if (brain.totalInteractions > 80) 1 else 2
+        explorationTopics(brain).shuffled().take(explorationBudget).forEach { topic ->
+            queries.add(
+                DiscoveryQuery(
+                    buildNaturalQuery(topic, brain),
+                    QueryStrategy.ADJACENT_EXPLORATION,
+                    0.35,
+                    "Adjacent: $topic",
+                ),
+            )
+        }
+    }
+
+    /** Searches for the topics next to the viewer's interests that the vector barely knows yet. */
+    fun explorationQueries(
+        brain: UserBrain,
+        limit: Int,
+    ): List<String> = explorationTopics(brain).take(limit).map { buildNaturalQuery(it, brain) }
+
+    /** The strongest adjacent topics, best first: co-watched with real interests, or taught by liked channels. */
+    private fun explorationTopics(brain: UserBrain): List<String> {
         val blocked = brain.blockedTopics
 
         fun globalScore(base: String): Double {
@@ -952,25 +1010,18 @@ internal class NeuroDiscovery(
                 }
         }
 
+        // Exploration is a guess, so it also steers clear of the single words of a blocked phrase:
+        // channels that taught "resident evil" go on teaching "evil".
+        val blockedPhraseWords = blocked.filter { ' ' in it }.flatMapTo(HashSet()) { tokenizer.tokenize(it) }
         val picks =
             adjacentWeights.entries
                 .filter { (topic, _) ->
-                    !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) }
+                    !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) } &&
+                        tokenizer.normalizeLemma(topic) !in blockedPhraseWords &&
+                        !tokenizer.isNoiseTopic(topic)
                 }.sortedByDescending { it.value }
                 .take(6)
-                .shuffled()
-                .take(explorationBudget)
-
-        picks.forEach { (topic, _) ->
-            queries.add(
-                DiscoveryQuery(
-                    buildNaturalQuery(topic, brain),
-                    QueryStrategy.ADJACENT_EXPLORATION,
-                    0.35,
-                    "Adjacent: $topic",
-                ),
-            )
-        }
+        return picks.map { it.key }
     }
 
     // ═══════════════════════════════════════════════
@@ -989,7 +1040,7 @@ internal class NeuroDiscovery(
                     q.query
                         .lowercase()
                         .split(NeuroTokenizer.WHITESPACE_REGEX)
-                        .filter { it.length > 2 }
+                        .filter(NeuroText::isTopicSized)
                         .map { tokenizer.normalizeLemma(it) }
                 }.toSet()
 
@@ -999,7 +1050,7 @@ internal class NeuroDiscovery(
                 .map { it.trim() }
                 .filter { pref ->
                     val lemma = tokenizer.normalizeLemma(pref)
-                    lemma.length >= 3 &&
+                    NeuroText.isTopicSized(lemma) &&
                         lemma !in existingTokens &&
                         !blocked.any { b -> lemma.contains(b) }
                 }.shuffled()
@@ -1099,14 +1150,14 @@ internal class NeuroDiscovery(
     }
 
     private fun isSubstantialTopic(topic: String): Boolean {
-        if (topic.length < 3) return false
+        if (!NeuroText.isTopicSized(topic)) return false
         val lower = topic.lowercase()
         if (lower in queryNoiseWords) return false
         if (yearRegex.matches(lower)) return false
         if (lower.all { it.isDigit() }) return false
         // Strip domain tags for checking: "metal:music" → "metal"
         val base = if (lower.contains(":")) lower.substringBefore(":") else lower
-        if (base.length < 3) return false
+        if (!NeuroText.isTopicSized(base)) return false
         return true
     }
 
@@ -1171,7 +1222,7 @@ internal class NeuroDiscovery(
                 query.query
                     .lowercase()
                     .split(NeuroTokenizer.WHITESPACE_REGEX)
-                    .filter { it.length > 2 }
+                    .filter(NeuroText::isTopicSized)
                     .map { tokenizer.normalizeLemma(it) }
                     .toSet()
 
@@ -1321,7 +1372,7 @@ internal class NeuroDiscovery(
             query
                 .lowercase()
                 .split(NeuroTokenizer.WHITESPACE_REGEX)
-                .filter { it.length > 2 }
+                .filter(NeuroText::isTopicSized)
                 .map { tokenizer.normalizeLemma(it) }
                 .filter { it !in fillerWords }
 

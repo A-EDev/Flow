@@ -1,10 +1,12 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -18,10 +20,10 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
-import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -34,7 +36,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 /** The load a step belongs to: the video it resolved for, and the token saying it is still current. */
 internal data class LoadContext(
@@ -69,6 +70,7 @@ internal class PlaybackSessionApplier(
     private val sponsorBlockRepository: SponsorBlockRepository,
     private val videoDownloadManager: VideoDownloadManager,
     private val offlineSubtitleStore: OfflineSubtitleStore,
+    private val localSubtitles: LocalSubtitles,
     private val playerManager: EnhancedPlayerManager,
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
@@ -167,8 +169,24 @@ internal class PlaybackSessionApplier(
                     ?.takeIf { it.id == load.videoId }
                     ?.duration
                     ?.times(1000L) ?: 0L,
-            subtitles = offlineSubtitlesFor(load.videoId),
+            subtitles = subtitlesFor(load.videoId, localFilePath),
             isCurrent = { isLoadCurrent(load.token) },
+            subtitleOffsetMs = localSubtitles.offsetMs(load.videoId),
+            speedContext = speedContextFor(load.videoId),
+        )
+    }
+
+    private fun speedContextFor(
+        videoId: String,
+        musicVideoType: String? = null,
+        channelId: String? = null,
+    ): PlaybackSpeedContext {
+        val cached = uiState.value.cachedVideo?.takeIf { it.id == videoId }
+        return PlaybackSpeedContext(
+            videoId = videoId,
+            channelId = channelId ?: cached?.channelId,
+            musicVideoType = musicVideoType,
+            knownMusic = cached?.isMusic == true,
         )
     }
 
@@ -419,6 +437,12 @@ internal class PlaybackSessionApplier(
             streams = streams,
             step = step,
             savedPositionMs = savedPositionMs,
+            speedContext =
+                speedContextFor(
+                    videoId = videoId,
+                    musicVideoType = result.playerResponse.videoDetails?.musicVideoType,
+                    channelId = identity.channelId,
+                ),
             isCurrent = { isLoadCurrent(load.token) },
         )
     }
@@ -474,6 +498,9 @@ internal class PlaybackSessionApplier(
     /** Folded into the tags the engine ingests, so the watch signal carries it. */
     private fun applyCategory(result: SecondaryMetadata.Category) {
         if (!isLoadCurrent(result.loadToken)) return
+        if (PlaybackSpeedPolicy.isMusic(musicVideoType = null, category = result.category, openedAsMusic = false)) {
+            scope.launch { playbackPreparer.applyLateMusicSignal(speedContextFor(result.videoId)) }
+        }
 
         uiState.update { state ->
             val cached = state.cachedVideo?.takeIf { it.id == result.videoId } ?: return@update state
@@ -527,9 +554,43 @@ internal class PlaybackSessionApplier(
         publishRelatedVideos(result.videoId, result.relatedVideos, result.loadToken)
     }
 
-    private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
-        if (LocalMediaIds.isLocal(videoId)) return emptyList()
-        val stored = offlineSubtitleStore.load(videoId).toSubtitlesStreams()
+    /**
+     * Adds the subtitle file at [uri] to the device file or download that is playing and remembers
+     * it for that video; false when it is not a subtitle file Flow can read.
+     */
+    suspend fun addSubtitleFile(uri: Uri): Boolean {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return false
+        val caption = localSubtitles.pick(videoId, uri) ?: return false
+        return withContext(Dispatchers.Main) { playerManager.addLocalCaption(caption) }
+    }
+
+    /** The folder of the device file or download that is playing, for the subtitle file picker. */
+    suspend fun subtitleFolder(): Uri? = uiState.value.localFilePath?.let { localSubtitles.folderDocument(it) }
+
+    /**
+     * Shifts the captions of what is playing; a device file or download remembers it for next time.
+     */
+    suspend fun setSubtitleOffset(offsetMs: Long) {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return
+        withContext(Dispatchers.Main) { playerManager.setSubtitleOffset(offsetMs) }
+        if (uiState.value.localFilePath != null) localSubtitles.setOffsetMs(videoId, offsetMs)
+    }
+
+    /**
+     * A device video's subtitle files beside it, or a download's stored caption tracks, and in
+     * both cases the files picked for it.
+     */
+    private suspend fun subtitlesFor(
+        videoId: String,
+        localFilePath: String,
+    ): List<ResolvedCaption> {
+        val picked = localSubtitles.picked(videoId)
+        if (LocalMediaIds.isLocal(videoId)) return localSubtitles.beside(localFilePath) + picked
+        return offlineSubtitlesFor(videoId) + picked
+    }
+
+    private suspend fun offlineSubtitlesFor(videoId: String): List<ResolvedCaption> {
+        val stored = offlineSubtitleStore.load(videoId)
         if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)

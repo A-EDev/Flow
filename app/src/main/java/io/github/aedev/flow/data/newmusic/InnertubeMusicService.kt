@@ -16,10 +16,12 @@ import io.github.aedev.flow.innertube.models.SearchSuggestions
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.pages.AlbumPage
 import io.github.aedev.flow.innertube.pages.ArtistSectionKind
 import io.github.aedev.flow.innertube.pages.ChartsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.innertube.pages.RelatedShelfType
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import kotlinx.coroutines.Dispatchers
@@ -64,14 +66,34 @@ object InnertubeMusicService {
             }
         }
 
-    suspend fun fetchMoodAndGenres(): List<io.github.aedev.flow.innertube.pages.MoodAndGenres> =
+    private class CachedMoods(
+        val locale: YouTubeLocale,
+        val fetchedAtMs: Long,
+        val moods: List<MoodAndGenres>,
+    )
+
+    private const val MOODS_TTL_MS = 6 * 60 * 60 * 1000L
+
+    @Volatile
+    private var cachedMoods: CachedMoods? = null
+
+    /** Moods change rarely; home and music search share one fetch per locale. */
+    suspend fun fetchMoodAndGenres(): List<MoodAndGenres> =
         withContext(Dispatchers.IO) {
-            try {
-                YouTube.moodAndGenres().getOrNull() ?: emptyList()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                emptyList()
-            }
+            val locale = YouTube.locale
+            val now = System.currentTimeMillis()
+            cachedMoods
+                ?.takeIf { it.locale == locale && now - it.fetchedAtMs < MOODS_TTL_MS }
+                ?.let { return@withContext it.moods }
+            val moods =
+                try {
+                    YouTube.moodAndGenres().getOrNull().orEmpty()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    emptyList()
+                }
+            if (moods.isNotEmpty()) cachedMoods = CachedMoods(locale, now, moods)
+            moods
         }
 
     /**

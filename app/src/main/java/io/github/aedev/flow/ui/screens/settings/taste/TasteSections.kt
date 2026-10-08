@@ -2,9 +2,12 @@ package io.github.aedev.flow.ui.screens.settings.taste
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ClearAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.PersonSearch
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -21,9 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.info
 import io.github.aedev.flow.ui.components.settings.nav
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.TasteIndex
 
 private const val STRONG_CHANNEL = 0.65f
@@ -33,7 +38,11 @@ internal class TasteActions(
     val onTopicPreferred: (String, Boolean) -> Unit,
     val onBlockTopic: (String) -> Unit,
     val onBlockChannel: (String) -> Unit,
+    val onForgetChannel: (String) -> Unit,
+    val onClearChannelMemory: () -> Unit,
     val onOpenHidden: () -> Unit,
+    val onOpenFavouriteArtists: () -> Unit,
+    val onOpenDiscoverChannels: () -> Unit,
     val onOpenRecap: () -> Unit,
     val onExportVideo: () -> Unit,
     val onImportVideo: () -> Unit,
@@ -53,13 +62,34 @@ internal fun SettingsListScope.tasteContent(
     if (state.profile != null && state.now != null) traits(state.profile, state.now)
     interests(state.topics, actions)
     channels(state.channels, actions)
+    remembered(state.remembered, actions)
     state.music?.let(::music)
     group(key = "taste.more") {
         nav(TasteIndex.recap, onClick = actions.onOpenRecap, icon = Icons.Outlined.Insights)
         nav(TasteIndex.hidden, onClick = actions.onOpenHidden, value = hiddenLabel, icon = Icons.Outlined.VisibilityOff)
+        nav(
+            DestinationIndex.entry(SettingsDestination.FAVOURITE_ARTISTS),
+            onClick = actions.onOpenFavouriteArtists,
+            icon = Icons.Outlined.LibraryMusic,
+        )
+        nav(
+            DestinationIndex.entry(SettingsDestination.DISCOVER_CHANNELS),
+            onClick = actions.onOpenDiscoverChannels,
+            icon = Icons.Outlined.PersonSearch,
+        )
     }
     state.engine?.let { engineDetails(it, noQueriesLabel) }
     data(actions)
+}
+
+/** Deep Flow has learning paused; only shown, since it is switched in Settings and from the Home logo. */
+internal fun SettingsListScope.learningPaused(
+    title: String,
+    status: String,
+) {
+    group(key = "taste.deep_flow") {
+        info(key = "taste.deep_flow.status", title = title, value = status, icon = Icons.Outlined.VisibilityOff)
+    }
 }
 
 /** What the video engine currently remembers, read without changing any of it. */
@@ -165,6 +195,30 @@ private fun SettingsListScope.channels(
                 )
             }
         }
+    }
+}
+
+private fun SettingsListScope.remembered(
+    channels: List<NamedItem>,
+    actions: TasteActions,
+) {
+    if (channels.isEmpty()) {
+        header(TasteIndex.remembered.key, R.string.taste_remembered_header)
+        item("taste.remembered.empty") { TasteNote(stringResource(R.string.taste_remembered_empty)) }
+        return
+    }
+    group(key = TasteIndex.remembered.key, header = R.string.taste_remembered_header, footer = R.string.taste_remembered_footer) {
+        channels.forEach { channel ->
+            row("taste.remembered.${channel.id}") { shape ->
+                TasteActionRow(
+                    name = channel.name,
+                    shape = shape,
+                    actionLabel = stringResource(R.string.taste_remembered_remove),
+                    actionDescription = stringResource(R.string.taste_remembered_remove_item, channel.name),
+                ) { actions.onForgetChannel(channel.id) }
+            }
+        }
+        nav(TasteIndex.clearRemembered, onClick = actions.onClearChannelMemory, showChevron = false, icon = Icons.Outlined.ClearAll)
     }
 }
 

@@ -41,8 +41,8 @@ fun videoMetadataLine(
     }
 
     val uploadedAt =
-        remember(video.uploadDate, video.timestamp, dateSettings) {
-            dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
+        remember(video.uploadDate, video.timestamp, video.timestampIsExact, dateSettings) {
+            dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp, video.timestampIsExact)
         }
 
     // A zero count means "not reported" — members-only uploads carry no view count at all — so the

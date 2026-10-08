@@ -222,11 +222,13 @@ internal fun VideoInfoContent(
     }
 
     if (showNoteEditor && videoNotesEnabled) {
+        val insertPositionMs = remember { EnhancedPlayerManager.getInstance().getCurrentPosition().takeUnless { video.isLive } }
         FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
             onSave = { text -> viewModel.saveVideoNote(video.id, text) },
             onDismiss = { showNoteEditor = false },
+            insertPositionMs = insertPositionMs,
         )
     }
 }

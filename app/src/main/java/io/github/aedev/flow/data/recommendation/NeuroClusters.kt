@@ -69,7 +69,7 @@ internal object NeuroClusters {
         val scores = HashMap<String, Double>()
         topicScores.forEach { (topic, score) ->
             val base = NeuroScoring.stripDomainTag(topic)
-            if (base.length >= 3) scores.merge(base, score, ::maxOf)
+            if (NeuroText.isTopicSized(base)) scores.merge(base, score, ::maxOf)
         }
         if (scores.isEmpty()) return emptyList()
 

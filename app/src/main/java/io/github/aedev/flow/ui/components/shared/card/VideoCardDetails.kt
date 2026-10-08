@@ -84,6 +84,18 @@ internal fun MembersOnlyLabel(video: Video) {
     }
 }
 
+/** Why the feed shows this video, such as "From a channel you watch". */
+@Composable
+internal fun CardReasonLabel(reason: String) {
+    Text(
+        text = reason,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
 /**
  * The whole card opens the video, and a long press opens its quick actions. TalkBack announces the
  * long press by name, since the gesture alone is undiscoverable.

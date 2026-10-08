@@ -12,4 +12,8 @@ data class NextBody(
     val index: Int?,
     val params: String?,
     val continuation: String?,
+    // Without these a video behind a content warning comes back with no secondaryResults at all,
+    // so its related list and autoplay are empty.
+    val contentCheckOk: Boolean = true,
+    val racyCheckOk: Boolean = true,
 )

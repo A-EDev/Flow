@@ -19,6 +19,8 @@ internal object TasteIndex {
     val music = entry("music", R.string.taste_music_header)
     val appetite = entry("appetite", R.string.music_discovery_appetite, R.string.taste_music_header)
     val hidden = entry("hidden", R.string.taste_hidden_title)
+    val remembered = entry("remembered_channels", R.string.taste_remembered_header)
+    val clearRemembered = entry("clear_remembered", R.string.taste_remembered_clear, R.string.taste_remembered_header)
     val recap =
         SettingEntry(
             key = "taste.recap",
@@ -48,6 +50,8 @@ internal object TasteIndex {
             shape,
             interests,
             channels,
+            remembered,
+            clearRemembered,
             music,
             appetite,
             exportVideo,

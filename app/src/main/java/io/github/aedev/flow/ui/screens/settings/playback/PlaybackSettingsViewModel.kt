@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.playback
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
@@ -29,12 +30,15 @@ class PlaybackSettingsViewModel
 
         val backgroundPlay = preferences.backgroundPlayEnabled.asState(false)
         val autoplay = preferences.autoplayEnabled.asState(true)
+        val startPaused = preferences.startVideosPaused.asState(false)
         val queueAutoplay = preferences.queueAutoplayEnabled.asState(true)
         val autoplayCountdown = preferences.autoplayCountdownSeconds.asState(0)
         val loopAll = preferences.videoLoopEnabled.asState(false)
         val skipSilence = preferences.skipSilenceEnabled.asState(false)
         val playDuringCalls = preferences.playDuringCalls.asState(false)
         val rememberSpeed = preferences.rememberPlaybackSpeed.asState(false)
+        val musicNormalSpeed = preferences.musicAtNormalSpeed.asState(false)
+        val speedPerChannel = preferences.speedPerChannel.asState(false)
 
         val customSpeeds = preferences.customSpeedsEnabled.asState(false)
         val customSpeedPresets =
@@ -45,6 +49,7 @@ class PlaybackSettingsViewModel
         val longPressSpeed = preferences.longPressPlaybackSpeed.asState(DEFAULT_LONG_PRESS_SPEED)
 
         val doubleTapSeek = preferences.doubleTapSeekSeconds.asState(DEFAULT_DOUBLE_TAP_SEEK)
+        val seekZone = preferences.doubleTapSeekZone.asState(DoubleTapSeekZone.NORMAL)
         val brightnessGesture = preferences.brightnessSwipeGesturesEnabled.asState(true)
         val rememberBrightness = preferences.rememberBrightnessEnabled.asState(false)
         val volumeGesture = preferences.volumeSwipeGesturesEnabled.asState(true)
@@ -61,6 +66,7 @@ class PlaybackSettingsViewModel
         val lockButton = preferences.overlayLockModeEnabled.asState(false)
         val speedIndicator = preferences.overlaySpeedIndicatorEnabled.asState(overlay.speedIndicatorEnabled)
         val commentsButton = preferences.overlayCommentsEnabled.asState(overlay.commentsEnabled)
+        val sponsorBlockButton = preferences.overlaySponsorBlockEnabled.asState(overlay.sponsorBlockEnabled)
 
         val autoPip = preferences.autoPipEnabled.asState(false)
         val continueWatchingMiniPlayer = preferences.miniPlayerContinueWatchingEnabled.asState(true)
@@ -87,12 +93,16 @@ class PlaybackSettingsViewModel
         val shortsContinueIntoFeed = preferences.shortsQueueContinuesIntoFeed.asState(true)
 
         val endlessRadio = preferences.musicEndlessRadioEnabled.asState(true)
+        val musicVideoSwitch = preferences.musicVideoSwitch.asState(false)
+        val pauseMusicWhenMuted = preferences.pauseMusicWhenMuted.asState(false)
         val lyricsProviders =
             combine(preferences.lyricsProviderOrder, preferences.allLyricsProviderEnabledStates()) { order, enabled ->
                 lyricsRegistry.getOrderedProviders(order).map { LyricsProviderState(it.name, enabled[it.name] ?: true) }
             }.asState(lyricsRegistry.getOrderedProviders("").map { LyricsProviderState(it.name, true) })
 
         fun setBackgroundPlay(value: Boolean) = write { preferences.setBackgroundPlayEnabled(value) }
+
+        fun setStartPaused(value: Boolean) = write { preferences.setStartVideosPaused(value) }
 
         fun setAutoplay(value: Boolean) = write { preferences.setAutoplayEnabled(value && !loopAll.value) }
 
@@ -107,6 +117,10 @@ class PlaybackSettingsViewModel
         fun setPlayDuringCalls(value: Boolean) = write { preferences.setPlayDuringCalls(value) }
 
         fun setRememberSpeed(value: Boolean) = write { preferences.setRememberPlaybackSpeed(value) }
+
+        fun setMusicNormalSpeed(value: Boolean) = write { preferences.setMusicAtNormalSpeed(value) }
+
+        fun setSpeedPerChannel(value: Boolean) = write { preferences.setSpeedPerChannel(value) }
 
         fun setCustomSpeeds(value: Boolean) = write { preferences.setCustomSpeedsEnabled(value) }
 
@@ -125,6 +139,8 @@ class PlaybackSettingsViewModel
         fun setLongPressSpeed(value: Float) = write { preferences.setLongPressPlaybackSpeed(value) }
 
         fun setDoubleTapSeek(value: Int) = write { preferences.setDoubleTapSeekSeconds(value) }
+
+        fun setSeekZone(zone: DoubleTapSeekZone) = write { preferences.setDoubleTapSeekZone(zone) }
 
         fun setBrightnessGesture(value: Boolean) = write { preferences.setBrightnessSwipeGesturesEnabled(value) }
 
@@ -159,6 +175,8 @@ class PlaybackSettingsViewModel
         fun setSpeedIndicator(value: Boolean) = write { preferences.setOverlaySpeedIndicatorEnabled(value) }
 
         fun setCommentsButton(value: Boolean) = write { preferences.setOverlayCommentsEnabled(value) }
+
+        fun setSponsorBlockButton(value: Boolean) = write { preferences.setOverlaySponsorBlockEnabled(value) }
 
         fun setAutoPip(value: Boolean) = write { preferences.setAutoPipEnabled(value) }
 
@@ -199,6 +217,10 @@ class PlaybackSettingsViewModel
         fun setShortsContinueIntoFeed(value: Boolean) = write { preferences.setShortsQueueContinuesIntoFeed(value) }
 
         fun setEndlessRadio(value: Boolean) = write { preferences.setMusicEndlessRadioEnabled(value) }
+
+        fun setMusicVideoSwitch(value: Boolean) = write { preferences.setMusicVideoSwitch(value) }
+
+        fun setPauseMusicWhenMuted(value: Boolean) = write { preferences.setPauseMusicWhenMuted(value) }
 
         fun setLyricsProviderEnabled(
             name: String,

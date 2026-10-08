@@ -5,10 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicAudioQuality
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 
-/** Resolutions offered for regular video, best first. */
+/** Resolutions offered for regular video and Shorts, best first. */
 internal val VideoQualities =
     listOf(
         VideoQuality.AUTO,
@@ -22,10 +23,27 @@ internal val VideoQualities =
         VideoQuality.Q_144P,
     )
 
-/** Shorts are served no higher than 1080p, so the picker stops there. */
-internal val ShortsQualities = VideoQualities.filter { it == VideoQuality.AUTO || it.height <= VideoQuality.Q_1080P.height }
-
 internal val MusicQualities = MusicAudioQuality.entries.toList()
+
+internal val ThumbnailQualities = ThumbnailQuality.entries.toList()
+
+@StringRes
+internal fun thumbnailQualityLabel(quality: ThumbnailQuality): Int =
+    when (quality) {
+        ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high
+        ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium
+        ThumbnailQuality.LOW -> R.string.thumbnail_quality_low
+        ThumbnailQuality.OFF -> R.string.thumbnail_quality_off
+    }
+
+@StringRes
+internal fun thumbnailQualityDescription(quality: ThumbnailQuality): Int =
+    when (quality) {
+        ThumbnailQuality.HIGH -> R.string.thumbnail_quality_high_desc
+        ThumbnailQuality.MEDIUM -> R.string.thumbnail_quality_medium_desc
+        ThumbnailQuality.LOW -> R.string.thumbnail_quality_low_desc
+        ThumbnailQuality.OFF -> R.string.thumbnail_quality_off_desc
+    }
 
 @StringRes
 internal fun videoQualityLabel(quality: VideoQuality): Int =

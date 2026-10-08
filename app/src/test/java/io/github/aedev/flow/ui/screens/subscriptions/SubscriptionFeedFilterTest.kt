@@ -141,4 +141,21 @@ class SubscriptionFeedFilterTest {
     private companion object {
         const val FORMAT_UTILS = "io.github.aedev.flow.utils.FormatUtilsKt"
     }
+
+    @Test
+    fun `a collaboration someone else uploaded shows in the group of the collaborator it came through`() {
+        val collab =
+            video("collab", channelId = "UCother").copy(
+                collaborators =
+                    listOf(
+                        io.github.aedev.flow.data.model
+                            .VideoCollaborator(name = "Other", channelId = "UCother"),
+                        io.github.aedev.flow.data.model
+                            .VideoCollaborator(name = "A", channelId = "UCa"),
+                    ),
+            )
+        val result = sections(listOf(collab, video("elsewhere", "UCz")), SubscriptionFeedFilters(allowedChannelIds = setOf("UCa")))
+
+        assertThat(result.recentVideos.map { it.id }).containsExactly("collab")
+    }
 }

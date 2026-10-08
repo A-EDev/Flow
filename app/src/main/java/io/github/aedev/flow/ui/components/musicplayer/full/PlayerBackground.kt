@@ -35,6 +35,8 @@ fun PlayerBackground(
     modifier: Modifier = Modifier,
     // Landscape layouts put the immersive art on the start side, where the controls are not.
     artworkAtStart: Boolean = false,
+    // Immersive only: the album's motion artwork, playing where the still art is.
+    animatedArtwork: (@Composable () -> Unit)? = null,
 ) {
     val baseColor = paletteBaseColor.copy(alpha = 0.78f)
     val accentColor = paletteAccentColor.copy(alpha = 0.72f)
@@ -89,7 +91,7 @@ fun PlayerBackground(
                 // Issue #954: full-bleed artwork holds the top of the screen, then hands off to
                 // its own blurred continuation and a scrim so the controls stay readable.
                 BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.85f, crossfadeMillis = 450)
-                ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl, atStart = artworkAtStart)
+                ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl, atStart = artworkAtStart, animatedArtwork = animatedArtwork)
                 Box(
                     modifier =
                         Modifier
@@ -135,40 +137,48 @@ fun PlayerBackground(
 private fun ImmersiveArtworkLayer(
     thumbnailUrl: String?,
     atStart: Boolean,
+    animatedArtwork: (@Composable () -> Unit)?,
 ) {
-    AnimatedContent(
-        targetState = thumbnailUrl,
-        transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
-        label = "playerImmersiveArt",
-    ) { targetUrl ->
-        AsyncImage(
-            model = targetUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .then(if (atStart) Modifier.fillMaxHeight().fillMaxWidth(IMMERSIVE_START_WIDTH_FRACTION) else Modifier.fillMaxSize())
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        drawRect(
-                            brush =
-                                if (atStart) {
-                                    Brush.horizontalGradient(
-                                        0.50f to Color.Black,
-                                        1.00f to Color.Transparent,
-                                    )
-                                } else {
-                                    Brush.verticalGradient(
-                                        0.42f to Color.Black,
-                                        0.85f to Color.Transparent,
-                                    )
-                                },
-                            blendMode = BlendMode.DstIn,
-                        )
-                    },
-            contentScale = ContentScale.Crop,
-            alignment = if (atStart) Alignment.Center else Alignment.TopCenter,
-        )
+    // The fade-out mask is drawn over the still art and the loop together, so both melt into the
+    // blurred continuation the same way.
+    Box(
+        modifier =
+            Modifier
+                .then(if (atStart) Modifier.fillMaxHeight().fillMaxWidth(IMMERSIVE_START_WIDTH_FRACTION) else Modifier.fillMaxSize())
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush =
+                            if (atStart) {
+                                Brush.horizontalGradient(
+                                    0.50f to Color.Black,
+                                    1.00f to Color.Transparent,
+                                )
+                            } else {
+                                Brush.verticalGradient(
+                                    0.42f to Color.Black,
+                                    0.85f to Color.Transparent,
+                                )
+                            },
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+    ) {
+        AnimatedContent(
+            targetState = thumbnailUrl,
+            transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
+            label = "playerImmersiveArt",
+        ) { targetUrl ->
+            AsyncImage(
+                model = targetUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alignment = if (atStart) Alignment.Center else Alignment.TopCenter,
+            )
+        }
+        animatedArtwork?.invoke()
     }
 }
 

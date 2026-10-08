@@ -73,4 +73,16 @@ class WellbeingAndNetworkTest {
         )
         assertEquals(ProxyDraft.of(draft.toConfig(8080)).port, "1080")
     }
+
+    @Test
+    fun `the vpn bypass survives a save and reload and stays off by default`() {
+        val draft = ProxyDraft(true, AppProxyType.HTTP, "proxy.local", "3128", "", "")
+        assertFalse(draft.toConfig(8080).bypassOnVpn)
+
+        val saved = draft.copy(bypassOnVpn = true).toConfig(8080)
+
+        assertTrue(saved.bypassOnVpn)
+        assertTrue(ProxyDraft.of(saved).bypassOnVpn)
+        assertFalse(AppProxyConfig().bypassOnVpn)
+    }
 }

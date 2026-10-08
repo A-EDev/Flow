@@ -25,7 +25,8 @@ internal fun parseSpeedInput(input: String): Float? =
 /** Seconds of delay before autoplay switches videos; the preference allows up to 30. */
 internal val AutoplayCountdownOptions = listOf(0, 3, 5, 10, 15, 20, 30)
 
-internal val DoubleTapSeekOptions = listOf(5, 10, 15, 20, 30)
+/** Seconds a double tap jumps; 0 turns double-tap seek off. */
+internal val DoubleTapSeekOptions = listOf(5, 10, 15, 20, 30, 0)
 
 /** Long-press speeds; 0 turns the long-press gesture off. */
 internal val LongPressSpeedOptions = listOf(0f, 0.3f, 0.5f, 0.75f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)

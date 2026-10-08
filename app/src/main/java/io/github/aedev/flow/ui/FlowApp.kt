@@ -28,7 +28,6 @@ import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -40,7 +39,6 @@ import io.github.aedev.flow.ui.components.layout.FlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
-import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
 import io.github.aedev.flow.ui.components.layout.navigation.flowUsesNavigationRail
 import io.github.aedev.flow.ui.components.layout.navigation.rememberFlowNavigationScrollState
@@ -49,23 +47,17 @@ import io.github.aedev.flow.ui.components.layout.navigation.visibleFlowTabs
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
-import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
 import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerCompactMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerLargeMargin
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerMaxWidth
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBottomSpacer
-import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
-import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSheet
-import io.github.aedev.flow.ui.components.musicplayer.sheet.miniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
-import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
+import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
+import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.mediaMiniBarBounds
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
-import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.screens.update.UpdateLaunchEffect
@@ -101,10 +93,6 @@ fun FlowApp(
     val equalizerViewModel: EqualizerViewModel = hiltViewModel(activity)
     val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerUiState by playerUiStateResult
-    val enhancedPlayerManager = remember { EnhancedPlayerManager.getInstance() }
-    val hasVideoQueue by enhancedPlayerManager.hasQueue.collectAsStateWithLifecycle(
-        initialValue = enhancedPlayerManager.playerState.value.queueTitle != null,
-    )
 
     val preferences = remember { PlayerPreferences(context) }
     val isHomeNavigationEnabled by preferences.homeNavigationEnabled.collectAsState(initial = true)
@@ -206,9 +194,9 @@ fun FlowApp(
         val navBarBottomInset = WindowInsets.navigationBars.getBottom(density)
 
         val playerSheetState = rememberPlayerDraggableState()
+        val mediaOpenOrigins = remember { MediaOpenOrigins() }
         val playerVisibleState = remember { mutableStateOf(false) }
         var playerVisible by playerVisibleState
-        var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
 
         val musicPlayerSheetState = rememberMusicPlayerSheetState()
         val musicMenus = rememberMusicMenus()
@@ -235,65 +223,14 @@ fun FlowApp(
 
         val activeVideo = playerUiState.cachedVideo
 
-        LaunchedEffect(playerSheetState.currentValue, playerSheetState.isDragging) {
-            if (!playerSheetState.isDragging) {
-                when (playerSheetState.currentValue) {
-                    PlayerSheetValue.Expanded -> {
-                        GlobalPlayerState.expandMiniPlayer()
-                    }
-
-                    PlayerSheetValue.Collapsed -> {
-                        if (playerUiState.isBackgroundPlaybackMode) {
-                            GlobalPlayerState.hideMiniPlayer()
-                        } else {
-                            GlobalPlayerState.collapseMiniPlayer()
-                        }
-                    }
-                }
-            }
-        }
-
-        LaunchedEffect(Unit) {
-            enhancedPlayerManager.queueAutoAdvanceEvent.collect {
-                keepMiniOnQueueAutoAdvance = playerSheetState.currentValue == PlayerSheetValue.Collapsed
-            }
-        }
-
-        LaunchedEffect(playerViewModel) {
-            playerViewModel.expandPlayerRequest.collect {
-                playerVisible = true
-                playerSheetState.expand()
-            }
-        }
-
-        LaunchedEffect(playerUiState.cachedVideo?.id, playerUiState.isBackgroundPlaybackMode) {
-            if (playerUiState.cachedVideo != null) {
-                if (playerUiState.isBackgroundPlaybackMode) {
-                    playerSheetState.snapTo(PlayerSheetValue.Collapsed)
-                    GlobalPlayerState.hideMiniPlayer()
-                    playerVisible = false
-                    return@LaunchedEffect
-                }
-                GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-                playerVisible = true
-                val isQueueAutoAdvanceInMiniPlayer =
-                    keepMiniOnQueueAutoAdvance &&
-                        hasVideoQueue &&
-                        playerSheetState.currentValue == PlayerSheetValue.Collapsed
-
-                if (
-                    playerUiState.isRestoredSession ||
-                    playerUiState.resumedInMiniPlayer ||
-                    isQueueAutoAdvanceInMiniPlayer
-                ) {
-                    playerSheetState.collapse()
-                } else {
-                    playerSheetState.expand()
-                }
-
-                keepMiniOnQueueAutoAdvance = false
-            }
-        }
+        FlowPlayerSessionEffects(
+            playerSheetState = playerSheetState,
+            playerViewModel = playerViewModel,
+            playerUiStateResult = playerUiStateResult,
+            playerVisibleState = playerVisibleState,
+            isInPipMode = isInPipMode,
+            openOrigins = mediaOpenOrigins,
+        )
 
         val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
         var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
@@ -301,8 +238,14 @@ fun FlowApp(
         // Shows the player for a song that just started, without a route: a navigation here used to
         // swap the page out and back for a frame, which the mini player now leaves in view.
         val onMusicStarted: () -> Unit =
-            remember(musicPlayerSheetState) {
+            remember(musicPlayerSheetState, playerViewModel) {
                 {
+                    // One player at a time: a video still cached, even one playing in the
+                    // background, would keep the music from showing its own mini player.
+                    if (playerViewModel.uiState.value.cachedVideo != null) {
+                        playerVisible = false
+                        playerViewModel.clearVideo()
+                    }
                     suppressMusicMiniAfterVideo = false
                     if (openMusicPlayerOnPlay.value) {
                         musicPlayerSheetState.expand()
@@ -381,24 +324,16 @@ fun FlowApp(
             }
         }
 
-        val dismissRequested by GlobalPlayerState.dismissRequested.collectAsState()
-        LaunchedEffect(dismissRequested) {
-            if (dismissRequested) {
-                GlobalPlayerState.resetDismiss()
-                GlobalPlayerState.hideMiniPlayer()
-                playerVisible = false
-                if (playerUiState.isRestoredSession) {
-                    playerViewModel.dismissContinueWatching()
-                }
-                playerViewModel.clearVideo()
-                if (isInPipMode) {
-                    activity?.moveTaskToBack(false)
-                }
-            }
-        }
-
-        val isMusicSheetShown =
-            currentMusicTrack != null && !suppressMusicMiniAfterVideo && playerUiState.cachedVideo == null
+        val activeMiniPlayer =
+            resolveActiveMiniPlayer(
+                hasVideo = playerUiState.cachedVideo != null,
+                videoVisible = playerVisible,
+                videoInBackground = playerUiState.isBackgroundPlaybackMode,
+                onShortsPlayer = isShortsPlayerRoute,
+                hasMusic = currentMusicTrack != null,
+                musicSuppressed = suppressMusicMiniAfterVideo,
+            )
+        val isMusicSheetShown = activeMiniPlayer == ActiveMiniPlayer.Music
         val isPlayerCoveringContent =
             (playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded) ||
                 (isMusicSheetShown && musicPlayerSheetState.isExpanded)
@@ -412,12 +347,9 @@ fun FlowApp(
                 needsOnboarding != null &&
                 currentDestinationRoute != "onboarding" &&
                 !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
-        val isMusicMiniPlayerObscuringContent =
-            currentMusicTrack != null &&
-                !suppressMusicMiniAfterVideo &&
-                playerUiState.cachedVideo == null &&
-                !musicPlayerSheetState.isDismissed &&
-                !musicPlayerSheetState.isExpanded
+        val showVideoBar = activeMiniPlayer == ActiveMiniPlayer.VideoBar && !isInPipMode
+        val isMiniBarObscuringContent =
+            (isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded) || showVideoBar
         val motionScheme = MaterialTheme.motionScheme
         val barFraction = remember { Animatable(if (isBottomNavShown) 1f else 0f) }
         LaunchedEffect(isBottomNavShown) {
@@ -430,24 +362,24 @@ fun FlowApp(
         val systemBottomState = rememberUpdatedState(with(density) { navBarBottomInset.toDp() })
         val barHeightState = rememberUpdatedState(if (usesNavigationRail) 0.dp else navigationBarHeight)
         val barShownState = rememberUpdatedState(isBottomNavShown)
-        val miniPlayerFraction = remember { Animatable(if (isMusicMiniPlayerObscuringContent) 1f else 0f) }
-        LaunchedEffect(isMusicMiniPlayerObscuringContent) {
+        val miniPlayerFraction = remember { Animatable(if (isMiniBarObscuringContent) 1f else 0f) }
+        LaunchedEffect(isMiniBarObscuringContent) {
             miniPlayerFraction.animateTo(
-                targetValue = if (isMusicMiniPlayerObscuringContent) 1f else 0f,
+                targetValue = if (isMiniBarObscuringContent) 1f else 0f,
                 animationSpec = motionScheme.defaultSpatialSpec(),
             )
         }
-        val miniPlayerShownState = rememberUpdatedState(isMusicMiniPlayerObscuringContent)
-        val miniPlayerHeightState = rememberUpdatedState(MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer)
+        val miniPlayerShownState = rememberUpdatedState(isMiniBarObscuringContent)
+        val miniPlayerHeightState = rememberUpdatedState(MediaMiniBarDefaults.Height + MediaMiniBarDefaults.BottomSpacer)
         val miniPlayerBounds =
             with(density) {
-                miniPlayerBounds(
+                mediaMiniBarBounds(
                     containerWidthPx = constraints.maxWidth.toFloat(),
                     startInsetPx = (if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp).toPx(),
                     isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth,
-                    compactMarginPx = MiniPlayerCompactMargin.toPx(),
-                    largeMarginPx = MiniPlayerLargeMargin.toPx(),
-                    maxWidthPx = MiniPlayerMaxWidth.toPx(),
+                    compactMarginPx = MediaMiniBarDefaults.CompactMargin.toPx(),
+                    largeMarginPx = MediaMiniBarDefaults.LargeMargin.toPx(),
+                    maxWidthPx = MediaMiniBarDefaults.MaxWidth.toPx(),
                 )
             }
         val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -533,7 +465,8 @@ fun FlowApp(
                                 onOpenSettings = { navController.navigate("settings") },
                             ) {
                                 CompositionLocalProvider(
-                                    LocalMediaNavigator provides mediaNavigator,
+                                    *mediaNavigationLocals(mediaNavigator),
+                                    LocalMediaOpenOrigins provides mediaOpenOrigins,
                                     LocalMusicMenus provides musicMenus,
                                     LocalEqualizerState provides equalizerViewModel.state,
                                     LocalFlowBottomInsets provides bottomInsets,
@@ -577,66 +510,32 @@ fun FlowApp(
             } else {
                 with(density) { navBarBottomInset.toDp() }
             }
-        // ===== GLOBAL PLAYER OVERLAY =====
-        // The video overlay takes the settled target, not the animated value: it only uses the
-        // padding to pick the mini player's resting bounds, and an animated Dp parameter
-        // recomposed the whole overlay on every frame of the nav bar animation.
-        CompositionLocalProvider(
-            LocalMediaNavigator provides mediaNavigator,
-            LocalMusicMenus provides musicMenus,
-            LocalEqualizerState provides equalizerViewModel.state,
-            LocalFlowBottomInsets provides bottomInsets,
-        ) {
-            VideoPlayerHost(
-                video = activeVideo,
-                isVisible = playerVisible && !isShortsPlayerRoute,
-                playerSheetState = playerSheetState,
-                bottomPadding = bottomPaddingTarget.coerceAtLeast(0.dp),
-                startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
-                miniPlayerScale = miniPlayerScale,
-                miniPlayerShowSkipControls = miniPlayerShowSkipControls,
-                miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
-                onClose = {
-                    playerVisible = false
-                    if (playerUiState.isRestoredSession) {
-                        playerViewModel.dismissContinueWatching()
-                    }
-                    playerViewModel.clearVideo()
-                },
-                onMinimize = {
-                    playerSheetState.snapTo(PlayerSheetValue.Collapsed)
-                    GlobalPlayerState.hideMiniPlayer()
-                    playerVisible = false
-                },
-                onNavigateToChannel = mediaNavigator::openChannel,
-                onNavigateToShorts = { videoId ->
-                    playerSheetState.collapse()
-                    navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
-                },
-            )
-
-            // ===== GLOBAL MUSIC PLAYER OVERLAY =====
-            if (currentMusicTrack != null &&
-                !suppressMusicMiniAfterVideo &&
-                playerUiState.cachedVideo == null
-            ) {
-                UnifiedMusicPlayerSheet(
-                    state = musicPlayerSheetState,
-                    containerWidth = maxWidth,
-                    containerHeight = with(density) { screenHeightPx.toDp() },
-                    miniBounds = miniPlayerBounds,
-                    restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
-                    track = currentMusicTrack!!,
-                    onDismiss = {
-                        EnhancedMusicPlayerManager.stop()
-                        EnhancedMusicPlayerManager.clearCurrentTrack()
-                    },
-                )
-            }
-
-            MusicMenuSheets(musicMenus)
-            QuickActionsHost(snackbarHostState)
-        }
+        FlowPlayerOverlays(
+            navController = navController,
+            mediaNavigator = mediaNavigator,
+            playerViewModel = playerViewModel,
+            playerUiStateResult = playerUiStateResult,
+            playerVisibleState = playerVisibleState,
+            playerSheetState = playerSheetState,
+            activeVideo = activeVideo,
+            isShortsPlayerRoute = isShortsPlayerRoute,
+            bottomPadding = bottomPaddingTarget,
+            startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
+            miniPlayerScale = miniPlayerScale,
+            miniPlayerShowSkipControls = miniPlayerShowSkipControls,
+            miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
+            showMusicSheet = isMusicSheetShown,
+            showVideoBar = showVideoBar,
+            musicPlayerSheetState = musicPlayerSheetState,
+            containerWidth = maxWidth,
+            containerHeight = with(density) { screenHeightPx.toDp() },
+            miniBarBounds = miniPlayerBounds,
+            musicMenus = musicMenus,
+            equalizerState = equalizerViewModel.state,
+            bottomInsets = bottomInsets,
+            openOrigins = mediaOpenOrigins,
+            snackbarHostState = snackbarHostState,
+        )
 
         androidx.compose.material3.SnackbarHost(
             hostState = snackbarHostState,

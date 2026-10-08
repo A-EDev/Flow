@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.AppShortcut
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.AppFontSelection
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.HomeViewMode
 import io.github.aedev.flow.platform.AppUiMode
@@ -32,6 +34,7 @@ import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.index.AppearanceIndex
 import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
+import io.github.aedev.flow.ui.theme.AppFont
 import io.github.aedev.flow.ui.theme.GridItemSize
 import io.github.aedev.flow.ui.theme.ThemeCatalog
 import io.github.aedev.flow.ui.theme.ThemeMode
@@ -49,11 +52,13 @@ internal fun AppearanceScreen(
     val themeVariant by viewModel.themeVariant.collectAsStateWithLifecycle()
     val customThemeName by viewModel.customThemeName.collectAsStateWithLifecycle()
     val interfaceMode by viewModel.interfaceMode.collectAsStateWithLifecycle()
+    val font by viewModel.font.collectAsStateWithLifecycle()
     val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
     val homeColumns by viewModel.homeColumns.collectAsStateWithLifecycle()
     val gridItemSize by viewModel.gridItemSize.collectAsStateWithLifecycle()
     val libraryPreviews by viewModel.libraryPreviews.collectAsStateWithLifecycle()
+    val separatePlaylists by viewModel.separatePlaylists.collectAsStateWithLifecycle()
     val appLogo by viewModel.appLogo.collectAsStateWithLifecycle()
     val groupBadges by viewModel.groupBadges.collectAsStateWithLifecycle()
     val cardLikeButtons by viewModel.cardLikeButtons.collectAsStateWithLifecycle()
@@ -76,6 +81,7 @@ internal fun AppearanceScreen(
             )
         }
     val iconSummary = stringResource(appIconOption(appIcon).nameRes)
+    val fontSummary = fontLabel(font)
     val interfaceSummary = stringResource(interfaceModeLabel(interfaceMode))
     val viewModeOptions =
         listOf(
@@ -113,6 +119,12 @@ internal fun AppearanceScreen(
                 onClick = { onNavigate(SettingsTarget(SettingsDestination.THEME)) },
             )
             nav(
+                DestinationIndex.entry(SettingsDestination.FONT),
+                value = fontSummary,
+                icon = Icons.Outlined.TextFields,
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.FONT)) },
+            )
+            nav(
                 AppearanceIndex.appIcon,
                 value = iconSummary,
                 icon = Icons.Outlined.AppShortcut,
@@ -134,6 +146,7 @@ internal fun AppearanceScreen(
             }
             toggleGroup(AppearanceIndex.musicArtworkSize, artworkOptions, gridItemSize, viewModel::setGridItemSize)
             switch(AppearanceIndex.libraryPreviews, libraryPreviews, viewModel::setLibraryPreviews)
+            switch(AppearanceIndex.separatePlaylists, separatePlaylists, viewModel::setSeparatePlaylists)
             switch(AppearanceIndex.appLogo, appLogo, viewModel::setAppLogo)
             switch(AppearanceIndex.groupBadges, groupBadges, viewModel::setGroupBadges)
         }
@@ -190,4 +203,13 @@ private fun interfaceModeSummary(mode: AppUiMode): Int =
         AppUiMode.AUTOMATIC -> R.string.interface_mode_automatic_summary
         AppUiMode.MOBILE -> R.string.interface_mode_mobile_summary
         AppUiMode.TV -> R.string.interface_mode_tv_summary
+    }
+
+@Composable
+private fun fontLabel(font: AppFontSelection): String =
+    when (font.font) {
+        AppFont.SYSTEM -> stringResource(R.string.font_system_default)
+        AppFont.CONDENSED -> stringResource(R.string.font_condensed)
+        AppFont.SERIF -> stringResource(R.string.font_serif)
+        AppFont.CUSTOM -> font.customName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.font_custom)
     }

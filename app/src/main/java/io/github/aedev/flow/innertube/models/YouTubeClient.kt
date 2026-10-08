@@ -98,11 +98,10 @@ data class YouTubeClient(
         const val REFERER_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/"
         const val API_URL_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/youtubei/v1/"
 
-        // Main-site host for VIDEO stream extraction. Music playback keeps hitting
-        // music.youtube.com (unchanged); only the video path opts into this host by passing
-        // API_URL_YOUTUBE to player(). YouTube serves usable ANDROID_VR direct adaptive formats
-        // from the main site, whereas the music endpoint returns SABR-only for those clients —
-        // which was forcing the video path onto IOS direct URLs that GVS cuts off ~70s in.
+        // Main-site host for stream extraction, video and music alike (InnerTubeVideoStreamExtractor
+        // passes it to player()). YouTube serves usable ANDROID_VR direct adaptive formats from the
+        // main site, whereas the music endpoint returns SABR-only for those clients. Music metadata
+        // still comes from music.youtube.com.
         const val ORIGIN_YOUTUBE = "https://www.youtube.com"
         const val REFERER_YOUTUBE = "$ORIGIN_YOUTUBE/"
         const val API_URL_YOUTUBE = "$ORIGIN_YOUTUBE/youtubei/v1/"
@@ -198,6 +197,27 @@ data class YouTubeClient(
                 loginRequired = true,
                 useSignatureTimestamp = true,
                 useWebPoTokens = true,
+            )
+
+        /**
+         * The Samsung Tizen TV app, asked anonymously. Measured by NewTube on visitors GVS had
+         * walled on the app clients (#921): it kept serving past the one-minute wall. Its formats
+         * are all signed, so it needs the remote decoder's signature timestamp and solve, and the
+         * Tizen device fields: without them /player answers "The page needs to be reloaded".
+         */
+        val TV_TIZEN =
+            YouTubeClient(
+                clientName = "TVHTML5",
+                clientVersion = "5.20260707",
+                clientId = "7",
+                userAgent =
+                    "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 " +
+                        "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
+                osName = "Tizen",
+                osVersion = "2.4.0",
+                deviceMake = "Samsung",
+                deviceModel = "SmartTV",
+                useSignatureTimestamp = true,
             )
 
         val TVHTML5_SIMPLY_EMBEDDED_PLAYER =

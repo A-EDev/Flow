@@ -3,15 +3,22 @@ package io.github.aedev.flow.ui.screens.search
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.data.local.Duration
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.local.SortType
+import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.runs
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,6 +36,7 @@ class SearchViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val suggestions: SearchSuggestionsRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
+    private val history: SearchHistoryRepository = mockk(relaxed = true)
 
     private fun viewModel() =
         SearchViewModel(
@@ -36,7 +44,7 @@ class SearchViewModelTest {
             suggestions,
             ShortsContentFilter(flowOf(true)),
             ShortsQueueHandoff(),
-            mockk(relaxed = true),
+            history,
             mockk(relaxed = true),
             mockk(relaxed = true),
         )
@@ -44,6 +52,10 @@ class SearchViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // A real engine built on the mocked context reads DataStore on its own scope and fails there,
+        // which surfaces as an uncaught exception in whichever runTest comes next.
+        mockkObject(FlowNeuroEngine.Companion)
+        coEvery { FlowNeuroEngine.onSearchQuery(any(), any()) } just runs
     }
 
     @After
@@ -60,6 +72,37 @@ class SearchViewModelTest {
         assertThat(viewModel.uiState.value.filters).isEqualTo(SearchFilter.DEFAULT)
         assertThat(viewModel.uiState.value.filters.isDefault).isTrue()
     }
+
+    @Test
+    fun `a submitted search is kept in history with its filters`() =
+        runTest(testDispatcher) {
+            val filters = SearchFilter(duration = Duration.OVER_20_MINUTES, uploadDate = UploadDate.TODAY)
+            viewModel().submit("world news", filters)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { history.saveSearchQuery("world news", filters = filters) }
+        }
+
+    @Test
+    fun `changing filters after a search updates its history entry`() =
+        runTest(testDispatcher) {
+            val viewModel = viewModel()
+            viewModel.submit("world news", SearchFilter.DEFAULT)
+            val narrowed = SearchFilter(uploadDate = UploadDate.TODAY)
+            viewModel.updateFilters(narrowed)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { history.saveSearchQuery("world news", filters = narrowed) }
+        }
+
+    @Test
+    fun `a search typed on TV is not written to history`() =
+        runTest(testDispatcher) {
+            viewModel().search("world n")
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 0) { history.saveSearchQuery(any(), any(), any(), any()) }
+        }
 
     @Test
     fun `search with valid query updates uiState`() {

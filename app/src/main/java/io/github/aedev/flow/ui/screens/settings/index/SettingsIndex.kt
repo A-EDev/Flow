@@ -11,6 +11,7 @@ internal object SettingsIndex {
             AppearanceIndex.all +
             ThemeIndex.all +
             CustomThemeIndex.all +
+            FontIndex.all +
             NavigationBarIndex.all +
             DateTimeIndex.all +
             PlayerAppearanceIndex.all +
@@ -19,8 +20,10 @@ internal object SettingsIndex {
             BufferIndex.all +
             QualityIndex.all +
             ContentIndex.all +
+            MusicHomeIndex.all +
             TopicsIndex.all +
             IntegrationsIndex.all +
+            ScrobblingIndex.all +
             BackupIndex.all +
             DownloadsIndex.all +
             LocalMediaIndex.all +

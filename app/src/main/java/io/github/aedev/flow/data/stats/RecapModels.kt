@@ -32,7 +32,10 @@ sealed interface RecapPeriod {
         }
 }
 
-/** One row of a ranked list: a channel, video, artist, track, topic or genre. */
+/** What a ranked row stands for, which decides where tapping it goes. */
+enum class RankedKind { CHANNEL, VIDEO, ARTIST, TRACK, ALBUM, OTHER }
+
+/** One row of a ranked list: a channel, video, artist, track, album, topic or genre. */
 data class RankedItem(
     val id: String,
     val name: String,
@@ -42,6 +45,15 @@ data class RankedItem(
     val detail: String = "",
     /** A portrait for the item: a channel avatar, video thumbnail or track artwork; blank when unknown. */
     val imageUrl: String = "",
+    val kind: RankedKind = RankedKind.OTHER,
+)
+
+/** The album a played track belongs to, as the local music graph knows it. */
+data class TrackAlbum(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val imageUrl: String,
 )
 
 /** Watching or listening folded over a period, down to the day. */
@@ -108,6 +120,7 @@ data class MusicRecap(
     val activity: ActivityPattern,
     val topArtists: List<RankedItem>,
     val topTracks: List<RankedItem>,
+    val topAlbums: List<RankedItem> = emptyList(),
     val topGenres: List<RankedItem>,
     val discoveredArtists: List<RankedItem>,
     val skippedTracks: List<RankedItem>,

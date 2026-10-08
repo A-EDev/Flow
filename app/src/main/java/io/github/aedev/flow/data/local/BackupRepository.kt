@@ -75,6 +75,7 @@ data class BackupData(
     val timestamp: Long = System.currentTimeMillis(),
     val viewHistory: List<VideoHistoryEntry>? = emptyList(),
     val searchHistory: List<SearchHistoryItem>? = emptyList(),
+    val musicSearchHistory: List<SearchHistoryItem>? = emptyList(),
     val subscriptions: List<ChannelSubscription>? = emptyList(),
     val playlists: List<PlaylistEntity>? = emptyList(),
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
@@ -133,6 +134,7 @@ private const val MASTER_APP_DATA_ENTRY = "app_data.json"
 private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
 private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
 private const val MASTER_RECAP_ENTRY = "recap_stats.json"
+private const val MASTER_FAVOURITE_ARTISTS_ENTRY = "favourite_artists.json"
 private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
 
 // Every Takeout activity entry sits in this cell, whatever language the archive is in.
@@ -156,6 +158,7 @@ class BackupRepository(
             .appIconController()
     }
     private val localDataManager = LocalDataManager(context)
+    private val appFontPreferences = AppFontPreferences(context)
     private val gson =
         GsonBuilder()
             .setPrettyPrinting()
@@ -189,6 +192,7 @@ class BackupRepository(
         val playerSettings = playerPreferences.getExportData()
         val localSettings = localDataManager.getExportData()
         val searchSettings = searchHistoryRepo.getSettingsBackup()
+        val fontSettings = appFontPreferences.getSettingsBackup()
         val activeIconSuffix = detectActiveIconSuffix()
         val equalizerSettings = mapOf(EqStateJson.KEY to equalizer.exportJson())
         val exportedStrings =
@@ -197,9 +201,10 @@ class BackupRepository(
                     mapOf("app_icon_suffix" to activeIconSuffix) +
                     localSettings.strings +
                     searchSettings.strings +
+                    fontSettings.strings +
                     equalizerSettings
             } else {
-                playerSettings.strings + localSettings.strings + searchSettings.strings + equalizerSettings
+                playerSettings.strings + localSettings.strings + searchSettings.strings + fontSettings.strings + equalizerSettings
             }
         return SettingsBackup(
             strings = exportedStrings,
@@ -271,6 +276,7 @@ class BackupRepository(
         BackupData(
             viewHistory = viewHistory.getAllHistory().first(),
             searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
+            musicSearchHistory = searchHistoryRepo.getSearchHistoryFlow(SearchHistoryScope.MUSIC).first(),
             subscriptions = subscriptionRepo.getAllSubscriptions().first(),
             playlists = database.playlistDao().getAllPlaylists().first(),
             playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
@@ -289,6 +295,7 @@ class BackupRepository(
         brainBytes: ByteArray,
         musicBrain: ByteArray?,
         recap: ByteArray?,
+        favouriteArtists: ByteArray?,
     ) {
         ZipOutputStream(out).use { zip ->
             zip.putNextEntry(ZipEntry(MASTER_APP_DATA_ENTRY))
@@ -305,6 +312,11 @@ class BackupRepository(
             if (recap != null) {
                 zip.putNextEntry(ZipEntry(MASTER_RECAP_ENTRY))
                 zip.write(recap)
+                zip.closeEntry()
+            }
+            if (favouriteArtists != null) {
+                zip.putNextEntry(ZipEntry(MASTER_FAVOURITE_ARTISTS_ENTRY))
+                zip.write(favouriteArtists)
                 zip.closeEntry()
             }
         }
@@ -2061,6 +2073,7 @@ class BackupRepository(
         uri: Uri,
         musicBrain: ByteArray? = null,
         recap: ByteArray? = null,
+        favouriteArtists: ByteArray? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
@@ -2070,7 +2083,7 @@ class BackupRepository(
                 val brainBytes = exportBrainBytes()
 
                 context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap)
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap, favouriteArtists)
                 } ?: return@withContext Result.failure(Exception("Could not open output stream"))
 
                 Result.success(Unit)
@@ -2083,6 +2096,7 @@ class BackupRepository(
         uri: Uri,
         onMusicBrain: (suspend (ByteArray) -> Unit)? = null,
         onRecap: (suspend (ByteArray) -> Unit)? = null,
+        onFavouriteArtists: (suspend (ByteArray) -> Unit)? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
@@ -2090,6 +2104,7 @@ class BackupRepository(
                 var brainBytes: ByteArray? = null
                 var musicBrainBytes: ByteArray? = null
                 var recapBytes: ByteArray? = null
+                var favouriteArtistBytes: ByteArray? = null
                 var contentPreferences: ContentPreferencesBackup? = null
 
                 context.contentResolver.openInputStream(uri)?.use { raw ->
@@ -2101,6 +2116,7 @@ class BackupRepository(
                                 MASTER_ENGINE_ENTRY -> brainBytes = zip.readBytes()
                                 MASTER_MUSIC_BRAIN_ENTRY -> musicBrainBytes = zip.readBytes()
                                 MASTER_RECAP_ENTRY -> recapBytes = zip.readBytes()
+                                MASTER_FAVOURITE_ARTISTS_ENTRY -> favouriteArtistBytes = zip.readBytes()
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
@@ -2126,6 +2142,7 @@ class BackupRepository(
 
                 musicBrainBytes?.let { bytes -> onMusicBrain?.invoke(bytes) }
                 recapBytes?.let { bytes -> onRecap?.invoke(bytes) }
+                favouriteArtistBytes?.let { bytes -> onFavouriteArtists?.invoke(bytes) }
 
                 contentPreferences?.let { preferences ->
                     FlowNeuroEngine.restoreContentPreferences(
@@ -2151,6 +2168,7 @@ class BackupRepository(
         }
         backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
         backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
+        backupData.musicSearchHistory?.let { searchHistoryRepo.replaceSearchHistory(it, SearchHistoryScope.MUSIC) }
         backupData.subscriptions?.let { subs ->
             subscriptionRepo.subscribeAll(subs)
             val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }
@@ -2192,6 +2210,7 @@ class BackupRepository(
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
             searchHistoryRepo.restoreSettings(settings)
+            appFontPreferences.restoreSettings(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
             if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
                 appIconController.apply(savedIconSuffix)
@@ -2279,6 +2298,7 @@ class BackupRepository(
         folderUri: Uri,
         musicBrain: ByteArray? = null,
         recap: ByteArray? = null,
+        favouriteArtists: ByteArray? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
@@ -2287,7 +2307,7 @@ class BackupRepository(
                 val brainBytes = exportBrainBytes()
 
                 writeToFolder(folderUri, "flow_master_backup.zip", "application/zip") { out ->
-                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap)
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap, favouriteArtists)
                 }
             } catch (e: Exception) {
                 Result.failure(e)

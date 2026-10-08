@@ -60,12 +60,20 @@ internal fun PlaybackDialogs(
             FlowChoiceDialog(
                 title = stringResource(R.string.player_settings_double_tap_seek_dialog_title),
                 description = stringResource(R.string.player_settings_double_tap_seek_dialog_body),
-                options =
-                    DoubleTapSeekOptions.map {
-                        FlowChoice(it, pluralStringResource(R.plurals.player_settings_autoplay_countdown_seconds_template, it, it))
-                    },
+                options = DoubleTapSeekOptions.map { FlowChoice(it, doubleTapSeekLabel(it)) },
                 selected = seconds,
                 onSelect = viewModel::setDoubleTapSeek,
+                onDismiss = onDismiss,
+            )
+        }
+
+        PlaybackDialog.SEEK_ZONE_WIDTH -> {
+            val zone by viewModel.seekZone.collectAsStateWithLifecycle()
+            val seconds by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
+            SeekZoneWidthDialog(
+                selected = zone,
+                stepSeconds = seconds,
+                onSelect = viewModel::setSeekZone,
                 onDismiss = onDismiss,
             )
         }

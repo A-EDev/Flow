@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -21,12 +22,14 @@ import io.github.aedev.flow.data.repository.LiveChatRepository
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
+import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.LifecyclePlaybackSettings
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
@@ -66,12 +69,15 @@ internal class VideoPlayerViewModelHarness(
     val likedVideosRepository: LikedVideosRepository = mockk(relaxed = true)
     val playlistRepository: PlaylistRepository = mockk(relaxed = true)
     val playerPreferences: PlayerPreferences = mockk(relaxed = true)
+    val autoDownload: AutoDownloadTrigger = mockk(relaxed = true)
     val videoDownloadManager: VideoDownloadManager = mockk(relaxed = true)
     val offlineSubtitleStore: OfflineSubtitleStore = mockk(relaxed = true)
+    val localSubtitles: LocalSubtitles = mockk(relaxed = true)
     val sponsorBlockRepository: SponsorBlockRepository = mockk(relaxed = true)
     val liveChatRepository: LiveChatRepository = mockk(relaxed = true)
     val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
     val playerManager: EnhancedPlayerManager = mockk(relaxed = true)
+    var startVideosPaused = false
     val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder = mockk(relaxed = true)
 
     /**
@@ -89,7 +95,6 @@ internal class VideoPlayerViewModelHarness(
     }
 
     val playerState = MutableStateFlow(EnhancedPlayerState())
-    val streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueVideos = MutableStateFlow<List<Video>>(emptyList())
     val videoQueueStore = mockk<io.github.aedev.flow.data.video.VideoQueueStore>(relaxed = true)
@@ -105,7 +110,6 @@ internal class VideoPlayerViewModelHarness(
         mockkObject(EnhancedPlayerManager.Companion)
         every { EnhancedPlayerManager.getInstance() } returns playerManager
         every { playerManager.playerState } returns playerState
-        every { playerManager.streamExpiredEvent } returns streamExpiredEvent
         every { playerManager.playbackAbandonedEvent } returns playbackAbandonedEvent
         every { playerManager.queueVideos } returns queueVideos
         every { playerManager.currentQueueIndexState } returns MutableStateFlow(-1)
@@ -160,6 +164,8 @@ internal class VideoPlayerViewModelHarness(
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.rememberPlaybackSpeed } returns flowOf(false)
         every { playerPreferences.playbackSpeed } returns flowOf(1f)
+        every { playerPreferences.musicAtNormalSpeed } returns flowOf(false)
+        every { playerPreferences.speedPerChannel } returns flowOf(false)
 
         coEvery { viewHistory.getLatestUnfinishedVideo() } returns null
         every { viewHistory.getPlaybackPosition(any()) } returns flowOf(0L)
@@ -168,6 +174,8 @@ internal class VideoPlayerViewModelHarness(
         coEvery { videoDownloadManager.findLocalCopy(any()) } returns null
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
+        coEvery { localSubtitles.picked(any()) } returns emptyList()
+        coEvery { localSubtitles.beside(any()) } returns emptyList()
 
         coEvery { repository.getComments(any()) } returns (emptyList<Comment>() to null as Page?)
         coEvery { repository.getVideoComments(any(), any()) } returns CommentsPageResult.EMPTY
@@ -190,6 +198,7 @@ internal class VideoPlayerViewModelHarness(
             videoQueueStore = videoQueueStore,
             watchLaterCleanup = mockk(relaxed = true),
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
             sponsorBlockRepository = sponsorBlockRepository,
             liveChatRepository = liveChatRepository,
             homeFeedCacheRepository = homeFeedCacheRepository,
@@ -208,6 +217,8 @@ internal class VideoPlayerViewModelHarness(
             notesRepository = mockk(relaxed = true),
             videoStats = videoStats,
             localMediaDetails = mockk { coEvery { enrich(any()) } returns null },
+            lifecyclePlayback = mockk { every { settings } answers { LifecyclePlaybackSettings(startVideosPaused = startVideosPaused) } },
+            autoDownload = autoDownload,
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

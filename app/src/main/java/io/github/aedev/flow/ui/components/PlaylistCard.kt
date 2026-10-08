@@ -45,6 +45,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 private val RowHorizontalPadding = 12.dp
 
@@ -226,12 +228,34 @@ private fun PlaylistCardMenu(
     }
 }
 
+/**
+ * The artwork as given; a YouTube video thumbnail that fails to load (hq720 is missing on older
+ * videos) falls back to hqdefault, which every video has.
+ */
+@Composable
+private fun PlaylistArtworkImage(
+    url: String,
+    modifier: Modifier,
+    alpha: Float = 1f,
+) {
+    var model by remember(url) { mutableStateOf(url) }
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+        alpha = alpha,
+        onError = { ThumbnailUrlResolver.fallbackVideoThumbnail("", model)?.let { model = it } },
+    )
+}
+
 @Composable
 private fun LayeredPlaylistArtwork(
     thumbnailUrl: String,
     videoCount: Int,
     modifier: Modifier = Modifier,
 ) {
+    val artworkUrl = thumbnailUrlOrNull(thumbnailUrl).orEmpty()
     Box(modifier = modifier) {
         Box(
             modifier =
@@ -241,15 +265,13 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
+            if (artworkUrl.isNotBlank()) {
+                PlaylistArtworkImage(
+                    url = artworkUrl,
                     modifier =
                         Modifier
                             .fillMaxSize()
                             .blur(10.dp),
-                    contentScale = ContentScale.Crop,
                     alpha = 0.7f,
                 )
             }
@@ -267,13 +289,8 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
+            if (artworkUrl.isNotBlank()) {
+                PlaylistArtworkImage(url = artworkUrl, modifier = Modifier.fillMaxSize())
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,

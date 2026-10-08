@@ -18,6 +18,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicAudioQuality
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -33,7 +34,16 @@ import io.github.aedev.flow.ui.screens.settings.index.QualityIndex
 
 private val TabsBottomPadding = 8.dp
 
-private enum class QualityPicker { VIDEO_WIFI, VIDEO_MOBILE, SHORTS_WIFI, SHORTS_MOBILE, CODEC, FALLBACK_CODEC }
+private enum class QualityPicker {
+    VIDEO_WIFI,
+    VIDEO_MOBILE,
+    SHORTS_WIFI,
+    SHORTS_MOBILE,
+    CODEC,
+    FALLBACK_CODEC,
+    THUMBNAILS_WIFI,
+    THUMBNAILS_MOBILE,
+}
 
 /** Default quality for regular videos, Shorts and music, one media kind at a time. */
 @Composable
@@ -50,6 +60,8 @@ internal fun QualitySettingsScreen(
     val music by viewModel.music.collectAsStateWithLifecycle()
     val codec by viewModel.codec.collectAsStateWithLifecycle()
     val fallbackCodec by viewModel.fallbackCodec.collectAsStateWithLifecycle()
+    val thumbnailsWifi by viewModel.thumbnailsWifi.collectAsStateWithLifecycle()
+    val thumbnailsMobile by viewModel.thumbnailsMobile.collectAsStateWithLifecycle()
     var selectedTab by rememberSaveable { mutableStateOf(tab ?: SettingsTabs.QUALITY_VIDEO) }
     var picker by rememberSaveable { mutableStateOf<QualityPicker?>(null) }
 
@@ -65,6 +77,8 @@ internal fun QualitySettingsScreen(
     val shortsMobileLabel = stringResource(videoQualityLabel(shortsMobile))
     val codecLabel = codecLabel(codec)
     val fallbackLabel = codecLabel(fallbackCodec)
+    val thumbnailsWifiLabel = stringResource(thumbnailQualityLabel(thumbnailsWifi))
+    val thumbnailsMobileLabel = stringResource(thumbnailQualityLabel(thumbnailsMobile))
     val musicLabels = MusicQualities.associateWith { stringResource(musicQualityLabel(it)) }
     val musicAutoSummary = stringResource(R.string.settings_music_quality_auto_summary)
 
@@ -133,6 +147,19 @@ internal fun QualitySettingsScreen(
                     }
                 }
                 notice("quality.video.notice", text = { stringResource(R.string.video_quality_warning) }, icon = Icons.Outlined.DataUsage)
+                group(key = "quality.thumbnails", header = R.string.settings_section_thumbnails) {
+                    nav(QualityIndex.thumbnailsWifi, value = thumbnailsWifiLabel, showChevron = false, onClick = {
+                        picker = QualityPicker.THUMBNAILS_WIFI
+                    })
+                    nav(QualityIndex.thumbnailsMobile, value = thumbnailsMobileLabel, showChevron = false, onClick = {
+                        picker = QualityPicker.THUMBNAILS_MOBILE
+                    })
+                }
+                notice(
+                    "quality.thumbnails.notice",
+                    text = { stringResource(R.string.thumbnail_quality_notice) },
+                    icon = Icons.Outlined.DataUsage,
+                )
             }
         }
     }
@@ -140,7 +167,17 @@ internal fun QualitySettingsScreen(
     picker?.let { open ->
         QualityPickerDialog(
             picker = open,
-            state = QualityPickerState(videoWifi, videoMobile, shortsWifi, shortsMobile, codec, fallbackCodec),
+            state =
+                QualityPickerState(
+                    videoWifi,
+                    videoMobile,
+                    shortsWifi,
+                    shortsMobile,
+                    codec,
+                    fallbackCodec,
+                    thumbnailsWifi,
+                    thumbnailsMobile,
+                ),
             viewModel = viewModel,
             onDismiss = { picker = null },
         )
@@ -154,6 +191,8 @@ private data class QualityPickerState(
     val shortsMobile: VideoQuality,
     val codec: VideoCodec,
     val fallbackCodec: VideoCodec,
+    val thumbnailsWifi: ThumbnailQuality,
+    val thumbnailsMobile: ThumbnailQuality,
 )
 
 @Composable
@@ -177,6 +216,22 @@ private fun QualityPickerDialog(
         onDismiss = onDismiss,
     )
 
+    @Composable
+    fun thumbnails(
+        title: Int,
+        selected: ThumbnailQuality,
+        onSelect: (ThumbnailQuality) -> Unit,
+    ) = FlowChoiceDialog(
+        title = stringResource(title),
+        options =
+            ThumbnailQualities.map {
+                FlowChoice(it, stringResource(thumbnailQualityLabel(it)), stringResource(thumbnailQualityDescription(it)))
+            },
+        selected = selected,
+        onSelect = onSelect,
+        onDismiss = onDismiss,
+    )
+
     when (picker) {
         QualityPicker.VIDEO_WIFI -> {
             resolution(R.string.settings_quality_wifi, VideoQualities, state.videoWifi, viewModel::setVideoWifi)
@@ -187,11 +242,19 @@ private fun QualityPickerDialog(
         }
 
         QualityPicker.SHORTS_WIFI -> {
-            resolution(R.string.settings_quality_wifi, ShortsQualities, state.shortsWifi, viewModel::setShortsWifi)
+            resolution(R.string.settings_quality_wifi, VideoQualities, state.shortsWifi, viewModel::setShortsWifi)
         }
 
         QualityPicker.SHORTS_MOBILE -> {
-            resolution(R.string.settings_quality_mobile, ShortsQualities, state.shortsMobile, viewModel::setShortsMobile)
+            resolution(R.string.settings_quality_mobile, VideoQualities, state.shortsMobile, viewModel::setShortsMobile)
+        }
+
+        QualityPicker.THUMBNAILS_WIFI -> {
+            thumbnails(R.string.settings_quality_wifi, state.thumbnailsWifi, viewModel::setThumbnailsWifi)
+        }
+
+        QualityPicker.THUMBNAILS_MOBILE -> {
+            thumbnails(R.string.settings_quality_mobile, state.thumbnailsMobile, viewModel::setThumbnailsMobile)
         }
 
         QualityPicker.CODEC -> {

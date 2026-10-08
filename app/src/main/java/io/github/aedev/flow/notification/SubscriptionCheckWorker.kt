@@ -198,8 +198,10 @@ class SubscriptionCheckWorker(
                     }
                 }
 
-                if (newVideos.isNotEmpty()) {
-                    NotificationHelper.showSubscriptionUpdates(applicationContext, newVideos)
+                // A collaboration two followed channels both list must still notify once.
+                val uniqueVideos = newVideos.distinctBy { it.videoId }
+                if (uniqueVideos.isNotEmpty()) {
+                    NotificationHelper.showSubscriptionUpdates(applicationContext, uniqueVideos)
                 }
 
                 Log.d(TAG, "Subscription check complete. Found ${newVideos.size} new videos.")

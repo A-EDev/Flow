@@ -17,6 +17,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
+import io.github.aedev.flow.data.video.downloader.request.DownloadSubtitle
 import io.github.aedev.flow.data.video.downloader.request.toDownloadRequest
 import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -61,6 +62,7 @@ internal object DownloadLauncher {
         videoFormat: PlayerResponse.StreamingData.Format,
         audioFormat: PlayerResponse.StreamingData.Format,
         threads: Int? = null,
+        subtitle: DownloadSubtitle? = null,
     ) {
         promptStoragePermissionIfNeeded(context)
         submit(
@@ -73,6 +75,7 @@ internal object DownloadLauncher {
                 audioTrackId = audioFormat.audioTrack?.id,
                 audioLanguage = audioFormat.audioLanguageTag,
                 threads = threads,
+                subtitle = subtitle,
             ),
         )
         Toast.makeText(context, context.getString(R.string.ui_started_download, video.title), Toast.LENGTH_SHORT).show()

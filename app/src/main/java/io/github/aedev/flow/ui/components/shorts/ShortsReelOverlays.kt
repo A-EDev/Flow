@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +36,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.LocalThumbnailQuality
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
@@ -77,13 +80,20 @@ internal fun ShortsReelPoster(
         exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
         modifier = modifier,
     ) {
-        VideoThumbnailImage(
-            videoId = videoId,
-            model = thumbnailUrl,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
+        // The player owns this frame: with thumbnails off it still loads the smallest portrait tier.
+        val quality = LocalThumbnailQuality.current
+        CompositionLocalProvider(
+            LocalThumbnailQuality provides (if (quality == ThumbnailQuality.OFF) ThumbnailQuality.LOW else quality),
+        ) {
+            VideoThumbnailImage(
+                videoId = videoId,
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                portrait = true,
+            )
+        }
     }
 }
 

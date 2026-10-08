@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
@@ -11,9 +12,9 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlaybackResumePolicy
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -21,7 +22,6 @@ import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamType
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
@@ -40,6 +40,8 @@ internal class PlaybackPreparer(
     private val playerManager: EnhancedPlayerManager,
     private val playerPreferences: PlayerPreferences,
     private val offlineSubtitleStore: OfflineSubtitleStore,
+    private val localSubtitles: LocalSubtitles,
+    private val cachedCategory: (videoId: String) -> String? = { null },
 ) {
     /** Arms the player and the media notification for [videoId] before any streams are handed over. */
     suspend fun beginSession(
@@ -69,6 +71,7 @@ internal class PlaybackPreparer(
         streams: PlaybackStreamPreparer.VodStreams,
         step: ResolvedPlayback.VodFromInnerTube,
         savedPositionMs: Long,
+        speedContext: PlaybackSpeedContext,
         isCurrent: () -> Boolean,
     ) = prepareVodStreams(
         videoId = videoId,
@@ -86,6 +89,7 @@ internal class PlaybackPreparer(
         itAudioFormats = step.result.audioFormats,
         preferredVideoCodec = step.preferredCodecKey,
         preferredLiveQualityHeight = step.preferredQuality.height,
+        speedContext = speedContext,
         isCurrent = isCurrent,
     )
 
@@ -96,7 +100,7 @@ internal class PlaybackPreparer(
         audioStream: AudioStream?,
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
-        subtitles: List<SubtitlesStream>,
+        subtitles: List<ResolvedCaption>,
         savedPosition: Long,
         fallbackDurationSeconds: Long,
         localFilePath: String?,
@@ -137,8 +141,9 @@ internal class PlaybackPreparer(
                 filePath = localFilePath,
                 savedSegments = offlineSegments,
                 preservePosition = resumePosition.takeIf { it > 0L },
-                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId).toSubtitlesStreams() },
+                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) } + localSubtitles.picked(videoId),
             )
+            localSubtitles.offsetMs(videoId).takeIf { it != 0L }?.let(playerManager::setSubtitleOffset)
         } else {
             val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
             val hasAnySource =
@@ -172,7 +177,7 @@ internal class PlaybackPreparer(
         applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty())
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
     /**
@@ -183,7 +188,7 @@ internal class PlaybackPreparer(
         videoId: String,
         hlsUrl: String?,
         dashManifestUrl: String?,
-        subtitles: List<SubtitlesStream>,
+        subtitles: List<ResolvedCaption>,
         isCurrent: () -> Boolean,
     ): Boolean =
         withContext(Dispatchers.Main) {
@@ -208,7 +213,7 @@ internal class PlaybackPreparer(
             applyRememberedPlaybackSpeed(isLive = true)
 
             if (!isCurrent()) return@withContext false
-            playerManager.play()
+            if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
             true
         }
 
@@ -218,7 +223,7 @@ internal class PlaybackPreparer(
         audioStream: AudioStream?,
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
-        subtitles: List<SubtitlesStream>,
+        subtitles: List<ResolvedCaption>,
         durationSeconds: Long,
         savedPositionMs: Long,
         resumeOverrideRequested: Boolean,
@@ -229,6 +234,7 @@ internal class PlaybackPreparer(
         preferredVideoCodec: String,
         preferredLiveQualityHeight: Int,
         isCurrent: () -> Boolean,
+        speedContext: PlaybackSpeedContext = PlaybackSpeedContext.Unknown,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
         if (playerManager.isPreparedForPlayback(videoId)) return@withContext
@@ -266,10 +272,10 @@ internal class PlaybackPreparer(
             preferSabr = preferSabr,
             preferredLiveQualityHeight = preferredLiveQualityHeight,
         )
-        applyRememberedPlaybackSpeed(isLive = false)
+        applyRememberedPlaybackSpeed(isLive = false, speedContext = speedContext)
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
     suspend fun prepareLocalMedia(
@@ -278,8 +284,10 @@ internal class PlaybackPreparer(
         offlineSegments: List<SponsorBlockSegment>?,
         savedPosition: Long,
         durationMs: Long,
-        subtitles: List<SubtitlesStream>,
+        subtitles: List<ResolvedCaption>,
         isCurrent: () -> Boolean,
+        subtitleOffsetMs: Long = 0L,
+        speedContext: PlaybackSpeedContext = PlaybackSpeedContext.Unknown,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
         if (playerManager.isPreparedForPlayback(videoId)) return@withContext
@@ -298,20 +306,72 @@ internal class PlaybackPreparer(
             preservePosition = startPosition.takeIf { it > 0L },
             subtitles = subtitles,
         )
-        applyRememberedPlaybackSpeed(isLive = false)
+        if (subtitleOffsetMs != 0L) playerManager.setSubtitleOffset(subtitleOffsetMs)
+        applyRememberedPlaybackSpeed(isLive = false, speedContext = speedContext)
 
         if (!isCurrent()) return@withContext
-        playerManager.play()
+        if (!playerManager.isStartPausedArmed(videoId)) playerManager.play()
     }
 
-    private suspend fun applyRememberedPlaybackSpeed(isLive: Boolean) {
+    private var speedBeforeOverride: Float? = null
+
+    private suspend fun applyRememberedPlaybackSpeed(
+        isLive: Boolean,
+        speedContext: PlaybackSpeedContext = PlaybackSpeedContext.Unknown,
+    ) {
         if (isLive) {
             playerManager.setPlaybackSpeed(1.0f)
             return
         }
-        if (playerPreferences.rememberPlaybackSpeed.first()) {
-            playerManager.setPlaybackSpeed(playerPreferences.playbackSpeed.first())
+        when (val decision = decideSpeed(speedContext)) {
+            is SpeedDecision.Override -> {
+                applySpeedOverride(decision.speed)
+            }
+
+            is SpeedDecision.Remembered -> {
+                speedBeforeOverride = null
+                playerManager.setPlaybackSpeed(decision.speed)
+            }
+
+            SpeedDecision.Keep -> {
+                speedBeforeOverride?.let(playerManager::setPlaybackSpeed)
+                speedBeforeOverride = null
+            }
         }
+    }
+
+    /** The category can arrive after playback started; only a new override is worth a speed change then. */
+    suspend fun applyLateMusicSignal(speedContext: PlaybackSpeedContext) =
+        withContext(Dispatchers.Main) {
+            val decision = decideSpeed(speedContext.copy(knownMusic = true))
+            if (decision is SpeedDecision.Override) applySpeedOverride(decision.speed)
+        }
+
+    private fun applySpeedOverride(speed: Float) {
+        if (speedBeforeOverride == null) speedBeforeOverride = playerManager.playerState.value.playbackSpeed
+        playerManager.setPlaybackSpeed(speed)
+    }
+
+    private suspend fun decideSpeed(speedContext: PlaybackSpeedContext): SpeedDecision {
+        val channelSpeed =
+            speedContext.channelId
+                ?.takeIf { it.isNotBlank() && playerPreferences.speedPerChannel.first() }
+                ?.let { playerPreferences.channelPlaybackSpeed(it) }
+        val musicAtNormalSpeed = playerPreferences.musicAtNormalSpeed.first()
+        val isMusic =
+            musicAtNormalSpeed &&
+                PlaybackSpeedPolicy.isMusic(
+                    musicVideoType = speedContext.musicVideoType,
+                    category = speedContext.videoId?.let(cachedCategory),
+                    openedAsMusic = speedContext.knownMusic,
+                )
+        return PlaybackSpeedPolicy.decide(
+            isMusic = isMusic,
+            channelSpeed = channelSpeed,
+            musicAtNormalSpeed = musicAtNormalSpeed,
+            rememberSpeed = playerPreferences.rememberPlaybackSpeed.first(),
+            rememberedSpeed = playerPreferences.playbackSpeed.first(),
+        )
     }
 
     private suspend fun preferredDefaultQualityHeight(): Int {

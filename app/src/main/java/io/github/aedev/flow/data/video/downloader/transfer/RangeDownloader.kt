@@ -52,7 +52,7 @@ class RangeDownloader internal constructor(
     constructor() : this(
         ProxyAwareClient {
             connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
                 .followRedirects(true)
                 .retryOnConnectionFailure(true)
         }::get,

@@ -6,8 +6,10 @@ import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.PermMedia
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.runtime.Composable
@@ -22,12 +24,15 @@ internal enum class LibrarySection(
 ) {
     HISTORY(R.string.library_history_label),
     PLAYLISTS(R.string.library_playlists_label),
+    VIDEO_PLAYLISTS(R.string.library_video_playlists),
+    MUSIC_PLAYLISTS(R.string.library_music_playlists),
     WATCH_LATER(R.string.library_watch_later_label),
     LIKED_VIDEOS(R.string.liked_videos_playlist),
     LIKED_MUSIC(R.string.liked_music_playlist),
     DOWNLOADS(R.string.library_downloads_label),
     SAVED_SHORTS(R.string.library_saved_shorts_label),
     LOCAL_MEDIA(R.string.library_local_media_label),
+    NOTES(R.string.notes_title),
     SETTINGS(R.string.settings),
     ;
 
@@ -35,13 +40,15 @@ internal enum class LibrarySection(
         @Composable get() =
             when (this) {
                 HISTORY -> Icons.Outlined.History
-                PLAYLISTS -> Icons.AutoMirrored.Outlined.PlaylistPlay
+                PLAYLISTS, VIDEO_PLAYLISTS -> Icons.AutoMirrored.Outlined.PlaylistPlay
+                MUSIC_PLAYLISTS -> Icons.Outlined.LibraryMusic
                 WATCH_LATER -> Icons.Outlined.WatchLater
                 LIKED_VIDEOS -> Icons.Outlined.ThumbUp
                 LIKED_MUSIC -> Icons.Outlined.FavoriteBorder
                 DOWNLOADS -> Icons.Outlined.Download
                 SAVED_SHORTS -> ImageVector.vectorResource(R.drawable.ic_shorts)
                 LOCAL_MEDIA -> Icons.Outlined.PermMedia
+                NOTES -> Icons.Outlined.StickyNote2
                 SETTINGS -> Icons.Outlined.Settings
             }
 
@@ -61,14 +68,24 @@ internal fun LibrarySection.subtitle(counts: LibraryCounts?): String? =
             stringResource(R.string.library_settings_subtitle)
         }
 
+        LibrarySection.NOTES -> {
+            stringResource(R.string.notes_library_subtitle)
+        }
+
         LibrarySection.HISTORY -> {
             counts?.let { itemsSubtitle(it.history) }
         }
 
         LibrarySection.PLAYLISTS -> {
-            counts?.let {
-                pluralStringResource(R.plurals.playlists_count_template, it.playlists, it.playlists)
-            }
+            counts?.let { playlistsSubtitle(it.videoPlaylists + it.musicPlaylists) }
+        }
+
+        LibrarySection.VIDEO_PLAYLISTS -> {
+            counts?.let { playlistsSubtitle(it.videoPlaylists) }
+        }
+
+        LibrarySection.MUSIC_PLAYLISTS -> {
+            counts?.let { playlistsSubtitle(it.musicPlaylists) }
         }
 
         LibrarySection.WATCH_LATER -> {
@@ -99,6 +116,9 @@ internal fun LibrarySection.subtitle(counts: LibraryCounts?): String? =
             counts?.let { downloadsSubtitle(it) }
         }
     }
+
+@Composable
+private fun playlistsSubtitle(count: Int): String = pluralStringResource(R.plurals.playlists_count_template, count, count)
 
 @Composable
 private fun itemsSubtitle(count: Int): String = pluralStringResource(R.plurals.library_items_count, count, count)

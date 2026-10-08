@@ -2,8 +2,11 @@ package io.github.aedev.flow.ui.startup
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.font.FontFamily
+import io.github.aedev.flow.data.local.AppFontPreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.ui.theme.CustomTheme
+import io.github.aedev.flow.ui.theme.FlowFontFamily
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
@@ -19,12 +22,14 @@ data class ThemeSettings(
     val systemLightThemeMode: ThemeMode = ThemeMode.DARK,
     val systemDarkThemeMode: ThemeMode = ThemeMode.DARK,
     val systemDarkThemeVariant: ThemeVariant = ThemeVariant.DARK,
+    val fontFamily: FontFamily = FlowFontFamily,
 )
 
-fun LocalDataManager.themeSettings(): Flow<ThemeSettings> =
+fun LocalDataManager.themeSettings(fonts: AppFontPreferences): Flow<ThemeSettings> =
     combine(themeMode, themeVariant, activeCustomTheme, systemLightThemeMode, systemDarkThemeMode) { mode, variant, custom, light, dark ->
         ThemeSettings(mode, variant, custom, light, dark)
     }.combine(systemDarkThemeVariant) { settings, darkVariant -> settings.copy(systemDarkThemeVariant = darkVariant) }
+        .combine(fonts.fontFamily) { settings, family -> settings.copy(fontFamily = family) }
 
 @Composable
 fun FlowTheme(
@@ -37,5 +42,6 @@ fun FlowTheme(
     systemLightThemeMode = settings.systemLightThemeMode,
     systemDarkThemeMode = settings.systemDarkThemeMode,
     systemDarkThemeVariant = settings.systemDarkThemeVariant,
+    fontFamily = settings.fontFamily,
     content = content,
 )

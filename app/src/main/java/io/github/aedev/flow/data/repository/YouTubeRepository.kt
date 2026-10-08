@@ -97,19 +97,36 @@ class YouTubeRepository
             val avatarUrl: String,
         )
 
-        /**
-         * Fetch channel avatar by channelId, with in-memory caching.
-         * Returns empty string on failure.
-         */
+        /** A channel's avatar from a UC id, an @handle or a channel URL, read from its InnerTube header; "" on failure. */
         suspend fun fetchChannelAvatarById(channelId: String): String =
             withContext(Dispatchers.IO) {
-                if (channelId.isBlank()) return@withContext ""
-                channelAvatarCache[channelId]?.let { return@withContext it }
-                val info = getChannelInfo(channelId) ?: return@withContext ""
-                val url = info.avatars.maxByOrNull { it.height }?.url ?: ""
-                if (url.isNotEmpty()) channelAvatarCache.put(channelId, url)
+                val reference = channelId.trim()
+                if (reference.isBlank()) return@withContext ""
+                channelAvatarCache[reference]?.let { return@withContext it }
+                val browseId = channelBrowseId(reference) ?: return@withContext ""
+                val url =
+                    YouTube
+                        .channelLanding(browseId)
+                        .getOrNull()
+                        ?.header
+                        ?.avatarUrl
+                        .orEmpty()
+                if (url.isNotEmpty()) channelAvatarCache.put(reference, url)
                 url
             }
+
+        // A handle is not a browse id (InnerTube answers 400), so it is resolved to its UC id first.
+        private suspend fun channelBrowseId(reference: String): String? {
+            if (reference.startsWith("UC")) return reference
+            CHANNEL_ID_IN_URL.find(reference)?.let { return it.groupValues[1] }
+            val url =
+                when {
+                    reference.startsWith("http") -> reference
+                    reference.startsWith("@") -> "https://www.youtube.com/$reference"
+                    else -> "https://www.youtube.com/@$reference"
+                }
+            return YouTube.resolveChannelId(url).getOrNull()
+        }
 
         /**
          * Enrich a list of [Video] objects that are missing [Video.channelThumbnailUrl]
@@ -159,14 +176,8 @@ class YouTubeRepository
             supervisorScope {
                 val candidates =
                     videos
-                        .filter { video ->
-                            video.id.isNotBlank() &&
-                                (
-                                    video.channelId.isBlank() ||
-                                        !video.channelId.startsWith("UC") ||
-                                        video.channelThumbnailUrl.isBlank()
-                                )
-                        }.take(limit)
+                        .filter { video -> video.id.isNotBlank() && video.needsChannelMetadata() }
+                        .take(limit)
                 if (candidates.isEmpty()) return@supervisorScope videos
 
                 val semaphore = kotlinx.coroutines.sync.Semaphore(4)
@@ -275,10 +286,11 @@ class YouTubeRepository
         suspend fun searchVideos(
             query: String,
             continuation: String? = null,
+            params: String? = null,
         ): Pair<List<Video>, String?> =
             withContext(Dispatchers.IO) {
                 YouTube
-                    .videoSearch(query, continuation = continuation)
+                    .videoSearch(query, params = params, continuation = continuation)
                     .map { page ->
                         page.resultVideos().map { it.copy(isMusic = looksLikeMusicVideo(it.title, it.channelName)) } to page.continuation
                     }.getOrElse { error ->
@@ -564,6 +576,8 @@ class YouTubeRepository
         ) {
             videoCategoryCache.remember(videoId, category)
         }
+
+        fun cachedVideoCategory(videoId: String): String? = videoCategoryCache.cached(videoId)
 
         /**
          * The creator-declared category for [videoId], e.g. "Science & Technology".
@@ -1074,6 +1088,7 @@ class YouTubeRepository
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
             private const val WATCH_NEXT_CACHE_SIZE = 3
             private const val VIDEO_CATEGORY_CACHE_SIZE = 500
+            private val CHANNEL_ID_IN_URL = Regex("""/channel/(UC[\w-]{22})""")
 
             @Volatile
             private var instance: YouTubeRepository? = null
@@ -1096,15 +1111,23 @@ internal fun selectCommentAuthorThumbnail(
         .resolveChannelAvatar(embeddedAvatar)
         .ifBlank { ThumbnailUrlResolver.resolveChannelAvatar(resolvedChannelAvatar) }
 
+/** No real channel id, or no avatar that can be shown (blank, a video frame or a channel page URL). */
+internal fun Video.needsChannelMetadata(): Boolean =
+    channelId.isBlank() ||
+        !channelId.startsWith("UC") ||
+        channelThumbnailUrl.isBlank() ||
+        ThumbnailUrlResolver.isUnusableChannelAvatar(channelThumbnailUrl)
+
 internal fun mergeWatchMetadata(
     video: Video,
     response: WatchMetadataResponse,
 ): Video? {
     val uploadDate = response.uploadDate()?.takeIf { it.isNotBlank() } ?: return null
-    // The relative form first: the absolute one is a date with no time, so on its own it places
-    // every upload at midnight and reads back as however long the day has been running.
+    // A publish time the card already knew exactly wins. Then the relative form: the absolute one is
+    // a date with no time, so on its own it places every upload at midnight.
     val timestamp =
-        response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
+        video.timestamp.takeIf { video.timestampIsExact }
+            ?: response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
             ?: parseToTimestamp(uploadDate)
             ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }

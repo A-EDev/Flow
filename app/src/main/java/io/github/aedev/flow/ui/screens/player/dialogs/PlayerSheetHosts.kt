@@ -101,6 +101,7 @@ internal fun PlayerQueueSheetHost(
     onDismiss: () -> Unit,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
+    loadStreamsInPlayer: Boolean = false,
 ) {
     val manager = EnhancedPlayerManager.getInstance()
     val queueVideos by manager.queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -117,7 +118,7 @@ internal fun PlayerQueueSheetHost(
         isShuffled = playerState.isQueueShuffled,
         onLoopToggle = manager::toggleQueueLoop,
         onShuffleToggle = manager::toggleQueueShuffle,
-        onPlayVideoAtIndex = { index -> manager.playVideoAtIndex(index, loadStreamsInPlayer = false) },
+        onPlayVideoAtIndex = { index -> manager.playVideoAtIndex(index, loadStreamsInPlayer = loadStreamsInPlayer) },
         onRemoveVideoAtIndex = { index ->
             manager.removeVideoAtIndex(index)?.let { removed ->
                 quickActions.announce(removedFromQueue, QuickActionUndo.QueueRemoval(removed))
@@ -176,11 +177,13 @@ internal fun PlayerDescriptionSheetHost(
     )
 
     if (showNoteEditor && videoNotesEnabled) {
+        val insertPositionMs = remember { EnhancedPlayerManager.getInstance().getCurrentPosition().takeUnless { video.isLive } }
         FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
             onSave = { text -> viewModel.saveVideoNote(video.id, text) },
             onDismiss = { showNoteEditor = false },
+            insertPositionMs = insertPositionMs,
         )
     }
 }

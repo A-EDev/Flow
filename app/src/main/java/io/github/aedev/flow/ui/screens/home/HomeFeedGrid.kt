@@ -11,7 +11,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.FeedGridLayout
@@ -46,6 +48,7 @@ internal fun HomeFeedGrid(
     modifier: Modifier = Modifier,
 ) {
     val videos = uiState.videos
+    val channelMemoryReason = stringResource(R.string.home_reason_channel_memory)
     val rows =
         remember(videos, feedLayout.columns, uiState.continueWatchingVideos.isNotEmpty(), uiState.shorts.isNotEmpty()) {
             homeFeedRows(
@@ -94,6 +97,7 @@ internal fun HomeFeedGrid(
                         onClick = { onVideoClick(row.video) },
                         useInternalPadding = !feedLayout.isCompact,
                         thumbnailWidth = plan.listThumbnailWidth,
+                        reason = if (row.video.id in uiState.channelMemoryVideoIds) channelMemoryReason else null,
                         modifier = Modifier.testTag("home_video_card"),
                     )
                 }

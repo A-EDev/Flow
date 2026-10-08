@@ -39,6 +39,8 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.availableWith
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
@@ -92,20 +94,21 @@ fun SearchScreen(
     var showFilters by rememberSaveable { mutableStateOf(false) }
 
     val mediaNavigator = LocalMediaNavigator.current
-    val search: (String) -> Unit = { query ->
+    val search: (String, SearchFilter) -> Unit = { query, filters ->
         state.onSubmit(query)
-        viewModel.search(query, uiState.filters)
+        viewModel.submit(query, filters)
     }
-    val submit: (String) -> Unit = { raw ->
+    val submitWith: (String, SearchFilter) -> Unit = { raw, filters ->
         val text = raw.trim()
         val link = parseYouTubeLink(text)
         when {
             text.isEmpty() -> Unit
-            link == null -> search(text)
-            link is YouTubeLink.Search -> search(link.query)
+            link == null -> search(text, filters)
+            link is YouTubeLink.Search -> search(link.query, filters)
             !mediaNavigator.openLink(link) -> quickActions.announce(R.string.link_not_supported)
         }
     }
+    val submit: (String) -> Unit = { raw -> submitWith(raw, uiState.filters) }
 
     val voiceSearchLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -135,8 +138,13 @@ fun SearchScreen(
         }
     }
 
+    // A new query starts at the top; coming back from a result keeps the grid where it was.
+    var scrolledForQuery by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState.query) {
-        if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
+        if (uiState.query.isNotBlank() && scrolledForQuery != uiState.query) {
+            if (scrolledForQuery != null) gridState.scrollToItem(0)
+            scrolledForQuery = uiState.query
+        }
     }
 
     LaunchedEffect(pagingItems.itemSnapshotList.items) {
@@ -180,6 +188,10 @@ fun SearchScreen(
                     onSubmit = { text ->
                         state.textFieldState.setTextAndPlaceCursorAtEnd(text)
                         submit(text)
+                    },
+                    onHistorySelect = { item ->
+                        state.textFieldState.setTextAndPlaceCursorAtEnd(item.query)
+                        submitWith(item.query, item.filters?.availableWith(state.shortsContentEnabled) ?: uiState.filters)
                     },
                     onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
                     onDeleteHistoryItem = state::deleteHistoryItem,

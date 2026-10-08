@@ -88,6 +88,14 @@ internal object ContentIndex {
             section = R.string.settings_section_subscriptions,
             destination = page,
         )
+    val subsCollaborations =
+        SettingEntry(
+            key = "content.subs.collaborations",
+            title = R.string.content_settings_subs_collaborations_title,
+            summary = R.string.content_settings_subs_collaborations_subtitle,
+            section = R.string.settings_section_subscriptions,
+            destination = page,
+        )
     val hideWatchedSubs =
         SettingEntry(
             key = "content.subs.hide_watched",
@@ -126,6 +134,14 @@ internal object ContentIndex {
             key = "content.shorts.enabled",
             title = R.string.content_settings_shorts_content_title,
             summary = R.string.content_settings_shorts_content_subtitle,
+            section = R.string.content_settings_header_shorts,
+            destination = page,
+        )
+    val channelShortsTab =
+        SettingEntry(
+            key = "content.shorts.channel_tab",
+            title = R.string.content_settings_channel_shorts_tab_title,
+            summary = R.string.content_settings_channel_shorts_tab_subtitle,
             section = R.string.content_settings_header_shorts,
             destination = page,
         )
@@ -187,6 +203,14 @@ internal object ContentIndex {
             section = R.string.settings_section_sharing,
             destination = page,
         )
+    val openLinks =
+        SettingEntry(
+            key = "content.links.open",
+            title = R.string.content_settings_open_links_title,
+            summary = R.string.content_settings_open_links_subtitle,
+            section = R.string.settings_section_links,
+            destination = page,
+        )
 
     val all =
         listOf(
@@ -200,11 +224,13 @@ internal object ContentIndex {
             subsShorts,
             subsShortsShelf,
             subsLive,
+            subsCollaborations,
             hideWatchedSubs,
             hideUnplayableSubs,
             subsRefreshOnStartup,
             subsCheckedCount,
             shortsContent,
+            channelShortsTab,
             hideWatchedShorts,
             removeWatchedWatchLater,
             watchedThreshold,
@@ -212,5 +238,6 @@ internal object ContentIndex {
             channelNotes,
             videoNotes,
             shareWithoutText,
+            openLinks,
         )
 }

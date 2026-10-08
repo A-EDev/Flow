@@ -183,6 +183,29 @@ internal object MusicBrainLearn {
     }
 
     /**
+     * A picked artist starts where a liked song would put them, without inventing plays, so stats
+     * and the recap stay true. Unpicking forgets an artist only if they were never played.
+     */
+    fun setFavouriteArtist(
+        brain: MusicBrain,
+        artistKey: String,
+        display: String,
+        favourite: Boolean,
+    ) {
+        if (artistKey.isEmpty()) return
+        if (!favourite) {
+            if (brain.artistAffinity[artistKey]?.plays == 0) brain.artistAffinity.remove(artistKey)
+            return
+        }
+        brain.blockedArtists.remove(artistKey)
+        brain.dislikedArtists.remove(artistKey)
+        val affinity = brain.artistAffinity.getOrPut(artistKey) { MusicAffinity() }
+        affinity.liked = true
+        affinity.score = maxOf(affinity.score, MusicBrainParams.LIKE_SCORE_FLOOR)
+        if (display.isNotBlank()) affinity.display = display
+    }
+
+    /**
      * Every artist the shelves must hide right now: blocked, plus disliked ones
      * still inside the cooldown. Each artist contributes BOTH key forms — the
      * brain key and the lowercased display name — because the same artist is

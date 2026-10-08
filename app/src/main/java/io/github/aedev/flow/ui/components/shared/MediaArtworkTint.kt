@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.ui.theme.ensureContrastOn
 import io.github.aedev.flow.ui.theme.tone
 import io.github.aedev.flow.ui.theme.withTone
@@ -41,7 +42,8 @@ data class MediaArtworkTint(
  */
 @Composable
 fun rememberMediaArtworkTint(thumbnailUrl: String?): MediaArtworkTint {
-    val palette = rememberMediaPalette(thumbnailUrl, animated = false)
+    val palette =
+        rememberMediaPalette(thumbnailUrl, animated = false, cacheOnly = LocalThumbnailQuality.current == ThumbnailQuality.OFF)
     val scheme = MaterialTheme.colorScheme
     val hasArtwork = !thumbnailUrl.isNullOrBlank() && palette.accent.isSpecified
     return remember(palette, scheme, hasArtwork) {

@@ -4,10 +4,12 @@ import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
@@ -17,15 +19,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +55,8 @@ import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
+import io.github.aedev.flow.ui.screens.home.chips.HomeChipContent
+import io.github.aedev.flow.ui.screens.home.chips.HomeChipRow
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -66,6 +76,7 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
     onOpenShortsFeed: () -> Unit = {},
+    onPlayMix: (videos: List<Video>, title: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -81,6 +92,13 @@ fun HomeScreen(
 
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    val chips by viewModel.chips.collectAsStateWithLifecycle()
+    // Each chip keeps its own scroll position for the session.
+    val chipGridStates = remember { HashMap<String, LazyGridState>() }
+    val activeGridState = if (chips.isAll) gridState else chipGridStates.getOrPut(chips.selected) { LazyGridState() }
+    val chipRowState = rememberTopAppBarState()
+    val chipRowBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(chipRowState)
+    val currentChips by rememberUpdatedState(chips)
 
     LifecycleStartEffect(viewModel, homeFeedEnabled) {
         if (homeFeedEnabled) {
@@ -126,13 +144,21 @@ fun HomeScreen(
             .filter { it == "home" }
             .collectLatest {
                 // Down the feed a reselect only scrolls back up; at the top it refreshes (#1171).
-                val atTop = gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+                val grid = if (currentChips.isAll) gridState else chipGridStates[currentChips.selected] ?: return@collectLatest
+                val atTop = grid.firstVisibleItemIndex == 0 && grid.firstVisibleItemScrollOffset == 0
                 if (!atTop) {
-                    gridState.animateScrollToItem(0)
+                    grid.animateScrollToItem(0)
                 } else if (refreshHomeOnReselect) {
-                    viewModel.refreshFeed()
+                    if (currentChips.isAll) viewModel.refreshFeed() else viewModel.refreshSelectedChip()
                 }
             }
+    }
+
+    val haptic = LocalHapticFeedback.current
+    val deepFlowLabel = stringResource(R.string.deep_flow_mode_title)
+    val toggleDeepFlow: () -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        coroutineScope.launch { DeepFlowManager.toggle(context) }
     }
 
     Scaffold(
@@ -143,6 +169,7 @@ fun HomeScreen(
                 title = {
                     Text(
                         stringResource(R.string.app_name_uppercase),
+                        modifier = Modifier.deepFlowLongPress(deepFlowLabel, toggleDeepFlow),
                         style =
                             MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
@@ -155,12 +182,7 @@ fun HomeScreen(
                         {
                             FlowHeaderLogoIcon(
                                 isDeepFlowActive = deepFlowActive,
-                                onToggleDeepFlow = {
-                                    coroutineScope.launch {
-                                        DeepFlowManager.toggle(context)
-                                    }
-                                },
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(32.dp).deepFlowLongPress(deepFlowLabel, toggleDeepFlow),
                             )
                         }
                     } else {
@@ -177,66 +199,96 @@ fun HomeScreen(
             )
         },
     ) { padding ->
-        ResettableHomePullToRefreshBox(
-            resetKey = uiState.isLoading && uiState.videos.isEmpty(),
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = { viewModel.refreshFeed() },
+        Column(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .background(MaterialTheme.colorScheme.background),
         ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val isListView = homeViewMode == HomeViewMode.LIST
-                val feedLayout = rememberFeedGridLayout(maxWidth, homeFeedColumns)
+            if (homeFeedEnabled && chips.chips.size > 1) {
+                HomeChipRow(
+                    state = chips,
+                    scrollState = chipRowState,
+                    onSelect = { key ->
+                        chipRowState.heightOffset = 0f
+                        viewModel.selectChip(key)
+                    },
+                )
+            }
+            ResettableHomePullToRefreshBox(
+                resetKey = uiState.isLoading && uiState.videos.isEmpty(),
+                isRefreshing = if (chips.isAll) uiState.isRefreshing else chips.isRefreshing,
+                onRefresh = { if (chips.isAll) viewModel.refreshFeed() else viewModel.refreshSelectedChip() },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .nestedScroll(chipRowBehavior.nestedScrollConnection),
+            ) {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val isListView = homeViewMode == HomeViewMode.LIST
+                    val feedLayout = rememberFeedGridLayout(maxWidth, homeFeedColumns)
 
-                when {
-                    !homeFeedEnabled -> {
-                        HomeFeedDisabledState(modifier = Modifier.fillMaxSize())
-                    }
-
-                    uiState.isLoading && uiState.videos.isEmpty() -> {
-                        FeedGridSkeleton(
-                            layout = feedLayout,
-                            listMode = isListView,
-                            stackedInset = !feedLayout.isCompact,
-                            placeholderCount = SKELETON_CARD_COUNT,
-                            compactRowSpacing = if (isListView) 0.dp else feedLayout.cardSpacing,
-                        )
-                    }
-
-                    uiState.error != null && uiState.videos.isEmpty() -> {
-                        FlowErrorState(
-                            error = uiState.error ?: stringResource(R.string.error_occurred),
-                            onRetry = { viewModel.retry() },
-                        )
-                    }
-
-                    else -> {
-                        ReportDrawnWhen {
-                            uiState.videos.isNotEmpty() ||
-                                uiState.shorts.isNotEmpty() ||
-                                uiState.continueWatchingVideos.isNotEmpty()
+                    when {
+                        !homeFeedEnabled -> {
+                            HomeFeedDisabledState(modifier = Modifier.fillMaxSize())
                         }
 
-                        HomeFeedGrid(
-                            uiState = uiState,
-                            feedLayout = feedLayout,
-                            isListView = isListView,
-                            gridState = gridState,
-                            onVideoClick = onVideoClick,
-                            onEnrichChannelMetadata = viewModel::enrichChannelMetadataIfMissing,
-                            onContinueWatchingClick = { entry -> onVideoClick(entry.toResumeVideo()) },
-                            onContinueWatchingRemove = viewModel::removeContinueWatchingEntry,
-                            onShortClick = { shelf, tapped ->
-                                onShortClick(viewModel.shortsShelfSource(shelf, tapped))
-                            },
-                            onSeeAllHistory = onNavigateToHistory,
-                            onOpenShortsFeed = onOpenShortsFeed,
-                            onShortsShown = viewModel::recordShelfImpressions,
-                            onRefresh = { viewModel.refreshFeed() },
-                        )
+                        !chips.isAll -> {
+                            HomeChipContent(
+                                state = chips,
+                                feedLayout = feedLayout,
+                                isListView = isListView,
+                                gridState = activeGridState,
+                                onVideoClick = onVideoClick,
+                                onPlayMix = { mix -> onPlayMix(mix.videos, context.getString(R.string.home_mix_title, mix.seed.title)) },
+                                onRefresh = viewModel::refreshSelectedChip,
+                                onEnrichVideo = viewModel::enrichChipVideo,
+                            )
+                        }
+
+                        uiState.isLoading && uiState.videos.isEmpty() -> {
+                            FeedGridSkeleton(
+                                layout = feedLayout,
+                                listMode = isListView,
+                                stackedInset = !feedLayout.isCompact,
+                                placeholderCount = SKELETON_CARD_COUNT,
+                                compactRowSpacing = if (isListView) 0.dp else feedLayout.cardSpacing,
+                            )
+                        }
+
+                        uiState.error != null && uiState.videos.isEmpty() -> {
+                            FlowErrorState(
+                                error = uiState.error ?: stringResource(R.string.error_occurred),
+                                onRetry = { viewModel.retry() },
+                            )
+                        }
+
+                        else -> {
+                            ReportDrawnWhen {
+                                uiState.videos.isNotEmpty() ||
+                                    uiState.shorts.isNotEmpty() ||
+                                    uiState.continueWatchingVideos.isNotEmpty()
+                            }
+
+                            HomeFeedGrid(
+                                uiState = uiState,
+                                feedLayout = feedLayout,
+                                isListView = isListView,
+                                gridState = gridState,
+                                onVideoClick = onVideoClick,
+                                onEnrichChannelMetadata = viewModel::enrichChannelMetadataIfMissing,
+                                onContinueWatchingClick = { entry -> onVideoClick(entry.toResumeVideo()) },
+                                onContinueWatchingRemove = viewModel::removeContinueWatchingEntry,
+                                onShortClick = { shelf, tapped ->
+                                    onShortClick(viewModel.shortsShelfSource(shelf, tapped))
+                                },
+                                onSeeAllHistory = onNavigateToHistory,
+                                onOpenShortsFeed = onOpenShortsFeed,
+                                onShortsShown = viewModel::recordShelfImpressions,
+                                onRefresh = { viewModel.refreshFeed() },
+                            )
+                        }
                     }
                 }
             }
@@ -246,7 +298,7 @@ fun HomeScreen(
 
 // Deliberately not data/model's VideoHistoryEntry.toVideo(): that one carries isShort, which would
 // reroute a resumed short to the Shorts player instead of the video player.
-private fun VideoHistoryEntry.toResumeVideo(): Video =
+internal fun VideoHistoryEntry.toResumeVideo(): Video =
     Video(
         id = videoId,
         title = title,

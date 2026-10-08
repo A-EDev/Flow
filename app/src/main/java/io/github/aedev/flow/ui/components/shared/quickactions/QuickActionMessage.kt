@@ -53,4 +53,9 @@ sealed interface QuickActionUndo {
     data class QueueRemoval(
         val entry: RemovedQueueEntry,
     ) : QuickActionUndo
+
+    /** A download queued because the viewer opened the video. */
+    data class AutoDownload(
+        val videoId: String,
+    ) : QuickActionUndo
 }

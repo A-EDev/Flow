@@ -9,14 +9,17 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedMerger.preservingEnrichedMetadata
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,6 +48,7 @@ class SubscriptionFeedRepository
         private val cacheDao: CacheDao,
         private val database: AppDatabase,
         private val playerPreferences: PlayerPreferences,
+        private val collabIndex: ChannelCollabIndex,
     ) {
         /**
          * Guards against overlapping refreshes; the screen, the startup pass and the worker can all
@@ -52,7 +56,10 @@ class SubscriptionFeedRepository
          */
         private val refreshLock = Mutex()
 
-        fun observeFeed(): Flow<List<Video>> = cacheDao.getSubscriptionFeed().map { rows -> rows.map { it.toVideo() } }
+        fun observeFeed(): Flow<List<Video>> =
+            combine(cacheDao.getSubscriptionFeed(), playerPreferences.subscriptionCollaborationsEnabled) { rows, collaborations ->
+                rows.filter { collaborations || it.feedChannelId.isEmpty() }.map { it.toVideo() }
+            }
 
         /** Which channels are due a refresh right now; empty when everything is still fresh. */
         suspend fun planRefresh(force: Boolean): SubscriptionRefreshPlan {
@@ -79,7 +86,12 @@ class SubscriptionFeedRepository
                 }
 
                 try {
-                    val allCached = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() }
+                    val cachedRows = withContext(PerformanceDispatcher.diskIO) { cacheDao.getSubscriptionFeed().first() }
+                    val allCached = cachedRows.map { it.toVideo() }
+                    val lastFeedFetchAt =
+                        withContext(PerformanceDispatcher.diskIO) {
+                            subscriptionRepository.getAllSubscriptions().first().associate { it.channelId to it.lastFeedFetchAt }
+                        }
                     val plannedChannelIds = plan.channelIds.toHashSet()
                     val sliceCached =
                         if (plan.isFullRefresh) {
@@ -92,6 +104,7 @@ class SubscriptionFeedRepository
                     var latestChunkVideos = emptyList<Video>()
                     var failedChannelIds = emptySet<String>()
                     var failedChannelReasons = emptyMap<String, String>()
+                    var incompleteChannelIds = emptySet<String>()
                     var processed = 0
 
                     rssSubscriptionService
@@ -99,11 +112,12 @@ class SubscriptionFeedRepository
                             channelIds = plan.channelIds,
                             maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                             knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
-                            storedReelVerdicts = allCached.associate { it.id to it.isShort },
+                            storedReelVerdicts = trustedReelVerdicts(cachedRows, lastFeedFetchAt),
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
                             failedChannelReasons = chunk.failedChannelReasons
+                            incompleteChannelIds = chunk.incompleteChannelIds
                             if (chunk.videos.isNotEmpty()) {
                                 latestChunkVideos = chunk.videos
                                 previewVideos =
@@ -134,7 +148,7 @@ class SubscriptionFeedRepository
                                 plan = plan,
                                 freshVideos = latestChunkVideos,
                                 sliceCached = sliceCached,
-                                failedChannelIds = failedChannelIds,
+                                failedChannelIds = failedChannelIds + incompleteChannelIds,
                                 refreshTime = refreshTime,
                             )
                         emit(
@@ -150,6 +164,17 @@ class SubscriptionFeedRepository
                         withContext(PerformanceDispatcher.diskIO) {
                             playerPreferences.setSubscriptionLastRefresh(refreshTime, allCached.size)
                         }
+                    }
+                    if (refreshCollaborations()) {
+                        emit(
+                            SubscriptionFeedRefreshProgress(
+                                videos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() },
+                                failedChannelIds = failedChannelIds,
+                                failedChannelReasons = failedChannelReasons,
+                                processedChannels = plan.channelIds.size,
+                                totalChannels = plan.channelIds.size,
+                            ),
+                        )
                     }
                 } finally {
                     refreshLock.unlock()
@@ -188,7 +213,7 @@ class SubscriptionFeedRepository
             withContext(PerformanceDispatcher.diskIO) {
                 database.withTransaction {
                     if (plan.isFullRefresh) {
-                        cacheDao.clearSubscriptionFeed()
+                        cacheDao.clearSubscriptionUploads()
                     } else {
                         plan.channelIds.chunked(SQLITE_VARIABLE_LIMIT).forEach { ids ->
                             cacheDao.deleteSubscriptionFeedForChannels(ids)
@@ -267,6 +292,7 @@ class SubscriptionFeedRepository
                             isUpcoming = video.isUpcoming,
                             uploadDate = video.uploadDate,
                             timestamp = video.timestamp,
+                            timestampIsExact = video.timestampIsExact,
                         )
                     }
                 }
@@ -291,7 +317,34 @@ class SubscriptionFeedRepository
             updateEnrichedMetadata(updates)
         }
 
-        private suspend fun loadCachedFeed(): List<Video> = cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
+        private suspend fun loadCachedFeed(): List<Video> = observeFeed().first()
+
+        /**
+         * Looks a few followed channels over for collaborations someone else uploaded and stores what
+         * each one shows, replacing that channel's earlier set. With the setting off, drops them all.
+         * True when the stored feed changed.
+         */
+        private suspend fun refreshCollaborations(): Boolean {
+            if (!playerPreferences.subscriptionCollaborationsEnabled.first()) {
+                withContext(PerformanceDispatcher.diskIO) { cacheDao.deleteCollaborations() }
+                return false
+            }
+            val followed =
+                withContext(PerformanceDispatcher.diskIO) {
+                    subscriptionRepository.getAllSubscriptions().first().map { it.channelId }
+                }
+            val found = collabIndex.scan(followed)
+            if (found.isEmpty()) return false
+            val now = System.currentTimeMillis()
+            withContext(PerformanceDispatcher.diskIO) {
+                found.forEach { (feedChannelId, collabs) ->
+                    val recent = collabs.filter { it.timestamp > now - SUBSCRIPTION_CACHE_WINDOW_MS }
+                    cacheDao.replaceCollaborations(feedChannelId, recent.map { it.toEntity(now, feedChannelId) })
+                }
+            }
+            Log.i(TAG, "Collaborations: looked at ${found.size} channel(s), ${found.values.sumOf { it.size }} video(s)")
+            return true
+        }
 
         private companion object {
             const val TAG = "SubsFeedRepo"
@@ -325,7 +378,10 @@ private fun SubscriptionFeedEntity.toVideo() =
         viewCount = viewCount,
         uploadDate = uploadDate,
         timestamp = timestamp,
+        timestampIsExact = timestampIsExact,
         channelThumbnailUrl = channelThumbnailUrl,
+        collaborators = decodeCollaborators(collaboratorsJson),
+        channelThumbnailUrls = decodeCollaborators(collaboratorsJson).map { it.thumbnailUrl }.filter { it.isNotBlank() },
         isShort = isShort,
         isLive = isLive && uploadDate.containsLiveMarker(),
         // A cached "upcoming" outlives its start time only until the next look at the row.
@@ -333,23 +389,39 @@ private fun SubscriptionFeedEntity.toVideo() =
         isScheduledLive = isUpcoming && isLive && timestamp > System.currentTimeMillis(),
     )
 
-private fun Video.toEntity(cachedAtMillis: Long) =
-    SubscriptionFeedEntity(
-        videoId = id,
-        title = title,
-        channelName = channelName,
-        channelId = channelId,
-        thumbnailUrl = thumbnailUrl,
-        duration = duration,
-        viewCount = viewCount,
-        uploadDate = uploadDate,
-        timestamp = timestamp,
-        channelThumbnailUrl = channelThumbnailUrl,
-        isShort = isShort,
-        isLive = isLive,
-        isUpcoming = isUpcoming,
-        cachedAt = cachedAtMillis,
-    )
+private fun Video.toEntity(
+    cachedAtMillis: Long,
+    feedChannelId: String = "",
+) = SubscriptionFeedEntity(
+    videoId = id,
+    title = title,
+    channelName = channelName,
+    channelId = channelId,
+    thumbnailUrl = thumbnailUrl,
+    duration = duration,
+    viewCount = viewCount,
+    uploadDate = uploadDate,
+    timestamp = timestamp,
+    channelThumbnailUrl = channelThumbnailUrl,
+    isShort = isShort,
+    isLive = isLive,
+    isUpcoming = isUpcoming,
+    cachedAt = cachedAtMillis,
+    feedChannelId = feedChannelId,
+    collaboratorsJson = if (collaborators.size > 1) collaboratorJson.encodeToString(collaborators) else "",
+    timestampIsExact = timestampIsExact,
+)
+
+private val collaboratorJson = Json { ignoreUnknownKeys = true }
+
+private fun decodeCollaborators(json: String): List<VideoCollaborator> =
+    if (json.isBlank()) {
+        emptyList()
+    } else {
+        runCatching {
+            collaboratorJson.decodeFromString<List<VideoCollaborator>>(json)
+        }.getOrDefault(emptyList())
+    }
 
 private fun ChannelRssEntry.toEntity(
     channelId: String,
@@ -369,6 +441,7 @@ private fun ChannelRssEntry.toEntity(
     viewCount = viewCount,
     uploadDate = "",
     timestamp = publishedAtMillis,
+    timestampIsExact = true,
     channelThumbnailUrl = "",
     isShort = isShort,
     isLive = false,

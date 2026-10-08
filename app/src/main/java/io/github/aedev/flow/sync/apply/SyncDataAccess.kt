@@ -188,12 +188,22 @@ class SyncDataAccess
                     kind = note.kind,
                     text = note.text,
                     updatedAt = note.updatedAt,
+                    title = note.title,
+                    channelName = note.channelName,
+                    channelId = note.channelId,
+                    thumbnailUrl = note.thumbnailUrl,
+                    durationSeconds = note.durationSeconds,
+                    channelAvatarUrl = note.channelAvatarUrl,
+                    channelHandle = note.channelHandle,
+                    subscriberCountText = note.subscriberCountText,
                 )
             }
 
         suspend fun writeNotes(merged: List<CanonicalNote>) {
             val live = merged.filter { !it.deleted && it.text.isNotBlank() }
             if (live.isNotEmpty()) {
+                // The hand-made order is this device's own; a peer's copy never carries it.
+                val positions = noteDao.getAll().associate { it.id to it.position }
                 noteDao.upsertAll(
                     live.map { note ->
                         NoteEntity(
@@ -202,6 +212,15 @@ class SyncDataAccess
                             kind = note.kind,
                             text = note.text,
                             updatedAt = note.updatedAt,
+                            title = note.title,
+                            channelName = note.channelName,
+                            channelId = note.channelId,
+                            thumbnailUrl = note.thumbnailUrl,
+                            durationSeconds = note.durationSeconds,
+                            channelAvatarUrl = note.channelAvatarUrl,
+                            channelHandle = note.channelHandle,
+                            subscriberCountText = note.subscriberCountText,
+                            position = positions[note.id],
                         )
                     },
                 )
@@ -292,17 +311,20 @@ class SyncDataAccess
             myDevice: String,
             hlc: String,
         ) {
-            val local = exportLocalBrain()
+            val localJson = exportLocalBrainJson()
+            val local = parseLocalBrain(localJson)
             var sidecar = attributeLocalEdits(brainCrdtStore.load(), myDevice, local, hlc)
             val localCanonical = BrainMapper.toCanonical(local, myDevice, hlc, sidecar)
             val merged = BrainMerger.merge(localCanonical, BrainMapper.normalizeIncoming(remote))
             val mergedBrain = BrainMapper.writeBack(merged, local)
-            neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serialize(mergedBrain)))
+            neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serializeOver(localJson, mergedBrain)))
             sidecar = BrainCrdtState.afterMerge(sidecar, merged)
             brainCrdtStore.save(sidecar)
         }
 
-        private suspend fun exportLocalBrain(): BrainMapper.SBrain {
+        private suspend fun exportLocalBrain(): BrainMapper.SBrain = parseLocalBrain(exportLocalBrainJson())
+
+        private suspend fun exportLocalBrainJson(): ByteArray {
             var exported = false
             val bytes =
                 ByteArrayOutputStream().use { bos ->
@@ -310,9 +332,12 @@ class SyncDataAccess
                     bos.toByteArray()
                 }
             if (!exported) throw IllegalStateException("could not read the local FlowNeuro brain")
-            return runCatching { BrainMapper.parse(bytes) }
-                .getOrElse { throw IllegalStateException("the local FlowNeuro brain could not be parsed", it) }
+            return bytes
         }
+
+        private fun parseLocalBrain(bytes: ByteArray): BrainMapper.SBrain =
+            runCatching { BrainMapper.parse(bytes) }
+                .getOrElse { throw IllegalStateException("the local FlowNeuro brain could not be parsed", it) }
 
         // --- music brain (stateful: CRDT sidecar, the music twin of the neuro path) ---
 

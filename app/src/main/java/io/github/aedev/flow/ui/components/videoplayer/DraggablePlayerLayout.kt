@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -26,6 +27,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -37,20 +40,23 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_CONTENT_MAX_EX
 import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_SLIDE_PX
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureHandler
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureMetrics
-import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerPinchGestureHandler
-import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerResnapTargets
 import io.github.aedev.flow.ui.components.videoplayer.motion.PlayerBodyNestedScrollConnection
+import io.github.aedev.flow.ui.components.videoplayer.motion.RoundRectClipShape
 import io.github.aedev.flow.ui.components.videoplayer.motion.computeDraggablePlayerGeometry
 import io.github.aedev.flow.ui.components.videoplayer.motion.draggablePlayerGestures
+import io.github.aedev.flow.ui.components.videoplayer.motion.keyboardSafeMiniY
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGesture
+import io.github.aedev.flow.ui.components.videoplayer.motion.morphCornerRadiusPx
+import io.github.aedev.flow.ui.components.videoplayer.motion.openBodyAlpha
+import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundCornerRadius
+import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundRect
 import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.resnapMiniPlayer
 import io.github.aedev.flow.ui.components.videoplayer.motion.resnapTargets
+import io.github.aedev.flow.ui.components.videoplayer.motion.resolveOpenOriginRect
 import io.github.aedev.flow.ui.components.videoplayer.motion.update
 import io.github.aedev.flow.ui.theme.PlayerGround
-import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /**
@@ -70,9 +76,6 @@ private val MiniPlayerLargeWindowWidth = 260.dp
 private const val DEFAULT_MINI_PLAYER_SCALE = 0.45f
 private val PortraitFullscreenActivation = 28.dp
 private val MiniPlayerShadowElevation = 8.dp
-
-/** A collapse lands this much below its corner and lifts back up: the height of the nav bar it settles behind. */
-private val MiniPlayerSettleDip = 48.dp
 
 /**
  * The video player as one box that is laid out once at its expanded size and morphed into the
@@ -133,9 +136,17 @@ fun DraggablePlayerLayout(
 
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
     val systemLayoutDirection = LocalLayoutDirection.current
+    val windowPosition = remember { WindowPosition() }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier =
+                modifier.fillMaxSize().onPlaced { coordinates ->
+                    val position = coordinates.positionInWindow()
+                    windowPosition.x = position.x
+                    windowPosition.y = position.y
+                },
+        ) {
             val screenWidth = constraints.maxWidth.toFloat()
             val screenHeight = constraints.maxHeight.toFloat()
             val showImmersiveFullscreen =
@@ -177,34 +188,79 @@ fun DraggablePlayerLayout(
             val expandedVideoWidth = geometry.expandedVideoWidth
             val visualMiniScale = geometry.visualMiniScale
 
+            val expandedVideoHeight =
+                rememberGlidingVideoHeight(state, expandedVideoWidth, geometry.expandedVideoHeight)
             val heightFractionOverrideState = rememberUpdatedState(expandedPlayerHeightFractionOverride)
             // Read in the layout phase only: the fraction changes on every nested-scroll delta and
             // every media-sheet drag frame, and a composition read here recomposed this whole tree.
             val currentExpandedVideoHeightProvider =
-                remember(geometry.baseVideoHeight, geometry.expandedVideoHeight) {
+                remember(geometry.baseVideoHeight, expandedVideoHeight) {
                     {
-                        if (geometry.expandedVideoHeight > geometry.baseVideoHeight) {
+                        val fullHeight = expandedVideoHeight()
+                        if (fullHeight > geometry.baseVideoHeight) {
                             val fraction =
                                 heightFractionOverrideState.value?.invoke()?.coerceIn(0f, 1f)
                                     ?: playerHeightFraction
-                            lerpClamped(geometry.baseVideoHeight, geometry.expandedVideoHeight, fraction)
+                            lerpClamped(geometry.baseVideoHeight, fullHeight, fraction)
                         } else {
-                            geometry.expandedVideoHeight
+                            fullHeight
                         }
                     }
                 }
+            val openRectProvider =
+                remember(screenHeight, expandedVideoWidth, currentExpandedVideoHeightProvider) {
+                    {
+                        resolveOpenOriginRect(
+                            origin = state.openOrigin,
+                            layoutLeft = windowPosition.x,
+                            layoutTop = windowPosition.y,
+                            screenHeight = screenHeight,
+                            expandedVideoWidth = expandedVideoWidth,
+                            expandedVideoHeight = currentExpandedVideoHeightProvider(),
+                        )
+                    }
+                }
+            val miniCornerRadiusPx = with(density) { MINI_PLAYER_CORNER_RADIUS_DP.dp.toPx() }
+            val imeInsets = WindowInsets.ime
+            val miniMarginPx = with(density) { MiniPlayerMargin.toPx() }
+            // The keyboard is read in the layout and draw phases only, so it moving does not recompose.
+            val miniRestingY =
+                remember(geometry.miniHeight, geometry.minY, screenHeight, miniMarginPx, density) {
+                    {
+                        keyboardSafeMiniY(
+                            offsetY = state.offsetY.value,
+                            miniHeight = geometry.miniHeight,
+                            screenHeight = screenHeight,
+                            imeBottom = imeInsets.getBottom(density).toFloat(),
+                            margin = miniMarginPx,
+                            minY = geometry.minY,
+                        )
+                    }
+                }
+            val cornerRadiusProvider =
+                remember(openRectProvider, expandedVideoWidth, miniCornerRadiusPx, visualMiniScale) {
+                    {
+                        morphCornerRadiusPx(
+                            fraction = state.expandFraction.value,
+                            origin = openRectProvider(),
+                            expandedVideoWidth = expandedVideoWidth,
+                            miniCornerRadiusPx = miniCornerRadiusPx,
+                            visualMiniScale = visualMiniScale,
+                        )
+                    }
+                }
+
             ReportExpandedPlayerBottom(
                 statusBarHeight = statusBarHeight,
                 videoHeightProvider = currentExpandedVideoHeightProvider,
                 onChanged = onExpandedPlayerBottomChanged,
             )
 
-            val settleDipPx = with(density) { MiniPlayerSettleDip.toPx() }
             SideEffect {
+                state.morphCornerRadiusPx = cornerRadiusProvider
                 state.miniVisualScale = visualMiniScale
                 state.cachedTargetX = geometry.normalTargetX
                 state.cachedTargetY = geometry.normalTargetY
-                state.settleDipPx = settleDipPx
             }
 
             val isCollapsedTarget by remember(state) {
@@ -257,60 +313,24 @@ fun DraggablePlayerLayout(
             if (showImmersiveFullscreen) {
                 ImmersiveFullscreenBackdrop(thumbnailUrl = thumbnailUrl)
             } else {
-                CollapsingPlayerScrim(state = state, statusBarHeight = statusBarHeight)
+                CollapsingPlayerScrim(state = state, statusBarHeight = statusBarHeight, openRect = openRectProvider)
             }
 
             if (!showImmersiveFullscreen) {
-                val bodyAlphaProvider =
-                    remember(state) {
-                        {
-                            (1f - state.expandFraction.value / BODY_CONTENT_MAX_EXPAND_FRACTION)
-                                .coerceIn(0f, 1f)
-                        }
-                    }
-                val videoHeightPlaceholderProvider =
-                    remember(isTwoPaneWindow, currentExpandedVideoHeightProvider) {
-                        if (isTwoPaneWindow) currentExpandedVideoHeightProvider else ({ 0f })
-                    }
-                val bodyPaddingTopProvider =
-                    remember(isTwoPaneWindow, statusBarHeight, currentExpandedVideoHeightProvider) {
-                        if (isTwoPaneWindow) {
-                            ({ statusBarHeight })
-                        } else {
-                            ({ currentExpandedVideoHeightProvider() + statusBarHeight })
-                        }
-                    }
-
-                CompositionLocalProvider(LocalLayoutDirection provides systemLayoutDirection) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .layout { measurable, constraints ->
-                                    val topPad = bodyPaddingTopProvider().roundToInt().coerceAtLeast(0)
-                                    val placeable = measurable.measure(constraints.offset(vertical = -topPad))
-                                    layout(constraints.maxWidth, constraints.maxHeight) {
-                                        // The slide is a placement offset, not a layer translation: a
-                                        // positional layer transform makes Compose re-walk every node
-                                        // of this page's subtree on each frame of the sheet motion.
-                                        val fraction = state.expandFraction.value
-                                        val slide =
-                                            if (fraction > 0.999f) {
-                                                placeable.height.toFloat()
-                                            } else {
-                                                fraction * BODY_SLIDE_PX +
-                                                    portraitFsFraction * portraitFsTravelProvider()
-                                            }
-                                        placeable.place(0, topPad + slide.roundToInt())
-                                    }
-                                }.graphicsLayer {
-                                    alpha = bodyAlphaProvider() * (1f - portraitFsFraction)
-                                    compositingStrategy = CompositingStrategy.ModulateAlpha
-                                }.nestedScroll(nestedScrollConnection),
-                    ) {
-                        bodyContent(bodyAlphaProvider, videoHeightPlaceholderProvider)
-                    }
-                }
+                DraggablePlayerPage(
+                    state = state,
+                    isTwoPaneWindow = isTwoPaneWindow,
+                    statusBarHeight = statusBarHeight,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight,
+                    videoHeightProvider = currentExpandedVideoHeightProvider,
+                    portraitFsFraction = { portraitFsFraction },
+                    portraitFsTravel = portraitFsTravelProvider,
+                    openRect = openRectProvider,
+                    nestedScrollConnection = nestedScrollConnection,
+                    layoutDirection = systemLayoutDirection,
+                    bodyContent = bodyContent,
+                )
             }
 
             val gestureMetrics = remember(state) { DraggablePlayerGestureMetrics() }
@@ -330,6 +350,12 @@ fun DraggablePlayerLayout(
                 remember(state, gestureMetrics) { DraggablePlayerGestureHandler(state, gestureMetrics) }
             val pinchHandler =
                 remember(state, gestureMetrics) { MiniPlayerPinchGestureHandler(state, gestureMetrics) }
+            MiniPlayerTuckHandle(
+                state = state,
+                miniY = miniRestingY,
+                miniHeight = geometry.miniHeight,
+                onUntuck = gestureHandler::untuck,
+            )
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(
@@ -361,22 +387,18 @@ fun DraggablePlayerLayout(
                                     layout(targetW, targetH) { placeable.place(0, 0) }
                                 }.graphicsLayer {
                                     val fraction = state.expandFraction.value
-                                    val liveMiniWidth =
-                                        geometry
+                                    val origin = openRectProvider()
+                                    val endWidth =
+                                        origin?.width ?: geometry
                                             .miniBoxWidth(geometry.baseMiniWidth * state.miniSizeScale.value)
                                             .coerceAtMost(geometry.maxWideWidth)
                                     val visualScale =
                                         lerpClamped(
                                             1f,
-                                            liveMiniWidth / expandedVideoWidth.coerceAtLeast(1f),
+                                            endWidth / expandedVideoWidth.coerceAtLeast(1f),
                                             fraction,
                                         )
-                                    val drag =
-                                        if (fraction > 0.6f) {
-                                            state.dragScale.value
-                                        } else {
-                                            state.expandDragScale.value
-                                        }
+                                    val drag = if (fraction > 0.6f) 1f else state.expandDragScale.value
                                     transformOrigin = TransformOrigin(0f, 0f)
                                     scaleX = visualScale * drag
                                     scaleY = visualScale * drag
@@ -384,30 +406,24 @@ fun DraggablePlayerLayout(
                                     val windowH = size.height * visualScale
                                     val expandedTopY = lerpClamped(statusBarHeight, 0f, portraitFsFraction)
                                     translationX =
-                                        lerpClamped(0f, state.offsetX.value, fraction) +
+                                        lerpClamped(0f, origin?.left ?: state.offsetX.value, fraction) +
                                         windowW * (1f - drag) / 2f
                                     translationY =
-                                        lerpClamped(expandedTopY, state.offsetY.value + state.settleDip.value, fraction) +
-                                        windowH * (1f - drag) / 2f
+                                        lerpClamped(
+                                            expandedTopY,
+                                            origin?.top ?: miniRestingY(),
+                                            fraction,
+                                        ) + windowH * (1f - drag) / 2f
                                     shadowElevation =
-                                        if (fraction > 0.95f) {
+                                        if (origin == null && fraction > 0.95f) {
                                             MiniPlayerShadowElevation.toPx() / visualMiniScale
                                         } else {
                                             0f
                                         }
-                                    shape =
-                                        RoundedCornerShape(
-                                            if (fraction > 0.1f) (MINI_PLAYER_CORNER_RADIUS_DP / visualMiniScale).dp else 0.dp,
-                                        )
+                                    shape = RoundedCornerShape(cornerRadiusProvider())
                                     clip = false
                                 }.drawBehind {
-                                    val fraction = state.expandFraction.value
-                                    val r =
-                                        if (fraction > 0.1f) {
-                                            (MINI_PLAYER_CORNER_RADIUS_DP / visualMiniScale).dp.toPx()
-                                        } else {
-                                            0f
-                                        }
+                                    val r = cornerRadiusProvider()
                                     drawRoundRect(
                                         color = PlayerGround,
                                         cornerRadius = CornerRadius(r, r),
@@ -437,51 +453,8 @@ fun DraggablePlayerLayout(
     }
 }
 
-/**
- * Nudges a settled mini player back onto its resting corner whenever the bounds change under it
- * (nav bar shown or hidden, rotation, wide mode). Keyed on settled values only, never on a live
- * fraction, so it cannot restart per frame.
- */
-@Composable
-private fun MiniPlayerResnapEffect(
-    state: PlayerDraggableState,
-    isCollapsedTarget: Boolean,
-    targets: MiniPlayerResnapTargets,
-) {
-    LaunchedEffect(
-        isCollapsedTarget,
-        targets.targetMiniX,
-        targets.targetMiniY,
-        targets.isWideMode,
-        targets.isLargeScreen,
-    ) {
-        if (state.expandFraction.targetValue <= 0.5f || state.isDragging) return@LaunchedEffect
-        delay(MINI_RESNAP_DEBOUNCE_MS)
-        if (state.isDragging) return@LaunchedEffect
-        resnapMiniPlayer(state, targets)
-    }
-}
-
-/**
- * Publishes the expanded player's bottom edge to the host from its own recomposition scope.
- * The host sizes media sheets from it, so it must be state, but rounding to whole dp keeps the
- * host from recomposing on every pixel of the adaptive-height shrink.
- */
-@Composable
-private fun ReportExpandedPlayerBottom(
-    statusBarHeight: Float,
-    videoHeightProvider: () -> Float,
-    onChanged: (Dp) -> Unit,
-) {
-    val density = LocalDensity.current
-    val bottom by remember(statusBarHeight, density, videoHeightProvider) {
-        derivedStateOf {
-            with(density) { (statusBarHeight + videoHeightProvider()).toDp() }
-                .value
-                .roundToInt()
-                .dp
-        }
-    }
-    val currentOnChanged by rememberUpdatedState(onChanged)
-    SideEffect { currentOnChanged(bottom) }
+/** Where the layout sits in the window; written on placement and read in the draw phase only. */
+private class WindowPosition {
+    var x = 0f
+    var y = 0f
 }

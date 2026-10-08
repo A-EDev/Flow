@@ -27,15 +27,16 @@ class ChannelReelIndex
         private val lookups = Semaphore(MAX_CONCURRENT_LOOKUPS)
         private val cache = LinkedHashMap<String, Entry>()
 
+        /** Null when the Shorts tab could not be read: the slice is then unclassified, not reel-free. */
         suspend fun markReels(
             channelId: String,
             videos: List<Video>,
             nowMillis: Long = System.currentTimeMillis(),
-        ): List<Video> {
+        ): List<Video>? {
             if (channelId.isBlank() || videos.isEmpty()) return videos
             if (videos.all { it.isShort }) return videos
 
-            val reelIds = reelIds(channelId, nowMillis) ?: return videos
+            val reelIds = reelIds(channelId, nowMillis) ?: return null
             if (reelIds.isEmpty()) return videos
             return videos.map { video ->
                 if (!video.isShort && video.id in reelIds) video.copy(isShort = true) else video

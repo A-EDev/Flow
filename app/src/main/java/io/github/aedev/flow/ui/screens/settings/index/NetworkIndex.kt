@@ -23,10 +23,16 @@ internal object NetworkIndex {
 
     val enabled = entry("enabled", R.string.proxy_settings_enabled, R.string.proxy_settings_title, R.string.proxy_settings_enabled_subtitle)
     val type = entry("type", R.string.proxy_settings_type, R.string.proxy_settings_title)
+    val bypassOnVpn =
+        entry("bypass_vpn", R.string.proxy_settings_bypass_vpn, R.string.proxy_settings_title, R.string.proxy_settings_bypass_vpn_subtitle)
+
+    /** A status row shown only while a VPN pauses the proxy, so it is left out of search. */
+    val vpnPaused =
+        entry("vpn_paused", R.string.proxy_settings_vpn_paused, R.string.proxy_settings_title, R.string.proxy_settings_vpn_paused_subtitle)
     val host = entry("host", R.string.proxy_settings_host, R.string.settings_section_proxy_server)
     val port = entry("port", R.string.proxy_settings_port, R.string.settings_section_proxy_server)
     val username = entry("username", R.string.proxy_settings_username, R.string.settings_section_proxy_sign_in)
     val password = entry("password", R.string.proxy_settings_password, R.string.settings_section_proxy_sign_in)
 
-    val all = listOf(enabled, type, host, port, username, password)
+    val all = listOf(enabled, type, bypassOnVpn, host, port, username, password)
 }

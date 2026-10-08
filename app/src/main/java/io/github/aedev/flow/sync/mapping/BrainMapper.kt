@@ -17,6 +17,8 @@ import io.github.aedev.flow.sync.merge.BrainCrdtState
 import io.github.aedev.flow.sync.merge.Crdt
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * Mirror of the app's on-disk `SerializableBrain` (NeuroStorage, schemaVersion 13)
@@ -99,6 +101,20 @@ object BrainMapper {
     fun parse(jsonBytes: ByteArray): SBrain = json.decodeFromString(SBrain.serializer(), String(jsonBytes, Charsets.UTF_8))
 
     fun serialize(brain: SBrain): ByteArray = json.encodeToString(SBrain.serializer(), brain).toByteArray(Charsets.UTF_8)
+
+    /**
+     * [merged] written over the local brain's own JSON. [SBrain] mirrors only the fields sync
+     * carries; importing it alone replaced the whole brain and reset every field added since
+     * (seed cooldowns, cluster rotation, tag affinities, time-bucket counts) on each merge.
+     */
+    fun serializeOver(
+        localJson: ByteArray,
+        merged: SBrain,
+    ): ByteArray {
+        val local = json.parseToJsonElement(String(localJson, Charsets.UTF_8)).jsonObject
+        val synced = json.encodeToJsonElement(SBrain.serializer(), merged).jsonObject
+        return json.encodeToString(JsonObject.serializer(), JsonObject(local + synced)).toByteArray(Charsets.UTF_8)
+    }
 
     // --- vector conversions ---
 

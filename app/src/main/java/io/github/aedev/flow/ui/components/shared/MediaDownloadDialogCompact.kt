@@ -49,8 +49,10 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
+import io.github.aedev.flow.data.video.downloader.request.DownloadSubtitle
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +74,7 @@ fun MediaDownloadDialogCompact(
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
     currentPlayingHeight: Int = 0,
+    subtitles: List<SubtitleOption> = emptyList(),
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -90,6 +93,11 @@ fun MediaDownloadDialogCompact(
     val lastHeight by prefs.lastDownloadHeight.collectAsState(initial = null)
     val lastCodec by prefs.lastDownloadCodec.collectAsState(initial = null)
     val lastAudioLabel by prefs.lastDownloadAudioLabel.collectAsState(initial = null)
+    val lastSubtitleLanguage by prefs.lastDownloadSubtitleLanguage.collectAsState(initial = null)
+    val subtitleOptions = remember(subtitles) { downloadableSubtitles(subtitles) }
+    var subtitleChoice by remember(subtitleOptions, lastSubtitleLanguage) {
+        mutableStateOf(defaultDownloadSubtitle(subtitleOptions, lastSubtitleLanguage))
+    }
     val defaultDownloadCodec by prefs.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
     val preferredDownloadCodecKey = defaultDownloadCodec.takeIf { it != VideoCodec.AUTO }?.codecKey
 
@@ -182,7 +190,9 @@ fun MediaDownloadDialogCompact(
             Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
             return
         }
-        DownloadLauncher.startVideoDownload(context, taggedVideo, stream, audio, threads)
+        val subtitle = subtitleChoice?.toDownloadSubtitle() ?: DownloadSubtitle.OFF.takeIf { subtitleOptions.isNotEmpty() }
+        DownloadLauncher.startVideoDownload(context, taggedVideo, stream, audio, threads, subtitle)
+        if (subtitleOptions.isNotEmpty()) rememberDownloadSubtitleChoice(prefs, subtitleChoice)
         downloadPrefsScope.launch {
             prefs.setLastDownloadVideoChoice(selectedHeight, selectedCodec)
             prefs.setDownloadThreads(threads)
@@ -270,6 +280,14 @@ fun MediaDownloadDialogCompact(
                                 codecOptionLabel(codec, separatorDot) to { selectedCodec = codec }
                             },
                     )
+                    if (subtitleOptions.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        DownloadSubtitleRow(
+                            options = subtitleOptions,
+                            selected = subtitleChoice,
+                            onSelect = { subtitleChoice = it },
+                        )
+                    }
                 } else if (isAudioMode && hasAudio) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_audio),

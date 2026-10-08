@@ -28,7 +28,11 @@ internal object DownloadsIndex {
     val videoLocation = entry("video_location", R.string.video_download_location_label, R.string.storage_header)
     val musicLocation = entry("music_location", R.string.music_download_location_label, R.string.storage_header)
     val usage = entry("usage", R.string.internal_storage_label, R.string.storage_header)
-    val cacheSize = entry("cache_size", R.string.cache_size_header, R.string.storage_header, summary = R.string.cache_size_desc)
+    val cacheUsage = entry("cache_usage", R.string.cache_group_header, R.string.cache_group_header)
+    val videoCache = entry("cache_size", R.string.cache_videos, R.string.cache_group_header)
+    val songCache = entry("song_cache", R.string.cache_songs, R.string.cache_group_header)
+    val artworkCache = entry("artwork_cache", R.string.cache_artwork, R.string.cache_group_header)
+    val otherCache = entry("other_cache", R.string.cache_other, R.string.cache_group_header)
     val quickQuality =
         entry(
             "quick_quality",
@@ -51,12 +55,33 @@ internal object DownloadsIndex {
             R.string.settings_section_download_defaults,
             summary = R.string.download_menu_style_subtitle,
         )
+    val autoDownloadLikes =
+        entry(
+            "auto_download_likes",
+            R.string.settings_auto_download_likes_title,
+            R.string.settings_section_download_defaults,
+            summary = R.string.settings_auto_download_likes_summary,
+        )
+    val autoDownloadOpened =
+        entry(
+            "auto_download_opened",
+            R.string.settings_auto_download_opened_title,
+            R.string.settings_section_download_defaults,
+            summary = R.string.settings_auto_download_opened_summary,
+        )
     val wifiOnly =
         entry(
             "wifi_only",
             R.string.download_over_wifi_only,
             R.string.settings_section_download_defaults,
             summary = R.string.reduce_data_usage_subtitle,
+        )
+    val subtitleFile =
+        entry(
+            "subtitle_file",
+            R.string.download_subtitle_file,
+            R.string.settings_section_download_defaults,
+            summary = R.string.download_subtitle_file_subtitle,
         )
     val retag = entry("retag", R.string.download_retag_title, R.string.local_section_library)
     val concurrentDownloads =
@@ -94,12 +119,19 @@ internal object DownloadsIndex {
             videoLocation,
             musicLocation,
             usage,
-            cacheSize,
+            cacheUsage,
+            videoCache,
+            songCache,
+            artworkCache,
+            otherCache,
             quickQuality,
             codec,
             musicQuality,
             menuStyle,
+            autoDownloadLikes,
+            autoDownloadOpened,
             wifiOnly,
+            subtitleFile,
             retag,
             concurrentDownloads,
             threads,

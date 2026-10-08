@@ -17,7 +17,7 @@ import kotlin.coroutines.resumeWithException
 /**
  * This is based and ported from Metrolist,
  * see https://github.com/MetrolistGroup/Metrolist for the original code and license.
- * 
+ *
  * WebView-based cipher executor for YouTube stream URL deobfuscation.
  * Executes signature decipher and n-transform functions extracted from player.js.
  */
@@ -29,15 +29,17 @@ class CipherWebView private constructor(
     private val initContinuation: Continuation<CipherWebView>,
 ) {
     private val webView = WebView(context)
-    private var sigContinuation: Continuation<String>? = null
     private var nContinuation: Continuation<String>? = null
 
     @Volatile var nFunctionAvailable: Boolean = false
         private set
+
     @Volatile var sigFunctionAvailable: Boolean = false
         private set
+
     @Volatile var discoveredNFuncName: String? = null
         private set
+
     @Volatile var usingHardcodedMode: Boolean = false
         private set
 
@@ -51,19 +53,26 @@ class CipherWebView private constructor(
         settings.allowFileAccessFromFileURLs = true
         settings.blockNetworkLoads = true
         webView.addJavascriptInterface(this, JS_INTERFACE)
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
-                val msg = m.message()
-                when (m.messageLevel()) {
-                    ConsoleMessage.MessageLevel.ERROR -> {
-                        if (!msg.contains("is not defined")) Log.e(TAG, "JS ERROR: $msg at ${m.sourceId()}:${m.lineNumber()}")
+        webView.webChromeClient =
+            object : WebChromeClient() {
+                override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                    val msg = m.message()
+                    when (m.messageLevel()) {
+                        ConsoleMessage.MessageLevel.ERROR -> {
+                            if (!msg.contains("is not defined")) Log.e(TAG, "JS ERROR: $msg at ${m.sourceId()}:${m.lineNumber()}")
+                        }
+
+                        ConsoleMessage.MessageLevel.WARNING -> {
+                            Log.w(TAG, "JS WARN: $msg")
+                        }
+
+                        else -> {
+                            Log.v(TAG, "JS LOG: $msg")
+                        }
                     }
-                    ConsoleMessage.MessageLevel.WARNING -> Log.w(TAG, "JS WARN: $msg")
-                    else -> Log.v(TAG, "JS LOG: $msg")
+                    return super.onConsoleMessage(m)
                 }
-                return super.onConsoleMessage(m)
             }
-        }
     }
 
     private fun loadPlayerJsFromFile() {
@@ -75,50 +84,55 @@ class CipherWebView private constructor(
         Log.d(TAG, "Loading player.js into WebView: sig=$sigFuncName, nFunc=$nFuncName, hardcoded=$isHardcoded")
         usingHardcodedMode = isHardcoded
 
-        val exports = buildList {
-            sigInfo?.let { sig ->
-                val sigConstArgs = sig.constantArgs
-                val preprocessFunc = sig.preprocessFunc
-                val preprocessArgs = sig.preprocessArgs
-                if (!sigConstArgs.isNullOrEmpty() && preprocessFunc != null && !preprocessArgs.isNullOrEmpty()) {
-                    val mainArgsStr = sigConstArgs.joinToString(", ")
-                    val prepArgsStr = preprocessArgs.joinToString(", ")
-                    add("window._cipherSigFunc = function(sig) { return $sigFuncName($mainArgsStr, $preprocessFunc($prepArgsStr, sig)); };")
-                } else if (!sigConstArgs.isNullOrEmpty()) {
-                    val argsStr = sigConstArgs.joinToString(", ")
-                    add("window._cipherSigFunc = function(sig) { return $sigFuncName($argsStr, sig); };")
-                } else if (isHardcoded) {
-                    add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
-                } else {
-                    add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
+        val exports =
+            buildList {
+                sigInfo?.let { sig ->
+                    val sigConstArgs = sig.constantArgs
+                    val preprocessFunc = sig.preprocessFunc
+                    val preprocessArgs = sig.preprocessArgs
+                    if (!sigConstArgs.isNullOrEmpty() && preprocessFunc != null && !preprocessArgs.isNullOrEmpty()) {
+                        val mainArgsStr = sigConstArgs.joinToString(", ")
+                        val prepArgsStr = preprocessArgs.joinToString(", ")
+                        add(
+                            "window._cipherSigFunc = function(sig) { " +
+                                "return $sigFuncName($mainArgsStr, $preprocessFunc($prepArgsStr, sig)); };",
+                        )
+                    } else if (!sigConstArgs.isNullOrEmpty()) {
+                        val argsStr = sigConstArgs.joinToString(", ")
+                        add("window._cipherSigFunc = function(sig) { return $sigFuncName($argsStr, sig); };")
+                    } else if (isHardcoded) {
+                        add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
+                    } else {
+                        add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
+                    }
+                }
+                nFuncInfo?.let { nFunc ->
+                    val nConstArgs = nFunc.constantArgs
+                    if (nFunc.acceptsUrl) {
+                        add("window._nUrlTransformFunc = typeof $nFuncName !== 'undefined' ? $nFuncName : null;")
+                    } else if (!nConstArgs.isNullOrEmpty()) {
+                        val argsStr = nConstArgs.joinToString(", ")
+                        add("window._nTransformFunc = function(n) { return $nFuncName($argsStr, n); };")
+                    } else {
+                        val nExpr = if (nArrayIdx != null) "$nFuncName[$nArrayIdx]" else nFuncName
+                        add("window._nTransformFunc = typeof $nFuncName !== 'undefined' ? $nExpr : null;")
+                    }
                 }
             }
-            nFuncInfo?.let { nFunc ->
-                val nConstArgs = nFunc.constantArgs
-                if (nFunc.acceptsUrl) {
-                    add("window._nUrlTransformFunc = typeof $nFuncName !== 'undefined' ? $nFuncName : null;")
-                } else if (!nConstArgs.isNullOrEmpty()) {
-                    val argsStr = nConstArgs.joinToString(", ")
-                    add("window._nTransformFunc = function(n) { return $nFuncName($argsStr, n); };")
-                } else {
-                    val nExpr = if (nArrayIdx != null) "$nFuncName[$nArrayIdx]" else nFuncName
-                    add("window._nTransformFunc = typeof $nFuncName !== 'undefined' ? $nExpr : null;")
-                }
-            }
-        }
 
-        val modifiedJs = if (exports.isNotEmpty()) {
-            val exportCode = "; " + exports.joinToString(" ")
-            val modified = playerJs.replace("})(_yt_player);", "$exportCode })(_yt_player);")
-            if (modified == playerJs) {
-                Log.w(TAG, "Export injection point not found, appending exports")
-                playerJs + "\n" + exportCode
+        val modifiedJs =
+            if (exports.isNotEmpty()) {
+                val exportCode = "; " + exports.joinToString(" ")
+                val modified = playerJs.replace("})(_yt_player);", "$exportCode })(_yt_player);")
+                if (modified == playerJs) {
+                    Log.w(TAG, "Export injection point not found, appending exports")
+                    playerJs + "\n" + exportCode
+                } else {
+                    modified
+                }
             } else {
-                modified
+                playerJs
             }
-        } else {
-            playerJs
-        }
 
         val cacheDir = File(webView.context.cacheDir, "cipher")
         cacheDir.mkdirs()
@@ -129,36 +143,16 @@ class CipherWebView private constructor(
         val html = buildDiscoveryHtml()
         webView.loadDataWithBaseURL(
             "file://${cacheDir.absolutePath}/",
-            html, "text/html", "utf-8", null
+            html,
+            "text/html",
+            "utf-8",
+            null,
         )
     }
 
-    private fun buildDiscoveryHtml(): String = """<!DOCTYPE html>
+    private fun buildDiscoveryHtml(): String =
+        """<!DOCTYPE html>
 <html><head><script>
-function deobfuscateSig(funcName, constantArg, obfuscatedSig) {
-    try {
-        var func = window._cipherSigFunc;
-        if (typeof func !== 'function') {
-            CipherBridge.onSigError("Sig func not found on window (type: " + typeof func + ")");
-            return;
-        }
-        var result;
-        if (func.length === 1) {
-            result = func(obfuscatedSig);
-        } else if (constantArg !== null && constantArg !== undefined) {
-            result = func(constantArg, obfuscatedSig);
-        } else {
-            result = func(obfuscatedSig);
-        }
-        if (result === undefined || result === null) {
-            CipherBridge.onSigError("Function returned null/undefined");
-            return;
-        }
-        CipherBridge.onSigResult(String(result));
-    } catch (error) {
-        CipherBridge.onSigError(error + "\n" + (error.stack || ""));
-    }
-}
 function transformN(nValue) {
     try {
         var func = window._nTransformFunc;
@@ -273,7 +267,11 @@ function discoverAndInit() {
     }
 
     @JavascriptInterface
-    fun onDiscoveryDone(sigFuncName: String, nFuncName: String, info: String) {
+    fun onDiscoveryDone(
+        sigFuncName: String,
+        nFuncName: String,
+        info: String,
+    ) {
         Log.d(TAG, "Discovery: sig=${sigFuncName.ifEmpty { "NOT FOUND" }}, n=${nFuncName.ifEmpty { "NOT FOUND" }}, info=$info")
         sigFunctionAvailable = sigFuncName.isNotEmpty()
         if (nFuncName.isNotEmpty()) {
@@ -295,31 +293,6 @@ function discoverAndInit() {
     fun onPlayerJsError(error: String) {
         Log.e(TAG, "Player.js load FAILED: $error")
         initContinuation.resumeWithException(CipherException("Player JS load failed: $error"))
-    }
-
-    suspend fun deobfuscateSignature(obfuscatedSig: String): String {
-        if (sigInfo == null) throw CipherException("Signature function info not available")
-        return withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { cont ->
-                sigContinuation = cont
-                val constArgJs = if (sigInfo.constantArg != null) "${sigInfo.constantArg}" else "null"
-                webView.evaluateJavascript("deobfuscateSig('${sigInfo.name}', $constArgJs, '${escapeJsString(obfuscatedSig)}')", null)
-            }
-        }
-    }
-
-    @JavascriptInterface
-    fun onSigResult(result: String) {
-        Log.d(TAG, "Sig result length: ${result.length}")
-        sigContinuation?.resume(result)
-        sigContinuation = null
-    }
-
-    @JavascriptInterface
-    fun onSigError(error: String) {
-        Log.e(TAG, "Sig error: $error")
-        sigContinuation?.resumeWithException(CipherException("Sig deobfuscation failed: $error"))
-        sigContinuation = null
     }
 
     suspend fun transformN(nValue: String): String {
@@ -356,14 +329,14 @@ function discoverAndInit() {
         webView.destroy()
     }
 
-    private fun escapeJsString(s: String): String {
-        return s.replace("\\", "\\\\")
+    private fun escapeJsString(s: String): String =
+        s
+            .replace("\\", "\\\\")
             .replace("'", "\\'")
             .replace("\"", "\\\"")
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("\t", "\\t")
-    }
 
     companion object {
         private const val TAG = "Flow_CipherWebView"
@@ -386,4 +359,6 @@ function discoverAndInit() {
     }
 }
 
-class CipherException(message: String) : Exception(message)
+class CipherException(
+    message: String,
+) : Exception(message)

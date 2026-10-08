@@ -175,49 +175,14 @@ class VideoPlayerViewModelFetchCountsTest {
         }
 
     @Test
-    fun `stream expiry reload escalates to SABR then retries the direct ladder once`() =
+    fun `the screen leaves refused streams to the player and only shows its give-up`() =
         runTest {
             val viewModel = newViewModel()
             viewModel.playVideo(video("vid_a"))
             advanceUntilIdle()
             forgetRecordedCalls()
 
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-
-            val terminal = viewModel.uiState.value
-            assertThat(terminal.isLoading).isFalse()
-            assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
-            assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_generic_hint}")
-            // NewPipe is still started by the reload and only cancelled after its first attempt.
-            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = true) }
-            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
-            verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
-            coVerify(exactly = 0) { YouTube.player(any(), any(), any(), any(), any(), any(), any()) }
-            coVerify(exactly = 0) { harness.playerManager.clearCacheForCurrentVideo() }
-            coVerify(exactly = 0) { harness.playerPreferences.markVideoUnplayable(any()) }
-        }
-
-    @Test
-    fun `stream expiry gives up after MAX_STREAM_EXPIRY_RETRIES and marks the video unplayable`() =
-        runTest {
-            val viewModel = newViewModel()
-            viewModel.playVideo(video("vid_a"))
-            advanceUntilIdle()
-
-            repeat(2) {
-                assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-                runCurrent()
-            }
-            coVerify(exactly = 1) { harness.playerManager.clearCacheForCurrentVideo() }
-            forgetRecordedCalls()
-
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-            coVerify(exactly = 1) { harness.playerManager.clearCacheForCurrentVideo() }
-            forgetRecordedCalls()
-
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
+            assertThat(harness.playbackAbandonedEvent.tryEmit(Unit)).isTrue()
             runCurrent()
 
             val terminal = viewModel.uiState.value
@@ -225,29 +190,22 @@ class VideoPlayerViewModelFetchCountsTest {
             assertThat(terminal.error).isEqualTo("res:${R.string.error_all_stream_sources_failed}")
             assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_playback_retry_hint}")
             coVerify(exactly = 1) { harness.playerPreferences.markVideoUnplayable("vid_a") }
-            coVerify(exactly = 0) { harness.repository.getVideoStreamInfo(any()) }
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
-
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-            coVerify(exactly = 0) { harness.repository.getVideoStreamInfo(any()) }
+            coVerify(exactly = 0) { harness.playerManager.clearCacheForCurrentVideo() }
         }
 
     @Test
-    fun `a queue moves past a video whose streams could not be recovered instead of stopping (#1008)`() =
+    fun `retrying a video starts the player's refused-stream budget over`() =
         runTest {
-            every { harness.playerManager.skipAbandonedVideo() } returns true
             val viewModel = newViewModel()
             viewModel.playVideo(video("vid_a"))
             advanceUntilIdle()
+            forgetRecordedCalls()
 
-            repeat(4) {
-                assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-                runCurrent()
-            }
+            viewModel.retryLoadVideo()
+            advanceUntilIdle()
 
-            verify(exactly = 1) { harness.playerManager.skipAbandonedVideo() }
-            assertThat(viewModel.uiState.value.error).isNotEqualTo("res:${R.string.error_all_stream_sources_failed}")
+            verify(exactly = 1) { harness.playerManager.resetStreamRecovery() }
         }
 
     @Test

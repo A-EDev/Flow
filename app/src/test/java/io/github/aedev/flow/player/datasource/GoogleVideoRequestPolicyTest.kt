@@ -14,6 +14,13 @@ class GoogleVideoRequestPolicyTest {
     }
 
     @Test
+    fun `a TVHTML5 url is fetched as the Tizen TV that minted it`() {
+        assertThat(GoogleVideoRequestPolicy.userAgent("TVHTML5", "fallback")).isEqualTo(YouTubeClient.TV_TIZEN.userAgent)
+        assertThat(GoogleVideoRequestPolicy.userAgent("TVHTML5_SIMPLY_EMBEDDED_PLAYER", "fallback"))
+            .isEqualTo(YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent)
+    }
+
+    @Test
     fun `browser headers go only on urls a web client minted`() {
         assertThat(GoogleVideoRequestPolicy.headers("VISIONOS")).doesNotContainKey("Origin")
         assertThat(GoogleVideoRequestPolicy.headers("ANDROID_VR")).doesNotContainKey("Referer")
