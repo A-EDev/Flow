@@ -180,12 +180,12 @@ internal class StreamDenialRecovery(
     private fun handleStreamExpired(context: StreamFailureContext) {
         when (val decision = expiryRetryLimiter.record(context)) {
             StreamExpiryRetryLimiter.Decision.AlreadyAbandoned -> {
-                Log.d(TAG, "Stream expiry on an already-abandoned variant - ignoring. ${context.toLogString()}")
+                Log.w(TAG, "Stream expiry on an already-abandoned variant - ignoring. ${context.toLogString()}")
                 return
             }
 
             StreamExpiryRetryLimiter.Decision.Debounced -> {
-                Log.d(TAG, "Stream expiry within debounce window - coalescing into the in-flight reload. ${context.toLogString()}")
+                Log.w(TAG, "Stream expiry within debounce window - coalescing into the in-flight reload. ${context.toLogString()}")
                 return
             }
 
