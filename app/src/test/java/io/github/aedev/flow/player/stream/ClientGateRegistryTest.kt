@@ -9,6 +9,30 @@ class ClientGateRegistryTest {
     private val registry = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs })
 
     @Test
+    fun `every gate is announced, under the upper-cased name the url carried`() {
+        val announced = mutableListOf<String>()
+        val announcing = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs }, onGated = announced::add)
+
+        announcing.reportGated("visionos")
+        announcing.reportDenied(streamUrl(client = "ANDROID_VR", expire = 10_000L))
+        announcing.reportGated(null)
+
+        assertThat(announced).containsExactly("VISIONOS", "ANDROID_VR").inOrder()
+    }
+
+    @Test
+    fun `a refused token is never announced as a wall, even once it demotes the client`() {
+        val announced = mutableListOf<String>()
+        val announcing = ClientGateRegistry(ttlMs = 1_000L, clockMs = { nowMs }, onGated = announced::add)
+
+        announcing.reportRefused("MWEB")
+        announcing.reportRefused("MWEB")
+
+        assertThat(announcing.isGated("MWEB")).isTrue()
+        assertThat(announced).isEmpty()
+    }
+
+    @Test
     fun `a reported client is demoted until its entry lapses`() {
         registry.reportGated("VISIONOS")
 

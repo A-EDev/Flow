@@ -2,11 +2,13 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -25,7 +27,20 @@ object WebPoTokenSession {
     /** A rotation rebuilds the BotGuard WebView on the main thread, so it is rate limited. */
     private const val ROTATION_COOLDOWN_MS = 5 * 60 * 1000L
 
+    /**
+     * A wall reported this soon after a re-roll comes from URLs the replaced visitor minted, which
+     * are still playing out; it says nothing about the new one.
+     */
+    private const val WALL_REROLL_SETTLE_MS = 10 * 60 * 1000L
+
     private val generator = PoTokenGenerator
+    private val rerollScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var identityStore: VisitorIdentityStore? = null
+
+    @Volatile
+    private var lastWallRerollMs = 0L
     private val visitorMutex = Mutex()
     private val rotationMutex = Mutex()
 
@@ -192,6 +207,49 @@ object WebPoTokenSession {
             YouTube.visitorData = null
             identityGeneration++
         }
+    }
+
+    fun bindIdentityStore(store: VisitorIdentityStore) {
+        identityStore = store
+    }
+
+    /**
+     * GVS walled this visitor on an app client: its media is refused a minute in on every video,
+     * through any network, and a fresh visitor is served again (#921). The replacement is fetched
+     * before the old one is dropped, so no request goes out without a visitor, and the store keeps
+     * it across restarts. Budgeted by [VisitorIdentityStore.tryTakeReroll].
+     */
+    fun rerollAfterWall(client: String) {
+        rerollScope.launch {
+            rotationMutex.withLock {
+                val now = System.currentTimeMillis()
+                if (now - lastWallRerollMs < WALL_REROLL_SETTLE_MS) return@withLock
+                val store = identityStore ?: return@withLock
+                val takenAt =
+                    store.tryTakeReroll(now) ?: run {
+                        logWall("$client walled this visitor, but the re-roll budget is spent")
+                        return@withLock
+                    }
+                val fresh = YouTube.visitorData().getOrNull()?.takeIf { it.isNotBlank() }
+                if (fresh == null) {
+                    store.refundReroll(takenAt)
+                    logWall("$client walled this visitor; no fresh visitor could be fetched")
+                    return@withLock
+                }
+                lastWallRerollMs = now
+                generator.resetSession()
+                consecutiveLowTrustMints = 0
+                tokenRejections = 0
+                YouTube.visitorData = fresh
+                identityGeneration++
+                logWall("$client walled this visitor; re-rolled the visitor identity")
+            }
+        }
+    }
+
+    private fun logWall(message: String) {
+        Log.w(TAG, message)
+        PlayerDiagnostics.logWarning(TAG, message)
     }
 
     /** Unconditional reset, for the user-facing "Reset YouTube session" action. */

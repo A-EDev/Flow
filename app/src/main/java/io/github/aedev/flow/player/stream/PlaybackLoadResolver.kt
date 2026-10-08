@@ -146,11 +146,10 @@ class PlaybackLoadResolver
 
             if (request.escalateToSabr && innerTubeResult == null) {
                 // The blanket refusal below was written when every fast client was session-gated, so
-                // a re-extraction could only hand back the URLs that had just 403'd. The fast path is
-                // VISIONOS now, whose URLs GVS honours untokened for the whole video, so one
-                // full-ladder retry is a real second chance — and the only thing standing between a
-                // device that cannot mint a PoToken (no/broken WebView) and playback that never
-                // resumes. Still bounded by MAX_STREAM_EXPIRY_RETRIES.
+                // a re-extraction could only hand back the URLs that had just 403'd. The full ladder
+                // now steps over a walled VISIONOS to TV_TIZEN (#921), so one retry is a real second
+                // chance, and the only thing standing between a device that cannot mint a PoToken
+                // (no or broken WebView) and playback that never resumes. Still budgeted per video.
                 Log.w(TAG, "Forced-SABR reload for $videoId produced no SABR session — retrying the full client ladder")
                 innerTubeResult =
                     withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {

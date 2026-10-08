@@ -2,6 +2,7 @@ package io.github.aedev.flow.player.stream
 
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.error.StreamDenialKind
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit
 open class ClientGateRegistry(
     private val ttlMs: Long,
     private val clockMs: () -> Long = { System.currentTimeMillis() },
+    private val onGated: (clientName: String) -> Unit = {},
 ) {
     private val gatedUntilMs = ConcurrentHashMap<String, Long>()
     private val refusalStrikes = ConcurrentHashMap<String, Int>()
@@ -24,6 +26,7 @@ open class ClientGateRegistry(
     fun reportGated(clientName: String?) {
         val key = clientName?.takeIf { it.isNotBlank() }?.uppercase() ?: return
         gatedUntilMs[key] = clockMs() + ttlMs
+        onGated(key)
     }
 
     /**
@@ -86,4 +89,13 @@ open class ClientGateRegistry(
  * network and visitor identity, and a stale one written to disk would demote a working client for
  * a user who has since moved networks.
  */
-object ClientGateTracker : ClientGateRegistry(TimeUnit.MINUTES.toMillis(30))
+object ClientGateTracker : ClientGateRegistry(
+    ttlMs = TimeUnit.MINUTES.toMillis(30),
+    onGated = { client -> if (client in VISITOR_WALLED_CLIENTS) WebPoTokenSession.rerollAfterWall(client) },
+)
+
+/**
+ * The app clients GVS walls per visitor rather than per client (#921): a fresh visitor is served
+ * on them again, so a gate on one of these replaces the identity as well as demoting the client.
+ */
+private val VISITOR_WALLED_CLIENTS = setOf("VISIONOS", "ANDROID_VR")

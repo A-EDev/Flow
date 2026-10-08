@@ -57,6 +57,14 @@ class InnerTube {
             field = sanitizeLocale(value)
         }
     var visitorData: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            onVisitorDataChanged?.invoke(value)
+        }
+
+    /** Every change of identity, including a refused one dropped to null, so it can be persisted. */
+    var onVisitorDataChanged: ((String?) -> Unit)? = null
     var dataSyncId: String? = null
     var cookie: String? = null
         set(value) {

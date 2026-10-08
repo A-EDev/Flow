@@ -4,6 +4,7 @@ import io.github.aedev.flow.innertube.models.ResponseContext
 import io.github.aedev.flow.innertube.models.Thumbnails
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 
 /**
  * PlayerResponse with [io.github.aedev.flow.innertube.models.YouTubeClient.WEB_REMIX] client
@@ -21,6 +22,8 @@ data class PlayerResponse(
     val storyboards: Storyboards? = null,
     val microformat: Microformat? = null,
     val attestation: Attestation? = null,
+    /** Kept raw: only the pre-roll's timing is read (see `PrerollWait`), and none of it may fail the parse. */
+    val adPlacements: JsonArray? = null,
 ) {
     /**
      * The attestation demand YouTube attaches to a player response, as

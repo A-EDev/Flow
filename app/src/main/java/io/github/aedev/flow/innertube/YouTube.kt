@@ -160,6 +160,11 @@ object YouTube {
         set(value) {
             innerTube.visitorData = value
         }
+    var onVisitorDataChanged: ((String?) -> Unit)?
+        get() = innerTube.onVisitorDataChanged
+        set(value) {
+            innerTube.onVisitorDataChanged = value
+        }
     var dataSyncId: String?
         get() = innerTube.dataSyncId
         set(value) {

@@ -29,7 +29,8 @@ object GoogleVideoRequestPolicy {
             "ANDROID", "ANDROID_CREATOR" -> YouTubeClient.ANDROID.userAgent
             "ANDROID_VR" -> YouTubeClient.ANDROID_VR_1_61_48.userAgent
             "VISIONOS" -> YouTubeClient.VISIONOS.userAgent
-            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent
+            "TVHTML5" -> YouTubeClient.TV_TIZEN.userAgent
+            "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent
             "MWEB" -> YouTubeClient.USER_AGENT_MWEB
             "WEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
             else -> fallback

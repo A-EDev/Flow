@@ -1,5 +1,6 @@
 package io.github.aedev.flow.utils
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -16,6 +17,7 @@ import java.util.Locale
  */
 object FlowDiagnostics {
     private const val TAG = "FlowDiagnostics"
+    private const val RECENT_EXITS = 5
 
     // -------------------------------------------------------------------------
     // Public API
@@ -80,6 +82,13 @@ object FlowDiagnostics {
             appendLine("SESSION LOGS  (W/E level, current session)")
             appendLine("=".repeat(60))
             appendLine(sessionLogs)
+            recentExitsOrNull(context)?.let { exits ->
+                appendLine()
+                appendLine("=".repeat(60))
+                appendLine("RECENT EXITS  (newest first, Android 11+)")
+                appendLine("=".repeat(60))
+                appendLine(exits)
+            }
             val crashes = crashLogsOrNull(context)
             if (crashes != null) {
                 appendLine()
@@ -89,6 +98,20 @@ object FlowDiagnostics {
                 appendLine(crashes)
             }
         }
+
+    /** How the app's last processes ended, or null below Android 11 or when the system kept none. */
+    fun recentExitsOrNull(context: Context): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        val exits =
+            runCatching {
+                context
+                    .getSystemService(ActivityManager::class.java)
+                    ?.getHistoricalProcessExitReasons(context.packageName, 0, RECENT_EXITS)
+            }.getOrNull()
+                .orEmpty()
+        if (exits.isEmpty()) return null
+        return exits.joinToString("\n") { ExitReasonText.line(it.reason, it.timestamp, it.importance, it.description) }
+    }
 
     /** Persisted crash reports, or null when there are none. */
     fun crashLogsOrNull(context: Context): String? = getCrashLogs(context).takeUnless { it.isBlank() || it.trim() == NO_CRASH_LOGS }

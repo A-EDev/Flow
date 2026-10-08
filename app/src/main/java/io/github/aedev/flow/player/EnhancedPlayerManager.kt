@@ -56,6 +56,7 @@ import io.github.aedev.flow.player.quality.LiveQualityPick
 import io.github.aedev.flow.player.quality.LiveQualitySelection
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.recovery.ClearedMediaRecoveryState
+import io.github.aedev.flow.player.recovery.StreamDenialReloader
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
@@ -116,6 +117,10 @@ class EnhancedPlayerManager private constructor() {
         private const val SABR_QUALITY_KEY_PREFIX = "sabr:"
         private const val LIVE_QUALITY_KEY_PREFIX = "live:"
         private const val AUTO_NEXT_TAG = "FlowVideoAutoNext"
+
+        // Deliberately the error handler's tag: these lines are what a user's diagnostics dump is read for.
+        private const val DENIAL_TAG = "PlayerErrorHandler"
+        private const val DENIAL_RELOAD_TIMEOUT_MS = 25_000L
 
         @Volatile
         private var instance: EnhancedPlayerManager? = null
@@ -258,6 +263,26 @@ class EnhancedPlayerManager private constructor() {
                 )
             },
             log = { autoNextLog(it) },
+        )
+
+    private val denialReloads =
+        StreamDenialReloader(
+            scope = scope,
+            currentVideoId = { currentVideoId },
+            positionMs = { player?.currentPosition ?: 0L },
+            playDownload = ::playDownloadAfterDenial,
+            extract = { videoId -> withTimeoutOrNull(DENIAL_RELOAD_TIMEOUT_MS) { InnerTubeVideoStreamExtractor.extract(videoId) } },
+            prepare = { videoId, extraction, startPositionMs ->
+                val resume = player?.playWhenReady ?: true
+                prepareExtractedStreams(videoId, extraction, startPositionMs, keepAudioOnly = audioOnlyMode.isActive)
+                    .also { prepared -> if (prepared && resume) play() }
+            },
+            evictCache = { clearCacheForCurrentVideo() },
+            abandon = ::abandonDeniedVideo,
+            log = { message ->
+                Log.w(DENIAL_TAG, message)
+                PlayerDiagnostics.logWarning(DENIAL_TAG, message)
+            },
         )
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingReloadJob: Job? = null
@@ -457,9 +482,6 @@ class EnhancedPlayerManager private constructor() {
     private var playbackTracker: PlaybackTracker? = null
     private var errorHandler: PlayerErrorHandler? = null
 
-    private val _streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val streamExpiredEvent: SharedFlow<Unit> = _streamExpiredEvent.asSharedFlow()
-
     private val _playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent: SharedFlow<Unit> = _playbackAbandonedEvent.asSharedFlow()
 
@@ -548,11 +570,12 @@ class EnhancedPlayerManager private constructor() {
                 loader.onSabrFallbackNeeded = {
                     scope.launch {
                         Log.w(TAG, "SABR fallback triggered — requesting full re-extraction")
+                        // Before the stop, so the reload resumes where the session got to.
+                        onStreamsDenied()
                         currentSabrInfo = null
                         loader.releaseSabr()
                         player?.stop()
                         player?.clearMediaItems()
-                        _streamExpiredEvent.emit(Unit)
                     }
                 }
                 loader.onSubtitleLoadFailed = { index, label ->
@@ -592,7 +615,7 @@ class EnhancedPlayerManager private constructor() {
                 onQualityDowngrade = { attemptQualityDowngrade() },
                 onPlaybackShutdown = { onPlaybackShutdown() },
                 isPlayingDeviceFile = { currentLocalFilePath != null },
-                onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
+                onStreamExpired = { onStreamsDenied() },
                 onPlaybackAbandoned = { if (!skipAbandonedVideo()) scope.launch { _playbackAbandonedEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
                 getFailedStreamUrls = {
@@ -1473,6 +1496,51 @@ class EnhancedPlayerManager private constructor() {
     fun hasNext(): Boolean = queue.hasNext
 
     /**
+     * The playing video's streams were refused and could not be swapped in place. The player owns
+     * the reload, so it runs whether or not a screen is attached (#921).
+     */
+    private fun onStreamsDenied() = denialReloads.onStreamsDenied()
+
+    /** Plays [videoId]'s download, when it has one, instead of fetching the refused streams again. */
+    private suspend fun playDownloadAfterDenial(
+        videoId: String,
+        startPositionMs: Long,
+    ): Boolean {
+        val path = localCopySource?.localCopyPath(videoId) ?: return false
+        val local = localCaptionSource?.captionsFor(videoId, path)
+        val resume = player?.playWhenReady ?: true
+        playLocalFile(
+            videoId = videoId,
+            filePath = path,
+            preservePosition = startPositionMs,
+            subtitles = local?.captions.orEmpty(),
+        )
+        local?.offsetMs?.takeIf { it != 0L }?.let(::setSubtitleOffset)
+        if (audioOnlyMode.isActive) {
+            audioOnlyMode.applyStreams(true)
+            setVideoTracksDisabled(true)
+        }
+        if (resume) play()
+        return true
+    }
+
+    private fun abandonDeniedVideo(videoId: String) {
+        appContext?.let { context -> scope.launch(Dispatchers.IO) { PlayerPreferences(context).markVideoUnplayable(videoId) } }
+        if (skipAbandonedVideo()) return
+        player?.stop()
+        player?.clearMediaItems()
+        scope.launch { _playbackAbandonedEvent.emit(Unit) }
+    }
+
+    /** A user asked for playback (play, retry): the denied-stream budget starts over. */
+    fun resetStreamRecovery() = denialReloads.onPlaybackRequested()
+
+    fun onStreamLoadStarted(videoId: String) = denialReloads.onLoadStarted(videoId)
+
+    /** True while [videoId]'s refused streams are being reloaded; nothing else should prepare it meanwhile. */
+    fun isRecoveringStreams(videoId: String?): Boolean = denialReloads.isReloading(videoId)
+
+    /**
      * Moves a queue past a video whose streams could not be recovered, instead of stopping the
      * whole playlist on it. False when there is nothing to move to or too many failed in a row.
      */
@@ -1802,6 +1870,7 @@ class EnhancedPlayerManager private constructor() {
         acquireAdvanceWakeLock()
         preload.clear()
         autoNextLog("playVideoFromServiceLayer start video=${video.id} reason=$reason resumeAudioOnly=$resumeInAudioOnly")
+        denialReloads.onLoadStarted(video.id)
         autoplayJob?.cancel()
         autoplayJob =
             scope.launch {
@@ -1888,7 +1957,6 @@ class EnhancedPlayerManager private constructor() {
                     if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "streams-resolved")) {
                         return@launch
                     }
-                    val sabrInfo = extraction.sabrInfo
                     val enrichedVideo = InnerTubeVideoMapper.videoFromResult(video.id, extraction, fallback = video)
                     GlobalPlayerState.setCurrentVideo(enrichedVideo)
                     startBackgroundService(
@@ -1903,62 +1971,15 @@ class EnhancedPlayerManager private constructor() {
                         enabled = autoplayEnabled,
                     )
 
-                    val prefs = PlayerPreferences(context)
-                    val preferredQuality =
-                        if (NetworkState.isOnWifi(context)) {
-                            prefs.defaultQualityWifi.first()
-                        } else {
-                            prefs.defaultQualityCellular.first()
-                        }
-                    val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
-                    val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
-                    val preferredCodecKey = prefs.videoCodecPriority.first()
-                    val mergedVideoStreams =
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertVideoFormats(extraction.videoFormats)
-                    val mergedAudioStreams =
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertAudioFormats(extraction.audioFormats)
-                    Log.d(
-                        TAG,
-                        "Queue advance streams: ${mergedVideoStreams.size} video, " +
-                            "${mergedAudioStreams.size} audio (client=${extraction.usedClient.clientName})",
-                    )
-
-                    val selected =
-                        ServicePlaybackStreamSelector.selectStreams(
-                            videoCandidates = mergedVideoStreams,
-                            audioCandidatesAll = mergedAudioStreams,
-                            preferredQuality = preferredQuality,
-                            preferredAudioLanguage = preferredAudioLanguage,
-                            preferredCodecKey = preferredCodecKey,
+                    val committed =
+                        prepareExtractedStreams(
+                            videoId = enrichedVideo.id,
+                            extraction = extraction,
+                            startPositionMs = 0L,
+                            keepAudioOnly = resumeInAudioOnly,
+                            beforeCommit = { !shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "before-commit") },
                         )
-                    if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "before-commit")) {
-                        return@launch
-                    }
-                    setStreams(
-                        videoId = enrichedVideo.id,
-                        videoStream = selected.first,
-                        audioStream = selected.second,
-                        videoStreams = mergedVideoStreams,
-                        audioStreams = mergedAudioStreams,
-                        subtitles =
-                            CaptionTrackResolver
-                                .resolve(
-                                    extraction.playerResponse,
-                                    translateTo = preferredSubtitleLanguage,
-                                ),
-                        durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
-                        dashManifestUrl = extraction.liveDashUrl,
-                        hlsUrl = extraction.liveHlsUrl,
-                        streamType = InnerTubeVideoMapper.streamType(extraction),
-                        startPosition = 0L,
-                        sabrInfo = sabrInfo,
-                        itVideoFormats = extraction.videoFormats,
-                        itAudioFormats = extraction.audioFormats,
-                        preferredVideoCodec = preferredCodecKey,
-                        keepAudioOnly = resumeInAudioOnly,
-                    )
+                    if (!committed) return@launch
                     play()
                     autoNextLog("playVideoFromServiceLayer loaded video=${video.id} reason=$reason")
                 } catch (e: CancellationException) {
@@ -1983,6 +2004,76 @@ class EnhancedPlayerManager private constructor() {
                     autoplayJob = null
                 }
             }
+    }
+
+    /**
+     * Turns an extraction into the viewer's preferred streams and prepares them at [startPositionMs].
+     * Shared by background advances and denied-stream reloads, so both pick streams the same way.
+     * False when [beforeCommit] declines, or there is no context to read preferences from.
+     */
+    private suspend fun prepareExtractedStreams(
+        videoId: String,
+        extraction: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        startPositionMs: Long,
+        keepAudioOnly: Boolean,
+        beforeCommit: () -> Boolean = { true },
+    ): Boolean {
+        val context = appContext ?: return false
+        val prefs = PlayerPreferences(context)
+        val preferredQuality =
+            if (NetworkState.isOnWifi(context)) {
+                prefs.defaultQualityWifi.first()
+            } else {
+                prefs.defaultQualityCellular.first()
+            }
+        val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+        val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
+        val preferredCodecKey = prefs.videoCodecPriority.first()
+        val mergedVideoStreams =
+            io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                .convertVideoFormats(extraction.videoFormats)
+        val mergedAudioStreams =
+            io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                .convertAudioFormats(extraction.audioFormats)
+        Log.d(
+            TAG,
+            "Extracted streams for $videoId: ${mergedVideoStreams.size} video, " +
+                "${mergedAudioStreams.size} audio (client=${extraction.usedClient.clientName})",
+        )
+
+        val selected =
+            ServicePlaybackStreamSelector.selectStreams(
+                videoCandidates = mergedVideoStreams,
+                audioCandidatesAll = mergedAudioStreams,
+                preferredQuality = preferredQuality,
+                preferredAudioLanguage = preferredAudioLanguage,
+                preferredCodecKey = preferredCodecKey,
+            )
+        if (!beforeCommit()) return false
+        setStreams(
+            videoId = videoId,
+            videoStream = selected.first,
+            audioStream = selected.second,
+            videoStreams = mergedVideoStreams,
+            audioStreams = mergedAudioStreams,
+            subtitles =
+                CaptionTrackResolver
+                    .resolve(
+                        extraction.playerResponse,
+                        translateTo = preferredSubtitleLanguage,
+                    ),
+            durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
+            dashManifestUrl = extraction.liveDashUrl,
+            hlsUrl = extraction.liveHlsUrl,
+            streamType = InnerTubeVideoMapper.streamType(extraction),
+            startPosition = startPositionMs,
+            sabrInfo = extraction.sabrInfo,
+            itVideoFormats = extraction.videoFormats,
+            itAudioFormats = extraction.audioFormats,
+            preferredVideoCodec = preferredCodecKey,
+            keepAudioOnly = keepAudioOnly,
+        )
+        return true
     }
 
     fun relatedCandidatesFor(videoId: String): List<Video> =
@@ -2470,7 +2561,7 @@ class EnhancedPlayerManager private constructor() {
             p.playbackState != Player.STATE_IDLE
     }
 
-    fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true
+    fun hasAbandonedPlayback(): Boolean = errorHandler?.hasGivenUp() == true || denialReloads.hasGivenUpOn(currentVideoId)
 
     private fun resolveSourceVideoAspectRatio(): Float? {
         val innerTubeDimensions =
@@ -3275,6 +3366,7 @@ class EnhancedPlayerManager private constructor() {
      */
     fun handleRefocusStuck(videoId: String?) {
         val p = player ?: return
+        if (isRecoveringStreams(videoId) || hasAbandonedPlayback()) return
         if (reloadClearedMediaIfNeeded()) {
             return
         }
