@@ -15,6 +15,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -78,7 +79,7 @@ class PlayerFactory {
         DefaultBandwidthMeter
             .Builder(context)
             .setInitialBitrateEstimate(PlayerConfig.INITIAL_BANDWIDTH_ESTIMATE)
-            .setResetOnNetworkTypeChange(false)
+            .setResetOnNetworkTypeChange(true)
             .build()
 
     fun createTrackSelector(
@@ -136,6 +137,7 @@ class PlayerFactory {
         trackSelector: DefaultTrackSelector,
         loadControl: DefaultLoadControl,
         renderersFactory: DefaultRenderersFactory,
+        bandwidthMeter: BandwidthMeter,
         dataSourceFactory: DataSource.Factory?,
     ): ExoPlayer {
         val factory = dataSourceFactory ?: DefaultDataSource.Factory(context)
@@ -145,6 +147,7 @@ class PlayerFactory {
             .Builder(context, renderersFactory)
             .experimentalSetDynamicSchedulingEnabled(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING)
             .setTrackSelector(trackSelector)
+            .setBandwidthMeter(bandwidthMeter)
             .setAudioAttributes(
                 AudioAttributes
                     .Builder()

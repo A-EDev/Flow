@@ -703,6 +703,7 @@ class EnhancedPlayerManager private constructor() {
                 trackSelector = trackSelector!!,
                 loadControl = loadControl,
                 renderersFactory = renderersFactory,
+                bandwidthMeter = bandwidthMeter!!,
                 dataSourceFactory = cacheManager?.getDataSourceFactory(),
             )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
