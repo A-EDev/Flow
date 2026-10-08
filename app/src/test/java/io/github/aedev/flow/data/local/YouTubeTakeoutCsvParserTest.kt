@@ -189,6 +189,34 @@ class YouTubeTakeoutCsvParserTest {
     }
 
     @Test
+    fun `the youtube music library songs file is read by its shape`() {
+        val csv =
+            "Video ID,Song Title,Album Title,Artist Name 1,Artist Name 2\n" +
+                "kcxK1Tnwy5M,One More Time,Alive 2007,Daft Punk,\n" +
+                "dQw4w9WgXcQ,\"Never Gonna Give You Up\",Whenever You Need Somebody,Rick Astley,"
+
+        assertThat(parse(csv))
+            .isEqualTo(
+                YouTubeTakeoutCsvContent.MusicLibrarySongs(
+                    listOf(
+                        TakeoutLibrarySong("kcxK1Tnwy5M", "One More Time", "Alive 2007", "Daft Punk"),
+                        TakeoutLibrarySong("dQw4w9WgXcQ", "Never Gonna Give You Up", "Whenever You Need Somebody", "Rick Astley"),
+                    ),
+                ),
+            )
+    }
+
+    @Test
+    fun `the account's own uploads are not mistaken for the music library`() {
+        val channelId = "UC${"e".repeat(22)}"
+        val uploads =
+            "Video ID,Duration,Language,Channel ID,Title,Created\n" +
+                "kcxK1Tnwy5M,215,en,$channelId,My video,2024-01-01T00:00:00+00:00"
+
+        assertThat(parse(uploads)).isEqualTo(YouTubeTakeoutCsvContent.Unsupported)
+    }
+
+    @Test
     fun `subscription csv tolerates additional trailing columns`() {
         val csv =
             "Channel Id,Channel Url,Channel Title,Channel Handle\n" +
@@ -265,7 +293,6 @@ class YouTubeTakeoutCsvParserTest {
     fun `unrelated YouTube csv schemas remain unsupported`() {
         val unrelatedCsvFiles =
             listOf(
-                "Video ID,Song Title,Album Title,Artist Name\n$videoId,Song,Album,Artist",
                 "Video ID,Duration,Category,Channel ID,Title\n$videoId,1000,Music,$channelId,Title",
                 "Channel ID,Title,Visibility\n$channelId,Channel,Public",
                 "First,Second,Third\none,two,three",

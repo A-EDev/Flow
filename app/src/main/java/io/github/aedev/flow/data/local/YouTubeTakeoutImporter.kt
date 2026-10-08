@@ -24,6 +24,7 @@ import java.util.zip.ZipInputStream
 
 private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
 private const val TAKEOUT_PLAYLIST_ID_PREFIX = "yt_takeout_"
+private const val MUSIC_LIBRARY_PLAYLIST_ID = "yt_takeout_music_library"
 private const val NEURO_CANDIDATE_LIMIT = 800
 private const val AVATAR_FETCHES = 5
 private const val SUBSCRIPTION_BATCH = 25
@@ -48,6 +49,7 @@ internal class YouTubeTakeoutImporter(
         val subscriptions = mutableListOf<YouTubeTakeoutSubscription>()
         val playlistsByDirectory = mutableMapOf<String, MutableList<TakeoutPlaylistInfo>>()
         val playlistVideos = mutableMapOf<String, List<String>>()
+        val librarySongs = mutableListOf<TakeoutLibrarySong>()
         var likes: List<TakeoutLike>? = null
         val searches = mutableListOf<TakeoutSearch>()
         var watches = 0
@@ -66,10 +68,12 @@ internal class YouTubeTakeoutImporter(
 
                 val subscriptionsImported = saveSubscriptions(found.subscriptions, onProgress)
                 val (playlistsImported, playlistVideosImported) = savePlaylists(found)
+                val librarySongsImported = saveMusicLibrary(found.librarySongs)
                 val likesImported = found.likes?.let { saveLikes(it) } ?: 0
                 val searchesImported = saveSearches(found.searches)
 
-                val counts = listOf(subscriptionsImported, found.watches, playlistsImported, likesImported, searchesImported)
+                val counts =
+                    listOf(subscriptionsImported, found.watches, playlistsImported, librarySongsImported, likesImported, searchesImported)
                 if (counts.all { it == 0 }) return@withContext Result.failure(Exception("no_content"))
                 if (found.watches > 0) runCatching { learnFromHistory(found.learnable.values) }
 
@@ -78,6 +82,15 @@ internal class YouTubeTakeoutImporter(
                         if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
                         if (found.watches > 0) add("${found.watches} history entries")
                         if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
+                        if (librarySongsImported > 0) {
+                            add(
+                                context.resources.getQuantityString(
+                                    R.plurals.import_takeout_part_music_library,
+                                    librarySongsImported,
+                                    librarySongsImported,
+                                ),
+                            )
+                        }
                         if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
                         if (searchesImported > 0) {
                             add(
@@ -160,6 +173,10 @@ internal class YouTubeTakeoutImporter(
 
                             is YouTubeTakeoutCsvContent.PlaylistMetadata -> {
                                 found.playlistsByDirectory.getOrPut(name.takeoutParentPath()) { mutableListOf() } += content.playlists
+                            }
+
+                            is YouTubeTakeoutCsvContent.MusicLibrarySongs -> {
+                                found.librarySongs += content.songs
                             }
 
                             YouTubeTakeoutCsvContent.Unsupported -> {
@@ -300,6 +317,26 @@ internal class YouTubeTakeoutImporter(
                 isUserCreated = true,
             )
         fillPlaylist(entity, videoIds.map { videoEntity(it, title = "", artists = "", isMusic = false) })
+    }
+
+    /** The songs saved to the YouTube Music library, as one music playlist that a second import fills again. */
+    private suspend fun saveMusicLibrary(songs: List<TakeoutLibrarySong>): Int {
+        val unique = songs.distinctBy { it.videoId }
+        if (unique.isEmpty()) return 0
+        fillPlaylist(
+            PlaylistEntity(
+                id = MUSIC_LIBRARY_PLAYLIST_ID,
+                name = context.getString(R.string.import_takeout_music_library_name),
+                description = context.getString(R.string.imported_from_google_takeout),
+                thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(unique.first().videoId),
+                isPrivate = false,
+                createdAt = System.currentTimeMillis(),
+                isMusic = true,
+                isUserCreated = true,
+            ),
+            unique.map { videoEntity(it.videoId, it.title, it.artists, isMusic = true) },
+        )
+        return unique.size
     }
 
     /** Creates [playlist] if it is new, then appends the videos it does not hold yet after its last one. */
