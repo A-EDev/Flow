@@ -86,7 +86,13 @@ class PlayerFactory {
         context: Context,
         videoSizeCap: VideoSizeCap,
     ): DefaultTrackSelector {
-        val trackSelectionFactory = AdaptiveTrackSelection.Factory()
+        val trackSelectionFactory =
+            AdaptiveTrackSelection.Factory(
+                PlayerConfig.ABR_MIN_BUFFER_FOR_QUALITY_INCREASE_MS,
+                PlayerConfig.ABR_MAX_BUFFER_FOR_QUALITY_DECREASE_MS,
+                AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS,
+                PlayerConfig.AUTO_BANDWIDTH_FRACTION,
+            )
         val prefs = ensurePrefs(context)
 
         return DefaultTrackSelector(context, trackSelectionFactory).apply {

@@ -83,6 +83,10 @@ class MediaLoader(
 
     private var activeSabrOrchestrator: SabrOrchestrator? = null
     private var lastSourceWasSabr = false
+
+    /** Whether the media last loaded is a quality ladder that Media3 adapts over by itself. */
+    var lastSourceWasAdaptiveLadder = false
+        private set
     var onSabrFallbackNeeded: (() -> Unit)? = null
 
     /** Invoked with a subtitle track's index and display label once its fetch has finally given up. */
@@ -129,6 +133,7 @@ class MediaLoader(
         innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         mediaId: String = "",
         mediaMetadata: MediaMetadata = MediaMetadata.EMPTY,
+        adaptiveLadder: List<VideoStream> = emptyList(),
     ): Boolean {
         val finalDuration =
             when {
@@ -163,6 +168,7 @@ class MediaLoader(
                 Log.d(TAG, "Resolving media with VideoPlaybackResolver for duration ${finalDuration}s")
 
                 lastSourceWasSabr = false
+                lastSourceWasAdaptiveLadder = false
                 val mediaSource =
                     createMediaSource(
                         context = ctx,
@@ -186,6 +192,8 @@ class MediaLoader(
                         innerTubeAudioFormats = innerTubeAudioFormats,
                         mediaId = mediaId,
                         mediaMetadata = mediaMetadata,
+                        adaptiveLadder = adaptiveLadder,
+                        onAdaptiveLadder = { lastSourceWasAdaptiveLadder = it },
                     )
 
                 if (mediaSource != null) {
@@ -229,6 +237,7 @@ class MediaLoader(
         captions: List<ResolvedCaption> = emptyList(),
         mediaId: String = "",
         mediaMetadata: MediaMetadata = MediaMetadata.EMPTY,
+        adaptiveLadder: List<VideoStream> = emptyList(),
     ): MediaSource? {
         val ctx = context ?: return null
         val dataSourceFactory = cacheManager?.getDataSourceFactory() ?: DefaultDataSource.Factory(ctx)
@@ -249,6 +258,7 @@ class MediaLoader(
                 captions = captions,
                 mediaId = mediaId,
                 mediaMetadata = mediaMetadata,
+                adaptiveLadder = adaptiveLadder,
             )
         } catch (e: Exception) {
             Log.w(TAG, "buildPreloadMediaSource failed", e)
@@ -294,6 +304,8 @@ class MediaLoader(
         innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         mediaId: String = "",
         mediaMetadata: MediaMetadata = MediaMetadata.EMPTY,
+        adaptiveLadder: List<VideoStream> = emptyList(),
+        onAdaptiveLadder: (Boolean) -> Unit = {},
     ): MediaSource? {
         cacheManager?.registerStreams(
             videoId = mediaId,
@@ -359,9 +371,12 @@ class MediaLoader(
                         mediaMetadata = mediaMetadata,
                     )
 
+                val useLadder = !audioOnly && adaptiveLadder.size > 1
                 val selectedStreams =
                     if (audioOnly) {
                         emptyList()
+                    } else if (useLadder) {
+                        adaptiveLadder
                     } else if (videoStream != null) {
                         listOf(videoStream)
                     } else if (!dashManifestUrl.isNullOrEmpty() && availableVideoStreams.size > 1) {
@@ -377,14 +392,16 @@ class MediaLoader(
                         )}p"
                     }}",
                 )
-                resolver.resolve(
-                    selectedStreams,
-                    audioStream,
-                    dashManifestUrl = if (audioOnly) null else dashManifestUrl,
-                    hlsUrl = if (audioOnly) null else hlsUrl,
-                    durationSeconds = finalDuration,
-                    isLiveStream = isLiveStream && !audioOnly,
-                )
+                resolver
+                    .resolve(
+                        selectedStreams,
+                        audioStream,
+                        dashManifestUrl = if (audioOnly) null else dashManifestUrl,
+                        hlsUrl = if (audioOnly) null else hlsUrl,
+                        durationSeconds = finalDuration,
+                        isLiveStream = isLiveStream && !audioOnly,
+                        asAdaptiveLadder = useLadder,
+                    ).also { onAdaptiveLadder(resolver.resolvedAdaptiveLadder) }
             }
 
         if (mediaSource == null && sabrAvailable && !sabrPreferred) {

@@ -47,6 +47,9 @@ class QualityManager(
 
     var isDashSource = false
 
+    /** Media3 is adapting over a ladder source, so Auto's own bandwidth checks stand down. */
+    var isAdaptiveLadderActive = false
+
     // Available streams
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var currentVideoStream: VideoStream? = null
@@ -92,6 +95,7 @@ class QualityManager(
         manualQualityHeight = null
         consecutiveBufferingCount = 0
         lastQualitySwitchTime = 0L
+        isAdaptiveLadderActive = false
         applyAdaptiveTrackSelectorDefaults()
     }
 
@@ -150,25 +154,18 @@ class QualityManager(
      * Select smart initial quality based on bandwidth.
      */
     fun selectSmartInitialQuality(): VideoStream? {
-        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
-        val targetHeight = PlayerConfig.calculateInitialQualityTarget(estimatedBandwidth)
-
-        val smartStream =
-            getWorkingStreams()
-                .sortedWith(
-                    compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
-                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                        .thenByDescending { it.bitrate },
-                ).firstOrNull()
-
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: PlayerConfig.INITIAL_BANDWIDTH_ESTIMATE
+        val smartStream = AutoQualityPolicy.initialPick(getWorkingStreams(), estimatedBandwidth, preferredCodecKey)
         Log.d(
             TAG,
-            "Smart quality selection: bandwidth=${estimatedBandwidth / 1_000_000}Mbps, " +
-                "target=${targetHeight}p, selected=${smartStream?.let(::qualityHeight)}p",
+            "Smart quality selection: bandwidth=${estimatedBandwidth / 1_000_000}Mbps, selected=${smartStream?.let(::qualityHeight)}p",
         )
-
         return smartStream
     }
+
+    /** The qualities Auto hands to Media3 around [anchor], or none while a quality is pinned. */
+    fun adaptiveLadder(anchor: VideoStream?): List<VideoStream> =
+        if (isAdaptiveQualityEnabled) AdaptiveLadder.rungs(anchor, getWorkingStreams()) else emptyList()
 
     /**
      * Build quality options list for UI.
@@ -291,31 +288,27 @@ class QualityManager(
     }
 
     /**
-     * Enable adaptive quality mode.
+     * Enable adaptive quality mode. A pinned quality is a single-stream source, so Auto reloads
+     * whenever a ladder can take over from it, not only when the starting quality differs.
      */
     private fun enableAdaptiveQuality(currentPosition: Long) {
+        val alreadyAdapting = isAdaptiveQualityEnabled && isAdaptiveLadderActive
         isAdaptiveQualityEnabled = true
         manualQualityHeight = null
 
         Log.d(TAG, "Enabling adaptive quality mode")
-        if (isDashSource) {
-            applyAdaptiveTrackSelectorDefaults()
+        applyAdaptiveTrackSelectorDefaults()
+        if (alreadyAdapting) {
+            stateFlow.value = stateFlow.value.copy(currentQuality = 0, currentQualityKey = null)
+            return
         }
 
-        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
-        val targetHeight = PlayerConfig.calculateInitialQualityTarget(estimatedBandwidth)
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: PlayerConfig.INITIAL_BANDWIDTH_ESTIMATE
+        val targetStream = AutoQualityPolicy.initialPick(getWorkingStreams(), estimatedBandwidth, preferredCodecKey)
+        Log.d(TAG, "Auto quality: estimated bandwidth ${estimatedBandwidth / 1_000_000}Mbps -> ${targetStream?.let(::qualityHeight)}p")
 
-        Log.d(TAG, "Auto quality: Estimated bandwidth ${estimatedBandwidth / 1_000_000}Mbps -> targeting ${targetHeight}p")
-
-        val targetStream =
-            availableVideoStreams
-                .sortedWith(
-                    compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
-                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                        .thenByDescending { it.bitrate },
-                ).firstOrNull()
-
-        if (targetStream != null && qualityHeight(targetStream) != currentVideoStream?.let(::qualityHeight)) {
+        val heightChanges = targetStream != null && qualityHeight(targetStream) != currentVideoStream?.let(::qualityHeight)
+        if (targetStream != null && (heightChanges || adaptiveLadder(targetStream).isNotEmpty())) {
             val selectedHeight = qualityHeight(targetStream)
             currentVideoStream = targetStream
             onQualitySwitch(targetStream, currentPosition)
@@ -338,31 +331,15 @@ class QualityManager(
      * Called periodically when playback is smooth.
      */
     fun checkAdaptiveQualityUpgrade(currentPosition: Long) {
-        if (!isAdaptiveQualityEnabled || getWorkingStreams().isEmpty()) return
-
-        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
+        if (!isAdaptiveQualityEnabled || isAdaptiveLadderActive) return
+        val current = currentVideoStream ?: return
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: return
-
-        val targetHeight = PlayerConfig.calculateTargetQualityForBandwidth(estimatedBandwidth)
-
-        // Only upgrade if target is significantly higher than current
-        if (targetHeight > currentHeight) {
-            val nextHigherStream =
-                getWorkingStreams()
-                    .filter { qualityHeight(it) > currentHeight && qualityHeight(it) <= targetHeight }
-                    .minByOrNull { qualityHeight(it) }
-
-            if (nextHigherStream != null) {
-                val nextHeight = qualityHeight(nextHigherStream)
-                val streamBitrate = nextHigherStream.bitrate.toLong()
-                val requiredBandwidth = (streamBitrate * PlayerConfig.QUALITY_UPGRADE_THRESHOLD).toLong()
-
-                if (estimatedBandwidth > requiredBandwidth || streamBitrate == 0L) {
-                    Log.d(TAG, "Adaptive UPGRADE: ${currentHeight}p -> ${nextHeight}p (bandwidth: ${estimatedBandwidth / 1_000_000}Mbps)")
-                    performAdaptiveQualitySwitch(nextHigherStream, currentPosition)
-                }
-            }
-        }
+        val next = AutoQualityPolicy.stepUp(current, getWorkingStreams(), estimatedBandwidth, preferredCodecKey) ?: return
+        Log.d(
+            TAG,
+            "Adaptive UPGRADE: ${qualityHeight(current)}p -> ${qualityHeight(next)}p (bandwidth: ${estimatedBandwidth / 1_000_000}Mbps)",
+        )
+        performAdaptiveQualitySwitch(next, currentPosition)
     }
 
     /**
@@ -372,36 +349,23 @@ class QualityManager(
         forceCheck: Boolean,
         currentPosition: Long,
     ) {
-        if (!isAdaptiveQualityEnabled || getWorkingStreams().isEmpty()) return
-
-        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
-        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 1_000_000L
-
-        val nextLowerStream =
-            getWorkingStreams()
-                .filter { qualityHeight(it) < currentHeight }
-                .maxByOrNull { qualityHeight(it) }
-
-        if (nextLowerStream != null) {
-            val nextHeight = qualityHeight(nextLowerStream)
-            if (forceCheck) {
-                Log.d(TAG, "Adaptive DOWNGRADE (buffering): ${currentHeight}p -> ${nextHeight}p")
-                performAdaptiveQualitySwitch(nextLowerStream, currentPosition)
-            } else {
-                val currentStreamBitrate = currentVideoStream?.bitrate?.toLong() ?: 0L
-                if (currentStreamBitrate > 0 &&
-                    estimatedBandwidth < (currentStreamBitrate * PlayerConfig.QUALITY_DOWNGRADE_THRESHOLD).toLong()
-                ) {
-                    Log.d(
-                        TAG,
-                        "Adaptive DOWNGRADE (low bandwidth): ${currentHeight}p -> ${nextHeight}p (bandwidth: ${estimatedBandwidth / 1_000_000}Mbps)",
-                    )
-                    performAdaptiveQualitySwitch(nextLowerStream, currentPosition)
-                }
-            }
-        } else {
-            Log.d(TAG, "Adaptive: Already at lowest quality (${currentHeight}p), cannot downgrade further")
+        if (!isAdaptiveQualityEnabled || isAdaptiveLadderActive) return
+        val current = currentVideoStream ?: return
+        val streams = getWorkingStreams()
+        if (forceCheck) {
+            val lower = AutoQualityPolicy.stepDown(current, streams, preferredCodecKey) ?: return
+            Log.d(TAG, "Adaptive DOWNGRADE (buffering): ${qualityHeight(current)}p -> ${qualityHeight(lower)}p")
+            performAdaptiveQualitySwitch(lower, currentPosition)
+            return
         }
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: return
+        val lower = AutoQualityPolicy.stepDownForBandwidth(current, streams, estimatedBandwidth, preferredCodecKey) ?: return
+        Log.d(
+            TAG,
+            "Adaptive DOWNGRADE (low bandwidth): ${qualityHeight(current)}p -> ${qualityHeight(lower)}p " +
+                "(bandwidth: ${estimatedBandwidth / 1_000_000}Mbps)",
+        )
+        performAdaptiveQualitySwitch(lower, currentPosition)
     }
 
     /**
