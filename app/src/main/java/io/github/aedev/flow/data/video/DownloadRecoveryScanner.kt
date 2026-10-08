@@ -188,8 +188,9 @@ class DownloadRecoveryScanner
             if (!isNewFile(filePath, exportedPaths)) return false
             val embedded = tagReader.read(Uri.fromFile(File(filePath)))
             val tags = embedded?.flow
-            val videoId = RecoveredDownload.idFor(filePath, tags)
-            if (tags != null && !mayRecordUnder(videoId)) return false
+            val sourceUrl = embedded?.comment
+            val videoId = RecoveredDownload.idFor(filePath, tags, sourceUrl)
+            if (RecoveredDownload.knownIdFor(tags, sourceUrl) != null && !mayRecordUnder(videoId)) return false
             val isVideo = RecoveredDownload.VIDEO_EXTENSIONS.contains(fileName.substringAfterLast('.', "").lowercase())
             val probe = probe(filePath, wantsFrame = isVideo && embedded?.cover == null)
             val cover = (embedded?.cover ?: probe.frame)?.let { DownloadCovers.save(context, videoId, it) }
@@ -200,6 +201,7 @@ class DownloadRecoveryScanner
                     title = embedded?.title?.takeIf { it.isNotBlank() },
                     artist = embedded?.artist?.takeIf { it.isNotBlank() },
                     coverPath = cover,
+                    sourceUrl = sourceUrl,
                 )
             downloadDao.replaceDownload(download, listOf(item))
             Log.i(TAG, "Recovered '$fileName' as $videoId")
