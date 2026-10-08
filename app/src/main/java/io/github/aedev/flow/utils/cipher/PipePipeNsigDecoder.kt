@@ -3,6 +3,7 @@ package io.github.aedev.flow.utils.cipher
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.network.AppProxyManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -23,8 +24,12 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Remote `n` (throttling) parameter deobfuscation via PipePipe's public decoder API
+ * Remote `n` (throttling) parameter and signature deobfuscation via PipePipe's public decoder API
  * (https://api.pipepipe.dev/decoder), using PipePipe's exact protocol.
+ *
+ * Signatures are only ever solved here: the player script inlines its signature transform in a
+ * control-flow-flattened dispatch no local extractor can name (measured 2026-09-22), so the TV
+ * client that serves a walled visitor (#921) is reachable only through this endpoint.
  *
  * This is the *last* of three n-transform strategies — the extractor tries NewPipe's local decoder
  * and the in-app [CipherDeobfuscator] first. Every call here is a round trip to a third-party host
@@ -56,6 +61,13 @@ object PipePipeNsigDecoder {
     private val N_PARAM_REGEX = Regex("([?&])n=([^&]+)")
 
     private val nCache: MutableMap<String, String> =
+        Collections.synchronizedMap(
+            object : LinkedHashMap<String, String>(64, 0.75f, true) {
+                override fun removeEldestEntry(eldest: Map.Entry<String, String>): Boolean = size > N_CACHE_MAX_ENTRIES
+            },
+        )
+
+    private val sigCache: MutableMap<String, String> =
         Collections.synchronizedMap(
             object : LinkedHashMap<String, String>(64, 0.75f, true) {
                 override fun removeEldestEntry(eldest: Map.Entry<String, String>): Boolean = size > N_CACHE_MAX_ENTRIES
@@ -277,6 +289,38 @@ object PipePipeNsigDecoder {
             Log.w(TAG, "unexpected response shape: ${e.message}")
             null
         }
+    }
+
+    /**
+     * The signature timestamp of the player the decoder solves against. A client whose formats
+     * are signed must request /player with this one, or its signatures will not match.
+     */
+    suspend fun signatureTimestamp(): Int? {
+        ensurePlayerId() ?: return null
+        return cachedSignatureTimestamp
+    }
+
+    /** Solves every distinct signature in [signatures] in one request; unsolved ones are absent. */
+    suspend fun decodeSignatures(signatures: Collection<String>): Map<String, String> {
+        val pid = ensurePlayerId() ?: return emptyMap()
+        val wanted = signatures.distinct()
+        val missing = wanted.filter { sigCache["$pid:$it"] == null }
+        if (missing.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val joined = missing.joinToString(",") { URLEncoder.encode(it, "UTF-8") }
+                    val data = parseData(get("$DECODE_URL?player=$pid&sig=$joined")) ?: return@withContext
+                    for (signature in missing) {
+                        data.optString(signature).takeIf { it.isNotEmpty() }?.let { sigCache["$pid:$signature"] = it }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "signature decode failed: ${e.javaClass.simpleName}: ${e.message}")
+                }
+            }
+        }
+        return wanted.mapNotNull { signature -> sigCache["$pid:$signature"]?.let { signature to it } }.toMap()
     }
 
     suspend fun deobfuscateUrl(url: String): String? {

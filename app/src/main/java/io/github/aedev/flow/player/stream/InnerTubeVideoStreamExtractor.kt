@@ -63,9 +63,10 @@ object InnerTubeVideoStreamExtractor {
         val audioOnly: Boolean,
     )
 
-    // The token-free direct client. VISIONOS alone: it is the only client that still serves direct
-    // adaptive URLs GVS will honour for the whole video without a PO Token, and it does so without
-    // an `n` parameter, so first frame costs neither an attestation nor an nsig decode.
+    // The token-free direct client. VISIONOS alone: it serves direct adaptive URLs with no PO Token
+    // and no `n` parameter, so first frame costs neither an attestation nor an nsig decode. GVS
+    // honours them for the whole video unless it has walled this visitor, which it does a minute in
+    // on every video (#921); then the ladder goes to TV_TIZEN and the visitor is re-rolled.
     private val FAST_CLIENTS: List<YouTubeClient> =
         listOf(
             YouTubeClient.VISIONOS,
@@ -164,11 +165,18 @@ object InnerTubeVideoStreamExtractor {
             // every single video, which is what "every video stops at a minute" looks like.
             val fastClients = FAST_CLIENTS.ungated()
             if (fastClients.isEmpty()) {
-                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — starting at the attested path")
+                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — trying TV_TIZEN")
                 PlayerDiagnostics.logWarning(
                     TAG,
                     "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
                 )
+                // The walled visitor's other app clients and token-backed web clients stop at the
+                // same minute; TV_TIZEN is the measured way past it (#921).
+                TizenStreamResolver.resolve(videoId)?.let {
+                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
+                    return@withContext it
+                }
             } else {
                 // A cold start pays DNS and TLS inside the first request, which can outlast the
                 // per-client timeout; one retry on the warm connection beats falling to the web path.
