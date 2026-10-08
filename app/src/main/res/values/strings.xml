@@ -1617,7 +1617,7 @@
     <string name="import_libretube_playlists">Import LibreTube Playlists</string>
     <string name="import_libretube_playlists_desc">Import your LibreTube local playlists from a backup JSON file.</string>
     <string name="import_yt_takeout_all">Import from Google Takeout</string>
-    <string name="import_yt_takeout_all_desc">Import your YouTube subscriptions, watch history, and playlists all at once from a Google Takeout ZIP file.</string>
+    <string name="import_yt_takeout_all_desc">Subscriptions, history, searches, playlists, likes and your YouTube Music library from Google Takeout. Pick every ZIP of the export.</string>
     <!-- Music Apps Import -->
     <string name="import_music_apps_section_title">Music Apps</string>
     <string name="import_music_apps_section_subtitle">Import your music library from other players</string>

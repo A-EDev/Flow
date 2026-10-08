@@ -31,9 +31,10 @@ private const val SUBSCRIPTION_BATCH = 25
 private const val WATCH_BATCH = 500
 
 /**
- * The all-in-one Google Takeout import: reads an export in a single pass and saves what it found.
- * Files are recognised by their contents, not their names, which Takeout translates into the
- * account's language.
+ * The all-in-one Google Takeout import. Takes every archive of one export, since Google splits a
+ * large export and can put My Activity in a different part, reads each in a single pass, and saves
+ * what it found once all are read. Files are recognised by their contents, not their names, which
+ * Takeout translates into the account's language.
  */
 internal class YouTubeTakeoutImporter(
     private val context: Context,
@@ -57,14 +58,17 @@ internal class YouTubeTakeoutImporter(
     }
 
     suspend fun import(
-        uri: Uri,
+        uris: List<Uri>,
         onProgress: ((label: String, current: Int, total: Int) -> Unit)? = null,
     ): Result<String> =
         withContext(Dispatchers.IO) {
             try {
                 val found = Found()
-                context.contentResolver.openInputStream(uri)?.use { raw -> readArchive(raw, found, YouTubeTakeoutCsvBudget(), onProgress) }
-                    ?: return@withContext Result.failure(Exception("Could not open file"))
+                val budget = YouTubeTakeoutCsvBudget()
+                for (uri in uris) {
+                    context.contentResolver.openInputStream(uri)?.use { raw -> readArchive(raw, found, budget, onProgress) }
+                        ?: return@withContext Result.failure(Exception("Could not open file"))
+                }
 
                 val subscriptionsImported = saveSubscriptions(found.subscriptions, onProgress)
                 val (playlistsImported, playlistVideosImported) = savePlaylists(found)

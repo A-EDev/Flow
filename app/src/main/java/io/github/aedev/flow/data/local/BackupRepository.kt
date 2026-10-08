@@ -1360,9 +1360,9 @@ class BackupRepository(
     // ── Google Takeout all-in-one import ──
 
     suspend fun importYouTubeTakeout(
-        uri: Uri,
+        uris: List<Uri>,
         onProgress: ((label: String, current: Int, total: Int) -> Unit)? = null,
-    ): Result<String> = takeoutImporter.import(uri, onProgress)
+    ): Result<String> = takeoutImporter.import(uris, onProgress)
 
     // ── NewPipe playlist import (ZIP containing SQLite DB) ──
 
