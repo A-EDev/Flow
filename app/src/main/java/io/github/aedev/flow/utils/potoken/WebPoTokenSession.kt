@@ -2,6 +2,7 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.player.stream.BotWallRecovery
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -23,7 +24,7 @@ object WebPoTokenSession {
     private const val REFUSALS_BEFORE_ROTATION = 2
 
     /** A rotation rebuilds the BotGuard WebView on the main thread, so it is rate limited. */
-    private const val ROTATION_COOLDOWN_MS = 5 * 60 * 1000L
+    private const val ROTATION_COOLDOWN_MS = BotWallRecovery.ROTATION_COOLDOWN_MS
 
     private val generator = PoTokenGenerator
     private val visitorMutex = Mutex()
@@ -193,6 +194,26 @@ object WebPoTokenSession {
             identityGeneration++
         }
     }
+
+    /** Null when the identity has never been rotated. */
+    fun msSinceLastRotation(): Long? = lastRotationMs.takeIf { it != 0L }?.let { System.currentTimeMillis() - it }
+
+    /**
+     * Replaces the identity after every client hit a bot wall, sharing the cooldown with
+     * [rotateVisitorIdentity]. Returns false when another caller rotated within the cooldown.
+     */
+    suspend fun rotateAfterBotWall(): Boolean =
+        rotationMutex.withLock {
+            if (!BotWallRecovery.isCooldownElapsed(msSinceLastRotation())) return@withLock false
+            Log.w(TAG, "Every client bot-walled — rotating the visitor identity")
+            lastRotationMs = System.currentTimeMillis()
+            consecutiveLowTrustMints = 0
+            tokenRejections = 0
+            generator.resetSession()
+            YouTube.visitorData = null
+            identityGeneration++
+            true
+        }
 
     /** Unconditional reset, for the user-facing "Reset YouTube session" action. */
     suspend fun resetIdentity() {

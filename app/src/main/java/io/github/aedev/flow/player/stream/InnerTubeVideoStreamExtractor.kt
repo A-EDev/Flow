@@ -124,20 +124,55 @@ object InnerTubeVideoStreamExtractor {
     ): VideoExtractionResult? {
         val key = ExtractionKey(videoId, forceSabr)
         return extractionCoalescer.run(key) {
-            selectStreams(videoId, forceSabr)
+            selectStreamsWithBotWallRecovery(videoId, forceSabr)
         }
+    }
+
+    private suspend fun selectStreamsWithBotWallRecovery(
+        videoId: String,
+        forceSabr: Boolean,
+    ): VideoExtractionResult? {
+        val failureReasons = mutableListOf<String>()
+        selectStreams(videoId, forceSabr, failureReasons)?.let { return it }
+        val shouldRecover =
+            BotWallRecovery.shouldRotateAndRetry(
+                failureReasons = failureReasons,
+                retriesDone = 0,
+                msSinceLastRotation = WebPoTokenSession.msSinceLastRotation(),
+            )
+        if (!shouldRecover) {
+            if (BotWallRecovery.isViewerLevelBlock(failureReasons)) {
+                Log.w(TAG, "Bot wall on $videoId but the identity was rotated recently — not retrying")
+                PlayerDiagnostics.logWarning(TAG, "bot wall $videoId: rotation cooldown active, no retry")
+            }
+            return null
+        }
+        if (!WebPoTokenSession.rotateAfterBotWall()) {
+            PlayerDiagnostics.logWarning(TAG, "bot wall $videoId: another load rotated the identity first, no retry")
+            return null
+        }
+        Log.w(TAG, "Bot wall on every client for $videoId — rotated visitor identity, retrying once")
+        PlayerDiagnostics.logWarning(TAG, "bot wall $videoId: identity rotated, retrying extraction once")
+        val retryReasons = mutableListOf<String>()
+        val retried = selectStreams(videoId, forceSabr, retryReasons)
+        if (retried != null) {
+            PlayerDiagnostics.logWarning(TAG, "bot wall retry OK $videoId via ${retried.usedClient.clientName}")
+        } else {
+            PlayerDiagnostics.logError(TAG, "bot wall retry FAILED $videoId: ${retryReasons.joinToString(" | ")}")
+        }
+        return retried
     }
 
     private suspend fun selectStreams(
         videoId: String,
         forceSabr: Boolean,
+        failureReasons: MutableList<String>,
     ): VideoExtractionResult? =
         withContext(Dispatchers.IO) {
             Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
             PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
             dropGatesOnIdentityChange()
             blockedVideoIds.remove(videoId)
-            val failureReasons = mutableListOf<String>()
             val liveDetected = booleanArrayOf(false)
 
             if (forceSabr) {
