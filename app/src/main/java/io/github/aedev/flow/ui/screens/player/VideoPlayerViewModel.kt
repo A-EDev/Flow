@@ -151,19 +151,8 @@ class VideoPlayerViewModel
                 uiState = _uiState,
                 playerManager = playerManager,
                 playerPreferences = playerPreferences,
-                watchSessions = watchSessions,
                 scope = viewModelScope,
-                isLoadInFlight = { loads.isInFlight },
                 cancelLoad = { loads.cancel(invalidateToken = true) },
-                reloadStreams = { videoId, resumePositionMs ->
-                    loadVideoInfo(
-                        videoId = videoId,
-                        isWifi = detectIsWifi(),
-                        forceRefresh = true,
-                        escalateToSabr = true,
-                        resumePositionOverrideMs = resumePositionMs,
-                    )
-                },
             )
 
         private val settings =

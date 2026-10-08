@@ -95,7 +95,6 @@ internal class VideoPlayerViewModelHarness(
     }
 
     val playerState = MutableStateFlow(EnhancedPlayerState())
-    val streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueVideos = MutableStateFlow<List<Video>>(emptyList())
     val videoQueueStore = mockk<io.github.aedev.flow.data.video.VideoQueueStore>(relaxed = true)
@@ -111,7 +110,6 @@ internal class VideoPlayerViewModelHarness(
         mockkObject(EnhancedPlayerManager.Companion)
         every { EnhancedPlayerManager.getInstance() } returns playerManager
         every { playerManager.playerState } returns playerState
-        every { playerManager.streamExpiredEvent } returns streamExpiredEvent
         every { playerManager.playbackAbandonedEvent } returns playbackAbandonedEvent
         every { playerManager.queueVideos } returns queueVideos
         every { playerManager.currentQueueIndexState } returns MutableStateFlow(-1)

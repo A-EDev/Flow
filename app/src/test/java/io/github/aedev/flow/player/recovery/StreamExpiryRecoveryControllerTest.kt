@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.player
+package io.github.aedev.flow.player.recovery
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -46,6 +46,19 @@ class StreamExpiryRecoveryControllerTest {
         val other = recovery.onStreamExpired("vid_b")
 
         assertThat(other).isEqualTo(
+            StreamExpiryRecoveryController.Decision.Reload(attempt = 1, limit = 3, evictCache = false),
+        )
+    }
+
+    @Test
+    fun `a long playlist of refused videos never runs out of budget partway through`() {
+        val recovery = controller()
+
+        repeat(10) { index ->
+            repeat(2) { recovery.onStreamExpired("vid_$index") }
+        }
+
+        assertThat(recovery.onStreamExpired("vid_10")).isEqualTo(
             StreamExpiryRecoveryController.Decision.Reload(attempt = 1, limit = 3, evictCache = false),
         )
     }
