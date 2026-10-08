@@ -147,6 +147,7 @@ IMPROVEMENTS
 - The video mini player closes with a swipe down (#966) and tucks into the side of the screen when dragged well past it or thrown out through its own side
 - The video mini player stays above the keyboard while you type (#1241)
 - The music bar closes with a swipe down
+- Auto quality now changes between qualities mid-playback without stopping, judged on the measured speed of your connection, where before it started at 480p, never went past 720p and paused on every change
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
