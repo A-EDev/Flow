@@ -188,19 +188,22 @@ fun DraggablePlayerLayout(
             val expandedVideoWidth = geometry.expandedVideoWidth
             val visualMiniScale = geometry.visualMiniScale
 
+            val expandedVideoHeight =
+                rememberGlidingVideoHeight(state, expandedVideoWidth, geometry.expandedVideoHeight)
             val heightFractionOverrideState = rememberUpdatedState(expandedPlayerHeightFractionOverride)
             // Read in the layout phase only: the fraction changes on every nested-scroll delta and
             // every media-sheet drag frame, and a composition read here recomposed this whole tree.
             val currentExpandedVideoHeightProvider =
-                remember(geometry.baseVideoHeight, geometry.expandedVideoHeight) {
+                remember(geometry.baseVideoHeight, expandedVideoHeight) {
                     {
-                        if (geometry.expandedVideoHeight > geometry.baseVideoHeight) {
+                        val fullHeight = expandedVideoHeight()
+                        if (fullHeight > geometry.baseVideoHeight) {
                             val fraction =
                                 heightFractionOverrideState.value?.invoke()?.coerceIn(0f, 1f)
                                     ?: playerHeightFraction
-                            lerpClamped(geometry.baseVideoHeight, geometry.expandedVideoHeight, fraction)
+                            lerpClamped(geometry.baseVideoHeight, fullHeight, fraction)
                         } else {
-                            geometry.expandedVideoHeight
+                            fullHeight
                         }
                     }
                 }
