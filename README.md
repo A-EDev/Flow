@@ -1,50 +1,25 @@
 <div align="center">
-  <img src="Assets/logo.png" alt="Flow Logo" width="140" height="140">
-  <br><br>
-  
-  <div align="center">
-  
-<a href="https://trendshift.io/repositories/22545" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22545" alt="A-EDev%2FFlow | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/banners/flow-android-dark.svg">
+    <img alt="Flow. Privacy-first YouTube and YouTube Music for Android, with recommendations that stay on your phone." src="https://assets.flow-tube.org/v1/banners/flow-android-light.svg" width="100%">
+  </picture>
 
-<br>
-<img src="https://img.shields.io/badge/Status-Active_Development-success?style=for-the-badge&logo=github-actions">
-<br>
-<!-- Downloads & Version -->
-<a href="https://github.com/A-EDev/Flow/releases">
-  <img src="https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge&color=orange&logo=github&label=Downloads">
-</a>
-<a href="https://github.com/A-EDev/Flow/releases">
-  <img src="https://img.shields.io/github/v/release/A-EDev/Flow?style=for-the-badge&color=crimson&label=Latest%20Version">
-</a>
-
-<br>
-
-<!-- Tech Stack -->
-<img src="https://img.shields.io/badge/Platform-Android_8.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white">
-<img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white">
-<img src="https://img.shields.io/badge/Compose-Material_3-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white">
-
-<br>
-
-<!-- Community & License -->
-<a href="https://www.reddit.com/r/Flow_Official/">
-  <img src="https://img.shields.io/badge/Reddit-r%2FFlow__Official-FF4500?style=for-the-badge&logo=reddit&logoColor=white">
-</a>
-<img src="https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge&logo=star&color=gold">
-<img src="https://img.shields.io/github/forks/A-EDev/Flow?style=for-the-badge&logo=git&color=silver">
-<a href="LICENSE">
-  <img src="https://img.shields.io/badge/License-GPL_v3.0-blue?style=for-the-badge&logo=gnu-bash&logoColor=white">
-</a>
-<img src="https://img.shields.io/github/last-commit/A-EDev/Flow?style=for-the-badge&color=red">
-<a href="#cert">
-  <img src="https://img.shields.io/badge/Security-Verified_SHA--256-blue?style=for-the-badge&logo=security&logoColor=white">
-</a>
-
-</div>
-
-  <br><br>
-  
   <h3>A privacy-respecting YouTube and YouTube Music client for Android with a local recommendation engine.</h3>
+
+  <p>
+  <a href="https://github.com/A-EDev/Flow/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-github-dark.svg"><img alt="Get it on GitHub" src="https://assets.flow-tube.org/v1/badges/pill/get-github-light.svg" height="60"></picture></a>
+  <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-izzyondroid-dark.svg"><img alt="Get it on IzzyOnDroid" src="https://assets.flow-tube.org/v1/badges/pill/get-izzyondroid-light.svg" height="60"></picture></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-dark.svg"><img alt="Get it on Obtainium" src="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-light.svg" height="60"></picture></a>
+  <a href="https://nightly.link/A-EDev/Flow/workflows/build/main/flow-nightly-apk.zip"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-nightly-dark.svg"><img alt="Try the Nightly build" src="https://assets.flow-tube.org/v1/badges/pill/get-nightly-light.svg" height="60"></picture></a>
+  </p>
+  <p>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/android-dark.svg"><img alt="Android 8.0+" src="https://assets.flow-tube.org/v1/badges/split/android-light.svg" height="32"></picture>
+  <a href="https://github.com/A-EDev/Flow/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/release-dark.svg"><img alt="Latest release" src="https://assets.flow-tube.org/v1/badges/split/release-light.svg" height="32"></picture></a>
+  <a href="https://github.com/A-EDev/Flow/releases"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/downloads-dark.svg"><img alt="Downloads" src="https://assets.flow-tube.org/v1/badges/split/downloads-light.svg" height="32"></picture></a>
+  <a href="License"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/license-dark.svg"><img alt="License: GPL-3.0" src="https://assets.flow-tube.org/v1/badges/split/license-light.svg" height="32"></picture></a>
+  <a href="#cert"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/signed-dark.svg"><img alt="Signed: SHA-256 certificate" src="https://assets.flow-tube.org/v1/badges/split/signed-light.svg" height="32"></picture></a>
+  </p>
+
   <p>
     Flow is a YouTube client built with Jetpack Compose and Material 3.<br>
     It includes FlowNeuro, a recommendation engine that runs entirely on your device — no accounts, no tracking, no data leaves your phone.
@@ -159,25 +134,9 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 ### Stable Release
 
 <div align="center">
-  <table border="0">
-    <tr>
-      <td align="center" style="vertical-align: middle; padding: 10px;">
-        <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/">
-          <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Obtainium" height="60">
-        </a>
-      </td>
-      <td align="center" style="vertical-align: middle; padding: 10px;">
-        <a href="https://github.com/A-EDev/Flow/releases/latest">
-          <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="GitHub" height="90">
-        </a>
-      </td>
-      <td align="center" style="vertical-align: middle; padding: 10px;">
-        <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow">
-          <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="IzzyOnDroid" height="90">
-        </a>
-      </td>
-    </tr>
-  </table>
+  <a href="https://github.com/A-EDev/Flow/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-github-dark.svg"><img alt="Get it on GitHub" src="https://assets.flow-tube.org/v1/badges/pill/get-github-light.svg" height="60"></picture></a>
+  <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-izzyondroid-dark.svg"><img alt="Get it on IzzyOnDroid" src="https://assets.flow-tube.org/v1/badges/pill/get-izzyondroid-light.svg" height="60"></picture></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-dark.svg"><img alt="Get it on Obtainium" src="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-light.svg" height="60"></picture></a>
 </div>
 
 ### Nightly Build
@@ -186,9 +145,7 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 Flow Nightly is built from every commit to `main`. It installs next to the stable app as a separate app called **Flow Nightly**, keeps its own data, and updates itself to each new nightly from inside the app.
 
 <div align="center">
-  <a href="https://github.com/A-EDev/Flow/releases/tag/nightly">
-    <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
-  </a>
+  <a href="https://github.com/A-EDev/Flow/releases/tag/nightly"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-nightly-dark.svg"><img alt="Try the Nightly build" src="https://assets.flow-tube.org/v1/badges/pill/get-nightly-light.svg" height="60"></picture></a>
 </div>
 
 ### Requirements 
@@ -209,9 +166,7 @@ Flow is a free and open-source project. As an independent developer without trad
 
 **You can now easily support the project using a Credit Card, Apple Pay, or PayPal via Patreon!** (You can choose to support monthly, or just leave a simple one-time tip in the shop).
 
-<a href="https://patreon.com/A_EDev" target="_blank" rel="noreferrer noopener">
-  <img src="https://img.shields.io/badge/Patreon-Support_Flow-FF424D?style=for-the-badge&amp;logo=patreon&amp;logoColor=white" alt="Support Flow on Patreon">
-</a>
+<a href="https://patreon.com/A_EDev"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/support-patreon-dark.svg"><img alt="Support Flow on Patreon" src="https://assets.flow-tube.org/v1/badges/pill/support-patreon-light.svg" height="60"></picture></a>
 
 <br>
 
@@ -252,7 +207,7 @@ Flow stands on the shoulders of giants. Special thanks to:
 ## Translations
 Help translate Flow into your language! 
 
-[![Translation status](https://hosted.weblate.org/widget/flow/strings/287x66-grey.png)](https://hosted.weblate.org/engage/flow/)
+<a href="https://hosted.weblate.org/engage/flow/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/translate-dark.svg"><img alt="Help translate on Weblate" src="https://assets.flow-tube.org/v1/badges/pill/translate-light.svg" height="60"></picture></a>
 
 [![Translation status](https://hosted.weblate.org/widget/flow/strings/horizontal-auto.svg)](https://hosted.weblate.org/engage/flow/)
 </div>
@@ -284,5 +239,7 @@ It is distributed under the **GNU General Public License v3 (GPLv3)**.
 ---
 
 <div align="center">
+  <a href="https://github.com/Flow-Tube"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/part-of-flow-dark.svg"><img alt="Part of the Flow ecosystem" src="https://assets.flow-tube.org/v1/badges/pill/part-of-flow-light.svg" height="60"></picture></a>
+  <br><br>
   <sub>Made with ❤️ by A-EDev</sub>
 </div>
