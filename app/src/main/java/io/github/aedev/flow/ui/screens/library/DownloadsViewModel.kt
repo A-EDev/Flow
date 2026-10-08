@@ -17,8 +17,11 @@ import io.github.aedev.flow.data.video.downloader.collection.DownloadedCollectio
 import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -57,7 +60,7 @@ class DownloadsViewModel
             observeDownloads()
             downloadController.ensureQueueRunning()
             downloadController.scheduleRetagOnce()
-            if (!recoveryScanner.hasScannedThisSession) rescan()
+            scanIfMoreIsReadable()
         }
 
         fun setQuery(value: String) {
@@ -210,12 +213,27 @@ class DownloadsViewModel
             viewModelScope.launch { collections.remove(id, deleteFiles) }
         }
 
-        fun rescan() {
+        /** How many earlier downloads a scan brought back; sent when there were some, or when the viewer asked. */
+        private val _recovered = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+        val recovered: SharedFlow<Int> = _recovered.asSharedFlow()
+
+        fun rescan() = scan(reportNone = false)
+
+        /** After media access is granted, which is when an earlier install's files become visible. */
+        fun findEarlierDownloads() = scan(reportNone = true)
+
+        /** On open and on return to the screen: the viewer may have granted access in system settings. */
+        fun scanIfMoreIsReadable() {
+            if (recoveryScanner.needsScan()) scan(reportNone = false)
+        }
+
+        private fun scan(reportNone: Boolean) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isScanning = true) }
-                recoveryScanner.scanAndRecoverDownloads()
+                val count = recoveryScanner.scanAndRecoverDownloads()
                 refreshTick.update { it + 1 }
                 _uiState.update { it.copy(isScanning = false) }
+                if (count > 0 || reportNone) _recovered.tryEmit(count)
             }
         }
 

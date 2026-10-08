@@ -1,9 +1,7 @@
 package io.github.aedev.flow.ui.screens.library
 
 import android.app.Activity
-import android.content.Intent
 import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -280,16 +278,7 @@ fun LocalMediaScreen(
                             LocalMediaPermissionState(
                                 canAsk = !askedOnce || activity?.canStillAsk() == true,
                                 onGrant = askForAccess,
-                                onOpenSettings = {
-                                    runCatching {
-                                        context.startActivity(
-                                            Intent(
-                                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                                Uri.fromParts("package", context.packageName, null),
-                                            ),
-                                        )
-                                    }
-                                },
+                                onOpenSettings = context::openAppPermissionSettings,
                             )
                         }
 
