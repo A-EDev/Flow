@@ -7,6 +7,9 @@ import androidx.compose.material3.MotionScheme
 /** Open and expand: M3's standard slow spatial spring, about 300 ms like YouTube's own. */
 internal val playerOpenSpringSpec: FiniteAnimationSpec<Float> = MotionScheme.standard().slowSpatialSpec()
 
+/** The expanded box gliding to a new video shape, so the page under it moves without a jump. */
+internal val playerResizeSpringSpec: FiniteAnimationSpec<Float> = MotionScheme.standard().defaultSpatialSpec()
+
 /** Collapse: critically damped and slower than the open, a glide of about 580 ms into the corner. */
 internal val playerCollapseSpringSpec = spring<Float>(dampingRatio = 1f, stiffness = 130f)
 

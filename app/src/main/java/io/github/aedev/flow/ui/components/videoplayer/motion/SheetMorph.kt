@@ -9,9 +9,13 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 
-/** The page fades in between these expansion fractions while an open grows out of a card. */
-private const val OPEN_BODY_FADE_START = 0.2f
-private const val OPEN_BODY_FADE_END = 0.75f
+/**
+ * The page fades in between these expansion fractions while an open grows out of a card: only
+ * once the video has nearly reached the top, so the video lands first and the page follows it
+ * instead of rising alongside.
+ */
+private const val OPEN_BODY_FADE_START = 0.02f
+private const val OPEN_BODY_FADE_END = 0.25f
 
 /** The ground of the page while an open grows: the origin's rectangle at 1, the whole layout at 0. */
 internal fun openGroundRect(

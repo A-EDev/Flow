@@ -45,10 +45,11 @@ class SheetMorphTest {
     }
 
     @Test
-    fun `the page appears only once the open is well under way`() {
+    fun `the page follows the video in only once it has nearly landed`() {
         assertThat(openBodyAlpha(1f)).isEqualTo(0f)
-        assertThat(openBodyAlpha(0.75f)).isEqualTo(0f)
-        assertThat(openBodyAlpha(0.2f)).isEqualTo(1f)
+        assertThat(openBodyAlpha(0.25f)).isEqualTo(0f)
+        assertThat(openBodyAlpha(0.12f)).isWithin(0.1f).of(0.5f)
+        assertThat(openBodyAlpha(0.02f)).isEqualTo(1f)
         assertThat(openBodyAlpha(0f)).isEqualTo(1f)
     }
 

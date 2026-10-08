@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -12,6 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerResnapTargets
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerResizeSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.resnapMiniPlayer
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -63,4 +65,39 @@ internal fun ReportExpandedPlayerBottom(
     }
     val currentOnChanged by rememberUpdatedState(onChanged)
     SideEffect { currentOnChanged(bottom) }
+}
+
+/**
+ * The expanded video's [height], gliding when the video's shape changes. The shape usually arrives
+ * with the streams just after an open has landed, and a jump drags the whole page under the video
+ * with it. A new [width] (rotation, a resized window) or a sheet resting mini takes the new height
+ * at once, since nothing on screen is anchored to the old one.
+ */
+@Composable
+internal fun rememberGlidingVideoHeight(
+    state: PlayerDraggableState,
+    width: Float,
+    height: Float,
+): () -> Float {
+    val glide = remember { GlidingHeight(width, height) }
+    LaunchedEffect(width, height) {
+        if (width != glide.width || state.expandFraction.value > 0.999f) {
+            glide.width = width
+            glide.height.snapTo(height)
+        } else {
+            glide.height.animateTo(height, playerResizeSpringSpec)
+        }
+    }
+    return remember(state, glide, width, height) {
+        {
+            if (width != glide.width || state.expandFraction.value > 0.999f) height else glide.height.value
+        }
+    }
+}
+
+private class GlidingHeight(
+    var width: Float,
+    height: Float,
+) {
+    val height = Animatable(height)
 }

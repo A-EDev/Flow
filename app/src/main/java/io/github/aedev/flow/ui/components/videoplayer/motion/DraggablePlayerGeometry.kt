@@ -5,6 +5,10 @@ import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
 import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 
 private const val WIDE_MODE_SCALE_THRESHOLD = 1.5f
+private const val SIXTEEN_NINE = 16f / 9f
+
+/** How far taller than 16:9 a video may be and still get the 16:9 box, for renditions like 1920x1088. */
+private const val SIXTEEN_NINE_TOLERANCE = 1.03f
 
 /** Every px value the layout, the effects and the gesture handlers derive from one composition. */
 internal data class DraggablePlayerGeometry(
@@ -36,6 +40,17 @@ internal data class DraggablePlayerGeometry(
     val targetMiniY: Float,
 ) {
     fun miniBoxWidth(envelopeSide: Float): Float = miniBoxWidthFor(envelopeSide, clampedAspect)
+}
+
+/**
+ * The shape of the player's box for a video of [videoAspectRatio]: 16:9 for anything as wide or
+ * wider, letterboxed like YouTube, and the video's own shape only when it is clearly taller. The
+ * real shape arrives with the streams, after the player has opened, so a wide video would
+ * otherwise shrink the box and jerk everything under it up.
+ */
+internal fun playerBoxAspectRatio(videoAspectRatio: Float): Float {
+    val aspect = sanitizeDisplayAspectRatio(videoAspectRatio)
+    return if (aspect * SIXTEEN_NINE_TOLERANCE >= SIXTEEN_NINE) SIXTEEN_NINE else aspect
 }
 
 internal fun miniBoxWidthFor(
@@ -79,7 +94,7 @@ internal fun computeDraggablePlayerGeometry(
     val baseMiniWidth = (screenWidth * miniPlayerScale).coerceAtMost(maxMiniWidthPx)
     val maxWideFraction = if (isLargeWindow) 0.60f else 1.00f
     val maxWideWidth = ((screenWidth * maxWideFraction) - (margin * 2f)).coerceAtLeast(baseMiniWidth)
-    val clampedAspect = sanitizeDisplayAspectRatio(videoAspectRatio)
+    val clampedAspect = playerBoxAspectRatio(videoAspectRatio)
     val miniWidth = miniBoxWidthFor(baseMiniWidth * currentSizeScale, clampedAspect).coerceAtMost(maxWideWidth)
     val miniHeight = miniWidth / clampedAspect
     val isWideMode = currentSizeScale > WIDE_MODE_SCALE_THRESHOLD

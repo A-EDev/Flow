@@ -910,7 +910,7 @@
     <string name="player_nav_btn_subtitle">Show next and previous video buttons on the mini player</string>
     <string name="player_appearance_fullscreen_header">Fullscreen</string>
     <string name="player_adaptive_size_title">Adaptive Player Size</string>
-    <string name="player_adaptive_size_subtitle">Fit the player to the video. Off keeps it 16:9.</string>
+    <string name="player_adaptive_size_subtitle">Grow the player for taller videos. Off keeps it 16:9.</string>
     <string name="player_fullscreen_seekbar_width_title">Fullscreen Seekbar Width</string>
     <string name="player_portrait_seekbar_width_title">Portrait Seekbar Width</string>
     <string name="player_portrait_seekbar_width_spaced">Spaced</string>

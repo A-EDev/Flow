@@ -61,6 +61,25 @@ class DraggablePlayerGeometryTest {
     }
 
     @Test
+    fun `a video wider than 16 by 9 is letterboxed in a 16 by 9 box`() {
+        val g = phone(videoAspectRatio = 2.39f)
+        assertThat(g.clampedAspect).isEqualTo(16f / 9f)
+        assertThat(g.expandedVideoHeight).isWithin(0.01f).of(g.baseVideoHeight)
+    }
+
+    @Test
+    fun `a rendition a few pixels off 16 by 9 still gets the 16 by 9 box`() {
+        assertThat(playerBoxAspectRatio(1920f / 1088f)).isEqualTo(16f / 9f)
+        assertThat(playerBoxAspectRatio(1920f / 1036f)).isEqualTo(16f / 9f)
+    }
+
+    @Test
+    fun `a clearly taller video keeps its own shape`() {
+        assertThat(playerBoxAspectRatio(4f / 3f)).isEqualTo(4f / 3f)
+        assertThat(playerBoxAspectRatio(9f / 16f)).isEqualTo(9f / 16f)
+    }
+
+    @Test
     fun `a portrait video keeps the mini envelope inside the landscape box`() {
         val g = phone(videoAspectRatio = 9f / 16f)
         assertThat(g.clampedAspect).isLessThan(1f)

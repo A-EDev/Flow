@@ -168,6 +168,7 @@ FIXES AND STABILITY
 - Fix Continue watching cards being cut off on narrow phones, and loading placeholders not matching list mode on wide screens
 - Fix the comment count under the player showing the previous video's count when the next video has none
 - Fix pinching the video mini player making it jump from one corner to another, mostly when making it small again
+- Fix the title and the page under a video jumping just after the player opens: wide videos keep a 16:9 player with black bars like YouTube, taller ones grow the player smoothly, and the page now follows the video in once it reaches the top (#1091)
 - Fix the video queue always being called Playlist instead of the playlist's name, and the queue dock covering the last related video
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
 - Fix onboarding subscribing to some channels under their handle instead of their id, which left them without a feed, and system back leaving setup instead of going to the previous step
