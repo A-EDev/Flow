@@ -254,6 +254,12 @@ private suspend fun PointerInputScope.detectPlayerTaps(
                 return@awaitEachGesture
             } ?: return@awaitEachGesture
 
+        // An unconsumed swipe still ends in an up. Counting it as a tap let the two swipes that
+        // leave immersive fullscreen read as a centre double-tap and pause playback before PiP.
+        if ((firstUp.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+            return@awaitEachGesture
+        }
+
         onTapUp(firstUp.position)
 
         val secondDown =
