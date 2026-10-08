@@ -139,6 +139,21 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
   <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-dark.svg"><img alt="Get it on Obtainium" src="https://assets.flow-tube.org/v1/badges/pill/get-obtainium-light.svg" height="60"></picture></a>
 </div>
 
+#### Which APK should I download?
+
+Each release has six APKs: three device types, each in a GitHub build and a FOSS build.
+
+| Your device | GitHub build | FOSS build |
+| :--- | :--- | :--- |
+| Most phones and tablets (64-bit, `arm64-v8a`) | `flow-arm64-v8a.apk` | `flow-foss-arm64-v8a.apk` |
+| Older 32-bit phones (`armeabi-v7a`) | `flow-armeabi-v7a.apk` | `flow-foss-armeabi-v7a.apk` |
+| Any device (universal, larger download) | `flow.apk` | `flow-foss.apk` |
+
+- **Not sure?** `flow-arm64-v8a.apk` works on almost every phone. `flow.apk` works on all of them.
+- **GitHub build:** updates itself from inside the app and supports Discord Rich Presence.
+- **FOSS build:** the same app without the built-in updater and the Discord integration. This is the build on IzzyOnDroid; update it through IzzyOnDroid or Obtainium.
+- `checksums.txt` in each release lists the SHA-256 of every APK.
+
 ### Nightly Build
 > ⚠️ Nightly builds are unstable and may contain bugs. Use at your own risk.
 
