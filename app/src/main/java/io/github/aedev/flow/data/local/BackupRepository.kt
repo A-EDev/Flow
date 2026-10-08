@@ -135,10 +135,7 @@ private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
 private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
 private const val MASTER_RECAP_ENTRY = "recap_stats.json"
 private const val MASTER_FAVOURITE_ARTISTS_ENTRY = "favourite_artists.json"
-private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
 
-// Every Takeout activity entry sits in this cell, whatever language the archive is in.
-private const val TAKEOUT_ACTIVITY_MARKUP = "content-cell"
 internal const val NO_LIKES = "no_likes"
 private const val LIKES_LEARNING_WINDOW_DAYS = 365L
 private const val MAX_LEARNED_LIKES = 500
@@ -176,6 +173,17 @@ class BackupRepository(
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
     private val likedVideosRepo = LikedVideosRepository.getInstance(context)
     private val database = AppDatabase.getDatabase(context)
+    private val takeoutImporter by lazy {
+        YouTubeTakeoutImporter(
+            context = context,
+            database = database,
+            viewHistory = viewHistory,
+            subscriptions = subscriptionRepo,
+            saveLikes = ::saveImportedLikes,
+            channelAvatar = ::fetchChannelAvatar,
+            learnFromHistory = ::bootstrapNeuroFromImportedHistory,
+        )
+    }
 
     private suspend fun getContentPreferencesBackup(): ContentPreferencesBackup {
         val engine = FlowNeuroEngine.getInstance(context)
@@ -795,136 +803,11 @@ class BackupRepository(
     }
 
     private suspend fun importHtmlWatchHistory(uri: Uri): Result<Int> {
-        val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
         val importedCount =
-            context.contentResolver
-                .openInputStream(uri)
-                ?.bufferedReader(Charsets.UTF_8)
-                ?.use { reader ->
-                    importTakeoutHtmlHistory(
-                        reader = reader,
-                        firstIndex = 0,
-                        neuroBootstrapCandidates = neuroBootstrapCandidates,
-                        requireActivityMarkup = false,
-                    )
-                } ?: return Result.failure(Exception("Could not read file"))
-
-        if (importedCount == 0) {
-            return Result.failure(Exception("no_entries"))
-        }
-
-        try {
-            bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
-        } catch (_: Exception) {
-        }
-
+            context.contentResolver.openInputStream(uri)?.use { takeoutImporter.importHtmlHistory(it) }
+                ?: return Result.failure(Exception("Could not read file"))
+        if (importedCount == 0) return Result.failure(Exception("no_entries"))
         return Result.success(importedCount)
-    }
-
-    /**
-     * Streams a Takeout watch-history HTML file into history and returns how many entries it saved.
-     * Localized archives name the file in the account's language, so with [requireActivityMarkup] a
-     * file is only saved once it shows the My Activity layout; any other HTML is dropped unsaved.
-     */
-    private suspend fun importTakeoutHtmlHistory(
-        reader: BufferedReader,
-        firstIndex: Int,
-        neuroBootstrapCandidates: LinkedHashMap<String, VideoHistoryEntry>,
-        requireActivityMarkup: Boolean,
-    ): Int {
-        val readSize = 65_536
-        val overlap = 2_048
-        val batchSize = 500
-
-        val videoPattern =
-            Regex(
-                """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE,
-            )
-        val channelPattern =
-            Regex(
-                """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE,
-            )
-
-        var importedCount = 0
-        var activityMarkupSeen = !requireActivityMarkup
-        val batch = mutableListOf<VideoHistoryEntry>()
-        val buffer = CharArray(readSize)
-        val tail = StringBuilder(overlap)
-
-        suspend fun flush() {
-            if (batch.isEmpty()) return
-            viewHistory.bulkSaveHistoryEntries(batch)
-            batch.forEach { rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, it) }
-            batch.clear()
-            kotlinx.coroutines.yield()
-        }
-
-        while (true) {
-            val count = reader.read(buffer)
-            if (count == -1) break
-
-            val window = tail.toString() + String(buffer, 0, count)
-            if (!activityMarkupSeen) activityMarkupSeen = window.contains(TAKEOUT_ACTIVITY_MARKUP)
-            val videoMatches = videoPattern.findAll(window).toList()
-            val channelMatches = channelPattern.findAll(window).toList()
-            var channelIndex = 0
-
-            for (videoMatch in videoMatches) {
-                if (videoMatch.range.last < tail.length) continue
-
-                val videoId = videoMatch.groupValues[1].trim()
-                if (videoId.isEmpty()) continue
-
-                val title = unescapeHtmlEntities(videoMatch.groupValues[2].trim())
-
-                while (channelIndex < channelMatches.size &&
-                    channelMatches[channelIndex].range.first <= videoMatch.range.first
-                ) {
-                    channelIndex++
-                }
-
-                val channelMatch = channelMatches.getOrNull(channelIndex)
-                val channelId: String
-                val channelName: String
-                if (channelMatch != null && channelMatch.range.first - videoMatch.range.last < 2_000) {
-                    channelId = channelMatch.groupValues[1].trim()
-                    channelName = unescapeHtmlEntities(channelMatch.groupValues[2].trim())
-                } else {
-                    channelId = ""
-                    channelName = ""
-                }
-
-                batch.add(
-                    VideoHistoryEntry(
-                        videoId = videoId,
-                        position = 0L,
-                        duration = 0L,
-                        timestamp = System.currentTimeMillis() - (firstIndex + importedCount),
-                        title = title,
-                        thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                        channelName = channelName,
-                        channelId = channelId,
-                        isMusic = false,
-                    ),
-                )
-                importedCount++
-            }
-
-            tail.clear()
-            if (window.length > overlap) {
-                tail.append(window, window.length - overlap, window.length)
-            } else {
-                tail.append(window)
-            }
-
-            if (activityMarkupSeen && batch.size >= batchSize) flush()
-        }
-
-        if (!activityMarkupSeen) return 0
-        flush()
-        return importedCount
     }
 
     private suspend fun importJsonWatchHistory(uri: Uri): Result<Int> {
@@ -1087,16 +970,6 @@ class BackupRepository(
         }
         return destination
     }
-
-    private fun unescapeHtmlEntities(text: String): String =
-        text
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&#39;", "'")
-            .replace("&apos;", "'")
-            .replace("&#x27;", "'")
 
     /** First column of a Takeout playlist CSV row, when it looks like a video id. */
     private fun parseTakeoutVideoId(line: String): String? =
@@ -1488,224 +1361,7 @@ class BackupRepository(
     suspend fun importYouTubeTakeout(
         uri: Uri,
         onProgress: ((label: String, current: Int, total: Int) -> Unit)? = null,
-    ): Result<String> =
-        withContext(Dispatchers.IO) {
-            try {
-                var subscriptionsImported = 0
-                var historyImported = 0
-                var playlistsImported = 0
-                var playlistVideosImported = 0
-
-                val playlistTitlesByDirectory = mutableMapOf<String, MutableList<String>>()
-                val videoCsvData = mutableMapOf<String, List<String>>()
-                val subRows = mutableListOf<YouTubeTakeoutSubscription>()
-                val takeoutCsvBudget = YouTubeTakeoutCsvBudget()
-                val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
-                var likes: List<TakeoutLike>? = null
-
-                context.contentResolver.openInputStream(uri)?.use { raw ->
-                    ZipInputStream(raw.buffered()).use { zip ->
-                        var entry = zip.nextEntry
-                        while (entry != null) {
-                            val name = entry.name
-                            when {
-                                name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true) ||
-                                    isYouTubeTakeoutHtmlEntry(name) -> {
-                                    onProgress?.invoke("Watch history", 0, 0)
-                                    historyImported +=
-                                        importTakeoutHtmlHistory(
-                                            reader = zip.bufferedReader(Charsets.UTF_8),
-                                            firstIndex = historyImported,
-                                            neuroBootstrapCandidates = neuroBootstrapCandidates,
-                                            requireActivityMarkup =
-                                                !name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true),
-                                        )
-                                }
-
-                                !entry.isDirectory && likes == null && isMyActivityYouTubeEntry(name) -> {
-                                    onProgress?.invoke(context.getString(R.string.import_label_youtube_likes), 0, 0)
-                                    likes = readMyActivityLikes(zip).likes
-                                }
-
-                                !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
-                                    takeoutCsvBudget.startEntry()
-                                    val content =
-                                        readYouTubeTakeoutCsv(
-                                            zip.bufferedReader(Charsets.UTF_8),
-                                            takeoutCsvBudget,
-                                        )
-                                    when (content) {
-                                        is YouTubeTakeoutCsvContent.Subscriptions -> {
-                                            onProgress?.invoke("Subscriptions", 0, 0)
-                                            subRows += content.rows
-                                        }
-
-                                        is YouTubeTakeoutCsvContent.PlaylistVideos -> {
-                                            videoCsvData[name] = content.videoIds
-                                        }
-
-                                        is YouTubeTakeoutCsvContent.PlaylistMetadata -> {
-                                            playlistTitlesByDirectory
-                                                .getOrPut(name.takeoutParentPath()) { mutableListOf() }
-                                                .addAll(content.titles)
-                                        }
-
-                                        YouTubeTakeoutCsvContent.Unsupported -> {}
-                                    }
-                                }
-                            }
-                            zip.closeEntry()
-                            entry = zip.nextEntry
-                        }
-                    }
-                } ?: return@withContext Result.failure(Exception("Could not open file"))
-
-                if (subRows.isNotEmpty()) {
-                    onProgress?.invoke("Subscriptions", 0, subRows.size)
-                    val semaphore = Semaphore(5)
-                    val completed = AtomicInteger(0)
-                    val importedSubscriptions = mutableListOf<ChannelSubscription>()
-                    supervisorScope {
-                        subRows.chunked(25).forEach { batch ->
-                            importedSubscriptions +=
-                                batch
-                                    .map { sub ->
-                                        async(Dispatchers.IO) {
-                                            semaphore.withPermit {
-                                                val avatar =
-                                                    try {
-                                                        fetchChannelAvatar(sub.channelId)
-                                                    } catch (e: Exception) {
-                                                        ""
-                                                    }
-                                                onProgress?.invoke("Subscriptions", completed.incrementAndGet(), subRows.size)
-                                                ChannelSubscription(
-                                                    channelId = sub.channelId,
-                                                    channelName = sub.channelName,
-                                                    channelThumbnail = avatar,
-                                                    subscribedAt = System.currentTimeMillis(),
-                                                )
-                                            }
-                                        }
-                                    }.awaitAll()
-                        }
-                    }
-                    subscriptionRepo.subscribeAll(importedSubscriptions)
-                    subscriptionsImported += importedSubscriptions.size
-                    val channelNames = subRows.map { it.channelName }.filter { it.isNotEmpty() }
-                    if (channelNames.isNotEmpty()) {
-                        try {
-                            FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames)
-                        } catch (_: Exception) {
-                        }
-                    }
-                }
-
-                validateYouTubeTakeoutPlaylistCount(
-                    videoFileCount = videoCsvData.size,
-                    metadataTitleCount = playlistTitlesByDirectory.values.sumOf { titles -> titles.size },
-                )
-                val fallbackPlaylistName = context.getString(R.string.imported_playlist_fallback)
-                val playlistNames =
-                    buildMap {
-                        videoCsvData.keys
-                            .groupBy { filename -> filename.takeoutParentPath() }
-                            .forEach { (directory, filenames) ->
-                                putAll(
-                                    resolveYouTubeTakeoutPlaylistNames(
-                                        filenames,
-                                        playlistTitlesByDirectory[directory].orEmpty(),
-                                        fallbackPlaylistName,
-                                    ),
-                                )
-                            }
-                    }
-                playlistNames.forEach { (filename, playlistName) ->
-                    val videoIds = videoCsvData.getValue(filename)
-
-                    val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
-                    val playlistId =
-                        if (isWatchLater) {
-                            PlaylistRepository.WATCH_LATER_ID
-                        } else {
-                            "yt_takeout_${UUID.randomUUID()}"
-                        }
-                    val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
-
-                    database.withTransaction {
-                        val existing = database.playlistDao().getPlaylist(playlistId)
-                        if (existing == null) {
-                            database.playlistDao().insertPlaylist(
-                                PlaylistEntity(
-                                    id = playlistId,
-                                    name = if (isWatchLater) "Watch Later" else playlistName,
-                                    description = context.getString(R.string.imported_from_google_takeout),
-                                    thumbnailUrl = firstThumb,
-                                    isPrivate = isWatchLater,
-                                    createdAt = System.currentTimeMillis(),
-                                    isMusic = false,
-                                    isUserCreated = true,
-                                ),
-                            )
-                        }
-                        val alreadyInPlaylist = database.playlistDao().getVideoIdsInPlaylist(playlistId).toHashSet()
-                        var nextPosition = (database.playlistDao().getMaxPlaylistPosition(playlistId) ?: -1L) + 1L
-
-                        videoIds.forEach { videoId ->
-                            database.videoDao().insertVideoOrIgnore(
-                                VideoEntity(
-                                    id = videoId,
-                                    title = "",
-                                    channelName = "",
-                                    channelId = "",
-                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                    duration = 0,
-                                    viewCount = 0L,
-                                    uploadDate = "",
-                                    description = "",
-                                    channelThumbnailUrl = "",
-                                    isMusic = false,
-                                ),
-                            )
-                            if (!alreadyInPlaylist.add(videoId)) return@forEach
-                            database.playlistDao().insertPlaylistVideoCrossRef(
-                                PlaylistVideoCrossRef(
-                                    playlistId = playlistId,
-                                    videoId = videoId,
-                                    position = nextPosition++,
-                                ),
-                            )
-                        }
-                    }
-                    playlistsImported++
-                    playlistVideosImported += videoIds.size
-                }
-
-                val likesImported = likes?.let { saveImportedLikes(it) } ?: 0
-
-                if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0 && likesImported == 0) {
-                    return@withContext Result.failure(Exception("no_content"))
-                }
-
-                if (historyImported > 0) {
-                    try {
-                        bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
-                    } catch (_: Exception) {
-                    }
-                }
-
-                val parts =
-                    buildList {
-                        if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
-                        if (historyImported > 0) add("$historyImported history entries")
-                        if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
-                        if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
-                    }
-                Result.success(parts.joinToString(", "))
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+    ): Result<String> = takeoutImporter.import(uri, onProgress)
 
     // ── NewPipe playlist import (ZIP containing SQLite DB) ──
 
