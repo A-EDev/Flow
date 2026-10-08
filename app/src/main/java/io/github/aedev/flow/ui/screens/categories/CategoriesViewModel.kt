@@ -21,6 +21,7 @@ import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.ui.components.categories.categoryErrorRes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -352,7 +353,7 @@ class CategoriesViewModel
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    error = error.localizedMessage ?: context.getString(R.string.error_failed_to_load_videos),
+                    error = context.getString(categoryErrorRes(error)),
                 )
             }
         }

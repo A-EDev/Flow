@@ -59,7 +59,7 @@ internal fun CategoryPagedGrid(
 
             refresh is LoadState.Error -> {
                 FlowErrorState(
-                    error = refresh.error.localizedMessage ?: stringResource(R.string.error_failed_to_load_videos),
+                    error = stringResource(categoryErrorRes(refresh.error)),
                     onRetry = pagingItems::retry,
                     modifier = modifier,
                 )

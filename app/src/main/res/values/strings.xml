@@ -1169,6 +1169,7 @@
     <string name="category_learning">Learning</string>
     <string name="category_fashion">Fashion</string>
     <string name="categories_chart_source">YouTube Music charts</string>
+    <string name="categories_rate_limited">YouTube is limiting requests right now. Try again in a few minutes.</string>
     <string name="categories_shelf_see_all">See all</string>
     <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
