@@ -180,10 +180,6 @@ class Media3MusicService : MediaLibraryService() {
     // playlist has moved on, so the retry must not re-target whatever is current by then.
     private var pendingNetworkRetry: MusicPlaybackRecoveryPlanner.FailedItem? = null
 
-    // A radio the user started by name outruns the passive endless-radio toggle: that switch
-    // governs queues that run out on their own, not a station the user asked for.
-    private var explicitRadioRequest = false
-
     // Queue-end continuation: appends go through the manager's MediaController and
     // land asynchronously, so a resume at STATE_ENDED must wait for the timeline.
     private var radioResumeWhenAppended = false
@@ -1353,7 +1349,7 @@ class Media3MusicService : MediaLibraryService() {
         radioAnchors = emptyList()
         usedRadioAnchors = emptySet()
         radioResumeWhenAppended = false
-        explicitRadioRequest = context.explicit
+        manager.setRadioStationActive(context.explicit)
         startRadio(currentId)
     }
 
@@ -1433,11 +1429,11 @@ class Media3MusicService : MediaLibraryService() {
      * nothing the user sees is replaced — and refills the pool in the background.
      */
     private fun maybeExtendRadio() {
-        if (!radioAutoplayEnabled && !explicitRadioRequest) return
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        if (!radioAutoplayEnabled && !manager.radioStationActive.value) return
         if (!::player.isInitialized) return
         // Repeat already produces an endless queue — matching desktop.
         if (player.repeatMode != Player.REPEAT_MODE_OFF) return
-        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         val ended = player.playbackState == Player.STATE_ENDED
         // Shuffle keeps meaning "shuffle MY queue" while it plays, but once the
         // shuffled queue is exhausted the radio still has to carry on.
