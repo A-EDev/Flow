@@ -68,6 +68,7 @@ internal fun EnhancedVideoPlayerScreen(
     alpha: () -> Float,
     videoPlayerHeightPx: () -> Float = { 0f },
     screenState: PlayerScreenState, // Shared screenState from FlowApp
+    isFullscreenShown: Boolean,
     prefs: VideoPlayerPreferencesState,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
@@ -99,7 +100,7 @@ internal fun EnhancedVideoPlayerScreen(
             playerLayoutModeFor(
                 windowSizeClass = windowSizeClass,
                 isLandscapeWindow = isLandscapeWindow,
-                isFullscreen = screenState.isFullscreen,
+                isFullscreen = isFullscreenShown,
                 isInPipMode = isInPipMode,
             )
         val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
@@ -202,7 +203,9 @@ internal fun EnhancedVideoPlayerScreen(
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val relatedLayout = rememberFeedGridLayout(maxWidth)
-                if (!screenState.isFullscreen && !isInPipMode) {
+                // Kept through fullscreen: the layout hides the page there, and keeping the list
+                // means leaving fullscreen, or waiting for the turn into it, never shows it empty.
+                if (!isInPipMode) {
                     LazyColumn(
                         Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = maxOf(ListEndPadding, dockReserve + QueueDockGap)),
