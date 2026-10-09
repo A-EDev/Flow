@@ -201,6 +201,15 @@ class QuickActionsViewModel
             }
         }
 
+        fun markAsUnwatched(video: Video) {
+            viewModelScope.launch {
+                runAction {
+                    feedback.markUnwatched(video)
+                    emit(R.string.mark_as_unwatched_toast)
+                }
+            }
+        }
+
         fun markAsInteresting(video: Video) {
             viewModelScope.launch {
                 runAction {
