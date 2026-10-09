@@ -59,6 +59,29 @@ class RecoveredDownloadTest {
     }
 
     @Test
+    fun `an untagged file whose comment is a watch link keeps that video's id`() {
+        val (download, item) =
+            RecoveredDownload.rows(
+                song,
+                tags = null,
+                title = "Song",
+                artist = "Artist",
+                coverPath = null,
+                sourceUrl = "https://www.youtube.com/watch?v=kcxK1Tnwy5M",
+            )
+
+        assertThat(download.videoId).isEqualTo("kcxK1Tnwy5M")
+        assertThat(item.videoId).isEqualTo("kcxK1Tnwy5M")
+        assertThat(RecoveredDownload.idFor(song.path, null, "https://youtube.com/shorts/abcdefghijk")).isEqualTo("abcdefghijk")
+    }
+
+    @Test
+    fun `a comment that is not a video link leaves the path id`() {
+        assertThat(RecoveredDownload.knownIdFor(null, "Ripped from my CD")).isNull()
+        assertThat(RecoveredDownload.idFor(song.path, null, "https://example.com/watch?v=kcxK1Tnwy5M")).startsWith("recovered_")
+    }
+
+    @Test
     fun `each container gets its own mime type`() {
         assertThat(RecoveredDownload.mimeTypeOf("mp3")).isEqualTo("audio/mpeg")
         assertThat(RecoveredDownload.mimeTypeOf("mkv")).isEqualTo("video/x-matroska")
