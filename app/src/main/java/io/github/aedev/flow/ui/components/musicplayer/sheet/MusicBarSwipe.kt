@@ -71,8 +71,8 @@ internal fun MusicBarSwipeReveal(
     val index by EnhancedMusicPlayerManager.currentQueueIndex.collectAsStateWithLifecycle()
     MediaMiniBarSwipeReveal(
         offset = offset,
-        towardsStart = musicBarReveal(swipeLeftAction.forMusic, queue, index),
-        towardsEnd = musicBarReveal(swipeRightAction.forMusic, queue, index),
+        towardsLeft = musicBarReveal(swipeLeftAction.forMusic, queue, index),
+        towardsRight = musicBarReveal(swipeRightAction.forMusic, queue, index),
         shape = shape,
         modifier = modifier,
     )

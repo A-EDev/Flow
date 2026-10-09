@@ -258,7 +258,7 @@ internal fun PlayerAppearanceScreen(
                 label = { stringResource(it.labelRes) },
                 onSelect = { action -> if (left) viewModel.setMiniBarSwipeLeft(action) else viewModel.setMiniBarSwipeRight(action) },
                 onDismiss = { sheet = null },
-                preview = { MiniBarSwipePreview(it, towardsStart = left) },
+                preview = { MiniBarSwipePreview(it, towardsLeft = left) },
             )
         }
 

@@ -114,7 +114,7 @@ internal fun VideoBackgroundBar(
             hapticFeedback = LocalHapticFeedback.current,
             offsetAnimatable = swipeX,
             screenWidthPx = containerWidthPx,
-            onCommit = { towardsStart -> swipeActions.commit(if (towardsStart) swipeLeftAction else swipeRightAction) },
+            onCommit = { towardsLeft -> swipeActions.commit(if (towardsLeft) swipeLeftAction else swipeRightAction) },
         )
 
     Box(
@@ -165,8 +165,8 @@ internal fun VideoBackgroundBar(
     ) {
         MediaMiniBarSwipeReveal(
             offset = { swipeX.value },
-            towardsStart = videoBarReveal(swipeLeftAction, swipeActions),
-            towardsEnd = videoBarReveal(swipeRightAction, swipeActions),
+            towardsLeft = videoBarReveal(swipeLeftAction, swipeActions),
+            towardsRight = videoBarReveal(swipeRightAction, swipeActions),
             shape = shape,
         )
         Box(

@@ -61,7 +61,7 @@ internal fun isMiniBarSwipeCommitted(
 /**
  * A mini bar's sideways swipe with a tension phase: the first stretch resists the finger, then the
  * card snaps to it with a haptic and tracks 1:1. On release [onCommit] says what the swipe does,
- * given whether it went towards the start (left); null springs the card back.
+ * given whether it went left, in screen terms in either layout direction; null springs the card back.
  */
 class MediaMiniBarSwipeHandler(
     private val scope: CoroutineScope,
@@ -69,7 +69,7 @@ class MediaMiniBarSwipeHandler(
     private val hapticFeedback: HapticFeedback,
     private val offsetAnimatable: Animatable<Float, AnimationVector1D>,
     private val screenWidthPx: Float,
-    private val onCommit: (towardsStart: Boolean) -> MiniBarSwipeCommit?,
+    private val onCommit: (towardsLeft: Boolean) -> MiniBarSwipeCommit?,
 ) {
     private var dragPhase: MiniBarSwipePhase = MiniBarSwipePhase.IDLE
     private var accumulatedDragX: Float = 0f
@@ -153,10 +153,10 @@ class MediaMiniBarSwipeHandler(
         dragPhase = MiniBarSwipePhase.IDLE
         offsetJob?.cancel()
         val velocityX = velocityTracker.calculateVelocity().x
-        val towardsStart = accumulatedDragX < 0
+        val towardsLeft = accumulatedDragX < 0
         val commit =
-            if (isMiniBarSwipeCommitted(accumulatedDragX, velocityX, screenWidthPx)) onCommit(towardsStart) else null
-        val exitOffset = if (towardsStart) -screenWidthPx else screenWidthPx
+            if (isMiniBarSwipeCommitted(accumulatedDragX, velocityX, screenWidthPx)) onCommit(towardsLeft) else null
+        val exitOffset = if (towardsLeft) -screenWidthPx else screenWidthPx
         offsetJob =
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 when (commit?.motion) {
@@ -193,7 +193,7 @@ fun rememberMediaMiniBarSwipeHandler(
     hapticFeedback: HapticFeedback,
     offsetAnimatable: Animatable<Float, AnimationVector1D>,
     screenWidthPx: Float,
-    onCommit: (towardsStart: Boolean) -> MiniBarSwipeCommit?,
+    onCommit: (towardsLeft: Boolean) -> MiniBarSwipeCommit?,
 ): MediaMiniBarSwipeHandler {
     val onCommitState = rememberUpdatedState(onCommit)
     return remember(scope, density, hapticFeedback, offsetAnimatable, screenWidthPx) {
@@ -203,7 +203,7 @@ fun rememberMediaMiniBarSwipeHandler(
             hapticFeedback = hapticFeedback,
             offsetAnimatable = offsetAnimatable,
             screenWidthPx = screenWidthPx,
-            onCommit = { towardsStart -> onCommitState.value(towardsStart) },
+            onCommit = { towardsLeft -> onCommitState.value(towardsLeft) },
         )
     }
 }

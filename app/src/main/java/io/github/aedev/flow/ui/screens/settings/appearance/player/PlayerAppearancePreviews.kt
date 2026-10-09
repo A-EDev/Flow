@@ -176,7 +176,7 @@ internal fun GestureOverlayPreview(style: GestureOverlayStyle) {
 @Composable
 internal fun MiniBarSwipePreview(
     action: MiniBarSwipeAction,
-    towardsStart: Boolean,
+    towardsLeft: Boolean,
 ) {
     val reveal =
         MiniBarReveal(
@@ -186,9 +186,9 @@ internal fun MiniBarSwipePreview(
         )
     Box(modifier = Modifier.fillMaxWidth().height(MediaMiniBarDefaults.Height)) {
         MediaMiniBarSwipeReveal(
-            offset = { if (towardsStart) -Float.MAX_VALUE else Float.MAX_VALUE },
-            towardsStart = reveal,
-            towardsEnd = reveal,
+            offset = { if (towardsLeft) -Float.MAX_VALUE else Float.MAX_VALUE },
+            towardsLeft = reveal,
+            towardsRight = reveal,
             shape = RoundedCornerShape(MediaMiniBarDefaults.CornerRadius),
         )
     }

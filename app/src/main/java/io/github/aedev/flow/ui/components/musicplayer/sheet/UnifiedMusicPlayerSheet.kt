@@ -253,8 +253,8 @@ internal fun UnifiedMusicPlayerSheet(
             hapticFeedback = hapticFeedback,
             offsetAnimatable = dismissOffset,
             screenWidthPx = containerWidthPx,
-            onCommit = { towardsStart ->
-                musicBarSwipeCommit(if (towardsStart) swipeLeftAction else swipeRightAction) {
+            onCommit = { towardsLeft ->
+                musicBarSwipeCommit(if (towardsLeft) swipeLeftAction else swipeRightAction) {
                     state.dismiss()
                     onDismiss()
                 }
