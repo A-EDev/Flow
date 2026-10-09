@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.runtime.Composable
@@ -54,6 +55,7 @@ internal fun NotificationSettingsScreen(
 ) {
     val context = LocalContext.current
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
+    val newVideosOn by viewModel.newVideos.collectAsStateWithLifecycle()
     val interval by viewModel.intervalMinutes.collectAsStateWithLifecycle()
     val backgroundAllowed by viewModel.backgroundAllowed.collectAsStateWithLifecycle()
     var showIntervalDialog by rememberSaveable { mutableStateOf(false) }
@@ -117,6 +119,13 @@ internal fun NotificationSettingsScreen(
                 viewModel::setNewVideos,
                 enabled = enabled,
                 icon = Icons.Outlined.Subscriptions,
+            )
+            switch(
+                NotificationsIndex.shorts,
+                viewModel.shorts,
+                viewModel::setShorts,
+                enabled = enabled && newVideosOn,
+                icon = Icons.Outlined.Slideshow,
             )
             switch(
                 NotificationsIndex.downloads,

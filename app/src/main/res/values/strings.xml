@@ -696,6 +696,8 @@
     <string name="notif_settings_title">Notification Preferences</string>
     <string name="notif_type_new_videos">New Videos</string>
     <string name="notif_type_new_videos_subtitle">Notify when subscribed channels upload new videos</string>
+    <string name="notif_type_shorts">Shorts</string>
+    <string name="notif_type_shorts_subtitle">Include Shorts in new-video alerts from subscriptions</string>
     <string name="notif_type_downloads">Download Notifications</string>
     <string name="notif_type_downloads_subtitle">Progress, completion, and failure alerts</string>
     <string name="notif_type_reminders">Screen Time Reminders</string>
@@ -3731,7 +3733,7 @@
     <string name="settings_music_folder_label">Music / Flow</string>
     <string name="settings_keywords_downloads">save offline, folder, storage, sd card</string>
     <string name="settings_section_notification_types">Notify me about</string>
-    <string name="settings_keywords_notifications">alerts, push, new uploads, background checks</string>
+    <string name="settings_keywords_notifications">alerts, push, new uploads, background checks, shorts</string>
     <string name="settings_section_proxy_server">Server</string>
     <string name="settings_section_proxy_sign_in">Sign-in</string>
     <string name="settings_keywords_network">proxy, socks, http, vpn, connection</string>

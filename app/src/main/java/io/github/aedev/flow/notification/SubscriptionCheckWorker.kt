@@ -177,7 +177,9 @@ class SubscriptionCheckWorker(
 
                 Log.d(TAG, "Checking ${subscriptions.size} subscriptions")
 
-                val announceReels = dependencies.playerPreferences().effectiveSubscriptionShowShorts.first()
+                val prefs = dependencies.playerPreferences()
+                val announceReels = prefs.effectiveSubscriptionShowShorts.first()
+                val notifyShorts = prefs.notifShortsEnabled.first()
 
                 val newVideos = mutableListOf<NotificationHelper.NewVideoEntry>()
                 subscriptions.chunked(CHANNEL_CHUNK_SIZE).forEach { chunk ->
@@ -186,7 +188,7 @@ class SubscriptionCheckWorker(
                             .map { subscription ->
                                 async {
                                     try {
-                                        checkChannel(subscription, subscriptionRepository, announceReels)
+                                        checkChannel(subscription, subscriptionRepository, announceReels, notifyShorts)
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Error checking channel ${subscription.channelName}", e)
                                         emptyList()
@@ -216,6 +218,7 @@ class SubscriptionCheckWorker(
         subscription: ChannelSubscription,
         repository: SubscriptionRepository,
         announceReels: Boolean,
+        notifyShorts: Boolean,
     ): List<NotificationHelper.NewVideoEntry> {
         val feed =
             dependencies.channelRssClient().fetch(subscription.channelId).getOrElse { error ->
@@ -246,13 +249,21 @@ class SubscriptionCheckWorker(
             Log.d(TAG, "${newEntries.size} new video(s) for ${subscription.channelName}")
         }
 
-        return newEntries.filter { announceReels || it.videoId !in reelVideoIds }.map { video ->
-            NotificationHelper.NewVideoEntry(
-                channelName = subscription.channelName,
-                videoTitle = video.title,
-                videoId = video.videoId,
-                thumbnailUrl = video.thumbnailUrl,
-            )
-        }
+        return newEntries
+            .filter {
+                SubscriptionNotificationPolicy.shouldAnnounce(
+                    videoId = it.videoId,
+                    reelVideoIds = reelVideoIds,
+                    announceReelsInFeed = announceReels,
+                    notifyShorts = notifyShorts,
+                )
+            }.map { video ->
+                NotificationHelper.NewVideoEntry(
+                    channelName = subscription.channelName,
+                    videoTitle = video.title,
+                    videoId = video.videoId,
+                    thumbnailUrl = video.thumbnailUrl,
+                )
+            }
     }
 }

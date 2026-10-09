@@ -249,6 +249,7 @@ class PlayerPreferences(
         // Notification preferences
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val NOTIF_NEW_VIDEOS_ENABLED = booleanPreferencesKey("notif_new_videos_enabled")
+        val NOTIF_SHORTS_ENABLED = booleanPreferencesKey("notif_shorts_enabled")
         val NOTIF_DOWNLOADS_ENABLED = booleanPreferencesKey("notif_downloads_enabled")
         val NOTIF_REMINDERS_ENABLED = booleanPreferencesKey("notif_reminders_enabled")
         val NOTIF_UPDATES_ENABLED = booleanPreferencesKey("notif_updates_enabled")
@@ -1672,6 +1673,16 @@ class PlayerPreferences(
     suspend fun setNotifNewVideosEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.NOTIF_NEW_VIDEOS_ENABLED] = enabled
+        }
+    }
+
+    val notifShortsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.NOTIF_SHORTS_ENABLED] ?: true }
+
+    suspend fun setNotifShortsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_SHORTS_ENABLED] = enabled
         }
     }
 
