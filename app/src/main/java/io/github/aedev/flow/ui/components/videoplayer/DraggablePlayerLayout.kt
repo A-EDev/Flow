@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer
 
 import android.content.res.Configuration
-import androidx.compose.animation.core.animate
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
@@ -52,7 +51,6 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.morphCornerRadiusPx
 import io.github.aedev.flow.ui.components.videoplayer.motion.openBodyAlpha
 import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundCornerRadius
 import io.github.aedev.flow.ui.components.videoplayer.motion.openGroundRect
-import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.resnapTargets
 import io.github.aedev.flow.ui.components.videoplayer.motion.resolveOpenOriginRect
 import io.github.aedev.flow.ui.components.videoplayer.motion.update
@@ -123,15 +121,8 @@ fun DraggablePlayerLayout(
     var playerHeightFraction by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(videoAspectRatio) { playerHeightFraction = 1f }
 
-    var portraitFsFraction by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(isFullscreen) {
-        if (!isFullscreen && portraitFsFraction > 0f) {
-            animate(
-                initialValue = portraitFsFraction,
-                targetValue = 0f,
-                animationSpec = portraitFullscreenSettleSpec,
-            ) { value, _ -> portraitFsFraction = value }
-        }
+        if (!isFullscreen) state.settlePortraitFullscreen()
     }
 
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
@@ -276,16 +267,21 @@ fun DraggablePlayerLayout(
                 targets = geometry.resnapTargets(isLargeScreen = isLargeWindow),
             )
 
-            // How far the video's bottom edge travels on its way to filling the screen. The pull
-            // maps a finger to this distance and the page below slides by exactly the same amount,
-            // so the page stays under the finger and glued to the bottom of the video.
+            // How far the video travels from the top of the page to the centre of the window, where
+            // the immersive layout shows it. The pull maps a finger to this distance and the page
+            // slides by the same amount, so the page stays under the finger and glued to the video.
             val portraitFsTravelProvider =
                 remember(screenHeight, statusBarHeight, currentExpandedVideoHeightProvider) {
                     {
-                        (screenHeight - statusBarHeight - currentExpandedVideoHeightProvider())
+                        ((screenHeight - currentExpandedVideoHeightProvider()) / 2f - statusBarHeight)
                             .coerceAtLeast(1f)
                     }
                 }
+            // While immersive in portrait the video already sits at the centre, so an exit starts its
+            // slide from there; landscape rotates instead and has no slide.
+            LaunchedEffect(showImmersiveFullscreen, isLandscape) {
+                if (showImmersiveFullscreen) state.snapPortraitFullscreen(if (isLandscape) 0f else 1f)
+            }
             val portraitFsEnabled =
                 !isLandscape && !isLargeWindow && !isFullscreen &&
                     onEnterPortraitFullscreen != null
@@ -300,8 +296,9 @@ fun DraggablePlayerLayout(
                         baseVideoHeight = geometry.baseVideoHeight,
                         playerHeightFraction = { playerHeightFraction },
                         onPlayerHeightFractionChange = { playerHeightFraction = it },
-                        portraitFsFraction = { portraitFsFraction },
-                        onPortraitFsFractionChange = { portraitFsFraction = it.coerceIn(0f, 1f) },
+                        portraitFsFraction = { state.portraitFsFraction },
+                        onPortraitFsFractionChange = { state.snapPortraitFullscreen(it.coerceIn(0f, 1f)) },
+                        animatePortraitFs = state::animatePortraitFullscreen,
                         portraitFsTravel = portraitFsTravelProvider,
                         portraitFsEnabled = { portraitFsEnabledState.value },
                         portraitFsActivationPx = { portraitFsActivationState.value },
@@ -314,17 +311,20 @@ fun DraggablePlayerLayout(
                 ImmersiveFullscreenBackdrop(thumbnailUrl = thumbnailUrl)
             } else {
                 CollapsingPlayerScrim(state = state, statusBarHeight = statusBarHeight, openRect = openRectProvider)
+                PortraitFullscreenBackdropFade(state = state, thumbnailUrl = thumbnailUrl)
             }
 
-            if (!showImmersiveFullscreen) {
+            // Kept composed behind a portrait fullscreen video, so leaving it has no page to build.
+            if (!showImmersiveFullscreen || !isLandscape) {
                 DraggablePlayerPage(
                     state = state,
+                    hidden = showImmersiveFullscreen,
                     isTwoPaneWindow = isTwoPaneWindow,
                     statusBarHeight = statusBarHeight,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight,
                     videoHeightProvider = currentExpandedVideoHeightProvider,
-                    portraitFsFraction = { portraitFsFraction },
+                    portraitFsFraction = { state.portraitFsFraction },
                     portraitFsTravel = portraitFsTravelProvider,
                     openRect = openRectProvider,
                     nestedScrollConnection = nestedScrollConnection,
@@ -365,14 +365,14 @@ fun DraggablePlayerLayout(
                         } else {
                             Modifier
                                 .layout { measurable, constraints ->
-                                    val grownHeight =
-                                        lerpClamped(currentExpandedVideoHeightProvider(), screenHeight, portraitFsFraction)
+                                    val videoHeight = currentExpandedVideoHeightProvider()
+                                    state.portraitFsTravel = portraitFsTravelProvider()
                                     val targetW =
                                         expandedVideoWidth
                                             .toInt()
                                             .coerceIn(1, constraints.maxWidth.coerceAtLeast(1))
                                     val targetH =
-                                        grownHeight
+                                        videoHeight
                                             .toInt()
                                             .coerceIn(1, constraints.maxHeight.coerceAtLeast(1))
                                     val placeable =
@@ -404,7 +404,8 @@ fun DraggablePlayerLayout(
                                     scaleY = visualScale * drag
                                     val windowW = expandedVideoWidth * visualScale
                                     val windowH = size.height * visualScale
-                                    val expandedTopY = lerpClamped(statusBarHeight, 0f, portraitFsFraction)
+                                    val expandedTopY =
+                                        statusBarHeight + state.portraitFsFraction.coerceAtLeast(0f) * portraitFsTravelProvider()
                                     translationX =
                                         lerpClamped(0f, origin?.left ?: state.offsetX.value, fraction) +
                                         windowW * (1f - drag) / 2f

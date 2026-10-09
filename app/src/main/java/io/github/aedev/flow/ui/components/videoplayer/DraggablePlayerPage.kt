@@ -25,11 +25,12 @@ import kotlin.math.roundToInt
 
 /**
  * The page under the video: placed below it, slid and faded with the sheet in the layout and draw
- * phases only, and parked off screen once the sheet is mini.
+ * phases only, and parked off screen once the sheet is mini or [hidden] behind a fullscreen video.
  */
 @Composable
 internal fun DraggablePlayerPage(
     state: PlayerDraggableState,
+    hidden: Boolean,
     isTwoPaneWindow: Boolean,
     statusBarHeight: Float,
     screenWidth: Float,
@@ -80,7 +81,7 @@ internal fun DraggablePlayerPage(
                             // of this page's subtree on each frame of the sheet motion.
                             val fraction = state.expandFraction.value
                             val slide =
-                                if (fraction > 0.999f) {
+                                if (hidden || fraction > 0.999f) {
                                     placeable.height.toFloat()
                                 } else {
                                     fraction * BODY_SLIDE_PX + portraitFsFraction() * portraitFsTravel()
@@ -88,7 +89,7 @@ internal fun DraggablePlayerPage(
                             placeable.place(0, topPad + slide.roundToInt())
                         }
                     }.graphicsLayer {
-                        alpha = bodyAlphaProvider() * (1f - portraitFsFraction())
+                        alpha = if (hidden) 0f else bodyAlphaProvider() * (1f - portraitFsFraction()).coerceIn(0f, 1f)
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                         // While an open grows out of a card the page is cut to the
                         // growing ground, so none of it floats over the page below.

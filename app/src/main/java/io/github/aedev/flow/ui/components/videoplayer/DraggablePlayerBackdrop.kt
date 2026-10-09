@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -46,6 +47,22 @@ internal fun ImmersiveFullscreenBackdrop(thumbnailUrl: String?) {
                     .fillMaxSize()
                     .background(PlayerScrimImmersiveBackdrop),
         )
+    }
+}
+
+/**
+ * The immersive backdrop fading in as the video slides to the centre for portrait fullscreen, so the
+ * switch to the immersive layout at the end of the slide changes nothing on screen.
+ */
+@Composable
+internal fun PortraitFullscreenBackdropFade(
+    state: PlayerDraggableState,
+    thumbnailUrl: String?,
+) {
+    val visible by remember(state) { derivedStateOf { state.portraitFsFraction > 0f } }
+    if (!visible) return
+    Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = state.portraitFsFraction.coerceIn(0f, 1f) }) {
+        ImmersiveFullscreenBackdrop(thumbnailUrl = thumbnailUrl)
     }
 }
 

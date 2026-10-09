@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.videoplayer
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.animate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -18,8 +19,10 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerCollapseSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 enum class PlayerSheetValue { Expanded, Collapsed }
@@ -78,6 +81,18 @@ class PlayerDraggableState(
         private set
 
     var miniVisualScale by mutableFloatStateOf(1f)
+
+    /**
+     * How far the expanded video has slid from the top of the page to the centre of the window on
+     * its way into portrait fullscreen, read in the layout and draw phases only. Past 1 the video
+     * sits below the centre, where a fullscreen exit drag let it go.
+     */
+    var portraitFsFraction by mutableFloatStateOf(0f)
+        private set
+
+    /** The distance [portraitFsFraction] spans in px, published by the layout as it measures. */
+    internal var portraitFsTravel = 1f
+    private var portraitFsJob: Job? = null
 
     /** True only while no finger is down and nothing on the sheet is still moving. */
     val isSettled: Boolean
@@ -300,6 +315,50 @@ class PlayerDraggableState(
 
     suspend fun scrubBack(progress: Float) {
         motion.snapFraction(progress.coerceIn(0f, 1f))
+    }
+
+    internal fun snapPortraitFullscreen(value: Float) {
+        portraitFsJob?.cancel()
+        portraitFsFraction = value
+    }
+
+    /** Runs the portrait-fullscreen fraction to [target] from wherever it is, at [velocity] per second. */
+    internal suspend fun animatePortraitFullscreen(
+        target: Float,
+        velocity: Float,
+    ) {
+        portraitFsJob?.cancel()
+        runPortraitFullscreen(target, velocity)
+    }
+
+    private suspend fun runPortraitFullscreen(
+        target: Float,
+        velocity: Float,
+    ) {
+        withSteadyFrames {
+            animate(portraitFsFraction, target, velocity, portraitFullscreenSettleSpec) { value, _ ->
+                portraitFsFraction = value
+            }
+        }
+    }
+
+    /** Slides the video back to the top of the page unless a hand-off already started that slide. */
+    internal fun settlePortraitFullscreen() {
+        if (portraitFsJob?.isActive == true || portraitFsFraction == 0f) return
+        portraitFsJob = scope.launch { runPortraitFullscreen(0f, 0f) }
+    }
+
+    /**
+     * Leaves portrait fullscreen from where an exit drag let the video go, [offsetPx] below the centre
+     * and moving at [velocityPx] per second, so the slide back to the page continues the finger.
+     */
+    fun exitPortraitFullscreenFrom(
+        offsetPx: Float,
+        velocityPx: Float,
+    ) {
+        val travel = portraitFsTravel.coerceAtLeast(1f)
+        snapPortraitFullscreen(1f + offsetPx / travel)
+        portraitFsJob = scope.launch { runPortraitFullscreen(0f, velocityPx / travel) }
     }
 
     fun snapTo(target: PlayerSheetValue) {
