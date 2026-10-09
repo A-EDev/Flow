@@ -16,7 +16,6 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMoti
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.openFractionVelocity
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerCollapseSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
@@ -35,7 +34,6 @@ sealed interface SheetOpenOrigin {
         val windowBounds: Rect,
         val cornerRadiusPx: Float,
         val imageKey: MemoryCache.Key?,
-        val releaseVelocityY: Float = 0f,
     ) : SheetOpenOrigin
 
     data object BelowScreen : SheetOpenOrigin
@@ -155,9 +153,7 @@ class PlayerDraggableState(
                 motion.snapOffsets(x = cachedTargetX, y = cachedTargetY)
                 motion.animateFraction {
                     expandFraction.snapTo(1f)
-                    withSteadyFrames {
-                        expandFraction.animateTo(0f, playerOpenSpringSpec, initialVelocity = openFractionVelocity(origin))
-                    }
+                    withSteadyFrames { expandFraction.animateTo(0f, playerOpenSpringSpec) }
                 }
             } finally {
                 if (generation == openGeneration) openOrigin = null

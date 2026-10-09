@@ -1,20 +1,22 @@
 package io.github.aedev.flow.ui.components.videoplayer
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
@@ -25,23 +27,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MiniBarSwipeAction
@@ -58,21 +66,30 @@ import io.github.aedev.flow.ui.components.shared.isDestructive
 import io.github.aedev.flow.ui.components.shared.labelRes
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
 import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private val ThumbnailWidth = 78.dp
+private val ThumbnailStart = 10.dp
+private val BarShadowElevation = 6.dp
 private const val CLOSE_PULL_HEIGHTS = 0.5f
 private const val CLOSE_FLING_VELOCITY = 800f
-private const val RESTORE_PULL_HEIGHTS = 0.5f
-private const val RESTORE_FLING_VELOCITY = -800f
-private const val CHROME_FADE_HEIGHTS = 1.5f
+
+/** A tap opens as a gentle swipe up would, so it reads as the same motion. */
+private const val EXPAND_TAP_VELOCITY = 1000f
 
 /**
  * The mini bar for a video playing in the background, in the music bar's slot and shape. A tap or
- * a swipe up brings the video back, a swipe down or sideways closes it. [onRestore] takes the
- * vertical release speed in px per second, zero for a tap.
+ * a swipe up grows it into the player the way the music bar grows into its own: the card stretches
+ * to the window under the finger and the thumbnail moves into the video's place, then the player
+ * takes over from that spot through [onRestore]. A swipe down or sideways closes it. [handoffAlpha]
+ * fades the grown card out over the player while it takes over.
+ *
+ * The gestures sit on the bar's resting box, outside every moving layer, so the finger is measured
+ * against the window and not against a card that follows it.
  */
 @Composable
 internal fun VideoBackgroundBar(
@@ -81,26 +98,38 @@ internal fun VideoBackgroundBar(
     containerWidthPx: Float,
     containerHeightPx: Float,
     restingBottomPx: () -> Float,
-    onRestore: (velocityY: Float) -> Unit,
+    onRestore: () -> Unit,
     onClose: () -> Unit,
     onOpenQueue: () -> Unit,
     swipeLeftAction: MiniBarSwipeAction,
     swipeRightAction: MiniBarSwipeAction,
     swipeActions: VideoBarSwipeActions,
+    handoffAlpha: () -> Float = { 1f },
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val heightPx = with(density) { MediaMiniBarDefaults.Height.toPx() }
     val spacerPx = with(density) { MediaMiniBarDefaults.BottomSpacer.toPx() }
-    val shape = RoundedCornerShape(MediaMiniBarDefaults.CornerRadius)
+    val cornerRadiusPx = with(density) { MediaMiniBarDefaults.CornerRadius.toPx() }
+    val shadowPx = with(density) { BarShadowElevation.toPx() }
+    val statusBarPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val thumbnailAtRest =
+        with(density) {
+            val width = ThumbnailWidth.toPx()
+            val height = width * 9f / 16f
+            Rect(ThumbnailStart.toPx(), (heightPx - height) / 2f, ThumbnailStart.toPx() + width, (heightPx + height) / 2f)
+        }
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
     val hasQueue = hasVisibleQueue(playerState.queueTitle, playerState.queueSize)
     val motion = MaterialTheme.motionScheme
+    val onRestoreState = rememberUpdatedState(onRestore)
 
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, motion.defaultEffectsSpec()) }
     val pullY = remember { Animatable(0f) }
+    val expand = remember { Animatable(0f) }
     val swipeX = remember { Animatable(0f) }
+    val isExpanding by remember { derivedStateOf { expand.value > 0f } }
     val swipeHandler =
         rememberMediaMiniBarSwipeHandler(
             scope = scope,
@@ -111,64 +140,125 @@ internal fun VideoBackgroundBar(
             onCommit = { towardsLeft -> swipeActions.commit(if (towardsLeft) swipeLeftAction else swipeRightAction) },
         )
 
+    val restingTop = { containerHeightPx - restingBottomPx() - spacerPx - heightPx }
+    val frame = {
+        val top = restingTop()
+        backgroundBarExpandFrame(
+            fraction = expand.value,
+            bar = Rect(bounds.start, top, bounds.start + bounds.width, top + heightPx),
+            containerWidth = containerWidthPx,
+            containerHeight = containerHeightPx,
+            statusBarHeight = statusBarPx,
+            barCornerRadiusPx = cornerRadiusPx,
+            thumbnailAtRest = thumbnailAtRest,
+        )
+    }
+
+    fun settleExpand(velocityY: Float) {
+        val travel = restingTop().coerceAtLeast(1f)
+        val expanding = shouldExpandBackgroundBar(expand.value, velocityY)
+        scope.launch {
+            withSteadyFrames {
+                expand.animateTo(if (expanding) 1f else 0f, playerOpenSpringSpec, -velocityY / travel)
+            }
+            if (expanding) onRestoreState.value()
+        }
+    }
+
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val expandedColor = MaterialTheme.colorScheme.background
+
     Box(
         modifier =
             Modifier
-                .offset {
-                    val restingY = containerHeightPx - restingBottomPx() - spacerPx - heightPx
-                    IntOffset(bounds.start.roundToInt(), restingY.roundToInt())
-                }.size(with(density) { bounds.width.toDp() }, MediaMiniBarDefaults.Height)
-                .graphicsLayer {
-                    translationY = pullY.value + (1f - appear.value) * heightPx
-                    alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f))
-                }.mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
+                .offset { IntOffset(bounds.start.roundToInt(), restingTop().roundToInt()) }
+                .size(with(density) { bounds.width.toDp() }, MediaMiniBarDefaults.Height)
+                .mediaMiniBarSwipe(enabled = !isExpanding, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
                     detectVerticalDragGestures(
-                        onDragStart = { tracker.resetTracking() },
+                        onDragStart = {
+                            tracker.resetTracking()
+                            scope.launch { expand.stop() }
+                        },
                         onVerticalDrag = { change, amount ->
                             change.consume()
                             tracker.addPosition(change.uptimeMillis, change.position)
-                            scope.launch { pullY.snapTo(pullY.value + amount) }
-                        },
-                        onDragEnd = {
-                            val velocity = tracker.calculateVelocity().y
-                            val pulled = pullY.value
                             scope.launch {
-                                when {
-                                    pulled > heightPx * CLOSE_PULL_HEIGHTS || velocity > CLOSE_FLING_VELOCITY -> {
-                                        pullY.animateTo(heightPx * 2f, motion.fastSpatialSpec(), velocity.coerceAtLeast(0f))
-                                        onClose()
-                                    }
-
-                                    pulled < -heightPx * RESTORE_PULL_HEIGHTS || velocity < RESTORE_FLING_VELOCITY -> {
-                                        onRestore(velocity.coerceAtMost(0f))
-                                    }
-
-                                    else -> {
-                                        pullY.animateTo(0f, motion.defaultSpatialSpec(), velocity)
-                                    }
+                                if (pullY.value > 0f || (expand.value == 0f && amount > 0f)) {
+                                    pullY.snapTo((pullY.value + amount).coerceAtLeast(0f))
+                                } else {
+                                    val travel = restingTop().coerceAtLeast(1f)
+                                    expand.snapTo((expand.value - amount / travel).coerceIn(0f, 1f))
                                 }
                             }
                         },
-                        onDragCancel = { scope.launch { pullY.animateTo(0f, motion.defaultSpatialSpec()) } },
+                        onDragEnd = {
+                            val velocity = tracker.calculateVelocity().y
+                            when {
+                                pullY.value > 0f -> {
+                                    scope.launch {
+                                        if (pullY.value > heightPx * CLOSE_PULL_HEIGHTS || velocity > CLOSE_FLING_VELOCITY) {
+                                            pullY.animateTo(heightPx * 2f, motion.fastSpatialSpec(), velocity.coerceAtLeast(0f))
+                                            onClose()
+                                        } else {
+                                            pullY.animateTo(0f, motion.defaultSpatialSpec(), velocity)
+                                        }
+                                    }
+                                }
+
+                                expand.value > 0f -> {
+                                    settleExpand(velocity)
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            scope.launch { pullY.animateTo(0f, motion.defaultSpatialSpec()) }
+                            if (expand.value > 0f) settleExpand(0f)
+                        },
                     )
-                }.clickable { onRestore(0f) },
+                }.clickable { if (!isExpanding) settleExpand(-EXPAND_TAP_VELOCITY) },
     ) {
-        MediaMiniBarSwipeReveal(
-            offset = { swipeX.value },
-            towardsLeft = videoBarReveal(swipeLeftAction, swipeActions),
-            towardsRight = videoBarReveal(swipeRightAction, swipeActions),
-            shape = shape,
-        )
+        if (!isExpanding) {
+            MediaMiniBarSwipeReveal(
+                offset = { swipeX.value },
+                towardsLeft = videoBarReveal(swipeLeftAction, swipeActions),
+                towardsRight = videoBarReveal(swipeRightAction, swipeActions),
+                shape = RoundedCornerShape(MediaMiniBarDefaults.CornerRadius),
+            )
+        }
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { translationX = swipeX.value }
-                    .shadow(6.dp, shape, clip = false)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
-                    .clip(shape),
+                    .layout { measurable, constraints ->
+                        val current = frame()
+                        val placeable =
+                            measurable.measure(
+                                Constraints.fixed(
+                                    current.card.width
+                                        .roundToInt()
+                                        .coerceAtLeast(1),
+                                    current.card.height
+                                        .roundToInt()
+                                        .coerceAtLeast(1),
+                                ),
+                            )
+                        layout(constraints.maxWidth, constraints.maxHeight) {
+                            val top = restingTop()
+                            placeable.place(
+                                (current.card.left - bounds.start).roundToInt(),
+                                (current.card.top - top).roundToInt(),
+                            )
+                        }
+                    }.graphicsLayer {
+                        val current = frame()
+                        translationX = swipeX.value
+                        translationY = pullY.value + (1f - appear.value) * heightPx
+                        alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f)) * handoffAlpha()
+                        shape = RoundedCornerShape(current.cornerRadiusPx)
+                        clip = true
+                        shadowElevation = lerp(shadowPx, 0f, expand.value.coerceIn(0f, 1f))
+                    }.drawBehind { drawRect(lerp(surfaceColor, expandedColor, expand.value.coerceIn(0f, 1f))) },
         ) {
             BackgroundBarContent(
                 video = video,
@@ -176,71 +266,98 @@ internal fun VideoBackgroundBar(
                 isBuffering = playerState.isBuffering,
                 hasQueue = hasQueue,
                 onOpenQueue = onOpenQueue,
-                chromeAlpha = { 1f - (-pullY.value / (heightPx * CHROME_FADE_HEIGHTS)).coerceIn(0f, 1f) },
+                barWidthPx = bounds.width,
+                barHeightPx = heightPx,
+                frame = frame,
             )
         }
     }
 }
 
 @Composable
-private fun BoxScope.BackgroundBarContent(
+private fun BackgroundBarContent(
     video: Video,
     isPlaying: Boolean,
     isBuffering: Boolean,
     hasQueue: Boolean,
     onOpenQueue: () -> Unit,
-    chromeAlpha: () -> Float,
+    barWidthPx: Float,
+    barHeightPx: Float,
+    frame: () -> BackgroundBarExpandFrame,
 ) {
-    val chrome = Modifier.graphicsLayer { alpha = chromeAlpha() }
-    Row(
-        modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        MediaThumbnail(
-            videoId = video.id,
-            thumbnailUrl = video.thumbnailUrl,
-            width = ThumbnailWidth,
-            shape = MaterialTheme.shapes.medium,
-        )
-        Column(modifier = Modifier.weight(1f).then(chrome)) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = video.channelName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        MediaPlayPauseButton(
-            isPlaying = isPlaying,
-            isBuffering = isBuffering,
-            onClick = {
-                val manager = EnhancedPlayerManager.getInstance()
-                if (isPlaying) manager.pause() else manager.play()
+    val chrome = Modifier.graphicsLayer { alpha = frame().chromeAlpha }
+    Box(
+        modifier =
+            Modifier.layout { measurable, _ ->
+                val placeable = measurable.measure(Constraints.fixed(barWidthPx.roundToInt(), barHeightPx.roundToInt()))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
             },
-            modifier = chrome,
-        )
-        if (hasQueue) {
-            IconButton(onClick = onOpenQueue, modifier = chrome) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                    contentDescription = stringResource(R.string.playlist_queue),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(start = ThumbnailStart, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Spacer(modifier = Modifier.width(ThumbnailWidth))
+            Column(modifier = Modifier.weight(1f).then(chrome)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = video.channelName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+            MediaPlayPauseButton(
+                isPlaying = isPlaying,
+                isBuffering = isBuffering,
+                onClick = {
+                    val manager = EnhancedPlayerManager.getInstance()
+                    if (isPlaying) manager.pause() else manager.play()
+                },
+                modifier = chrome,
+            )
+            if (hasQueue) {
+                IconButton(onClick = onOpenQueue, modifier = chrome) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = stringResource(R.string.playlist_queue),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+        BackgroundBarProgress(
+            isPlaying = isPlaying,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp).then(chrome),
+        )
     }
-    BackgroundBarProgress(
-        isPlaying = isPlaying,
-        modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp).then(chrome),
+    MediaThumbnail(
+        videoId = video.id,
+        thumbnailUrl = video.thumbnailUrl,
+        width = ThumbnailWidth,
+        shape = MaterialTheme.shapes.medium,
+        modifier =
+            Modifier.layout { measurable, _ ->
+                val thumbnail = frame().thumbnail
+                val placeable =
+                    measurable.measure(
+                        Constraints.fixed(
+                            thumbnail.width.roundToInt().coerceAtLeast(1),
+                            thumbnail.height.roundToInt().coerceAtLeast(1),
+                        ),
+                    )
+                layout(placeable.width, placeable.height) {
+                    placeable.place(thumbnail.left.roundToInt(), thumbnail.top.roundToInt())
+                }
+            },
     )
 }
 

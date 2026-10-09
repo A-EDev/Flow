@@ -261,12 +261,14 @@ internal fun FlowPlayerOverlays(
 
         val barVideo = playerUiState.cachedVideo
         var showBarQueue by remember { mutableStateOf(false) }
-        // The bar stays for the frames the player needs to compose, so the hand-off has no gap.
+        // The grown bar stays over the player while it opens and fades with that open, so the player
+        // takes over from the very spot the bar grew to and the page under it never shows through.
         var barHandoffId by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(barHandoffId) {
             if (barHandoffId == null) return@LaunchedEffect
             withTimeoutOrNull(BAR_HANDOFF_TIMEOUT_MS) {
-                snapshotFlow { playerSheetState.openOrigin != null && playerSheetState.fraction < BAR_HANDOFF_FRACTION }.first { it }
+                snapshotFlow { playerSheetState.openOrigin != null }.first { it }
+                snapshotFlow { playerSheetState.openOrigin == null }.first { it }
             }
             barHandoffId = null
         }
@@ -277,10 +279,13 @@ internal fun FlowPlayerOverlays(
                 containerWidthPx = with(density) { containerWidth.toPx() },
                 containerHeightPx = with(density) { containerHeight.toPx() },
                 restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
-                onRestore = { velocityY ->
-                    openOrigins.holdOriginFor(barVideo.id, velocityY)
+                onRestore = {
+                    openOrigins.holdOriginFor(barVideo.id)
                     barHandoffId = barVideo.id
                     playerViewModel.showVideoPlayer()
+                },
+                handoffAlpha = {
+                    if (barHandoffId == null) 1f else playerSheetState.fraction.coerceIn(0f, 1f)
                 },
                 onClose = closeVideo,
                 onOpenQueue = { showBarQueue = true },
@@ -324,12 +329,11 @@ internal fun FlowPlayerOverlays(
     }
 }
 
-private const val BAR_HANDOFF_TIMEOUT_MS = 600L
-private const val BAR_HANDOFF_FRACTION = 0.97f
+private const val BAR_HANDOFF_TIMEOUT_MS = 1_500L
 
 /** The tapped thumbnail for [videoId] when one is in view, else the player rises from below. */
 private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
     videoId
         ?.let(::originFor)
-        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey, it.releaseVelocityY) }
+        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey) }
         ?: SheetOpenOrigin.BelowScreen

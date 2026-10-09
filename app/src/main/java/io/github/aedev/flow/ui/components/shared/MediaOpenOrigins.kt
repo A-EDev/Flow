@@ -15,16 +15,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import coil3.memory.MemoryCache
 
-/**
- * Where a video's thumbnail sits in the window, so the player can grow out of it. [releaseVelocityY]
- * is the vertical speed in px per second of a finger that flung the thumbnail open, else zero.
- */
+/** Where a video's thumbnail sits in the window, so the player can grow out of it. */
 @Immutable
 data class MediaOpenOrigin(
     val windowBounds: Rect,
     val cornerRadiusPx: Float,
     val imageKey: MemoryCache.Key?,
-    val releaseVelocityY: Float = 0f,
 )
 
 /** One thumbnail's entry: where it is laid out and which cached image it drew. */
@@ -54,11 +50,8 @@ class MediaOpenOrigins {
      * Keeps where [videoId]'s thumbnail is now for the next [originFor], for a surface that leaves
      * the screen in the same moment it opens the player, as the background bar does.
      */
-    fun holdOriginFor(
-        videoId: String,
-        releaseVelocityY: Float = 0f,
-    ) {
-        held = visibleOriginFor(videoId)?.let { videoId to it.copy(releaseVelocityY = releaseVelocityY) }
+    fun holdOriginFor(videoId: String) {
+        held = visibleOriginFor(videoId)?.let { videoId to it }
     }
 
     fun originFor(videoId: String): MediaOpenOrigin? {
