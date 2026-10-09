@@ -46,7 +46,6 @@ internal fun PlayerSheetCollapseSyncEffects(
     LaunchedEffect(screenState.isFullscreen) {
         screenState.dismissMediaSheets()
         screenState.exitDragOffsetY = 0f
-        screenState.exitDragProgress = 0f
     }
 }
 

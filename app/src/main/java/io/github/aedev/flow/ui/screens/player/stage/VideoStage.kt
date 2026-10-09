@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.stage
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,7 +14,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -25,7 +25,6 @@ import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerZoom
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.Media3SubtitleOverlay
 
-private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
 /**
  * The player's video slot: the surface itself, the gesture and zoom transforms wrapped around it,
@@ -59,6 +58,7 @@ internal fun VideoStage(
     val scope = session.scope
     val activity = session.activity
     val audioSystemInfo = session.audioSystemInfo
+    val isLandscapeWindow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // ALWAYS use the same video surface
     val gestureModifier =
@@ -105,14 +105,12 @@ internal fun VideoStage(
                     doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
                     seekZoneFraction = prefs.doubleTapSeekZone.sideFraction,
                     longPressPlaybackSpeed = prefs.longPressPlaybackSpeed,
-                    onExitFullscreen = {
+                    onExitFullscreen = { releaseOffsetPx, releaseVelocityPx ->
+                        if (!isLandscapeWindow) playerSheetState.exitPortraitFullscreenFrom(releaseOffsetPx, releaseVelocityPx)
                         screenState.isFullscreen = false
                         screenState.isFullscreenPortrait = false
                     },
-                    onExitFullscreenDrag = { offsetPx, progress ->
-                        screenState.exitDragOffsetY = offsetPx
-                        screenState.exitDragProgress = progress
-                    },
+                    onExitFullscreenDrag = { offsetPx -> screenState.exitDragOffsetY = offsetPx },
                     isSeekForwardActive = screenState.showSeekForwardAnimation,
                     isSeekBackActive = screenState.showSeekBackAnimation,
                 ).videoPlayerZoom(
@@ -128,12 +126,7 @@ internal fun VideoStage(
                         screenState.zoomIndicatorSequence += 1
                     },
                 ).graphicsLayer {
-                    if (screenState.isFullscreen) {
-                        translationY = screenState.exitDragOffsetY
-                        val shrink = lerp(1f, EXIT_DRAG_MIN_SCALE, screenState.exitDragProgress)
-                        scaleX = shrink
-                        scaleY = shrink
-                    }
+                    if (screenState.isFullscreen) translationY = screenState.exitDragOffsetY
                 }
         } else {
             modifier

@@ -49,8 +49,8 @@ fun Modifier.videoPlayerControls(
     doubleTapSeekMs: Long = 10_000L,
     seekZoneFraction: Float = DoubleTapSeekZone.NORMAL.sideFraction,
     longPressPlaybackSpeed: Float = 2.0f,
-    onExitFullscreen: (() -> Unit)? = null,
-    onExitFullscreenDrag: (offsetPx: Float, progress: Float) -> Unit = { _, _ -> },
+    onExitFullscreen: ((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)? = null,
+    onExitFullscreenDrag: (offsetPx: Float) -> Unit = {},
     isSeekForwardActive: Boolean = false,
     isSeekBackActive: Boolean = false,
 ): Modifier {
