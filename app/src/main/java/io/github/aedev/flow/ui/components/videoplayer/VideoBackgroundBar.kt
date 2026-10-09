@@ -69,6 +69,7 @@ import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandle
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -154,10 +155,14 @@ internal fun VideoBackgroundBar(
         )
     }
 
-    fun settleExpand(velocityY: Float) {
+    fun settleExpand(
+        fraction: Float,
+        velocityY: Float,
+    ) {
         val travel = restingTop().coerceAtLeast(1f)
-        val expanding = shouldExpandBackgroundBar(expand.value, velocityY)
-        scope.launch {
+        val expanding = shouldExpandBackgroundBar(fraction, velocityY)
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            expand.snapTo(fraction)
             withSteadyFrames {
                 expand.animateTo(if (expanding) 1f else 0f, playerOpenSpringSpec, -velocityY / travel)
             }
@@ -176,29 +181,33 @@ internal fun VideoBackgroundBar(
                 .mediaMiniBarSwipe(enabled = !isExpanding, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
+                    // Read and written on the gesture's own thread, so a fling that ends before the
+                    // animatables catch up is still judged by where the finger actually took the bar.
+                    var pulled = 0f
+                    var grown = 0f
                     detectVerticalDragGestures(
                         onDragStart = {
                             tracker.resetTracking()
-                            scope.launch { expand.stop() }
+                            pulled = pullY.value
+                            grown = expand.value
                         },
                         onVerticalDrag = { change, amount ->
                             change.consume()
                             tracker.addPosition(change.uptimeMillis, change.position)
-                            scope.launch {
-                                if (pullY.value > 0f || (expand.value == 0f && amount > 0f)) {
-                                    pullY.snapTo((pullY.value + amount).coerceAtLeast(0f))
-                                } else {
-                                    val travel = restingTop().coerceAtLeast(1f)
-                                    expand.snapTo((expand.value - amount / travel).coerceIn(0f, 1f))
-                                }
+                            if (pulled > 0f || (grown == 0f && amount > 0f)) {
+                                pulled = (pulled + amount).coerceAtLeast(0f)
+                                scope.launch(start = CoroutineStart.UNDISPATCHED) { pullY.snapTo(pulled) }
+                            } else {
+                                grown = (grown - amount / restingTop().coerceAtLeast(1f)).coerceIn(0f, 1f)
+                                scope.launch(start = CoroutineStart.UNDISPATCHED) { expand.snapTo(grown) }
                             }
                         },
                         onDragEnd = {
                             val velocity = tracker.calculateVelocity().y
                             when {
-                                pullY.value > 0f -> {
+                                pulled > 0f -> {
                                     scope.launch {
-                                        if (pullY.value > heightPx * CLOSE_PULL_HEIGHTS || velocity > CLOSE_FLING_VELOCITY) {
+                                        if (pulled > heightPx * CLOSE_PULL_HEIGHTS || velocity > CLOSE_FLING_VELOCITY) {
                                             pullY.animateTo(heightPx * 2f, motion.fastSpatialSpec(), velocity.coerceAtLeast(0f))
                                             onClose()
                                         } else {
@@ -207,17 +216,17 @@ internal fun VideoBackgroundBar(
                                     }
                                 }
 
-                                expand.value > 0f -> {
-                                    settleExpand(velocity)
+                                grown > 0f -> {
+                                    settleExpand(grown, velocity)
                                 }
                             }
                         },
                         onDragCancel = {
                             scope.launch { pullY.animateTo(0f, motion.defaultSpatialSpec()) }
-                            if (expand.value > 0f) settleExpand(0f)
+                            if (grown > 0f) settleExpand(grown, 0f)
                         },
                     )
-                }.clickable { if (!isExpanding) settleExpand(-EXPAND_TAP_VELOCITY) },
+                }.clickable { if (!isExpanding) settleExpand(0f, -EXPAND_TAP_VELOCITY) },
     ) {
         if (!isExpanding) {
             MediaMiniBarSwipeReveal(
