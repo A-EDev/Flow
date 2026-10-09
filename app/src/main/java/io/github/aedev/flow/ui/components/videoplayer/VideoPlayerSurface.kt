@@ -11,10 +11,13 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
@@ -180,10 +184,15 @@ fun VideoPlayerSurface(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (ambientActive) {
+            // Fades in once, so the glow arrives after a portrait fullscreen slide instead of
+            // switching on in a single frame.
+            val ambientAppear = remember { Animatable(0f) }
+            val ambientFade = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
+            LaunchedEffect(Unit) { ambientAppear.animateTo(1f, ambientFade) }
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
                 videoAspect = ambientVideoAspect,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = ambientAppear.value },
             )
         }
         AndroidView(
