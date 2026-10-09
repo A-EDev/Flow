@@ -215,12 +215,28 @@ class LibraryViewModel
                 .flowOn(Dispatchers.Default)
                 .stateIn(viewModelScope, sharing, null)
 
+        /** Queued, running and paused downloads; null until Room first answers. */
+        internal val activeDownloadCount: StateFlow<Int?> =
+            videoDownloadManager.activeDownloads
+                .map { it.size }
+                .distinctUntilChanged()
+                .flowOn(Dispatchers.IO)
+                .stateIn(viewModelScope, sharing, null)
+
         internal val isLibraryEmpty =
-            counts
-                .map { it != null && it.isEmpty }
+            combine(counts, activeDownloadCount, ::libraryIsEmpty)
                 .distinctUntilChanged()
                 .stateIn(viewModelScope, sharing, false)
     }
+
+/**
+ * Empty only once both counts are known: a download still in progress is library content too, and
+ * deciding before Room answers would flash the empty state.
+ */
+internal fun libraryIsEmpty(
+    counts: LibraryCounts?,
+    activeDownloads: Int?,
+): Boolean = counts != null && activeDownloads == 0 && counts.isEmpty
 
 private val LibraryMediaItem.downloadedAt: Long
     get() =

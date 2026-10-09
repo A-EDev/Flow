@@ -248,6 +248,7 @@ FIXES AND STABILITY
 - Fix Explore's Music tab failing with "reCaptcha Challenge requested": it now lists the trending music videos from YouTube Music's charts for your region, and the Movies tab is gone because YouTube stopped serving its chart (#1254)
 - Explore no longer shows raw error text when YouTube refuses a request, and says when to try again
 - Fix missing covers on Opus, Ogg and FLAC songs in Local media, the players and the notification: pictures not marked as the front cover, or saved with line breaks, are now read, and a cover.jpg or folder.jpg beside the songs is used when the file has none (#1250)
+- Fix Downloads disappearing from the Library on a fresh install: it is always shown, and Downloads can find the files an earlier install saved after you allow access to videos and audio, keeping their video when the file names it. Settings › Downloads has the same search, and deleting such a file asks the system for permission instead of leaving it on the device (#1246)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

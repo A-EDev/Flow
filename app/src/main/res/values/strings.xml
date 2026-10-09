@@ -451,6 +451,17 @@
     <string name="player_time_separator"> / </string>
     <string name="you">You</string>
     <string name="empty_downloads">No downloads yet</string>
+    <string name="downloads_recover_title">Find downloads from an earlier install</string>
+    <string name="downloads_recover_body">Flow saves downloads in Download/Flow and Music/Flow. To list the files an earlier install saved there, allow access to videos and audio.</string>
+    <string name="downloads_recover_allow">Allow access</string>
+    <string name="downloads_recover_dismiss">Not now</string>
+    <plurals name="downloads_recovered_count">
+        <item quantity="one">Found %d download from an earlier install</item>
+        <item quantity="other">Found %d downloads from an earlier install</item>
+    </plurals>
+    <string name="downloads_recovered_none">No downloads from an earlier install were found</string>
+    <string name="downloads_find_earlier_title">Find earlier downloads</string>
+    <string name="downloads_find_earlier_running">Searching…</string>
     <string name="play_all">Play all</string>
     <string name="remove_from_watch_later">Remove from Watch Later</string>
     <string name="explicit">E</string>
