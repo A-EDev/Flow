@@ -48,10 +48,14 @@ class MediaOpenOrigins {
 
     /**
      * Keeps where [videoId]'s thumbnail is now for the next [originFor], for a surface that leaves
-     * the screen in the same moment it opens the player, as the background bar does.
+     * the screen in the same moment it opens the player, as the background bar does. [windowBounds]
+     * replaces the bounds with where the thumbnail is heading, for one that is still moving.
      */
-    fun holdOriginFor(videoId: String) {
-        held = visibleOriginFor(videoId)?.let { videoId to it }
+    fun holdOriginFor(
+        videoId: String,
+        windowBounds: Rect? = null,
+    ) {
+        held = visibleOriginFor(videoId)?.let { origin -> videoId to (windowBounds?.let { origin.copy(windowBounds = it) } ?: origin) }
     }
 
     fun originFor(videoId: String): MediaOpenOrigin? {

@@ -42,6 +42,8 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -85,9 +87,10 @@ private const val EXPAND_TAP_VELOCITY = 1000f
 /**
  * The mini bar for a video playing in the background, in the music bar's slot and shape. A tap or
  * a swipe up grows it into the player the way the music bar grows into its own: the card stretches
- * to the window under the finger and the thumbnail moves into the video's place, then the player
- * takes over from that spot through [onRestore]. A swipe down or sideways closes it. [handoffAlpha]
- * fades the grown card out over the player while it takes over.
+ * to the window under the finger and the thumbnail moves into the video's place. [onRestore] runs
+ * the moment the open is decided, with the window bounds the thumbnail is heading for, so the player
+ * builds underneath while the card finishes growing. A swipe down or sideways closes it.
+ * [handoffAlpha] fades the grown card out over the player once it has taken over.
  *
  * The gestures sit on the bar's resting box, outside every moving layer, so the finger is measured
  * against the window and not against a card that follows it.
@@ -99,7 +102,7 @@ internal fun VideoBackgroundBar(
     containerWidthPx: Float,
     containerHeightPx: Float,
     restingBottomPx: () -> Float,
-    onRestore: () -> Unit,
+    onRestore: (videoWindowBounds: Rect) -> Unit,
     onClose: () -> Unit,
     onOpenQueue: () -> Unit,
     swipeLeftAction: MiniBarSwipeAction,
@@ -142,10 +145,10 @@ internal fun VideoBackgroundBar(
         )
 
     val restingTop = { containerHeightPx - restingBottomPx() - spacerPx - heightPx }
-    val frame = {
+    val frameAt = { fraction: Float ->
         val top = restingTop()
         backgroundBarExpandFrame(
-            fraction = expand.value,
+            fraction = fraction,
             bar = Rect(bounds.start, top, bounds.start + bounds.width, top + heightPx),
             containerWidth = containerWidthPx,
             containerHeight = containerHeightPx,
@@ -154,6 +157,9 @@ internal fun VideoBackgroundBar(
             thumbnailAtRest = thumbnailAtRest,
         )
     }
+    val frame = { frameAt(expand.value) }
+
+    val containerOrigin = remember { floatArrayOf(0f, 0f) }
 
     fun settleExpand(
         fraction: Float,
@@ -161,12 +167,15 @@ internal fun VideoBackgroundBar(
     ) {
         val travel = restingTop().coerceAtLeast(1f)
         val expanding = shouldExpandBackgroundBar(fraction, velocityY)
+        if (expanding) {
+            // Grown, the card is the container, so its thumbnail is already in container coordinates.
+            onRestoreState.value(frameAt(1f).thumbnail.translate(containerOrigin[0], containerOrigin[1]))
+        }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             expand.snapTo(fraction)
             withSteadyFrames {
                 expand.animateTo(if (expanding) 1f else 0f, playerOpenSpringSpec, -velocityY / travel)
             }
-            if (expanding) onRestoreState.value()
         }
     }
 
@@ -178,6 +187,11 @@ internal fun VideoBackgroundBar(
             Modifier
                 .offset { IntOffset(bounds.start.roundToInt(), restingTop().roundToInt()) }
                 .size(with(density) { bounds.width.toDp() }, MediaMiniBarDefaults.Height)
+                .onPlaced { coordinates ->
+                    val position = coordinates.positionInWindow()
+                    containerOrigin[0] = position.x - bounds.start
+                    containerOrigin[1] = position.y - restingTop()
+                }
                 .mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
@@ -263,7 +277,8 @@ internal fun VideoBackgroundBar(
                         val current = frame()
                         translationX = swipeX.value
                         translationY = pullY.value + (1f - appear.value) * heightPx
-                        alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f)) * handoffAlpha()
+                        val handoff = if (expand.value < 1f) 1f else handoffAlpha()
+                        alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f)) * handoff
                         shape = RoundedCornerShape(current.cornerRadiusPx)
                         clip = true
                         shadowElevation = lerp(shadowPx, 0f, expand.value.coerceIn(0f, 1f))

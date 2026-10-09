@@ -261,8 +261,8 @@ internal fun FlowPlayerOverlays(
 
         val barVideo = playerUiState.cachedVideo
         var showBarQueue by remember { mutableStateOf(false) }
-        // The grown bar stays over the player while it opens and fades with that open, so the player
-        // takes over from the very spot the bar grew to and the page under it never shows through.
+        // The bar starts the player as it begins to grow and stays over it until the open is nearly
+        // done, so the player builds out of sight and the page under it never shows through.
         var barHandoffId by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(barHandoffId) {
             if (barHandoffId == null) return@LaunchedEffect
@@ -279,13 +279,13 @@ internal fun FlowPlayerOverlays(
                 containerWidthPx = with(density) { containerWidth.toPx() },
                 containerHeightPx = with(density) { containerHeight.toPx() },
                 restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
-                onRestore = {
-                    openOrigins.holdOriginFor(barVideo.id)
+                onRestore = { videoWindowBounds ->
+                    openOrigins.holdOriginFor(barVideo.id, videoWindowBounds)
                     barHandoffId = barVideo.id
                     playerViewModel.showVideoPlayer()
                 },
                 handoffAlpha = {
-                    if (barHandoffId == null) 1f else playerSheetState.fraction.coerceIn(0f, 1f)
+                    if (barHandoffId == null) 1f else (playerSheetState.fraction / BAR_HANDOFF_FADE_FRACTION).coerceIn(0f, 1f)
                 },
                 onClose = closeVideo,
                 onOpenQueue = { showBarQueue = true },
@@ -329,7 +329,10 @@ internal fun FlowPlayerOverlays(
     }
 }
 
-private const val BAR_HANDOFF_TIMEOUT_MS = 1_500L
+private const val BAR_HANDOFF_TIMEOUT_MS = 2_500L
+
+/** The last share of the player's open over which the grown bar fades, once the page under it is covered. */
+private const val BAR_HANDOFF_FADE_FRACTION = 0.15f
 
 /** The tapped thumbnail for [videoId] when one is in view, else the player rises from below. */
 private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
