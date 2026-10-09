@@ -29,4 +29,18 @@ class DoubleTapSeekZonesTest {
     fun `an unmeasured player treats every tap as centre`() {
         assertThat(tapZoneOf(x = 10f, width = 0f, sideFraction = 1f / 3f)).isEqualTo(TapZone.CENTER)
     }
+
+    @Test
+    fun `the strips the back gesture owns are edge, never a seek side`() {
+        assertThat(tapZoneOf(x = 20f, width = 1000f, sideFraction = 1f / 3f, edgePx = 66f)).isEqualTo(TapZone.EDGE)
+        assertThat(tapZoneOf(x = 980f, width = 1000f, sideFraction = 1f / 3f, edgePx = 66f)).isEqualTo(TapZone.EDGE)
+        assertThat(tapZoneOf(x = 70f, width = 1000f, sideFraction = 1f / 3f, edgePx = 66f)).isEqualTo(TapZone.BACK)
+        assertThat(tapZoneOf(x = 930f, width = 1000f, sideFraction = 1f / 3f, edgePx = 66f)).isEqualTo(TapZone.FORWARD)
+    }
+
+    @Test
+    fun `edges hold even with double-tap seek turned off`() {
+        assertThat(tapZoneOf(x = 10f, width = 1000f, sideFraction = 0f, edgePx = 66f)).isEqualTo(TapZone.EDGE)
+        assertThat(tapZoneOf(x = 500f, width = 1000f, sideFraction = 0f, edgePx = 66f)).isEqualTo(TapZone.CENTER)
+    }
 }

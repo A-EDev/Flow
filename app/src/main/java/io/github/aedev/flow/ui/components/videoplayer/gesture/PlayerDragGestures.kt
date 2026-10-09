@@ -20,6 +20,7 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -33,7 +34,7 @@ private const val SEEK_DRAG_SPAN_MS = 90_000L
 private const val SEEK_DRAG_HAPTIC_STEP_MS = 5_000L
 
 /** Distance from the top and bottom edges where drags are left to the controls beneath them. */
-private const val DRAG_EDGE_IGNORE_PX = 120f
+private val DragEdgeIgnore = 40.dp
 
 /** Downward travel in the centre zone that commits to leaving fullscreen. */
 private const val EXIT_FULLSCREEN_DRAG_PX = 80f
@@ -362,9 +363,10 @@ internal fun Modifier.playerDragGestures(
                     // it is what turned a back swipe into a seek and an edge flick into a
                     // brightness change (#1068).
                     val sideIgnore = currentSideEdgeIgnorePx
+                    val topBottomIgnore = DragEdgeIgnore.toPx()
                     val nearEdge =
-                        offset.y < DRAG_EDGE_IGNORE_PX ||
-                            size.height - offset.y < DRAG_EDGE_IGNORE_PX ||
+                        offset.y < topBottomIgnore ||
+                            size.height - offset.y < topBottomIgnore ||
                             offset.x < sideIgnore ||
                             size.width - offset.x < sideIgnore
                     if (nearEdge) {

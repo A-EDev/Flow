@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import kotlinx.coroutines.CoroutineScope
 
-private val MinSideEdgeIgnore = 16.dp
+private val MinSideEdgeIgnore = 24.dp
 
 @Composable
 fun Modifier.videoPlayerControls(
@@ -127,6 +127,7 @@ fun Modifier.videoPlayerControls(
             longPressPlaybackSpeed = longPressPlaybackSpeedState,
             isSeekForwardActive = isSeekForwardActiveState,
             isSeekBackActive = isSeekBackActiveState,
+            sideEdgeIgnorePx = sideEdgeIgnorePxState,
             haptics = haptics,
         ).playerDragGestures(
             currentPosition = currentPositionState,
