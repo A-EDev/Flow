@@ -137,6 +137,7 @@ fun CategoriesScreen(
                     uiState.sectionKind == ExploreSectionKind.CHART -> {
                         CategoryChartGrid(
                             entries = uiState.chartEntries,
+                            title = uiState.chartTitle,
                             gridState = gridState,
                             feedLayout = feedLayout,
                             isListView = uiState.isListView,

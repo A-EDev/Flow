@@ -80,12 +80,12 @@ import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
-import io.github.aedev.flow.innertube.pages.explore.CHARTS_BROWSE_ID
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
-import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.MusicVideoChart
 import io.github.aedev.flow.innertube.pages.explore.exploreShelves
+import io.github.aedev.flow.innertube.pages.explore.ranked
 import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
-import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.trendingVideoChart
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
@@ -788,24 +788,18 @@ object YouTube {
             }
         }.flowOn(PerformanceDispatcher.parsing)
 
-    suspend fun videoCharts(
-        chartType: String,
-        country: String,
-    ): Result<VideoChartsPage> =
+    /**
+     * A country's trending music videos: YouTube Music's charts page for [country] names the chart
+     * playlist, and the playlist browse gives its rows. Two requests, both on hosts that serve
+     * anonymous clients.
+     */
+    suspend fun musicVideoChart(country: String): Result<MusicVideoChart> =
         runCatching {
-            val response =
-                innerTube.analyticsChartsBrowse(
-                    browseId = CHARTS_BROWSE_ID,
-                    query =
-                        "perspective=CHART_DETAILS" +
-                            "&chart_params_country_code=$country" +
-                            "&chart_params_chart_type=$chartType",
-                )
-            withContext(PerformanceDispatcher.parsing) {
-                Json
-                    .parseToJsonElement(response.bodyAsText())
-                    .toVideoChartsPage(chartType, country)
-            }
+            val playlist =
+                getChartsPage(country.uppercase()).getOrThrow().trendingVideoChart()
+                    ?: return@runCatching MusicVideoChart(title = "")
+            val page = videoPlaylistPage(playlist.id).getOrThrow()
+            MusicVideoChart(title = playlist.title, entries = page.videos.ranked())
         }
 
     suspend fun communityPosts(
