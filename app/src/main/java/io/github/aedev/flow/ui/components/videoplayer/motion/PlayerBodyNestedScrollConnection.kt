@@ -91,7 +91,11 @@ internal class PlayerBodyNestedScrollConnection(
         val frac = portraitFsFraction()
         listScrolledThisGesture = false
         pullAccum = 0f
-        if (frac <= 0f || frac >= 1f) return Velocity.Zero
+        if (frac <= 0f) return Velocity.Zero
+        if (frac >= 1f) {
+            onEnterPortraitFullscreen()?.invoke()
+            return available
+        }
         val shouldEnter = shouldEnterPortraitFullscreen(fraction = frac, velocityY = available.y)
         animatePortraitFs(if (shouldEnter) 1f else 0f, fractionVelocity(available.y, portraitFsTravel()))
         if (shouldEnter) onEnterPortraitFullscreen()?.invoke()

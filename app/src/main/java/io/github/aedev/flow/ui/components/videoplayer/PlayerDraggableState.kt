@@ -165,6 +165,7 @@ class PlayerDraggableState(
         tuckedSide = null
         openOrigin = origin
         posterPlaceholderKey = (origin as? SheetOpenOrigin.Thumbnail)?.imageKey
+        snapPortraitFullscreen(0f)
         val generation = ++openGeneration
         scope.launch {
             isShrinkingToCorner = false
