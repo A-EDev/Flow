@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Metadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.container.MdtaMetadataEntry
+import androidx.media3.extractor.metadata.flac.PictureFrame
 import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
@@ -79,6 +80,10 @@ class EmbeddedTags(
                         if (cover == null) cover = entry.pictureData
                     }
 
+                    is PictureFrame -> {
+                        if (cover == null) cover = entry.pictureData
+                    }
+
                     is VorbisComment -> {
                         vorbis.putIfAbsent(entry.key.uppercase(), entry.value)
                     }
@@ -91,12 +96,13 @@ class EmbeddedTags(
             val title = frames[FRAME_TITLE] ?: fields[FlowTagFields.TITLE]
             if (title != null) fields.putIfAbsent(FlowTagFields.TITLE, title)
             val flow = FlowTagFields.decode(fields)?.fillFromFrames(frames, comment)
+            val resolvedCover = cover ?: vorbis[VORBIS_PICTURE]?.let { pictureBytesFromComment(it) }
             return EmbeddedTags(
                 flow = flow,
                 title = title,
                 artist = frames[FRAME_ARTIST] ?: flow?.displayArtist(),
                 album = frames[FRAME_ALBUM] ?: flow?.album,
-                cover = cover,
+                cover = resolvedCover,
                 description = (flow?.description ?: vorbis[VORBIS_DESCRIPTION])?.takeIf(String::isNotBlank),
                 comment = (comment ?: vorbis[VORBIS_COMMENT])?.takeIf(String::isNotBlank),
                 lyrics =
@@ -129,6 +135,7 @@ class EmbeddedTags(
         private const val FRAME_TRACK = "TRCK"
         private const val FRAME_DATE = "TDRC"
         private const val FRAME_LYRICS = "USLT"
+        private const val VORBIS_PICTURE = "METADATA_BLOCK_PICTURE"
         private const val VORBIS_DESCRIPTION = "DESCRIPTION"
         private const val VORBIS_COMMENT = "COMMENT"
         private const val VORBIS_LYRICS = "LYRICS"

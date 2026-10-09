@@ -7,9 +7,11 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.util.Size
+import io.github.aedev.flow.data.video.downloader.tags.vorbisPictureBytes
 
 private const val MEDIA_AUTHORITY = "media"
 private const val AUDIO_PATH = "/audio/"
+private const val HEADER_LIMIT = 256 * 1024
 
 /**
  * Artwork for a file on the device. A song shows the cover embedded in its own file first: the
@@ -27,7 +29,12 @@ object MediaStoreThumbnails {
         sizePx: Int,
     ): Bitmap? =
         runCatching {
-            if (isAudio(uri)) runCatching { embeddedCover(context, uri, sizePx) }.getOrNull()?.let { return@runCatching it }
+            if (isAudio(uri)) {
+                runCatching { embeddedCover(context, uri, sizePx) }.getOrNull()?.let { return@runCatching it }
+                // Opus keeps its cover in a Vorbis comment the platform retriever does not surface.
+                // Without this, loadThumbnail falls through to the folder's album art, or to nothing.
+                runCatching { commentCover(context, uri, sizePx) }.getOrNull()?.let { return@runCatching it }
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 context.contentResolver.loadThumbnail(uri, Size(sizePx, sizePx), null)
             } else {
@@ -50,6 +57,30 @@ object MediaStoreThumbnails {
             } finally {
                 retriever.release()
             } ?: return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(picture, 0, picture.size, bounds)
+        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, sizePx) }
+        return BitmapFactory.decodeByteArray(picture, 0, picture.size, options)
+    }
+
+    private fun commentCover(
+        context: Context,
+        uri: Uri,
+        sizePx: Int,
+    ): Bitmap? {
+        val header =
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val buffer = ByteArray(HEADER_LIMIT)
+                var read = 0
+                while (read < buffer.size) {
+                    val count = input.read(buffer, read, buffer.size - read)
+                    if (count < 0) break
+                    read += count
+                }
+                if (read == 0) return null
+                if (read == buffer.size) buffer else buffer.copyOf(read)
+            } ?: return null
+        val picture = vorbisPictureBytes(header) ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(picture, 0, picture.size, bounds)
         val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, sizePx) }
