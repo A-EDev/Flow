@@ -44,6 +44,7 @@ import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.videoplayer.BackgroundQueueTransport
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
@@ -295,6 +296,7 @@ internal fun FlowPlayerOverlays(
                 expandedHeight = null,
                 onDismiss = { showBarQueue = false },
                 loadStreamsInPlayer = true,
+                footer = { BackgroundQueueTransport(videoBarActions) },
             )
         }
         LaunchedEffect(showVideoBar) { if (!showVideoBar) showBarQueue = false }

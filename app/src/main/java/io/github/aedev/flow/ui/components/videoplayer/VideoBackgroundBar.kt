@@ -26,10 +26,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,10 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.model.Video
@@ -64,12 +59,10 @@ import io.github.aedev.flow.ui.components.shared.labelRes
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
 import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private val ThumbnailWidth = 78.dp
-private const val PROGRESS_INTERVAL_MS = 1_000L
 private const val CLOSE_PULL_HEIGHTS = 0.5f
 private const val CLOSE_FLING_VELOCITY = 800f
 private const val RESTORE_PULL_HEIGHTS = 0.5f
@@ -284,20 +277,9 @@ private fun BackgroundBarProgress(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    var progress by remember { mutableFloatStateOf(0f) }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(isPlaying, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            do {
-                val manager = EnhancedPlayerManager.getInstance()
-                val duration = manager.getDuration()
-                progress = if (duration > 0L) (manager.getCurrentPosition().toFloat() / duration).coerceIn(0f, 1f) else 0f
-                if (isPlaying) delay(PROGRESS_INTERVAL_MS)
-            } while (isPlaying)
-        }
-    }
+    val playback by rememberPolledPlayback(isPlaying)
     LinearProgressIndicator(
-        progress = { progress },
+        progress = { playback.fraction },
         modifier = modifier.fillMaxWidth().height(2.dp),
         color = MaterialTheme.colorScheme.primary,
         trackColor = Color.Transparent,
