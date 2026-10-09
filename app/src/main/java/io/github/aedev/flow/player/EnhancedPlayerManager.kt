@@ -1865,6 +1865,11 @@ class EnhancedPlayerManager private constructor() {
         autoNextLog("autoplay countdown cancelled")
     }
 
+    /** Comments hold the countdown until they close; the overlay stays up with its remaining time. */
+    fun setAutoplayHold(hold: Boolean) {
+        autoplayCountdownController.setHold(hold)
+    }
+
     fun restartFromAutoplayCountdown() {
         autoplayCountdownController.stop()
         releaseAdvanceWakeLock()

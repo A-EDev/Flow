@@ -9,7 +9,7 @@ NEW FEATURES
 - Channels you block are now hidden from search results, not just the feed
 - Channel pages moved to the native InnerTube client, with correct scheduled-stream and premiere handling
 - Private notes on any channel or video, included in backup and device sync
-- Explore rebuilt around YouTube's own destinations — Live, Gaming, Music, Movies, News, Sports, Learning and Fashion — each rendered in the shape its source serves, with the content region one tap away in the top bar
+- Explore rebuilt around YouTube's own destinations — Live, Gaming, Music, News, Sports, Learning and Fashion — each rendered in the shape its source serves, with the content region one tap away in the top bar
 - Explore now runs on the native InnerTube client and shares the adaptive grid used by Search and Channels, replacing the trending endpoints YouTube has retired
 - The video player is now adaptive: a supporting pane and navigation rail on wide screens, with the description, chapters, comments and settings served in the pane or a fullscreen drawer
 - Player comments and descriptions now come from InnerTube, and every player surface moves to Material 3 Expressive
@@ -148,6 +148,7 @@ IMPROVEMENTS
 - The video mini player stays above the keyboard while you type (#1241)
 - The music bar closes with a swipe down
 - Auto quality now changes between qualities mid-playback without stopping, judged on the measured speed of your connection, where before it started at 480p, never went past 720p and paused on every change
+- Import from Google Takeout now brings in a whole export at once: pick every ZIP of a split export, and searches, YouTube Music watch history, watch history saved as JSON and your YouTube Music library come in with subscriptions, playlists and likes. Playlists keep the date YouTube made them, so Newest matches YouTube, and importing the same export again no longer duplicates them (#858)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -245,6 +246,10 @@ FIXES AND STABILITY
 - Fix Reset YouTube session in Diagnostics being undone by the next restart, and keep the YouTube identity out of Android backups so it is never restored onto another phone
 - Diagnostics reports now list how the app's last few runs ended, so a close with no crash report still shows its cause
 - Fix music started while a video played in the background getting no mini player
+- Fix Explore's Music tab failing with "reCaptcha Challenge requested": it now lists the trending music videos from YouTube Music's charts for your region, and the Movies tab is gone because YouTube stopped serving its chart (#1254)
+- Explore no longer shows raw error text when YouTube refuses a request, and says when to try again
+- Fix missing covers on Opus, Ogg and FLAC songs in Local media, the players and the notification: pictures not marked as the front cover, or saved with line breaks, are now read, and a cover.jpg or folder.jpg beside the songs is used when the file has none (#1250)
+- Fix Downloads disappearing from the Library on a fresh install: it is always shown, and Downloads can find the files an earlier install saved after you allow access to videos and audio, keeping their video when the file names it. Settings › Downloads has the same search, and deleting such a file asks the system for permission instead of leaving it on the device (#1246)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

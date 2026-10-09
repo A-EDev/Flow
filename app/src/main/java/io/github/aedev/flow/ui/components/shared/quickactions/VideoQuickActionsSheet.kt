@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -279,7 +280,6 @@ private fun feedRows(
 ): List<QuickActionRow> {
     val haptics = LocalHapticFeedback.current
     val isWatched = isWatchedProgress(rememberWatchProgress(video.id))
-    val watchedLabel = stringResource(R.string.quick_action_watched)
     return listOf(
         actionRow("interested", Icons.Outlined.ThumbUp, stringResource(R.string.i_like_this)) {
             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -293,16 +293,15 @@ private fun feedRows(
         },
         QuickActionRow("watched") { shape ->
             FlowNavRow(
-                title = if (isWatched) watchedLabel else stringResource(R.string.mark_as_watched),
-                leadingIcon = if (isWatched) Icons.Filled.CheckCircle else Icons.Outlined.Visibility,
+                title = stringResource(if (isWatched) R.string.mark_as_unwatched else R.string.mark_as_watched),
+                leadingIcon = if (isWatched) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
-                    viewModel.markAsWatched(video)
+                    if (isWatched) viewModel.markAsUnwatched(video) else viewModel.markAsWatched(video)
                     onDismiss()
                 },
-                enabled = !isWatched,
+                enabled = true,
                 showChevron = false,
-                stateDescription = if (isWatched) watchedLabel else null,
                 shape = shape,
             )
         },

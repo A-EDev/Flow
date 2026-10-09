@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.local.SavedPlaylistSyncStore
 import io.github.aedev.flow.data.local.entity.DownloadCollectionKind
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
+import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -23,8 +24,10 @@ import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.runs
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -357,5 +360,39 @@ class MusicCollectionViewModelTest {
 
         assertThat(merged.tracks.map { it.videoId }).containsExactly("a", "b", "c").inOrder()
         assertThat(merged.continuation).isNull()
+    }
+
+    @Test
+    fun `creating a playlist from Add all copies every song onto the new list`() {
+        val id = "3f9c"
+        coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = true)
+        every { playlists.observePlaylistEntity(id) } returns flowOf(entity(id, own = true))
+        every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a"), video("b")))
+        coEvery { playlists.createPlaylist(any(), any(), any(), any(), any()) } just runs
+        coEvery { playlists.getPlaylistInfo(any()) } answers {
+            PlaylistInfo(
+                id = firstArg(),
+                name = "Fresh",
+                description = "notes",
+                videoCount = 0,
+                thumbnailUrl = "",
+                isPrivate = false,
+                createdAt = 0L,
+            )
+        }
+        val viewModel = viewModel(id)
+        viewModel.settled()
+
+        viewModel.createAndAdd("Fresh", "notes")
+
+        coVerify(timeout = 2_000) {
+            playlists.createPlaylist(any(), "Fresh", "notes", false, true)
+        }
+        coVerify(timeout = 2_000) {
+            playlists.addVideosToPlaylist(any(), match { it.map(Video::id) == listOf("a", "b") })
+        }
+        val message = runBlocking { withTimeout(2_000) { viewModel.messages.first() } }
+        assertThat(message.pluralRes).isEqualTo(io.github.aedev.flow.R.plurals.merge_playlist_success)
+        assertThat(message.args).contains("Fresh")
     }
 }

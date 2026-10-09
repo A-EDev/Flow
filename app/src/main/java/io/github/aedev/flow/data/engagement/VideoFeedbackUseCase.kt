@@ -100,4 +100,12 @@ class VideoFeedbackUseCase
             FeedInvalidationBus.emit(FeedInvalidationBus.Event.MarkedWatched(video.id))
             watchLaterCleanup.onFinished(video.id)
         }
+
+        /**
+         * Clears the progress that makes [video] read as watched. The history row stays, and the
+         * recommendation signal from the earlier watched interaction is left as it was.
+         */
+        suspend fun markUnwatched(video: Video) {
+            viewHistory.clearProgress(video.id)
+        }
     }

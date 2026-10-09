@@ -1,6 +1,10 @@
 package io.github.aedev.flow.ui.screens.library
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +22,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,20 +37,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.data.video.storage.StorageAccess
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
 import io.github.aedev.flow.ui.components.library.DownloadCollectionsShelf
+import io.github.aedev.flow.ui.components.library.DownloadsRecoveryCard
 import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
 import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibrarySelection
@@ -70,6 +81,33 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var access by remember { mutableStateOf(StorageAccess.read(context)) }
+    var recoveryDismissed by rememberSaveable { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        access = StorageAccess.read(context)
+        viewModel.scanIfMoreIsReadable()
+        onPauseOrDispose { }
+    }
+    val accessRequest =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            access = StorageAccess.read(context)
+            when {
+                access.video || access.audio -> viewModel.findEarlierDownloads()
+                (context as? Activity)?.canStillAsk() == false -> context.openAppPermissionSettings()
+            }
+        }
+    val recoveredMessage = { count: Int ->
+        if (count > 0) {
+            context.resources.getQuantityString(R.plurals.downloads_recovered_count, count, count)
+        } else {
+            context.getString(R.string.downloads_recovered_none)
+        }
+    }
+    LaunchedEffect(viewModel) { viewModel.recovered.collect { snackbarHostState.showSnackbar(recoveredMessage(it)) } }
+    val deletePrompt = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
+    LaunchedEffect(viewModel) { viewModel.deleteConsent.collect { deletePrompt.launch(IntentSenderRequest.Builder(it).build()) } }
     var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
@@ -155,6 +193,7 @@ fun DownloadsScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
@@ -169,6 +208,18 @@ fun DownloadsScreen(
                     },
                     trailing = if (sortInHeader) sortChip else null,
                 )
+                val hasNothing =
+                    uiState.totalVideoCount == 0 &&
+                        uiState.totalMusicCount == 0 &&
+                        uiState.incompleteVideoDownloads.isEmpty() &&
+                        uiState.incompleteMusicDownloads.isEmpty()
+                if (hasNothing && !access.seesAllDownloads && !recoveryDismissed) {
+                    DownloadsRecoveryCard(
+                        onAllow = { accessRequest.launch(downloadReadPermissions()) },
+                        onDismiss = { recoveryDismissed = true },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
                 val musicColumns = flowGridColumns(compact = 1, medium = 1, expanded = 2)
                 Crossfade(
                     targetState = selectedKind,

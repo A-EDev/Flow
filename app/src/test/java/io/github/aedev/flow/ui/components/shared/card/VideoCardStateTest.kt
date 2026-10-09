@@ -76,6 +76,13 @@ class VideoCardStateTest {
     }
 
     @Test
+    fun `clearing progress makes a finished video read as unwatched`() {
+        val cleared = listOf(entry("a", position = 0, duration = 1_000)).toWatchProgressMap()["a"]
+
+        assertThat(isWatchedProgress(cleared)).isFalse()
+    }
+
+    @Test
     fun `watched starts at ninety percent`() {
         assertThat(isWatchedProgress(0.89f)).isFalse()
         assertThat(isWatchedProgress(0.90f)).isTrue()
