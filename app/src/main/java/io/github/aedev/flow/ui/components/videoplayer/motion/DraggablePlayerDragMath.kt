@@ -107,8 +107,7 @@ internal fun shouldCloseMiniDownward(
 internal fun shouldCollapseOnRelease(
     fraction: Float,
     scaledVelocityY: Float,
-): Boolean =
-    fraction > COLLAPSE_COMMIT_FRACTION || scaledVelocityY > COLLAPSE_FLING_VELOCITY
+): Boolean = fraction > COLLAPSE_COMMIT_FRACTION || scaledVelocityY > COLLAPSE_FLING_VELOCITY
 
 internal data class MiniPlayerBounds(
     val minX: Float,

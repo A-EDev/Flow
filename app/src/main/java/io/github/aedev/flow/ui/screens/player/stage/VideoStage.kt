@@ -25,7 +25,6 @@ import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerZoom
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.Media3SubtitleOverlay
 
-
 /**
  * The player's video slot: the surface itself, the gesture and zoom transforms wrapped around it,
  * and the overlays and controls that mount on top once the sheet is at rest near expanded.
