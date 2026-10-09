@@ -291,10 +291,10 @@ private fun LazyListScope.libraryShelves(
     }
 
     item(key = "downloads", contentType = "media-shelf") {
-        LibraryMediaShelfRoute(
-            section = LibrarySection.DOWNLOADS,
+        LibraryDownloadsShelf(
             itemsFlow = viewModel.downloads,
-            onTitleClick = onNavigateToDownloads,
+            activeCountFlow = viewModel.activeDownloadCount,
+            onOpen = onNavigateToDownloads,
             onVideoClick = onVideoClick,
             onMusicClick = onMusicClick,
             onDownloadedVideoClick = onDownloadedVideoClick,

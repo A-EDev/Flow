@@ -1,11 +1,15 @@
 package io.github.aedev.flow.ui.screens.library
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
@@ -18,11 +22,66 @@ import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.library.LibraryAlbumCard
 import io.github.aedev.flow.ui.components.library.LibraryMediaItem
 import io.github.aedev.flow.ui.components.library.LibraryMediaShelf
+import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
 import io.github.aedev.flow.ui.components.library.LibraryShelf
 import io.github.aedev.flow.ui.components.library.LibraryShelfPlaceholder
 import io.github.aedev.flow.ui.components.library.LibraryShortsShelf
 import io.github.aedev.flow.ui.components.library.LibraryVideoCard
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * Finished downloads stay a shelf. Until one finishes, a row still opens the downloads page, where
+ * queued and running items live. Hiding that row is what made the section appear only after a
+ * download completed.
+ */
+@Composable
+internal fun LibraryDownloadsShelf(
+    itemsFlow: StateFlow<List<LibraryMediaItem>?>,
+    activeCountFlow: StateFlow<Int?>,
+    onOpen: () -> Unit,
+    onVideoClick: (Video) -> Unit,
+    onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
+    onDownloadedVideoClick: (List<DownloadedVideo>, Int) -> Unit,
+    onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
+) {
+    val items by itemsFlow.collectAsStateWithLifecycle()
+    val activeCount by activeCountFlow.collectAsStateWithLifecycle()
+    val section = LibrarySection.DOWNLOADS
+    when (libraryDownloadsPresentation(items?.size)) {
+        LibraryDownloadsPresentation.Loading -> {
+            LibraryShelfPlaceholder(title = section.title, icon = section.icon)
+        }
+
+        LibraryDownloadsPresentation.Row -> {
+            Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
+                LibraryNavigationRow(
+                    icon = section.icon,
+                    title = section.title,
+                    subtitle =
+                        stringResource(
+                            if ((activeCount ?: 0) > 0) R.string.downloads_section_in_progress else R.string.empty_downloads,
+                        ),
+                    onClick = onOpen,
+                )
+            }
+        }
+
+        LibraryDownloadsPresentation.Shelf -> {
+            LibraryMediaShelf(
+                title = section.title,
+                icon = section.icon,
+                items = items.orEmpty(),
+                sourceName = section.title,
+                onTitleClick = onOpen,
+                onVideoClick = onVideoClick,
+                onMusicClick = onMusicClick,
+                onDownloadedVideoClick = onDownloadedVideoClick,
+                onDownloadedMusicClick = onDownloadedMusicClick,
+            )
+        }
+    }
+}
 
 @Composable
 internal fun LibraryMediaShelfRoute(
