@@ -300,6 +300,7 @@ private fun LazyListScope.libraryShelves(
     }
 
     item(key = "downloads", contentType = "media-shelf") {
+        val activeDownloads by viewModel.activeDownloadCount.collectAsStateWithLifecycle()
         LibraryMediaShelfRoute(
             section = LibrarySection.DOWNLOADS,
             itemsFlow = viewModel.downloads,
@@ -308,7 +309,8 @@ private fun LazyListScope.libraryShelves(
             onMusicClick = onMusicClick,
             onDownloadedVideoClick = onDownloadedVideoClick,
             onDownloadedMusicClick = onDownloadedMusicClick,
-            emptyMessage = stringResource(R.string.empty_downloads),
+            emptyMessage =
+                stringResource(if ((activeDownloads ?: 0) > 0) R.string.downloads_section_in_progress else R.string.empty_downloads),
         )
     }
 
