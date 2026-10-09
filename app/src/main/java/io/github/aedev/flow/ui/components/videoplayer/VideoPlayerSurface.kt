@@ -184,11 +184,12 @@ fun VideoPlayerSurface(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (ambientActive) {
-            // Fades in once, so the glow arrives after a portrait fullscreen slide instead of
-            // switching on in a single frame.
+            // Held back until the first frame is sampled, then faded in: before that the glow is only
+            // its dark base, which used to black out the backdrop around the video for a moment.
             val ambientAppear = remember { Animatable(0f) }
             val ambientFade = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
-            LaunchedEffect(Unit) { ambientAppear.animateTo(1f, ambientFade) }
+            val ambientReady = ambientFrame.frame != null
+            LaunchedEffect(ambientReady) { if (ambientReady) ambientAppear.animateTo(1f, ambientFade) }
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
                 videoAspect = ambientVideoAspect,
