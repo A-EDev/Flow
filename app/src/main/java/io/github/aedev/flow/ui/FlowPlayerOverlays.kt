@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,8 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerQueueSheetHost
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Keeps the video sheet, its visibility and [GlobalPlayerState] in step with the playback session. */
 @Composable
@@ -257,15 +260,25 @@ internal fun FlowPlayerOverlays(
 
         val barVideo = playerUiState.cachedVideo
         var showBarQueue by remember { mutableStateOf(false) }
-        if (showVideoBar && barVideo != null) {
+        // The bar stays for the frames the player needs to compose, so the hand-off has no gap.
+        var barHandoffId by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(barHandoffId) {
+            if (barHandoffId == null) return@LaunchedEffect
+            withTimeoutOrNull(BAR_HANDOFF_TIMEOUT_MS) {
+                snapshotFlow { playerSheetState.openOrigin != null && playerSheetState.fraction < BAR_HANDOFF_FRACTION }.first { it }
+            }
+            barHandoffId = null
+        }
+        if ((showVideoBar || barHandoffId == barVideo?.id) && barVideo != null) {
             VideoBackgroundBar(
                 video = barVideo,
                 bounds = miniBarBounds,
                 containerWidthPx = with(density) { containerWidth.toPx() },
                 containerHeightPx = with(density) { containerHeight.toPx() },
                 restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
-                onRestore = {
-                    openOrigins.holdOriginFor(barVideo.id)
+                onRestore = { velocityY ->
+                    openOrigins.holdOriginFor(barVideo.id, velocityY)
+                    barHandoffId = barVideo.id
                     playerViewModel.showVideoPlayer()
                 },
                 onClose = closeVideo,
@@ -309,9 +322,12 @@ internal fun FlowPlayerOverlays(
     }
 }
 
+private const val BAR_HANDOFF_TIMEOUT_MS = 600L
+private const val BAR_HANDOFF_FRACTION = 0.97f
+
 /** The tapped thumbnail for [videoId] when one is in view, else the player rises from below. */
 private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
     videoId
         ?.let(::originFor)
-        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey) }
+        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey, it.releaseVelocityY) }
         ?: SheetOpenOrigin.BelowScreen

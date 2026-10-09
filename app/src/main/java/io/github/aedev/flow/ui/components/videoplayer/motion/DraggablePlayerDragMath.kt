@@ -2,7 +2,11 @@ package io.github.aedev.flow.ui.components.videoplayer.motion
 
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerTuckSide
+import io.github.aedev.flow.ui.components.videoplayer.SheetOpenOrigin
 import kotlin.math.abs
+
+/** The fastest a flung open starts, in fraction per second, so a hard fling still reads as a growth. */
+private const val MAX_OPEN_FRACTION_VELOCITY = 8f
 
 /** Upward travel that commits to fullscreen; mirrors the release check. */
 private const val EXPAND_DRAG_COMMIT_PX = 80f
@@ -243,3 +247,13 @@ internal fun tuckedMiniX(
     screenWidth: Float,
     miniWidth: Float,
 ): Float = if (side == MiniPlayerTuckSide.Right) screenWidth else -miniWidth
+
+/**
+ * The open's starting speed in fraction per second from the fling that opened it: the box travels
+ * from the thumbnail's top to the top of the window as the fraction runs from 1 to 0.
+ */
+internal fun openFractionVelocity(origin: SheetOpenOrigin): Float {
+    val thumbnail = origin as? SheetOpenOrigin.Thumbnail ?: return 0f
+    val travel = thumbnail.windowBounds.top.coerceAtLeast(1f)
+    return (thumbnail.releaseVelocityY / travel).coerceIn(-MAX_OPEN_FRACTION_VELOCITY, 0f)
+}

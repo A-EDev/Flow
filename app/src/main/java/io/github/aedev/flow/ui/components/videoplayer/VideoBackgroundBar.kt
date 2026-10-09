@@ -72,13 +72,14 @@ private val ThumbnailWidth = 78.dp
 private const val PROGRESS_INTERVAL_MS = 1_000L
 private const val CLOSE_PULL_HEIGHTS = 0.5f
 private const val CLOSE_FLING_VELOCITY = 800f
-private const val RESTORE_PULL_PX = 24f
+private const val RESTORE_PULL_HEIGHTS = 0.5f
 private const val RESTORE_FLING_VELOCITY = -800f
-private const val UPWARD_PULL_FOLLOW = 0.25f
+private const val CHROME_FADE_HEIGHTS = 1.5f
 
 /**
  * The mini bar for a video playing in the background, in the music bar's slot and shape. A tap or
- * a swipe up brings the video back, a swipe down or sideways closes it.
+ * a swipe up brings the video back, a swipe down or sideways closes it. [onRestore] takes the
+ * vertical release speed in px per second, zero for a tap.
  */
 @Composable
 internal fun VideoBackgroundBar(
@@ -87,7 +88,7 @@ internal fun VideoBackgroundBar(
     containerWidthPx: Float,
     containerHeightPx: Float,
     restingBottomPx: () -> Float,
-    onRestore: () -> Unit,
+    onRestore: (velocityY: Float) -> Unit,
     onClose: () -> Unit,
     onOpenQueue: () -> Unit,
     swipeLeftAction: MiniBarSwipeAction,
@@ -135,8 +136,7 @@ internal fun VideoBackgroundBar(
                         onVerticalDrag = { change, amount ->
                             change.consume()
                             tracker.addPosition(change.uptimeMillis, change.position)
-                            val next = pullY.value + if (pullY.value + amount < 0f) amount * UPWARD_PULL_FOLLOW else amount
-                            scope.launch { pullY.snapTo(next) }
+                            scope.launch { pullY.snapTo(pullY.value + amount) }
                         },
                         onDragEnd = {
                             val velocity = tracker.calculateVelocity().y
@@ -148,9 +148,8 @@ internal fun VideoBackgroundBar(
                                         onClose()
                                     }
 
-                                    pulled < -RESTORE_PULL_PX || velocity < RESTORE_FLING_VELOCITY -> {
-                                        pullY.snapTo(0f)
-                                        onRestore()
+                                    pulled < -heightPx * RESTORE_PULL_HEIGHTS || velocity < RESTORE_FLING_VELOCITY -> {
+                                        onRestore(velocity.coerceAtMost(0f))
                                     }
 
                                     else -> {
@@ -161,7 +160,7 @@ internal fun VideoBackgroundBar(
                         },
                         onDragCancel = { scope.launch { pullY.animateTo(0f, motion.defaultSpatialSpec()) } },
                     )
-                }.clickable(onClick = onRestore),
+                }.clickable { onRestore(0f) },
     ) {
         MediaMiniBarSwipeReveal(
             offset = { swipeX.value },
@@ -184,6 +183,7 @@ internal fun VideoBackgroundBar(
                 isBuffering = playerState.isBuffering,
                 hasQueue = hasQueue,
                 onOpenQueue = onOpenQueue,
+                chromeAlpha = { 1f - (-pullY.value / (heightPx * CHROME_FADE_HEIGHTS)).coerceIn(0f, 1f) },
             )
         }
     }
@@ -196,7 +196,9 @@ private fun BoxScope.BackgroundBarContent(
     isBuffering: Boolean,
     hasQueue: Boolean,
     onOpenQueue: () -> Unit,
+    chromeAlpha: () -> Float,
 ) {
+    val chrome = Modifier.graphicsLayer { alpha = chromeAlpha() }
     Row(
         modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -208,7 +210,7 @@ private fun BoxScope.BackgroundBarContent(
             width = ThumbnailWidth,
             shape = MaterialTheme.shapes.medium,
         )
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).then(chrome)) {
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.titleSmall,
@@ -231,9 +233,10 @@ private fun BoxScope.BackgroundBarContent(
                 val manager = EnhancedPlayerManager.getInstance()
                 if (isPlaying) manager.pause() else manager.play()
             },
+            modifier = chrome,
         )
         if (hasQueue) {
-            IconButton(onClick = onOpenQueue) {
+            IconButton(onClick = onOpenQueue, modifier = chrome) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                     contentDescription = stringResource(R.string.playlist_queue),
@@ -244,7 +247,7 @@ private fun BoxScope.BackgroundBarContent(
     }
     BackgroundBarProgress(
         isPlaying = isPlaying,
-        modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp),
+        modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp).then(chrome),
     )
 }
 

@@ -37,6 +37,7 @@ fun MediaPlayPauseButton(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -52,7 +53,7 @@ fun MediaPlayPauseButton(
     )
     FilledIconButton(
         onClick = onClick,
-        modifier = Modifier.size(width = width, height = PlayButtonSize),
+        modifier = modifier.size(width = width, height = PlayButtonSize),
         shape = RoundedCornerShape(corner),
         interactionSource = interactionSource,
     ) {
