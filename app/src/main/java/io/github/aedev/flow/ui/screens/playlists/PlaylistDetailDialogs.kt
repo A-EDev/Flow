@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.playlists
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
@@ -10,7 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
@@ -79,6 +83,7 @@ internal fun PlaylistDetailDialogs(
         }
 
         PlaylistDialog.AddAll -> {
+            var creating by remember { mutableStateOf(false) }
             MergeIntoCollectionSheet(
                 targets =
                     remember(mergeTargets) {
@@ -88,9 +93,23 @@ internal fun PlaylistDetailDialogs(
                     },
                 placeholder = Icons.AutoMirrored.Filled.PlaylistPlay,
                 itemCountLabel = { pluralStringResource(R.plurals.videos_count_template, it, it) },
+                createLabel = stringResource(R.string.create_new_playlist),
                 onSelect = { viewModel.mergeIntoPlaylist(it.id) },
+                onCreateNew = { creating = true },
                 onDismiss = onDismiss,
             )
+            if (creating) {
+                CollectionEditDialog(
+                    title = stringResource(R.string.create_new_playlist),
+                    confirmLabel = stringResource(R.string.create),
+                    icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                    onDismiss = { creating = false },
+                    onConfirm = { name, description ->
+                        viewModel.createAndMerge(name, description)
+                        onDismiss()
+                    },
+                )
+            }
         }
 
         PlaylistDialog.DownloadAll -> {
