@@ -30,10 +30,15 @@ enum class MiniPlayerTuckSide { Left, Right }
 
 /** Where an open grows from: the thumbnail that was tapped, or below the screen when none is in view. */
 sealed interface SheetOpenOrigin {
+    /**
+     * [coversWindow]: whatever opened the player already fills the window around the thumbnail, as
+     * the background bar does once grown, so the page's ground starts full instead of growing.
+     */
     data class Thumbnail(
         val windowBounds: Rect,
         val cornerRadiusPx: Float,
         val imageKey: MemoryCache.Key?,
+        val coversWindow: Boolean = false,
     ) : SheetOpenOrigin
 
     data object BelowScreen : SheetOpenOrigin

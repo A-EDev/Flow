@@ -15,12 +15,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import coil3.memory.MemoryCache
 
-/** Where a video's thumbnail sits in the window, so the player can grow out of it. */
+/**
+ * Where a video's thumbnail sits in the window, so the player can grow out of it. [coversWindow]
+ * says the surface it sits on already fills the window.
+ */
 @Immutable
 data class MediaOpenOrigin(
     val windowBounds: Rect,
     val cornerRadiusPx: Float,
     val imageKey: MemoryCache.Key?,
+    val coversWindow: Boolean = false,
 )
 
 /** One thumbnail's entry: where it is laid out and which cached image it drew. */
@@ -48,14 +52,17 @@ class MediaOpenOrigins {
 
     /**
      * Keeps where [videoId]'s thumbnail is now for the next [originFor], for a surface that leaves
-     * the screen in the same moment it opens the player, as the background bar does. [windowBounds]
-     * replaces the bounds with where the thumbnail is heading, for one that is still moving.
+     * the screen in the same moment it opens the player, as the background bar does. [coveringWindowAt]
+     * is where the thumbnail is heading on a surface growing to fill the window.
      */
     fun holdOriginFor(
         videoId: String,
-        windowBounds: Rect? = null,
+        coveringWindowAt: Rect? = null,
     ) {
-        held = visibleOriginFor(videoId)?.let { origin -> videoId to (windowBounds?.let { origin.copy(windowBounds = it) } ?: origin) }
+        held =
+            visibleOriginFor(videoId)?.let { origin ->
+                videoId to (coveringWindowAt?.let { origin.copy(windowBounds = it, coversWindow = true) } ?: origin)
+            }
     }
 
     fun originFor(videoId: String): MediaOpenOrigin? {

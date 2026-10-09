@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -71,6 +72,7 @@ import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandle
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
+import io.github.aedev.flow.ui.theme.PlayerGround
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -80,6 +82,9 @@ private val ThumbnailStart = 10.dp
 private val BarShadowElevation = 6.dp
 private const val CLOSE_PULL_HEIGHTS = 0.5f
 private const val CLOSE_FLING_VELOCITY = 800f
+
+/** How far the card has grown before it takes on the player's status bar strip. */
+private const val STATUS_STRIP_FROM = 0.8f
 
 /** How far the card has grown when the player is started underneath it. */
 private const val RESTORE_AT_FRACTION = 0.98f
@@ -92,8 +97,7 @@ private const val EXPAND_TAP_VELOCITY = 1000f
  * a swipe up grows it into the player the way the music bar grows into its own: the card stretches
  * to the window under the finger and the thumbnail moves into the video's place. [onRestore] runs
  * the moment the open is decided, with the window bounds the thumbnail is heading for, so the player
- * builds underneath while the card finishes growing. A swipe down or sideways closes it.
- * [handoffAlpha] fades the grown card out over the player once it has taken over.
+ * builds underneath once the card covers the window. A swipe down or sideways closes it.
  *
  * The gestures sit on the bar's resting box, outside every moving layer, so the finger is measured
  * against the window and not against a card that follows it.
@@ -111,7 +115,6 @@ internal fun VideoBackgroundBar(
     swipeLeftAction: MiniBarSwipeAction,
     swipeRightAction: MiniBarSwipeAction,
     swipeActions: VideoBarSwipeActions,
-    handoffAlpha: () -> Float = { 1f },
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -203,8 +206,7 @@ internal fun VideoBackgroundBar(
                     val position = coordinates.positionInWindow()
                     containerOrigin[0] = position.x - bounds.start
                     containerOrigin[1] = position.y - restingTop()
-                }
-                .mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
+                }.mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
                     // Read and written on the gesture's own thread, so a fling that ends before the
@@ -289,12 +291,25 @@ internal fun VideoBackgroundBar(
                         val current = frame()
                         translationX = swipeX.value
                         translationY = pullY.value + (1f - appear.value) * heightPx
-                        val handoff = if (expand.value < 1f) 1f else handoffAlpha()
-                        alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f)) * handoff
+                        alpha = appear.value * (1f - (pullY.value / (heightPx * 2f)).coerceIn(0f, 1f))
                         shape = RoundedCornerShape(current.cornerRadiusPx)
                         clip = true
                         shadowElevation = lerp(shadowPx, 0f, expand.value.coerceIn(0f, 1f))
-                    }.drawBehind { drawRect(lerp(surfaceColor, expandedColor, expand.value.coerceIn(0f, 1f))) },
+                    }.drawBehind {
+                        val grown = expand.value.coerceIn(0f, 1f)
+                        drawRect(lerp(surfaceColor, expandedColor, grown))
+                        // The player's ground draws the status bar strip in this colour; matching it
+                        // makes the hand-off invisible there too.
+                        drawRect(
+                            PlayerGround,
+                            size = Size(size.width, statusBarPx),
+                            alpha =
+                                (
+                                    (grown - STATUS_STRIP_FROM) /
+                                        (1f - STATUS_STRIP_FROM)
+                                ).coerceIn(0f, 1f),
+                        )
+                    },
         ) {
             BackgroundBarContent(
                 video = video,

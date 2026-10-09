@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -261,14 +262,14 @@ internal fun FlowPlayerOverlays(
 
         val barVideo = playerUiState.cachedVideo
         var showBarQueue by remember { mutableStateOf(false) }
-        // The bar starts the player as it begins to grow and stays over it until the open is nearly
-        // done, so the player builds out of sight and the page under it never shows through.
+        // The grown bar stays over the player while it builds. The player opens from the bar's spot
+        // over a full ground, so its first frames match the bar and the bar can simply step aside.
         var barHandoffId by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(barHandoffId) {
             if (barHandoffId == null) return@LaunchedEffect
             withTimeoutOrNull(BAR_HANDOFF_TIMEOUT_MS) {
                 snapshotFlow { playerSheetState.openOrigin != null }.first { it }
-                snapshotFlow { playerSheetState.openOrigin == null }.first { it }
+                repeat(BAR_HANDOFF_FRAMES) { withFrameNanos { } }
             }
             barHandoffId = null
         }
@@ -283,9 +284,6 @@ internal fun FlowPlayerOverlays(
                     openOrigins.holdOriginFor(barVideo.id, videoWindowBounds)
                     barHandoffId = barVideo.id
                     playerViewModel.showVideoPlayer()
-                },
-                handoffAlpha = {
-                    if (barHandoffId == null) 1f else (playerSheetState.fraction / BAR_HANDOFF_FADE_FRACTION).coerceIn(0f, 1f)
                 },
                 onClose = closeVideo,
                 onOpenQueue = { showBarQueue = true },
@@ -331,12 +329,12 @@ internal fun FlowPlayerOverlays(
 
 private const val BAR_HANDOFF_TIMEOUT_MS = 2_500L
 
-/** The last share of the player's open over which the grown bar fades, once the page under it is covered. */
-private const val BAR_HANDOFF_FADE_FRACTION = 0.15f
+/** Frames the bar waits after the player starts opening, so the player has drawn under it. */
+private const val BAR_HANDOFF_FRAMES = 2
 
 /** The tapped thumbnail for [videoId] when one is in view, else the player rises from below. */
 private fun MediaOpenOrigins.sheetOriginFor(videoId: String?): SheetOpenOrigin =
     videoId
         ?.let(::originFor)
-        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey) }
+        ?.let { SheetOpenOrigin.Thumbnail(it.windowBounds, it.cornerRadiusPx, it.imageKey, it.coversWindow) }
         ?: SheetOpenOrigin.BelowScreen
