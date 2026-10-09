@@ -52,10 +52,11 @@ class BackgroundBarExpandTest {
     }
 
     @Test
-    fun `a fling decides the release, a slow one needs a little growth`() {
+    fun `a fling decides the release, otherwise any real upward travel opens`() {
         assertThat(shouldExpandBackgroundBar(fraction = 0.02f, velocityY = -900f)).isTrue()
         assertThat(shouldExpandBackgroundBar(fraction = 0.6f, velocityY = 900f)).isFalse()
-        assertThat(shouldExpandBackgroundBar(fraction = 0.2f, velocityY = 0f)).isTrue()
-        assertThat(shouldExpandBackgroundBar(fraction = 0.1f, velocityY = 0f)).isFalse()
+        assertThat(shouldExpandBackgroundBar(fraction = 0.05f, velocityY = 0f)).isTrue()
+        assertThat(shouldExpandBackgroundBar(fraction = 0.01f, velocityY = 0f)).isFalse()
+        assertThat(shouldExpandBackgroundBar(fraction = 0.3f, velocityY = 400f)).isFalse()
     }
 }

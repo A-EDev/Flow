@@ -5,7 +5,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.util.lerp
 
 private const val VIDEO_ASPECT_RATIO = 16f / 9f
-private const val EXPAND_COMMIT_FRACTION = 0.15f
+private const val EXPAND_COMMIT_FRACTION = 0.03f
 private const val EXPAND_FLING_VELOCITY = 300f
 
 /**
@@ -62,7 +62,8 @@ internal fun backgroundBarExpandFrame(
 
 /**
  * Whether a released swipe up opens the player, as the music bar decides it: a fling either way
- * wins, and a slow release opens once the card has grown past a small share of the way.
+ * wins, and otherwise any real upward travel opens it, so a quick flick the finger barely reported
+ * still counts.
  */
 internal fun shouldExpandBackgroundBar(
     fraction: Float,
