@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +67,7 @@ import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandle
 import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isMediumWidth
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
@@ -242,7 +244,10 @@ internal fun UnifiedMusicPlayerSheet(
                 },
                 onCloseDownward = {
                     state.dismiss()
-                    onDismissState.value()
+                    scope.launch {
+                        snapshotFlow { state.dismissSettled }.first { it }
+                        onDismissState.value()
+                    }
                 },
             )
         }
@@ -325,7 +330,8 @@ internal fun UnifiedMusicPlayerSheet(
                             val appearScale = lerp(0.985f, 1f, miniAppear.value)
                             scaleX = appearScale
                             scaleY = overshootScaleY.value * appearScale
-                            alpha = miniAppear.value
+                            val pulledDown = state.translationY.value - collapsedTargetYState.value
+                            alpha = miniAppear.value * (1f - (pulledDown / (miniHeightPx * 2f)).coerceIn(0f, 1f))
                             transformOrigin = TransformOrigin(0.5f, 1f)
                         }.layout { measurable, constraints ->
                             val targetHeightPx = geometry.cardHeightPx().roundToInt().coerceAtLeast(0)
