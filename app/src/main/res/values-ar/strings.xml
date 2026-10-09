@@ -1320,7 +1320,7 @@
     <string name="import_libretube_playlists">استيراد قوائم تشغيل LibreTube</string>
     <string name="import_libretube_playlists_desc">‎إسترد قوائم التشغيل المحلية الخاصة بك على LibreTube من ملف JSON احتياطي.</string>
     <string name="import_yt_takeout_all">إستيراد من Google Takeout</string>
-    <string name="import_yt_takeout_all_desc">إسترد اشتراكاتك على يوتيوب، وسجل المشاهدة، وقوائم التشغيل دفعة واحدة من ملفZIP خاص بخدمة Google Takeout.</string>
+    <string name="import_yt_takeout_all_desc">الاشتراكات والسجل وعمليات البحث وقوائم التشغيل والإعجابات ومكتبتك في YouTube Music من Google Takeout. حدّد جميع ملفات ZIP الخاصة بالتصدير.</string>
     <string name="saved">تم الحفظ</string>
     <string name="filter_oldest">الأقدم</string>
     <string name="in_this_video">في هذا الفيديو</string>
@@ -1417,7 +1417,7 @@
     <string name="import_newpipe_history">إستيراد سجل NewPipe</string>
     <string name="import_newpipe_history_desc">قم باستيراد سجل المشاهدة الخاص بك من ملف ZIP إحتياطي لـ NewPipe أو ملف newpipe.db.</string>
     <string name="player_adaptive_size_title">ملائمة حجم المشغل</string>
-    <string name="player_adaptive_size_subtitle">ملاءمة المشغل مع أبعاد الفيديو. عند إيقافه يبقى بنسبة عرض 16:9.</string>
+    <string name="player_adaptive_size_subtitle">وسّع المشغّل للفيديوهات الأطول. عند الإيقاف، تبقى النسبة 16:9.</string>
     <string name="section_incomplete_downloads">تنزيلات غير مكتملة</string>
     <string name="download_status_cancelled">تم الإلغاء</string>
     <string name="remove_incomplete_downloads">إزالة التنزيلات غير المكتملة</string>
@@ -4445,4 +4445,70 @@
     <string name="deep_flow_scrobble_title">تسجيل الاستماع أثناء Deep Flow</string>
     <string name="taste_learning_paused">Deep Flow مفعّل، والتعلّم متوقف مؤقتًا</string>
     <string name="deep_flow_scrobble_subtitle">الاستمرار في إرسال ما تستمع إليه إلى Last.fm وLibre.fm وListenBrainz</string>
+    <string name="downloads_recover_title">البحث عن التنزيلات من تثبيت سابق</string>
+    <string name="downloads_recover_body">يحفظ Flow التنزيلات في المجلدين Download/Flow و Music/Flow. لعرض الملفات التي حفظها إصدار سابق من التطبيق فيهما، اسمح بالوصول إلى ملفات الفيديو والصوت.</string>
+    <string name="downloads_recover_allow">السماح بالوصول</string>
+    <string name="downloads_recover_dismiss">ليس الآن</string>
+    <plurals name="downloads_recovered_count">
+        <item quantity="zero">تم العثور على %d تنزيل من تثبيت سابق</item>
+        <item quantity="one">تم العثور على تنزيل واحد من تثبيت سابق</item>
+        <item quantity="two">تم العثور على %d تنزيل من تثبيت سابق</item>
+        <item quantity="few">تم العثور على %d تنزيلات من تثبيت سابق</item>
+        <item quantity="many">تم العثور على %d تنزيل من تثبيت سابق</item>
+        <item quantity="other">تم العثور على %d تنزيل من تثبيت سابق</item>
+    </plurals>
+    <string name="downloads_recovered_none">لم يتم العثور على تنزيلات من تثبيت سابق</string>
+    <string name="downloads_find_earlier_title">البحث عن التنزيلات السابقة</string>
+    <string name="downloads_find_earlier_running">جارٍ البحث…</string>
+    <string name="mini_bar_swipe_left">السحب لليسار</string>
+    <string name="mini_bar_swipe_right">السحب لليمين</string>
+    <string name="mini_bar_swipe_subtitle">لشريط الموسيقى و شريط فيديو الخلفية</string>
+    <string name="mini_bar_nothing_next">لا يوجد شيء تالياً</string>
+    <string name="mini_bar_nothing_previous">لا يوجد شيء سابقاً</string>
+    <string name="categories_chart_source">قوائم تصنيفات YouTube Music</string>
+    <string name="categories_rate_limited">يفرض YouTube قيودًا على الطلبات حاليًا. حاول مجددًا بعد بضع دقائق.</string>
+    <string name="import_takeout_step_history">سجل المشاهدة</string>
+    <string name="import_takeout_step_subscriptions">الاشتراكات</string>
+    <string name="import_takeout_step_activity">الإعجابات وعمليات البحث</string>
+    <plurals name="import_takeout_part_subscriptions">
+        <item quantity="zero">%d اشتراك</item>
+        <item quantity="one">اشتراك واحد</item>
+        <item quantity="two">%d اشتراك</item>
+        <item quantity="few">%d اشتراكات</item>
+        <item quantity="many">%d اشتراك</item>
+        <item quantity="other">%d اشتراك</item>
+    </plurals>
+    <plurals name="import_takeout_part_history">
+        <item quantity="zero">%d عنصر سجل</item>
+        <item quantity="one">عنصر واحد في السجل</item>
+        <item quantity="two">عنصران في السجل</item>
+        <item quantity="few">%d عناصر في السجل</item>
+        <item quantity="many">%d عنصر في السجل</item>
+        <item quantity="other">%d عنصر في السجل</item>
+    </plurals>
+    <plurals name="import_takeout_part_playlists">
+        <item quantity="zero">%1$d قائمة تشغيل (%2$d فيديو)</item>
+        <item quantity="one">%1$d قائمة تشغيل (%2$d فيديو)</item>
+        <item quantity="two">%1$d قائمة تشغيل (%2$d فيديو)</item>
+        <item quantity="few">%1$d قوائم تشغيل (%2$d فيديوهات)</item>
+        <item quantity="many">%1$d قائمة تشغيل (%2$d فيديو)</item>
+        <item quantity="other">%1$d قائمة تشغيل (%2$d فيديو)</item>
+    </plurals>
+    <plurals name="import_takeout_part_music_library">
+        <item quantity="zero">%d أغنية في مكتبة YouTube Music</item>
+        <item quantity="one">أغنية واحدة في مكتبة YouTube Music</item>
+        <item quantity="two">أغنيتان في مكتبة YouTube Music</item>
+        <item quantity="few">%d أغاني في مكتبة YouTube Music</item>
+        <item quantity="many">%d أغنية في مكتبة YouTube Music</item>
+        <item quantity="other">%d أغنية في مكتبة YouTube Music</item>
+    </plurals>
+    <string name="import_takeout_music_library_name">مكتبة YouTube Music</string>
+    <plurals name="import_takeout_part_searches">
+        <item quantity="zero">%d عملية بحث</item>
+        <item quantity="one">%d عملية بحث</item>
+        <item quantity="two">%d عملية بحث</item>
+        <item quantity="few">%d عمليات بحث</item>
+        <item quantity="many">%d عملية بحث</item>
+        <item quantity="other">%d عملية بحث</item>
+    </plurals>
 </resources>
