@@ -178,7 +178,7 @@ internal fun VideoBackgroundBar(
             Modifier
                 .offset { IntOffset(bounds.start.roundToInt(), restingTop().roundToInt()) }
                 .size(with(density) { bounds.width.toDp() }, MediaMiniBarDefaults.Height)
-                .mediaMiniBarSwipe(enabled = !isExpanding, handler = swipeHandler)
+                .mediaMiniBarSwipe(enabled = true, handler = swipeHandler)
                 .pointerInput(Unit) {
                     val tracker = VelocityTracker()
                     // Read and written on the gesture's own thread, so a fling that ends before the
