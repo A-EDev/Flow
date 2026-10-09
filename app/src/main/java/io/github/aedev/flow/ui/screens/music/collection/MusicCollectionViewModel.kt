@@ -335,19 +335,24 @@ class MusicCollectionViewModel
         ) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val tracks = songs ?: loadAll()?.tracks.orEmpty()
-                if (tracks.isEmpty()) return@launch
-                val added = runCatching { playlists.addVideosToPlaylist(target.id, tracks.map { it.toStoredVideo() }) }.isSuccess
-                _messages.send(
-                    if (added) {
-                        CollectionMessage(
-                            pluralRes = R.plurals.merge_playlist_success,
-                            count = tracks.size,
-                            args = listOf(tracks.size, target.name),
-                        )
-                    } else {
-                        CollectionMessage(stringRes = R.string.toast_failed_to_merge_playlist)
-                    },
-                )
+                copyTracksToPlaylist(playlists, target, tracks)?.let { _messages.send(it) }
+            }
+        }
+
+        /** Makes a music playlist and copies [songs] onto it; null means every song here. */
+        fun createAndAdd(
+            name: String,
+            description: String,
+            songs: List<MusicTrack>? = null,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                val target = createMusicPlaylist(playlists, name, description)
+                if (target == null) {
+                    _messages.send(CollectionMessage(stringRes = R.string.toast_failed_to_merge_playlist))
+                    return@launch
+                }
+                val tracks = songs ?: loadAll()?.tracks.orEmpty()
+                copyTracksToPlaylist(playlists, target, tracks)?.let { _messages.send(it) }
             }
         }
 

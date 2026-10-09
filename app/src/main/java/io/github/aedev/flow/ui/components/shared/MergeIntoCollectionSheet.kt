@@ -5,12 +5,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -30,6 +40,7 @@ private val HeaderPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp)
 private val EmptyPadding: Dp = 24.dp
 private val RowPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 private val ListPadding = PaddingValues(vertical = 8.dp)
+private val CreateButtonPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 private val RowSpacing: Dp = 16.dp
 
 data class CollectionTarget(
@@ -39,13 +50,15 @@ data class CollectionTarget(
     val itemCount: Int,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MergeIntoCollectionSheet(
     targets: List<CollectionTarget>,
     placeholder: ImageVector,
     itemCountLabel: @Composable (Int) -> String,
+    createLabel: String,
     onSelect: (CollectionTarget) -> Unit,
+    onCreateNew: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -68,18 +81,20 @@ fun MergeIntoCollectionSheet(
 
             HorizontalDivider()
 
-            if (targets.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.merge_playlist_no_playlists),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(EmptyPadding),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = ListPadding,
-                ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = ListPadding,
+            ) {
+                if (targets.isEmpty()) {
+                    item(key = "empty", contentType = "empty") {
+                        Text(
+                            text = stringResource(R.string.merge_playlist_no_playlists),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(EmptyPadding),
+                        )
+                    }
+                } else {
                     items(
                         items = targets,
                         key = { it.id },
@@ -117,6 +132,31 @@ fun MergeIntoCollectionSheet(
                                 )
                             }
                         }
+                    }
+                }
+
+                item(key = "create", contentType = "create") {
+                    val buttonHeight = ButtonDefaults.MediumContainerHeight
+                    FilledTonalButton(
+                        onClick = onCreateNew,
+                        shapes = ButtonDefaults.shapesFor(buttonHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(CreateButtonPadding)
+                                .heightIn(min = buttonHeight),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                        Text(
+                            text = createLabel,
+                            style = ButtonDefaults.textStyleFor(buttonHeight),
+                        )
                     }
                 }
             }
