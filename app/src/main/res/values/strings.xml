@@ -259,6 +259,8 @@
     <string name="details_metadata">Details</string>
     <string name="mark_as_watched">Mark as watched</string>
     <string name="mark_as_watched_toast">Marked as watched</string>
+    <string name="mark_as_unwatched">Mark as unwatched</string>
+    <string name="mark_as_unwatched_toast">Marked as unwatched</string>
     <string name="i_like_this">I want more like this</string>
     <string name="i_like_this_toast">Got it! You\'ll see more content like this.</string>
     <string name="go_to_channel">Go to channel</string>
