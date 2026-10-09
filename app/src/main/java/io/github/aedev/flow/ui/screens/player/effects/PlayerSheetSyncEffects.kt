@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.effects
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
@@ -43,6 +44,23 @@ internal fun PlayerSheetCollapseSyncEffects(
         screenState.dismissMediaSheets()
         screenState.exitDragOffsetY = 0f
         screenState.exitDragProgress = 0f
+    }
+}
+
+/**
+ * Reading comments is interacting with this video, so the autoplay countdown waits until the
+ * comments sheet or side panel closes. A countdown that starts while comments are already open
+ * stays on screen and only ticks once they close.
+ */
+@Composable
+internal fun AutoplayCommentsHoldEffect(screenState: PlayerScreenState) {
+    val playerManager = remember { EnhancedPlayerManager.getInstance() }
+    LaunchedEffect(playerManager) {
+        snapshotFlow { screenState.activeSheet is PlayerSheet.Comments }
+            .collect(playerManager::setAutoplayHold)
+    }
+    DisposableEffect(playerManager) {
+        onDispose { playerManager.setAutoplayHold(false) }
     }
 }
 

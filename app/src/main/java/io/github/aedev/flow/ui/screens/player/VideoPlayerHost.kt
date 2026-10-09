@@ -211,6 +211,8 @@ fun VideoPlayerHost(
         viewModel = playerViewModel,
     )
 
+    AutoplayCommentsHoldEffect(screenState = screenState)
+
     // Handle Back press in Fullscreen
     BackHandler(enabled = screenState.isFullscreen) {
         screenState.isFullscreen = false
