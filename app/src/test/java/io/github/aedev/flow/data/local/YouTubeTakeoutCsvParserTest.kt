@@ -166,7 +166,54 @@ class YouTubeTakeoutCsvParserTest {
                     listOf(YouTubeTakeoutSubscription(channelId, "Channel")),
                 ),
             )
-        assertThat(parse(metadata)).isEqualTo(YouTubeTakeoutCsvContent.PlaylistMetadata(listOf("Road")))
+        assertThat(parse(metadata))
+            .isEqualTo(YouTubeTakeoutCsvContent.PlaylistMetadata(listOf(TakeoutPlaylistInfo(playlistId, "Road", createdAt = null))))
+    }
+
+    @Test
+    fun `playlist metadata keeps the youtube id and the create timestamp wherever its column is`() {
+        val playlistId = "PL${"d".repeat(20)}"
+        val metadata =
+            "Playlist ID,Add new videos to top,Created,Updated,c4,c5,c6,c7,c8,c9,Title\n" +
+                "$playlistId,False,2019-12-01T08:30:00+00:00,2024-06-02T10:00:00+00:00,,,,,,,Favourites 2019"
+
+        val playlist = (parse(metadata) as YouTubeTakeoutCsvContent.PlaylistMetadata).playlists.single()
+
+        assertThat(playlist.id).isEqualTo(playlistId)
+        assertThat(playlist.title).isEqualTo("Favourites 2019")
+        assertThat(playlist.createdAt).isEqualTo(
+            java.time.Instant
+                .parse("2019-12-01T08:30:00Z")
+                .toEpochMilli(),
+        )
+    }
+
+    @Test
+    fun `the youtube music library songs file is read by its shape`() {
+        val csv =
+            "Video ID,Song Title,Album Title,Artist Name 1,Artist Name 2\n" +
+                "kcxK1Tnwy5M,One More Time,Alive 2007,Daft Punk,\n" +
+                "dQw4w9WgXcQ,\"Never Gonna Give You Up\",Whenever You Need Somebody,Rick Astley,"
+
+        assertThat(parse(csv))
+            .isEqualTo(
+                YouTubeTakeoutCsvContent.MusicLibrarySongs(
+                    listOf(
+                        TakeoutLibrarySong("kcxK1Tnwy5M", "One More Time", "Alive 2007", "Daft Punk"),
+                        TakeoutLibrarySong("dQw4w9WgXcQ", "Never Gonna Give You Up", "Whenever You Need Somebody", "Rick Astley"),
+                    ),
+                ),
+            )
+    }
+
+    @Test
+    fun `the account's own uploads are not mistaken for the music library`() {
+        val channelId = "UC${"e".repeat(22)}"
+        val uploads =
+            "Video ID,Duration,Language,Channel ID,Title,Created\n" +
+                "kcxK1Tnwy5M,215,en,$channelId,My video,2024-01-01T00:00:00+00:00"
+
+        assertThat(parse(uploads)).isEqualTo(YouTubeTakeoutCsvContent.Unsupported)
     }
 
     @Test
@@ -246,7 +293,6 @@ class YouTubeTakeoutCsvParserTest {
     fun `unrelated YouTube csv schemas remain unsupported`() {
         val unrelatedCsvFiles =
             listOf(
-                "Video ID,Song Title,Album Title,Artist Name\n$videoId,Song,Album,Artist",
                 "Video ID,Duration,Category,Channel ID,Title\n$videoId,1000,Music,$channelId,Title",
                 "Channel ID,Title,Visibility\n$channelId,Channel,Public",
                 "First,Second,Third\none,two,three",
@@ -276,7 +322,7 @@ class YouTubeTakeoutCsvParserTest {
         val metadata = parse(metadataCsv) as YouTubeTakeoutCsvContent.PlaylistMetadata
         val wrappedFilename = "Takeout/YouTube وYouTube Music/قوائم تشغيل/فيديوهات _Japan_s, favorites_.csv"
 
-        assertThat(resolvePlaylistNames(listOf(wrappedFilename), metadata.titles))
+        assertThat(resolvePlaylistNames(listOf(wrappedFilename), metadata.playlists.map { it.title }))
             .containsExactly(wrappedFilename, "Japan's, favorites")
     }
 

@@ -148,6 +148,7 @@ IMPROVEMENTS
 - The video mini player stays above the keyboard while you type (#1241)
 - The music bar closes with a swipe down
 - Auto quality now changes between qualities mid-playback without stopping, judged on the measured speed of your connection, where before it started at 480p, never went past 720p and paused on every change
+- Import from Google Takeout now brings in a whole export at once: pick every ZIP of a split export, and searches, YouTube Music watch history, watch history saved as JSON and your YouTube Music library come in with subscriptions, playlists and likes. Playlists keep the date YouTube made them, so Newest matches YouTube, and importing the same export again no longer duplicates them (#858)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat

@@ -143,18 +143,38 @@ class SearchHistoryRepository
         ) {
             context.searchDataStore.edit { preferences ->
                 val maxSize = preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE
-                val restoredHistory =
-                    items
-                        .asSequence()
-                        .filter { it.query.isNotBlank() }
-                        .sortedByDescending { it.timestamp }
-                        .distinctBy { it.query.searchHistoryKey() }
-                        .take(maxSize)
-                        .toList()
-
-                preferences[historyKey(scope)] = gson.toJson(restoredHistory)
+                preferences[historyKey(scope)] = gson.toJson(items.newestUnique(maxSize))
             }
         }
+
+        /**
+         * Adds searches from another app's export to the ones kept, newest first, each query once and
+         * no more than the viewer's limit. Returns how many of [items] are kept; nothing is added while
+         * search history is off, and searches older than an auto-delete window are left out.
+         */
+        suspend fun importSearches(
+            items: List<SearchHistoryItem>,
+            scope: SearchHistoryScope,
+        ): Int {
+            if (items.isEmpty() || !isSearchHistoryEnabled()) return 0
+            val importedIds = items.mapTo(HashSet()) { it.id }
+            var kept = 0
+            context.searchDataStore.edit { preferences ->
+                val maxSize = preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE
+                val merged = filterExpiredHistory(getSearchHistoryList(preferences, scope) + items, preferences).newestUnique(maxSize)
+                kept = merged.count { it.id in importedIds }
+                preferences[historyKey(scope)] = gson.toJson(merged)
+            }
+            return kept
+        }
+
+        private fun List<SearchHistoryItem>.newestUnique(maxSize: Int): List<SearchHistoryItem> =
+            asSequence()
+                .filter { it.query.isNotBlank() }
+                .sortedByDescending { it.timestamp }
+                .distinctBy { it.query.searchHistoryKey() }
+                .take(maxSize)
+                .toList()
 
         // Settings: Enable/disable search history
         suspend fun setSearchHistoryEnabled(enabled: Boolean) {
