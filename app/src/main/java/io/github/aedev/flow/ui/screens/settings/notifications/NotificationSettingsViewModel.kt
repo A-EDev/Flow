@@ -24,6 +24,7 @@ class NotificationSettingsViewModel
     ) : SettingsViewModel() {
         val enabled = preferences.notificationsEnabled.asState(true)
         val newVideos = preferences.notifNewVideosEnabled.asState(true)
+        val shorts = preferences.notifShortsEnabled.asState(true)
         val downloads = preferences.notifDownloadsEnabled.asState(true)
         val reminders = preferences.notifRemindersEnabled.asState(true)
         val updates = preferences.notifUpdatesEnabled.asState(true)
@@ -63,6 +64,8 @@ class NotificationSettingsViewModel
             }
 
         fun setNewVideos(value: Boolean) = write { preferences.setNotifNewVideosEnabled(value) }
+
+        fun setShorts(value: Boolean) = write { preferences.setNotifShortsEnabled(value) }
 
         fun setDownloads(value: Boolean) = write { preferences.setNotifDownloadsEnabled(value) }
 
