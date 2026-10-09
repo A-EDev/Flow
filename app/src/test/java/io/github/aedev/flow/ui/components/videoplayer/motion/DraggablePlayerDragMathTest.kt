@@ -26,18 +26,19 @@ class DraggablePlayerDragMathTest {
 
     @Test
     fun `collapse release needs travel or a downward fling`() {
-        assertThat(shouldCollapseOnRelease(fraction = 0.2f, scaledVelocityY = 0f)).isTrue()
-        assertThat(shouldCollapseOnRelease(fraction = 0.02f, scaledVelocityY = 350f)).isTrue()
-        assertThat(shouldCollapseOnRelease(fraction = 0.06f, scaledVelocityY = 250f)).isTrue()
-        assertThat(shouldCollapseOnRelease(fraction = 0.04f, scaledVelocityY = 250f)).isFalse()
-        assertThat(shouldCollapseOnRelease(fraction = 0.05f, scaledVelocityY = -100f)).isFalse()
+        assertThat(shouldCollapseOnRelease(fraction = 0.21f, scaledVelocityY = 0f)).isTrue()
+        assertThat(shouldCollapseOnRelease(fraction = 0.02f, scaledVelocityY = 1100f)).isTrue()
+        assertThat(shouldCollapseOnRelease(fraction = 0.12f, scaledVelocityY = 600f)).isFalse()
+        assertThat(shouldCollapseOnRelease(fraction = 0.06f, scaledVelocityY = 350f)).isFalse()
+        assertThat(shouldCollapseOnRelease(fraction = 0.15f, scaledVelocityY = -100f)).isFalse()
     }
 
     @Test
     fun `portrait fullscreen commits on travel or a downward fling`() {
-        assertThat(shouldEnterPortraitFullscreen(fraction = 0.5f, velocityY = 0f)).isTrue()
-        assertThat(shouldEnterPortraitFullscreen(fraction = 0.1f, velocityY = 1500f)).isTrue()
-        assertThat(shouldEnterPortraitFullscreen(fraction = 0.3f, velocityY = 0f)).isFalse()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.3f, velocityY = 0f)).isTrue()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.1f, velocityY = 2600f)).isTrue()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.1f, velocityY = 1500f)).isFalse()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.2f, velocityY = 0f)).isFalse()
     }
 
     @Test
