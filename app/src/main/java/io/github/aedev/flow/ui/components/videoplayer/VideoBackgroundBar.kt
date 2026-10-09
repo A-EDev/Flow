@@ -81,6 +81,9 @@ private val BarShadowElevation = 6.dp
 private const val CLOSE_PULL_HEIGHTS = 0.5f
 private const val CLOSE_FLING_VELOCITY = 800f
 
+/** How far the card has grown when the player is started underneath it. */
+private const val RESTORE_AT_FRACTION = 0.98f
+
 /** A tap opens as a gentle swipe up would, so it reads as the same motion. */
 private const val EXPAND_TAP_VELOCITY = 1000f
 
@@ -167,15 +170,24 @@ internal fun VideoBackgroundBar(
     ) {
         val travel = restingTop().coerceAtLeast(1f)
         val expanding = shouldExpandBackgroundBar(fraction, velocityY)
-        if (expanding) {
+        var restored = false
+
+        // Building the player holds the main thread for a few hundred ms. Started once the card
+        // covers the window, that pause lands in the spring's last, invisible stretch.
+        fun restoreOnce() {
+            if (restored) return
+            restored = true
             // Grown, the card is the container, so its thumbnail is already in container coordinates.
             onRestoreState.value(frameAt(1f).thumbnail.translate(containerOrigin[0], containerOrigin[1]))
         }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             expand.snapTo(fraction)
             withSteadyFrames {
-                expand.animateTo(if (expanding) 1f else 0f, playerOpenSpringSpec, -velocityY / travel)
+                expand.animateTo(if (expanding) 1f else 0f, playerOpenSpringSpec, -velocityY / travel) {
+                    if (expanding && value >= RESTORE_AT_FRACTION) restoreOnce()
+                }
             }
+            if (expanding) restoreOnce()
         }
     }
 
