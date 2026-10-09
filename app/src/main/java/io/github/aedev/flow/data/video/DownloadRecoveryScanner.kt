@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.video.VideoDownloadManager.Companion.VIDEO_DIR
 import io.github.aedev.flow.data.video.downloader.tags.DownloadTagReader
 import io.github.aedev.flow.data.video.storage.DownloadCovers
 import io.github.aedev.flow.data.video.storage.DownloadFiles
+import io.github.aedev.flow.data.video.storage.StorageAccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -43,14 +44,21 @@ class DownloadRecoveryScanner
         private val preferences: PlayerPreferences,
         private val tagReader: DownloadTagReader,
     ) {
-        /** Set once a scan has run in this process; the Downloads screen scans again only on pull to refresh. */
+        /** What the last scan in this process could read. */
         @Volatile
-        var hasScannedThisSession: Boolean = false
-            private set
+        private var scannedWith: StorageAccess? = null
 
-        suspend fun scanAndRecoverDownloads() =
+        /**
+         * Whether a scan could find something the last one couldn't: none has run yet, or Flow may now
+         * read more shared storage, as after the viewer grants media access.
+         */
+        fun needsScan(): Boolean = scannedWith != StorageAccess.read(context)
+
+        /** Records every new file it finds and returns how many that was. */
+        suspend fun scanAndRecoverDownloads(): Int =
             withContext(Dispatchers.IO) {
-                hasScannedThisSession = true
+                scannedWith = StorageAccess.read(context)
+                var recovered = 0
                 try {
                     val chosenFolders = chosenFolders()
                     val exportedPaths = exportedDocumentPaths()
@@ -63,27 +71,26 @@ class DownloadRecoveryScanner
                             .maxDepth(COLLECTION_DEPTH)
                             .filter { it.isFile && RecoveredDownload.isMedia(it.name) }
                             .forEach { file ->
-                                recoverIfNew(
-                                    file.absolutePath,
-                                    file.name,
-                                    file.length(),
-                                    file.lastModified(),
-                                    durationMs = null,
-                                    exportedPaths,
-                                )
+                                val isNew =
+                                    recoverIfNew(
+                                        file.absolutePath,
+                                        file.name,
+                                        file.length(),
+                                        file.lastModified(),
+                                        durationMs = null,
+                                        exportedPaths,
+                                    )
+                                if (isNew) recovered++
                             }
                     }
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        scanViaMediaStore(roots, exportedPaths)
-                    } else {
-                        Unit
-                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) recovered += scanViaMediaStore(roots, exportedPaths)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "scanAndRecoverDownloads failed", e)
                 }
+                recovered
             }
 
         private fun defaultFolders(): List<File> =
@@ -102,45 +109,50 @@ class DownloadRecoveryScanner
         private suspend fun scanViaMediaStore(
             roots: List<File>,
             exportedPaths: Set<String>,
-        ) = withContext(Dispatchers.IO) {
-            val projection =
-                arrayOf(
-                    MediaStore.MediaColumns.DATA,
-                    MediaStore.MediaColumns.DISPLAY_NAME,
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.MediaColumns.DURATION,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                )
-            val prefixes = roots.map { it.canonicalPath + File.separator }
-            for (collectionUri in listOf(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)) {
-                try {
-                    context.contentResolver.query(collectionUri, projection, null, null, null)?.use { cursor ->
-                        val dataIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
-                        val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
-                        val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                        val durIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
-                        val modifiedIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
-                        while (cursor.moveToNext()) {
-                            val filePath = cursor.getString(dataIdx) ?: continue
-                            val fileName = cursor.getString(nameIdx) ?: continue
-                            if (prefixes.none { filePath.startsWith(it) } || !RecoveredDownload.isMedia(fileName)) continue
-                            recoverIfNew(
-                                filePath,
-                                fileName,
-                                cursor.getLong(sizeIdx),
-                                cursor.getLong(modifiedIdx) * 1000,
-                                cursor.getLong(durIdx),
-                                exportedPaths,
-                            )
+        ): Int =
+            withContext(Dispatchers.IO) {
+                var recovered = 0
+                val projection =
+                    arrayOf(
+                        MediaStore.MediaColumns.DATA,
+                        MediaStore.MediaColumns.DISPLAY_NAME,
+                        MediaStore.MediaColumns.SIZE,
+                        MediaStore.MediaColumns.DURATION,
+                        MediaStore.MediaColumns.DATE_MODIFIED,
+                    )
+                val prefixes = roots.map { it.canonicalPath + File.separator }
+                for (collectionUri in listOf(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)) {
+                    try {
+                        context.contentResolver.query(collectionUri, projection, null, null, null)?.use { cursor ->
+                            val dataIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+                            val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                            val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                            val durIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
+                            val modifiedIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                            while (cursor.moveToNext()) {
+                                val filePath = cursor.getString(dataIdx) ?: continue
+                                val fileName = cursor.getString(nameIdx) ?: continue
+                                if (prefixes.none { filePath.startsWith(it) } || !RecoveredDownload.isMedia(fileName)) continue
+                                val isNew =
+                                    recoverIfNew(
+                                        filePath,
+                                        fileName,
+                                        cursor.getLong(sizeIdx),
+                                        cursor.getLong(modifiedIdx) * 1000,
+                                        cursor.getLong(durIdx),
+                                        exportedPaths,
+                                    )
+                                if (isNew) recovered++
+                            }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "scanViaMediaStore: query failed for $collectionUri", e)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "scanViaMediaStore: query failed for $collectionUri", e)
                 }
+                recovered
             }
-        }
 
         private suspend fun chosenFolders(): List<String> =
             listOf(preferences.downloadLocation.first(), preferences.musicDownloadLocation.first())
@@ -172,12 +184,13 @@ class DownloadRecoveryScanner
             createdAt: Long,
             durationMs: Long?,
             exportedPaths: Set<String>,
-        ) {
-            if (!isNewFile(filePath, exportedPaths)) return
+        ): Boolean {
+            if (!isNewFile(filePath, exportedPaths)) return false
             val embedded = tagReader.read(Uri.fromFile(File(filePath)))
             val tags = embedded?.flow
-            val videoId = RecoveredDownload.idFor(filePath, tags)
-            if (tags != null && !mayRecordUnder(videoId)) return
+            val sourceUrl = embedded?.comment
+            val videoId = RecoveredDownload.idFor(filePath, tags, sourceUrl)
+            if (RecoveredDownload.knownIdFor(tags, sourceUrl) != null && !mayRecordUnder(videoId)) return false
             val isVideo = RecoveredDownload.VIDEO_EXTENSIONS.contains(fileName.substringAfterLast('.', "").lowercase())
             val probe = probe(filePath, wantsFrame = isVideo && embedded?.cover == null)
             val cover = (embedded?.cover ?: probe.frame)?.let { DownloadCovers.save(context, videoId, it) }
@@ -188,9 +201,11 @@ class DownloadRecoveryScanner
                     title = embedded?.title?.takeIf { it.isNotBlank() },
                     artist = embedded?.artist?.takeIf { it.isNotBlank() },
                     coverPath = cover,
+                    sourceUrl = sourceUrl,
                 )
             downloadDao.replaceDownload(download, listOf(item))
             Log.i(TAG, "Recovered '$fileName' as $videoId")
+            return true
         }
 
         /**

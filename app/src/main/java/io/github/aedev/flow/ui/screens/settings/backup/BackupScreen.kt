@@ -89,7 +89,13 @@ internal fun BackupScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             val kind = pendingImport
             pendingImport = null
-            if (uri != null && kind != null) start(kind.start(viewModel.coordinator, uri))
+            if (uri != null && kind != null) start(kind.start(viewModel.coordinator, listOf(uri)))
+        }
+    val multiImportPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            val kind = pendingImport
+            pendingImport = null
+            if (uris.isNotEmpty() && kind != null) start(kind.start(viewModel.coordinator, uris))
         }
     val folderPicker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -165,7 +171,7 @@ internal fun BackupScreen(
             SettingsTabs.BACKUP_IMPORT -> {
                 importPage { kind ->
                     pendingImport = kind
-                    importPicker.launch(kind.mimeTypes)
+                    if (kind.takesSeveralFiles) multiImportPicker.launch(kind.mimeTypes) else importPicker.launch(kind.mimeTypes)
                 }
             }
 

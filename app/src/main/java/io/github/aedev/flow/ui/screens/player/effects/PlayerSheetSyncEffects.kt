@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.effects
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
@@ -9,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
@@ -20,6 +23,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import kotlinx.coroutines.flow.combine
 
 /** Collapsing the sheet, or leaving fullscreen, drops every surface the expanded player owns. */
 @Composable
@@ -43,6 +47,31 @@ internal fun PlayerSheetCollapseSyncEffects(
         screenState.dismissMediaSheets()
         screenState.exitDragOffsetY = 0f
         screenState.exitDragProgress = 0f
+    }
+}
+
+/**
+ * Reading comments is interacting with this video, so the autoplay countdown waits until the
+ * comments sheet or side panel closes. A countdown that starts while comments are already open
+ * stays on screen and only ticks once they close. The hold only applies while the app is in
+ * front: comments left open behind a locked screen, the background or PiP keep composed, and
+ * autoplay must still advance there.
+ */
+@Composable
+internal fun AutoplayCommentsHoldEffect(
+    screenState: PlayerScreenState,
+    viewModel: VideoPlayerViewModel,
+) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(viewModel, lifecycle) {
+        combine(
+            lifecycle.currentStateFlow,
+            snapshotFlow { screenState.activeSheet is PlayerSheet.Comments },
+        ) { state, commentsOpen -> commentsOpen && state.isAtLeast(Lifecycle.State.RESUMED) }
+            .collect(viewModel::setAutoplayHold)
+    }
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.setAutoplayHold(false) }
     }
 }
 
