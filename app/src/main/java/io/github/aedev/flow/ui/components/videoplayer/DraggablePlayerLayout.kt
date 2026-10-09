@@ -31,6 +31,8 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -129,14 +131,26 @@ fun DraggablePlayerLayout(
     val systemLayoutDirection = LocalLayoutDirection.current
     val windowPosition = remember { WindowPosition() }
 
+    // A playing video votes its own 30 or 60 fps and the window only a "normal" category, so the
+    // sheet's motion ran at 60 fps on a 120 Hz panel. The peak rate is asked for only while the sheet
+    // moves, so a player at rest never holds the display up.
+    val view = LocalView.current
+    val peakRefreshRate = remember(view) { view.display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 0f }
+    val isSheetMoving by remember(state) {
+        derivedStateOf { !state.isSettled || state.portraitFsFraction.let { it > 0f && it != 1f } }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         BoxWithConstraints(
             modifier =
-                modifier.fillMaxSize().onPlaced { coordinates ->
-                    val position = coordinates.positionInWindow()
-                    windowPosition.x = position.x
-                    windowPosition.y = position.y
-                },
+                modifier
+                    .fillMaxSize()
+                    .preferredFrameRate(if (isSheetMoving) peakRefreshRate else 0f)
+                    .onPlaced { coordinates ->
+                        val position = coordinates.positionInWindow()
+                        windowPosition.x = position.x
+                        windowPosition.y = position.y
+                    },
         ) {
             val screenWidth = constraints.maxWidth.toFloat()
             val screenHeight = constraints.maxHeight.toFloat()
