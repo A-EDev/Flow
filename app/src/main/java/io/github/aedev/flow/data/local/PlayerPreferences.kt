@@ -95,6 +95,7 @@ class PlayerPreferences(
         val MUSIC_LOUDNESS_NORMALIZATION_ENABLED = booleanPreferencesKey("music_loudness_normalization_enabled")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
+        val SPONSOR_ON_DEVICE_ENABLED = booleanPreferencesKey("sponsor_on_device_enabled")
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
         val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
         val STABLE_VOLUME_ENABLED = booleanPreferencesKey("stable_volume_enabled")
@@ -1628,6 +1629,18 @@ class PlayerPreferences(
     suspend fun setSponsorBlockEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SPONSOR_BLOCK_ENABLED] = enabled
+        }
+    }
+
+    val sponsorOnDeviceEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SPONSOR_ON_DEVICE_ENABLED] ?: false
+            }
+
+    suspend fun setSponsorOnDeviceEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPONSOR_ON_DEVICE_ENABLED] = enabled
         }
     }
 

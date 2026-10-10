@@ -49,3 +49,7 @@ Flow-desktop/
 
 # macOS Finder metadata
 .DS_Store
+
+# Built locally by tools/onnxruntime/build-onnxruntime-android.sh
+/app/libs/
+/build/onnxruntime/

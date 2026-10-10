@@ -4251,4 +4251,17 @@
     <string name="scrobbling_import_failed">Could not read your top artists</string>
     <string name="music_home_lastfm_discover">Discover with Last.fm</string>
     <string name="music_home_lastfm_discover_subtitle">Picked by Last.fm listeners from your on repeat</string>
+    <string name="sponsor_model_source">View model on Hugging Face</string>
+    <string name="sponsor_model_header">On-device detection (experimental)</string>
+    <string name="sponsor_model_toggle_title">Detect sponsors on this device</string>
+    <string name="sponsor_model_toggle_subtitle">Experimental: it can miss a sponsor or mark the wrong part of a video. When SponsorBlock has no segments for a video, a small model reads the captions and offers a skip button for any sponsor it finds. It never skips on its own. Needs a one-time model download.</string>
+    <string name="sponsor_model_status_installed">Model installed (%1$s)</string>
+    <string name="sponsor_model_status_missing">Model not downloaded (%1$s)</string>
+    <string name="sponsor_model_download">Download model</string>
+    <string name="sponsor_model_retry">Retry download</string>
+    <string name="sponsor_model_delete">Delete model</string>
+    <string name="sponsor_model_downloading">Downloading model… %1$d%%</string>
+    <string name="sponsor_model_failed">Download failed. Check your connection and try again.</string>
+    <string name="sponsor_model_delete_title">Delete on-device model?</string>
+    <string name="sponsor_model_delete_body">On-device sponsor detection will stop working until the model is downloaded again.</string>
 </resources>

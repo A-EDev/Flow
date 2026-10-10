@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.sponsordetection.OnDeviceSponsorDetector
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -152,6 +153,8 @@ class EnhancedPlayerManager private constructor() {
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var availableAudioStreams: List<AudioStream> = emptyList()
     private val subtitleTracks = SubtitleTracks()
+    private var onDeviceSponsorDetector: OnDeviceSponsorDetector? = null
+    private var onDeviceSponsorEnabled = false
     private val subtitleDelay = SubtitleDelay()
     private var subtitleDelayVideoId: String? = null
     private val _subtitleLoadFailedEvent = MutableSharedFlow<SubtitleLoadFailure>(extraBufferCapacity = 1)
@@ -558,7 +561,17 @@ class EnhancedPlayerManager private constructor() {
         surfaceManager = SurfaceManager()
 
         // Initialize sponsor block handler
-        sponsorBlockHandler = SponsorBlockHandler(scope)
+        val onDeviceDetector = OnDeviceSponsorDetector(context.applicationContext).also { onDeviceSponsorDetector = it }
+        sponsorBlockHandler =
+            SponsorBlockHandler(scope) { videoId, onProvisional ->
+                if (currentIsLiveStream || !onDeviceSponsorEnabled || !onDeviceDetector.isModelInstalled()) {
+                    emptyList()
+                } else {
+                    onDeviceDetector.predict(videoId, subtitleTracks.captions) { provisional ->
+                        withContext(Dispatchers.Main.immediate) { onProvisional(provisional) }
+                    }
+                }
+            }
 
         // Initialize audio features manager
         audioFeaturesManager = AudioFeaturesManager(scope, _playerState)
@@ -747,6 +760,9 @@ class EnhancedPlayerManager private constructor() {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
             }
+        }
+        built.launch {
+            prefs.sponsorOnDeviceEnabled.collect { onDeviceSponsorEnabled = it }
         }
         sponsorBlockHandler?.let { handler ->
             built.launch {
@@ -3284,6 +3300,8 @@ class EnhancedPlayerManager private constructor() {
         pendingReloadJob = null
         mediaLoader?.releaseSabr()
         clearedMediaRecoveryState.clear()
+        onDeviceSponsorDetector?.let { scope.launch { it.close() } }
+        onDeviceSponsorDetector = null
         playbackTracker?.stop()
         audioFeaturesManager?.clearPlayer()
         buildScope.close()

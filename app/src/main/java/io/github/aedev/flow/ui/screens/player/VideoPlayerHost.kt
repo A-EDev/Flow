@@ -584,7 +584,12 @@ fun VideoPlayerHost(
                     session = stageSession,
                     sponsorSegments = sponsorSegments,
                     expandedPlayerBottom = expandedPlayerBottom,
-                    playerWidth = sidePanelState.playerWidth,
+                    playerWidth =
+                        if (isTwoPaneWindow && !screenState.isFullscreen) {
+                            sidePanelState.playerWidth - detailPaneWidth
+                        } else {
+                            sidePanelState.playerWidth
+                        },
                     expandedSurfacesPlaced = expandedSurfacesPlaced,
                     endPadding = sponsorSkipEndPadding,
                     bottomPadding = floatingSponsorSkipBottomPadding,

@@ -3,6 +3,7 @@ package io.github.aedev.flow.player.sponsorblock
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.data.sponsordetection.SponsorPredictedSpan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -174,4 +175,11 @@ class SponsorBlockHandlerTest {
             handler.loadSegmentsFromList("next", emptyList())
             assertThat(events).containsExactly(true, false, true, false, true, false).inOrder()
         }
+
+    @Test
+    fun `on-device prediction is never skipped automatically`() {
+        val prediction = SponsorPredictedSpan("0", 10_000L, 20_000L, 0.9).asSponsorBlockSegment("video")
+
+        assertThat(handlerWith(prediction).checkForSkip(15_000L)).isNull()
+    }
 }

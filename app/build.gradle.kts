@@ -196,6 +196,12 @@ android {
         unitTests {
             isReturnDefaultValues = true
             isIncludeAndroidResources = true
+            all { test ->
+                // Opt-in tokenizer export for the sponsor tests; without it they skip rather than fail.
+                providers.gradleProperty("sponsorModelAssets").orNull?.let {
+                    test.systemProperty("sponsorModelAssets", it)
+                }
+            }
         }
     }
 }
@@ -245,7 +251,18 @@ composeCompiler {
     }
 }
 
+val onnxRuntimeAar = file("libs/onnxruntime-android-1.29.0.aar")
+
 dependencies {
+    // The sponsor model needs only a few operators. tools/onnxruntime/build-onnxruntime-android.sh builds a
+    // runtime with just those; without it the full artifact is used, which works but adds ~30 MB per ABI.
+    if (onnxRuntimeAar.exists()) {
+        implementation(files(onnxRuntimeAar))
+    } else {
+        logger.warn("app/libs/onnxruntime-android-1.29.0.aar is missing; using the full ONNX Runtime from Maven.")
+        implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
+    }
+
     // --- Core Android ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

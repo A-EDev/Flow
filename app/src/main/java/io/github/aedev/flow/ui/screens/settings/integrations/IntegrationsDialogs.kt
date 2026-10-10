@@ -44,7 +44,7 @@ private val PresetBorder = 1.dp
 private val PresetSpacing = 4.dp
 private const val LIGHT_SWATCH_LUMINANCE = 0.5f
 
-internal enum class IntegrationsDialog { USER_ID, DISCORD_RISK }
+internal enum class IntegrationsDialog { USER_ID, DISCORD_RISK, DELETE_SPONSOR_MODEL }
 
 @Composable
 internal fun IntegrationsDialogs(
@@ -92,6 +92,21 @@ internal fun IntegrationsDialogs(
                     }) { Text(stringResource(R.string.discord_presence_risk_accept)) }
                 },
                 dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+            )
+        }
+
+        IntegrationsDialog.DELETE_SPONSOR_MODEL -> {
+            FlowAlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text(stringResource(R.string.sponsor_model_delete_title)) },
+                text = { Text(stringResource(R.string.sponsor_model_delete_body)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteSponsorModel()
+                        onDismiss()
+                    }) { Text(stringResource(R.string.action_delete)) }
+                },
+                dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_cancel)) } },
             )
         }
 
