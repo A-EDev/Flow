@@ -8,7 +8,7 @@
     <string name="top_bar_subscriptions_title">Subskrypcje</string>
     <string name="subscribed">Zasubskrybowano</string>
     <string name="no_subscriptions_yet">Nie Dodano Jeszcze Subskrypcji</string>
-    <string name="empty_subscriptions_body">Zasubskrybuj kanały, aby zobaczyć\nnajnowsze filmy tutaj</string>
+    <string name="empty_subscriptions_body">Zasubskrybuj kanały, aby zobaczyć najnowsze filmy tutaj</string>
     <string name="home_refresh_feed">Odśwież Kanał</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Nie udało się załadować kanału</string>
@@ -143,7 +143,7 @@
     <string name="not_interested">Nie interesuje mnie to</string>
     <string name="details_metadata">Szczegóły i Metadane</string>
     <string name="mark_as_watched">Oznacz jako obejrzane</string>
-    <string name="mark_as_watched_toast">Oznaczono jako obejrzane — twoje rekomendacje się ulepszą!</string>
+    <string name="mark_as_watched_toast">Oznaczono jako obejrzane</string>
     <string name="i_like_this">Chciałbym więcej takich treści</string>
     <string name="i_like_this_toast">Mamy to! Będziesz widzieć więcej podobnej zawartości.</string>
     <string name="go_to_channel">Przejdź do kanału</string>
@@ -2158,4 +2158,58 @@
     </plurals>
     <string name="onboarding_import_source_flow">Kopia Flow</string>
     <string name="onboarding_ready_title">Wszystko gotowe</string>
+    <string name="favourite_artists_search">Szukaj artystów</string>
+    <string name="music_search_section_artists">Artyści</string>
+    <string name="onboarding_artists_search_placeholder">Szukaj artystów</string>
+    <string name="update_skip_version">Pomiń tą wersję</string>
+    <string name="update_open_github">Otwórz w GitHub</string>
+    <string name="update_title">Dostępna jest nowa wersja Flow: %1$s</string>
+    <string name="update_not_now">Nie teraz</string>
+    <string name="update_action_download">Pobierz</string>
+    <string name="update_action_downloading">Pobieranie</string>
+    <string name="update_action_downloading_percent">Pobieranie %1$d%%</string>
+    <string name="update_action_verifying">Sprawdzanie pliku</string>
+    <string name="update_failed_network">Pobieranie zostało przerwane. Sprawdź połączenie i spróbuj ponownie.</string>
+    <string name="update_version_change">%1$s → %2$s</string>
+    <string name="onboarding_alerts_allowed">Zezwolono</string>
+    <string name="onboarding_step_artists">Artyści</string>
+    <plurals name="onboarding_ready_channels">
+        <item quantity="one">%d kanał</item>
+        <item quantity="few">%d kanały</item>
+        <item quantity="many">%d kanałów</item>
+        <item quantity="other">%d kanałów</item>
+    </plurals>
+    <plurals name="onboarding_ready_interests">
+        <item quantity="one">%d zainteresowanie</item>
+        <item quantity="few">%d zainteresowania</item>
+        <item quantity="many">%d zainteresowań</item>
+        <item quantity="other">%d zainteresowań</item>
+    </plurals>
+    <string name="onboarding_start_watching">Zacznij oglądanie</string>
+    <string name="onboarding_progress">Krok %1$d z %2$d</string>
+    <string name="onboarding_ready_subtitle">Flow wciąż będzie się uczyć, by proponować treści dopasowane do twojego gustu.</string>
+    <string name="favourite_artists_picked">Twoje wybory</string>
+    <string name="import_success">%1$s zostały pomyślnie zaimportowane</string>
+    <string name="import_label_libretube_subscriptions">Subskrypcje LibreTube</string>
+    <string name="import_label_libretube_playlists">Playlisty LibreTube</string>
+    <string name="settings_backup_source_libretube">LibreTube</string>
+    <string name="import_label_newpipe_subscriptions">Subskrypcje NewPipe</string>
+    <string name="import_label_newpipe_watch_history">Historia Oglądania NewPipe</string>
+    <string name="import_label_newpipe_playlists">Playlisty NewPipe</string>
+    <string name="settings_backup_source_newpipe">NewPipe</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d godzina</item>
+        <item quantity="few">%1$d godziny</item>
+        <item quantity="many">%1$d godzin</item>
+        <item quantity="other">%1$d godzin</item>
+    </plurals>
+    <string name="import_label_youtube_likes">Polubienia YouTube</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
+    <string name="import_label_youtube_watch_history">Historia Oglądania YouTube</string>
+    <string name="import_label_youtube_subscriptions">Subskrypcje YouTube</string>
+    <string name="import_takeout_music_library_name">Biblioteka YouTube Music</string>
+    <string name="settings_backup_source_metrolist">Metrolist</string>
+    <string name="import_label_metrolist_playlists">Playlisty Muzyki Metrolist</string>
+    <string name="import_label_freetube_watch_history">Historia Oglądania FreeTube</string>
+    <string name="settings_backup_source_freetube">FreeTube</string>
 </resources>
