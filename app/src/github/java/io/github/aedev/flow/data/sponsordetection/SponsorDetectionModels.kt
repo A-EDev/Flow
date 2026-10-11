@@ -23,11 +23,6 @@ const val SPONSOR_CONFIDENCE_THRESHOLD = 0.7
  */
 const val SPONSOR_DECODE_LOGIC_VERSION = 3
 
-private const val ON_DEVICE_UUID_PREFIX = "flow-ml-"
-
-/** Model predictions are suggestions: the player offers a skip button for them and never skips on its own. */
-fun SponsorBlockSegment.isOnDevicePrediction(): Boolean = uuid.startsWith(ON_DEVICE_UUID_PREFIX)
-
 @Serializable
 internal data class SponsorPredictedSpan(
     @SerialName("span_id") val spanId: String,

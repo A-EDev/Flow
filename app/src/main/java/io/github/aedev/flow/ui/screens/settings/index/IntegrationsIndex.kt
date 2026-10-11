@@ -49,6 +49,7 @@ internal object IntegrationsIndex {
             keywords = R.string.settings_keywords_sponsorblock,
             section = R.string.player_settings_sponsorblock,
             revealVia = sponsorBlock.key,
+            availability = SettingAvailability.GithubOnly,
             destination = page,
         )
     val deArrow =

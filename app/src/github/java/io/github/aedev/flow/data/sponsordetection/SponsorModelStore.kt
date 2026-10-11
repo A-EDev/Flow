@@ -41,21 +41,6 @@ internal class SponsorModelUnavailableException(
     message: String = "Sponsor model is not downloaded",
 ) : IllegalStateException(message)
 
-sealed interface SponsorModelState {
-    data object NotInstalled : SponsorModelState
-
-    data class Downloading(
-        val downloadedBytes: Long,
-        val totalBytes: Long,
-    ) : SponsorModelState
-
-    data class Installed(
-        val sizeBytes: Long,
-    ) : SponsorModelState
-
-    data object Failed : SponsorModelState
-}
-
 /**
  * Owns the on-disk layout of the downloaded model. Downloads are staged into a
  * sibling directory, verified, then promoted atomically by replacing the

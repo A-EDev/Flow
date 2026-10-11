@@ -3,7 +3,6 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
-import io.github.aedev.flow.data.sponsordetection.SponsorPredictedSpan
 import org.junit.Test
 
 class SponsorBlockSkipPolicyTest {
@@ -45,7 +44,8 @@ class SponsorBlockSkipPolicyTest {
 
     @Test
     fun `on-device prediction gets a skip button even when the category auto-skips`() {
-        val prediction = SponsorPredictedSpan("0", 10_000L, 20_000L, 0.9).asSponsorBlockSegment("video")
+        val prediction =
+            SponsorBlockSegment(category = "sponsor", segment = listOf(10f, 20f), uuid = "flow-ml-video-0", actionType = "skip")
 
         val active =
             findActiveManualSponsorSegment(

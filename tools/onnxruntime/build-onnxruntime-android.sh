@@ -10,7 +10,7 @@
 # Environment overrides:
 #   ORT_WORK_DIR   where the ONNX Runtime source and build output live (default: build/onnxruntime)
 #
-# Without the AAR, the app builds against the full Maven artifact, which works but is much larger.
+# Without the AAR, GitHub debug builds fall back to the full Maven artifact; GitHub release builds refuse to build.
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
