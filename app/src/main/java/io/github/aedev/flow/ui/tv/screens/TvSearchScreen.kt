@@ -490,10 +490,6 @@ private fun TvMusicSearchResults(
                 }
 
                 else -> {
-                    val songs =
-                        remember(state.filteredResults) {
-                            state.filteredResults.filterIsInstance<SongItem>().map(::convertSongToMusicTrack)
-                        }
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = dimens.musicCardWidth),
                         modifier = modifier.tvRowFocus(),
@@ -507,7 +503,6 @@ private fun TvMusicSearchResults(
                         ) { _, item ->
                             TvMusicResultCard(
                                 item = item,
-                                sectionSongs = songs,
                                 searchSource = searchSource,
                                 onPlayTrack = onPlayTrack,
                                 onOpenMusicCollection = onOpenMusicCollection,
@@ -548,10 +543,6 @@ private fun TvMusicSearchResults(
                     ) { _, summary ->
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             TvSectionHeader(title = searchSummaryTitle(summary))
-                            val sectionSongs =
-                                remember(summary) {
-                                    summary.items.filterIsInstance<SongItem>().map(::convertSongToMusicTrack)
-                                }
                             ProvideTvRowPivot {
                                 LazyRow(
                                     modifier =
@@ -567,7 +558,6 @@ private fun TvMusicSearchResults(
                                     ) { _, item ->
                                         TvMusicResultCard(
                                             item = item,
-                                            sectionSongs = sectionSongs,
                                             searchSource = searchSource,
                                             onPlayTrack = onPlayTrack,
                                             onOpenMusicCollection = onOpenMusicCollection,
@@ -587,7 +577,6 @@ private fun TvMusicSearchResults(
 @Composable
 private fun TvMusicResultCard(
     item: YTItem,
-    sectionSongs: List<MusicTrack>,
     searchSource: String,
     onPlayTrack: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onOpenMusicCollection: (String) -> Unit,
@@ -599,9 +588,8 @@ private fun TvMusicResultCard(
             val track = remember(item) { convertSongToMusicTrack(item) }
             TvMusicCard(
                 track = track,
-                onClick = {
-                    onPlayTrack(track, sectionSongs.ifEmpty { listOf(track) }, searchSource)
-                },
+                // Played alone so the radio fills Up Next, as on the phone search.
+                onClick = { onPlayTrack(track, listOf(track), searchSource) },
                 modifier = modifier,
             )
         }

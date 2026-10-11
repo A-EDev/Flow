@@ -6,15 +6,18 @@ import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.VideoUnavailableException
 import io.github.aedev.flow.player.stream.preferNonDrc
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -38,6 +41,11 @@ object MusicPlayerUtils {
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
     private const val LOUDNESS_TARGET_LKFS = -14.0
     private const val MIN_LOUDNESS_GAIN_DB = -20f
+
+    // Matches the video player's load budget. The ladder can reach TV_TIZEN, whose remote decoder
+    // calls and pre-roll wait have no bound of their own, and an unbounded resolve is a spinner
+    // that never turns into an error.
+    private const val RESOLVE_TIMEOUT_MS = 30_000L
 
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,
@@ -148,19 +156,29 @@ object MusicPlayerUtils {
      * takes over. A separate music ladder that ignored those demotions restarted every song on the
      * refused client and stalled each one ~30 s in.
      */
-    private suspend fun fetchPlaybackData(videoId: String): Result<PlaybackData> =
-        runCatching {
-            val startTime = System.currentTimeMillis()
+    private suspend fun fetchPlaybackData(videoId: String): Result<PlaybackData> {
+        val startTime = System.currentTimeMillis()
+        return runCatching {
             val extraction =
-                InnerTubeVideoStreamExtractor.extract(videoId, audioOnly = true)
-                    ?: throw IOException("Failed to resolve stream for $videoId after trying all clients")
+                withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
+                    InnerTubeVideoStreamExtractor.extract(videoId, audioOnly = true)
+                        ?: throw if (InnerTubeVideoStreamExtractor.isGone(videoId)) {
+                            VideoUnavailableException(videoId)
+                        } else {
+                            IOException("Failed to resolve stream for $videoId after trying all clients")
+                        }
+                } ?: throw MusicResolveTimeoutException(videoId, RESOLVE_TIMEOUT_MS)
             val format =
                 findBestAudioFormat(extraction.audioFormats, loadAudioSelectionPreferences())
                     ?: throw IOException("No playable audio format for $videoId via ${extraction.usedClient.clientName}")
             val streamUrl = format.url ?: throw IOException("Audio format ${format.itag} of $videoId has no url")
             val response = extraction.playerResponse
 
-            Log.i(TAG, "Playback resolved in ${System.currentTimeMillis() - startTime}ms via ${extraction.usedClient.clientName}")
+            val message =
+                "music resolve OK $videoId in ${System.currentTimeMillis() - startTime}ms " +
+                    "via ${extraction.usedClient.clientName} itag=${format.itag}"
+            Log.i(TAG, message)
+            PlayerDiagnostics.logInfo(TAG, message)
             PlaybackData(
                 audioConfig = response.playerConfig?.audioConfig,
                 videoDetails = response.videoDetails,
@@ -171,7 +189,14 @@ object MusicPlayerUtils {
                 usedClient = extraction.usedClient,
                 videoFormats = extraction.videoFormats,
             )
+        }.onFailure { e ->
+            val message =
+                "music resolve FAILED $videoId after ${System.currentTimeMillis() - startTime}ms: " +
+                    "${e.javaClass.simpleName}: ${e.message}"
+            Log.w(TAG, message)
+            PlayerDiagnostics.logWarning(TAG, message)
         }
+    }
 
     private fun findBestAudioFormat(
         formats: List<PlayerResponse.StreamingData.Format>,
@@ -243,3 +268,9 @@ object MusicPlayerUtils {
 
     private const val MEDIUM_BITRATE_TARGET = 128_000
 }
+
+/** The music resolve outlived its budget; the player is told so rather than left buffering. */
+class MusicResolveTimeoutException(
+    videoId: String,
+    timeoutMs: Long,
+) : IOException("Resolving $videoId timed out after ${timeoutMs}ms")
