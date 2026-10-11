@@ -10,15 +10,18 @@ import kotlinx.serialization.json.Json
 /**
  * Builds and parses the `FLOW-SYNC/1` QR payload.
  *
- * The QR carries the out-of-band session secret (`K_master`) plus the host's LAN address. Mobile
- * hosts use a short wall-clock TTL; TV hosts use the lifetime of their live, single-use server
- * session because emulator clocks frequently disagree with the scanning phone. It contains
- * **no IV/nonce** (nonces are per-frame and random).
+ * The QR carries the out-of-band session secret (`K_master`) plus the host's LAN address. Every
+ * host marks its code `lease:"host"`: its own single-use listener closes when the code lapses, so
+ * the scanner never compares `exp` with its own clock. Device clocks routinely disagree by minutes,
+ * which made valid codes look expired on arrival. It contains **no IV/nonce** (nonces are
+ * per-frame and random).
  */
 object QrCodec {
-
     const val PROTOCOL_VERSION = 1
     const val DEFAULT_TTL_SECONDS = 120L
+
+    /** Slack for a code without a lease (older builds), whose `exp` is the other device's clock. */
+    private const val CLOCK_SKEW_GRACE_SECONDS = 600L
     const val WS_PATH = "/flow-sync"
 
     /**
@@ -31,10 +34,11 @@ object QrCodec {
     const val ROLE_RECEIVER = "receiver"
     private const val LEASE_HOST_SESSION = "host"
 
-    private val json = Json {
-        encodeDefaults = true
-        ignoreUnknownKeys = true
-    }
+    private val json =
+        Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+        }
 
     @Serializable
     private data class QrPayload(
@@ -49,30 +53,39 @@ object QrCodec {
         @OptIn(ExperimentalSerializationApi::class)
         @EncodeDefault(EncodeDefault.Mode.NEVER)
         @SerialName("lease") val lease: String? = null,
+        /** More host addresses to try after [ip] (the desktop offers its next-best adapters). */
+        @OptIn(ExperimentalSerializationApi::class)
+        @EncodeDefault(EncodeDefault.Mode.NEVER)
+        @SerialName("ips") val ips: List<String> = emptyList(),
     )
 
     /** Decoded, validated QR contents. */
     class ParsedQr(
         val sessionId: ByteArray,
         val masterKey: ByteArray,
-        val ip: String,
+        /** Host addresses to dial, best first. */
+        val addresses: List<String>,
         val port: Int,
         val deviceName: String,
         val expEpochSeconds: Long,
         /** Role of the device that showed this QR ([ROLE_SENDER] or [ROLE_RECEIVER]). */
         val displayerRole: String,
-        /** True when the live host session, rather than wall-clock agreement, controls freshness. */
-        val isSessionBound: Boolean,
     ) {
-        val wsUrl: String get() = "ws://$ip:$port$WS_PATH"
+        val ip: String get() = addresses.first()
+        val wsUrls: List<String> get() = addresses.map { "ws://${LocalNetworkAddress.urlHost(it)}:$port$WS_PATH" }
         val displayerIsSender: Boolean get() = displayerRole == ROLE_SENDER
     }
 
-    enum class QrError { MALFORMED, WRONG_VERSION, EXPIRED, BAD_SESSION, BAD_KEY, BAD_ADDRESS }
+    enum class QrError { MALFORMED, WRONG_VERSION, EXPIRED, BAD_SESSION, BAD_KEY, BAD_ADDRESS, NOT_LOCAL }
 
     sealed class Result {
-        data class Ok(val qr: ParsedQr) : Result()
-        data class Err(val error: QrError) : Result()
+        data class Ok(
+            val qr: ParsedQr,
+        ) : Result()
+
+        data class Err(
+            val error: QrError,
+        ) : Result()
     }
 
     /** Serialize a QR payload to compact JSON. */
@@ -84,62 +97,71 @@ object QrCodec {
         deviceName: String,
         expEpochSeconds: Long,
         role: String = ROLE_SENDER,
-        sessionBound: Boolean = false,
     ): String {
         require(sessionId.size == 16) { "session id must be 16 bytes" }
         require(masterKey.size == 32) { "master key must be 32 bytes" }
-        val payload = QrPayload(
-            sid = SyncBytes.b64urlEncode(sessionId),
-            key = SyncBytes.b64urlEncode(masterKey),
-            ip = ip,
-            port = port,
-            deviceName = deviceName.take(64),
-            exp = expEpochSeconds,
-            role = if (role == ROLE_RECEIVER) ROLE_RECEIVER else ROLE_SENDER,
-            lease = LEASE_HOST_SESSION.takeIf { sessionBound },
-        )
+        val payload =
+            QrPayload(
+                sid = SyncBytes.b64urlEncode(sessionId),
+                key = SyncBytes.b64urlEncode(masterKey),
+                ip = ip,
+                port = port,
+                deviceName = deviceName.take(64),
+                exp = expEpochSeconds,
+                role = if (role == ROLE_RECEIVER) ROLE_RECEIVER else ROLE_SENDER,
+                lease = LEASE_HOST_SESSION,
+            )
         return json.encodeToString(QrPayload.serializer(), payload)
     }
 
     /** Parse + validate scanned/pasted QR text. [nowEpochSeconds] is injectable for tests. */
-    fun parse(text: String, nowEpochSeconds: Long = System.currentTimeMillis() / 1000): Result {
-        val payload = try {
-            json.decodeFromString(QrPayload.serializer(), text.trim())
-        } catch (e: Exception) {
-            return Result.Err(QrError.MALFORMED)
-        }
+    fun parse(
+        text: String,
+        nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
+    ): Result {
+        val payload =
+            try {
+                json.decodeFromString(QrPayload.serializer(), text.trim())
+            } catch (e: Exception) {
+                return Result.Err(QrError.MALFORMED)
+            }
         if (payload.version != PROTOCOL_VERSION) return Result.Err(QrError.WRONG_VERSION)
 
-        val sid = try {
-            SyncBytes.b64urlDecode(payload.sid)
-        } catch (e: Exception) {
-            return Result.Err(QrError.BAD_SESSION)
-        }
+        val sid =
+            try {
+                SyncBytes.b64urlDecode(payload.sid)
+            } catch (e: Exception) {
+                return Result.Err(QrError.BAD_SESSION)
+            }
         if (sid.size != 16) return Result.Err(QrError.BAD_SESSION)
 
-        val key = try {
-            SyncBytes.b64urlDecode(payload.key)
-        } catch (e: Exception) {
-            return Result.Err(QrError.BAD_KEY)
-        }
+        val key =
+            try {
+                SyncBytes.b64urlDecode(payload.key)
+            } catch (e: Exception) {
+                return Result.Err(QrError.BAD_KEY)
+            }
         if (key.size != 32) return Result.Err(QrError.BAD_KEY)
 
         if (payload.ip.isBlank() || payload.port !in 1..65535) return Result.Err(QrError.BAD_ADDRESS)
+        val addresses = (listOf(payload.ip) + payload.ips).map { it.trim() }.distinct()
+        if (!addresses.all(LocalNetworkAddress::isLocal)) return Result.Err(QrError.NOT_LOCAL)
         val isSessionBound = payload.lease == LEASE_HOST_SESSION
-        if (!isSessionBound && payload.exp <= nowEpochSeconds) return Result.Err(QrError.EXPIRED)
+        if (!isSessionBound && payload.exp + CLOCK_SKEW_GRACE_SECONDS <= nowEpochSeconds) {
+            return Result.Err(QrError.EXPIRED)
+        }
 
         val role = if (payload.role == ROLE_RECEIVER) ROLE_RECEIVER else ROLE_SENDER
         return Result.Ok(
             ParsedQr(
                 sid,
                 key,
-                payload.ip.trim(),
+                addresses,
                 payload.port,
                 payload.deviceName,
                 payload.exp,
                 role,
-                isSessionBound,
-            )
+            ),
         )
     }
 }
