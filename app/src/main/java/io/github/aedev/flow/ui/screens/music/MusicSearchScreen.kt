@@ -114,19 +114,17 @@ fun MusicSearchScreen(
 
     fun isDownloaded(item: YTItem): Boolean = (item as? SongItem)?.let { uiState.downloadedTrackIds.contains(it.id) } ?: false
 
+    // A song from search plays alone, as YouTube Music does: the service seeds its radio from it,
+    // so Up Next fills with related songs instead of the other results for the same title.
     fun openItem(
         item: YTItem,
-        queue: List<YTItem>,
         source: String,
     ) {
         dismissSearchInput()
         when (item) {
             is SongItem -> {
-                onTrackClick(
-                    convertSongToMusicTrack(item),
-                    queue.filterIsInstance<SongItem>().map(::convertSongToMusicTrack),
-                    source,
-                )
+                val track = convertSongToMusicTrack(item)
+                onTrackClick(track, listOf(track), source)
             }
 
             is ArtistItem -> {
@@ -220,7 +218,7 @@ fun MusicSearchScreen(
                     items(uiState.recommendedItems, key = { it.stableLazyKey("recommended") }) { item ->
                         MusicCollectionRow(
                             item = item,
-                            onClick = { openItem(item, listOf(item), RECOMMENDED_SOURCE) },
+                            onClick = { openItem(item, RECOMMENDED_SOURCE) },
                             onMenuClick = menuActionFor(item),
                             onLongClick = menuActionFor(item),
                             isDownloaded = isDownloaded(item),
@@ -301,7 +299,7 @@ fun MusicSearchScreen(
                                     item(key = "top_result") {
                                         TopResultCard(
                                             item = topItem,
-                                            onClick = { openItem(topItem, summary.items, searchSource) },
+                                            onClick = { openItem(topItem, searchSource) },
                                             onShuffleClick = {
                                                 if (topItem is ArtistItem) {
                                                     playArtistTracks(topItem, shuffle = true, artistSourceTemplate.format(topItem.title))
@@ -325,7 +323,7 @@ fun MusicSearchScreen(
                                     MusicCollectionRow(
                                         showPlayCount = true,
                                         item = item,
-                                        onClick = { openItem(item, summary.items, searchSource) },
+                                        onClick = { openItem(item, searchSource) },
                                         onMenuClick = menuActionFor(item),
                                         onLongClick = menuActionFor(item),
                                         isDownloaded = isDownloaded(item),
@@ -337,7 +335,7 @@ fun MusicSearchScreen(
                                 MusicCollectionRow(
                                     showPlayCount = true,
                                     item = item,
-                                    onClick = { openItem(item, uiState.filteredResults, searchSource) },
+                                    onClick = { openItem(item, searchSource) },
                                     onMenuClick = menuActionFor(item),
                                     onLongClick = menuActionFor(item),
                                     isDownloaded = isDownloaded(item),

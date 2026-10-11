@@ -1,5 +1,7 @@
 package io.github.aedev.flow.player.stream
 
+import java.io.IOException
+
 private val StatusPattern = Regex("""status=(\w+)""")
 private val GoneStatuses = setOf("ERROR", "UNPLAYABLE")
 private val BotWallReason = Regex("""not a bot|confirm you.re""", RegexOption.IGNORE_CASE)
@@ -17,6 +19,11 @@ enum class PlaybackBlock {
 class PlaybackBlockedException(
     val block: PlaybackBlock,
 ) : Exception("YouTube refused playback: $block")
+
+/** Every client said the video itself is gone, so retrying it can only fail the same way. */
+class VideoUnavailableException(
+    videoId: String,
+) : IOException("$videoId is unavailable on every client")
 
 /**
  * Whether a failed extraction means the video itself is gone (removed, unavailable here), as

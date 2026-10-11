@@ -4,6 +4,8 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import io.github.aedev.flow.player.stream.VideoUnavailableException
+import io.github.aedev.flow.utils.MusicResolveTimeoutException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
@@ -16,6 +18,8 @@ import kotlin.math.min
  * The music player waits out a dropped connection instead of failing: it keeps buffering and
  * resumes by itself for a few minutes. A failed player releases its decoder, and on some vendor
  * builds a decoder released right after the stall's flush aborts the process inside the platform.
+ * A resolve that already walked every client, or ran out of time doing so, is not retried here:
+ * a load retry would only repeat the whole ladder, and the service decides what happens next.
  * Every other error is retried as Media3 does by default.
  */
 @UnstableApi
@@ -24,6 +28,7 @@ internal class MusicLoadErrorPolicy(
 ) : DefaultLoadErrorHandlingPolicy(MAX_CONNECTION_RETRIES) {
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val error = loadErrorInfo.exception
+        if (isUnretryableResolve(error)) return C.TIME_UNSET
         val connectionLost = isConnectionLoss(error) || (error is IOException && isOffline())
         return retryDelayMs(loadErrorInfo.errorCount, connectionLost) ?: super.getRetryDelayMsFor(loadErrorInfo)
     }
@@ -52,14 +57,21 @@ internal class MusicLoadErrorPolicy(
                 else -> null
             }
 
+        fun isUnavailable(error: Throwable): Boolean = causes(error).any { it is VideoUnavailableException }
+
+        fun isUnretryableResolve(error: Throwable): Boolean =
+            causes(error).any { it is VideoUnavailableException || it is MusicResolveTimeoutException }
+
         fun isConnectionLoss(error: Throwable): Boolean =
-            generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH).any {
+            causes(error).any {
                 it is UnknownHostException ||
                     it is ConnectException ||
                     it is NoRouteToHostException ||
                     it is SocketTimeoutException ||
                     it is SocketException
             }
+
+        private fun causes(error: Throwable): Sequence<Throwable> = generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH)
 
         private const val MAX_CAUSE_DEPTH = 8
     }

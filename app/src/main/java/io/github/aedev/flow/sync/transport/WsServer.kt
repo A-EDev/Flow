@@ -27,7 +27,12 @@ class WsServer {
     suspend fun start(): Int {
         val e =
             embeddedServer(CIO, host = "0.0.0.0", port = 0) {
-                install(WebSockets)
+                install(WebSockets) {
+                    // The OkHttp client pings on its own; the desktop client does too, but a peer that
+                    // vanished without closing is only noticed when our pings go unanswered.
+                    pingPeriodMillis = PING_PERIOD_MS
+                    timeoutMillis = PING_TIMEOUT_MS
+                }
                 routing {
                     webSocket(QrPath.PATH) {
                         val conn = KtorServerConnection(this)
@@ -61,6 +66,11 @@ class WsServer {
 
     private object QrPath {
         const val PATH = "/flow-sync"
+    }
+
+    private companion object {
+        const val PING_PERIOD_MS = 15_000L
+        const val PING_TIMEOUT_MS = 45_000L
     }
 }
 
