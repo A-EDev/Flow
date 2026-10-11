@@ -145,6 +145,7 @@ object InnerTubeVideoStreamExtractor {
             PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
             dropGatesOnIdentityChange()
             blockedVideoIds.remove(videoId)
+            goneVideoIds.remove(videoId)
             val failureReasons = mutableListOf<String>()
             val liveDetected = booleanArrayOf(false)
 

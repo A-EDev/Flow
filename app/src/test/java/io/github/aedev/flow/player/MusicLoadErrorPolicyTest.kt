@@ -2,6 +2,8 @@ package io.github.aedev.flow.player
 
 import androidx.media3.common.C
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.player.stream.VideoUnavailableException
+import io.github.aedev.flow.utils.MusicResolveTimeoutException
 import org.junit.Test
 import java.io.IOException
 import java.net.SocketException
@@ -29,5 +31,19 @@ class MusicLoadErrorPolicyTest {
         assertThat(MusicLoadErrorPolicy.isConnectionLoss(IOException(IOException(UnknownHostException("www.youtube.com"))))).isTrue()
         assertThat(MusicLoadErrorPolicy.isConnectionLoss(IOException(SocketException("Software caused connection abort")))).isTrue()
         assertThat(MusicLoadErrorPolicy.isConnectionLoss(IOException("Response code: 403"))).isFalse()
+    }
+
+    @Test
+    fun `a song gone from every client or a resolve out of time is not retried by the loader`() {
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(IOException(VideoUnavailableException("abc")))).isTrue()
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(MusicResolveTimeoutException("abc", 30_000L))).isTrue()
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(IOException("Failed to resolve stream"))).isFalse()
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(IOException(UnknownHostException("www.youtube.com")))).isFalse()
+    }
+
+    @Test
+    fun `only a gone song counts as unavailable, a timeout may still play`() {
+        assertThat(MusicLoadErrorPolicy.isUnavailable(IOException(VideoUnavailableException("abc")))).isTrue()
+        assertThat(MusicLoadErrorPolicy.isUnavailable(MusicResolveTimeoutException("abc", 30_000L))).isFalse()
     }
 }
