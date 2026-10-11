@@ -875,7 +875,7 @@
     <string name="import_libretube_playlists">Імпорт списків відтворення LibreTube</string>
     <string name="import_libretube_playlists_desc">Імпортуйте ваші локальні плейлісти LibreTube з JSON файлу.</string>
     <string name="import_yt_takeout_all">Імпорт з Google Takeout</string>
-    <string name="import_yt_takeout_all_desc">Імпортуйте підписки, історію переглядів та списки відтворення YouTube одним махом із ZIP-архіву Google Takeout.</string>
+    <string name="import_yt_takeout_all_desc">Підписки, історія, пошукові запити, списки відтворення, вподобання та ваша бібліотека YouTube Music із Google Takeout. Виберіть усі ZIP-архіви експорту.</string>
     <string name="import_music_apps_section_title">Музичні застосунки</string>
     <string name="import_music_apps_section_subtitle">Імпортуйте свою музичну бібліотеку з інших плеєрів</string>
     <string name="import_from_metrolist">Імпорт з Metrolist</string>
@@ -1246,7 +1246,7 @@
     <string name="icon_name_flow_light">Світлий Flow</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
-    <string name="player_adaptive_size_subtitle">Підігнати розмір програвача під відео. У вимкненому режимі зберігається формат 16:9.</string>
+    <string name="player_adaptive_size_subtitle">Збільшити відеопрогравач для вертикальних відео. Якщо вимкнути цей параметр, формат залишиться 16:9.</string>
     <string name="theme_name_material_you">Material You</string>
     <string name="theme_desc_material_you">Кольори, підібрані з ваших шпалер на Android 12 і новіших версіях.</string>
     <string name="content_settings_comments_enabled_title">Коментарі</string>
@@ -3590,7 +3590,7 @@
     <string name="settings_music_folder_label">Музика / Flow</string>
     <string name="settings_keywords_downloads">зберегти без інтернету, тека, сховище, SD-карта</string>
     <string name="settings_section_notification_types">Сповіщати мене про</string>
-    <string name="settings_keywords_notifications">оповіщення, push-повідомлення, нові вивантаження, перевірки у фоновому режимі</string>
+    <string name="settings_keywords_notifications">оповіщення, push-повідомлення, нові вивантаження, перевірки у фоновому режимі, shorts</string>
     <string name="settings_section_proxy_server">Сервер</string>
     <string name="settings_section_proxy_sign_in">Увійти</string>
     <string name="settings_keywords_network">проксі, SOCKS, HTTP, VPN, з’єднання</string>
@@ -4272,4 +4272,62 @@
     <string name="font_import_not_font">Оберіть .ttf або .otf файл</string>
     <string name="font_import_too_large">Розмір файлів шрифтів може становити до %1$d МБ</string>
     <string name="font_import_unreadable">Не вдалося прочитати цей файл як шрифт</string>
+    <string name="mark_as_unwatched">Позначити як не переглянуте</string>
+    <string name="downloads_recover_title">Знайти завантаження з попереднього встановлення</string>
+    <string name="downloads_recover_body">Flow зберігає завантаження в Download/Flow і Music/Flow. Щоб переглянути файли, збережені там під час попереднього встановлення, надайте доступ до відео й аудіо.</string>
+    <string name="downloads_recover_allow">Надати дозвіл</string>
+    <string name="downloads_recover_dismiss">Не зараз</string>
+    <plurals name="downloads_recovered_count">
+        <item quantity="one">Знайдено %d завантаження з попереднього встановлення</item>
+        <item quantity="few">Знайдено %d завантаження з попереднього встановлення</item>
+        <item quantity="many">Знайдено %d завантажень з попереднього встановлення</item>
+        <item quantity="other">Знайдено %d завантажень з попереднього встановлення</item>
+    </plurals>
+    <string name="downloads_recovered_none">Завантажень із попереднього встановлення не знайдено</string>
+    <string name="downloads_find_earlier_title">Знайти попередні завантаження</string>
+    <string name="downloads_find_earlier_running">Пошук…</string>
+    <string name="notif_type_shorts">Shorts</string>
+    <string name="notif_type_shorts_subtitle">Включати Shorts у сповіщення про нові відео з підписок</string>
+    <string name="mini_bar_swipe_left">Провести вліво</string>
+    <string name="mini_bar_swipe_right">Провести вправо</string>
+    <string name="mini_bar_swipe_subtitle">Для панелі музики та панелі фонового відео</string>
+    <string name="mini_bar_nothing_next">Далі нічого немає</string>
+    <string name="mini_bar_nothing_previous">Нічого перед цим</string>
+    <string name="categories_chart_source">Чарти YouTube Music</string>
+    <string name="categories_rate_limited">YouTube наразі обмежує кількість запитів. Спробуйте ще раз за кілька хвилин.</string>
+    <string name="import_takeout_step_history">Історія перегляду</string>
+    <string name="import_takeout_step_subscriptions">Підписки</string>
+    <string name="import_takeout_step_activity">Вподобання та пошуки</string>
+    <plurals name="import_takeout_part_subscriptions">
+        <item quantity="one">%d підписка</item>
+        <item quantity="few">%d підписки</item>
+        <item quantity="many">%d підписок</item>
+        <item quantity="other">%d підписок</item>
+    </plurals>
+    <plurals name="import_takeout_part_history">
+        <item quantity="one">%d запис історії</item>
+        <item quantity="few">%d записи історії</item>
+        <item quantity="many">%d записів історії</item>
+        <item quantity="other">%d записів історії</item>
+    </plurals>
+    <plurals name="import_takeout_part_playlists">
+        <item quantity="one">%1$d список відтворення (%2$d відео)</item>
+        <item quantity="few">%1$d списки відтворення (%2$d відео)</item>
+        <item quantity="many">%1$d списків відтворення (%2$d відео)</item>
+        <item quantity="other">%1$d списків відтворення (%2$d відео)</item>
+    </plurals>
+    <plurals name="import_takeout_part_music_library">
+        <item quantity="one">%d пісня з бібліотеки YouTube Music</item>
+        <item quantity="few">%d пісні з бібліотеки YouTube Music</item>
+        <item quantity="many">%d пісень з бібліотеки YouTube Music</item>
+        <item quantity="other">%d пісень з бібліотеки YouTube Music</item>
+    </plurals>
+    <string name="import_takeout_music_library_name">Бібліотека YouTube Music</string>
+    <plurals name="import_takeout_part_searches">
+        <item quantity="one">%d пошук</item>
+        <item quantity="few">%d пошуки</item>
+        <item quantity="many">%d пошуків</item>
+        <item quantity="other">%d пошуків</item>
+    </plurals>
+    <string name="mark_as_unwatched_toast">Позначено як непереглянуте</string>
 </resources>
