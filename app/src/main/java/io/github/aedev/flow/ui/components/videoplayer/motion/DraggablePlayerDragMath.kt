@@ -14,10 +14,8 @@ private const val EXPAND_DRAG_SOFTNESS_PX = 60f
 private const val EXPAND_DRAG_MAX_ZOOM = 1.06f
 
 private const val FULLSCREEN_SWIPE_VELOCITY = -800f
-private const val COLLAPSE_COMMIT_FRACTION = 0.1f
-private const val COLLAPSE_FLING_VELOCITY = 300f
-private const val COLLAPSE_SLOW_FLING_VELOCITY = 200f
-private const val COLLAPSE_SLOW_FLING_FRACTION = 0.05f
+private const val COLLAPSE_COMMIT_FRACTION = 0.2f
+private const val COLLAPSE_FLING_VELOCITY = 1000f
 private const val CORNER_FLING_VELOCITY = 400f
 private const val CORNER_FLING_AXIS_DOMINANCE = 0.8f
 private const val CORNER_SWITCH_TRAVEL_FRACTION = 0.15f
@@ -34,9 +32,10 @@ private const val CLOSE_BELOW_HEIGHTS = 0.4f
 private const val CLOSE_FLING_VELOCITY = 1200f
 private const val CLOSE_AXIS_DOMINANCE = 2f
 
-/** Share of the pull, and the fling, that commits to growing into portrait fullscreen. */
-private const val PORTRAIT_FS_COMMIT_FRACTION = 0.4f
-private const val PORTRAIT_FS_COMMIT_VELOCITY = 1400f
+/** Share of the pull, and the fling, that commits to portrait fullscreen; a flick back up cancels it. */
+private const val PORTRAIT_FS_COMMIT_FRACTION = 0.25f
+private const val PORTRAIT_FS_COMMIT_VELOCITY = 2500f
+private const val PORTRAIT_FS_CANCEL_VELOCITY = 1400f
 
 internal fun lerpClamped(
     start: Float,
@@ -64,7 +63,7 @@ internal fun shouldEnterPortraitFullscreen(
     fraction: Float,
     velocityY: Float,
 ): Boolean =
-    velocityY > -PORTRAIT_FS_COMMIT_VELOCITY &&
+    velocityY > -PORTRAIT_FS_CANCEL_VELOCITY &&
         (fraction > PORTRAIT_FS_COMMIT_FRACTION || velocityY > PORTRAIT_FS_COMMIT_VELOCITY)
 
 /**
@@ -108,10 +107,7 @@ internal fun shouldCloseMiniDownward(
 internal fun shouldCollapseOnRelease(
     fraction: Float,
     scaledVelocityY: Float,
-): Boolean =
-    fraction > COLLAPSE_COMMIT_FRACTION ||
-        scaledVelocityY > COLLAPSE_FLING_VELOCITY ||
-        (scaledVelocityY > COLLAPSE_SLOW_FLING_VELOCITY && fraction > COLLAPSE_SLOW_FLING_FRACTION)
+): Boolean = fraction > COLLAPSE_COMMIT_FRACTION || scaledVelocityY > COLLAPSE_FLING_VELOCITY
 
 internal data class MiniPlayerBounds(
     val minX: Float,

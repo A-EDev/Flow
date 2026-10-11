@@ -33,4 +33,6 @@ internal class VideoPlayerStageSession(
     val prefs: VideoPlayerPreferencesState,
     val audioSystemInfo: AudioSystemInfo,
     val pipPreferences: PipPreferences,
+    /** Whether the window shows the fullscreen layout yet, which trails the request while it rotates. */
+    val isFullscreenShown: Boolean,
 )

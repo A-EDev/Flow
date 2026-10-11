@@ -149,6 +149,7 @@ IMPROVEMENTS
 - The music bar closes with a swipe down
 - Auto quality now changes between qualities mid-playback without stopping, judged on the measured speed of your connection, where before it started at 480p, never went past 720p and paused on every change
 - Import from Google Takeout now brings in a whole export at once: pick every ZIP of a split export, and searches, YouTube Music watch history, watch history saved as JSON and your YouTube Music library come in with subscriptions, playlists and likes. Playlists keep the date YouTube made them, so Newest matches YouTube, and importing the same export again no longer duplicates them (#858)
+- Swiping the background mini bar up now grows it into the player under your finger, the way the music bar opens, and its queue has a seek bar with previous, play and next (#980)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -250,6 +251,10 @@ FIXES AND STABILITY
 - Explore no longer shows raw error text when YouTube refuses a request, and says when to try again
 - Fix missing covers on Opus, Ogg and FLAC songs in Local media, the players and the notification: pictures not marked as the front cover, or saved with line breaks, are now read, and a cover.jpg or folder.jpg beside the songs is used when the file has none (#1250)
 - Fix Downloads disappearing from the Library on a fresh install: it is always shown, and Downloads can find the files an earlier install saved after you allow access to videos and audio, keeping their video when the file names it. Settings › Downloads has the same search, and deleting such a file asks the system for permission instead of leaving it on the device (#1246)
+- Fix a back swipe in the video player seeking 10 seconds: touches that start on the screen edge no longer count as taps, and a double tap now needs both taps to lift (#1068)
+- Fix the mini bar swipe actions showing on the wrong side in right-to-left languages, and fade the music mini player out when it is swiped down to close (#980)
+- Fix fullscreen transitions jumping: pulling the page down slides the video to the centre instead of growing its box, leaving fullscreen continues from where your finger let go, the landscape switch waits for the rotation, and the seek bar no longer jumps to the bottom edge (#1065)
+- A short swipe on the video no longer collapses the player or enters fullscreen by accident, and the player moves at the screen's full refresh rate while a video plays (#1065)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

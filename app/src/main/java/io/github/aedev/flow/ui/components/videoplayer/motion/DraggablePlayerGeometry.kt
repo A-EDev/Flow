@@ -204,6 +204,7 @@ internal data class OpenOriginRect(
     val width: Float,
     val height: Float,
     val cornerRadius: Float,
+    val coversWindow: Boolean = false,
 ) {
     val right: Float get() = left + width
     val bottom: Float get() = top + height
@@ -237,7 +238,8 @@ internal fun resolveOpenOriginRect(
                 top = bounds.top - layoutTop,
                 width = bounds.width.coerceAtLeast(1f),
                 height = bounds.height.coerceAtLeast(1f),
-                cornerRadius = origin.cornerRadiusPx,
+                cornerRadius = if (origin.coversWindow) 0f else origin.cornerRadiusPx,
+                coversWindow = origin.coversWindow,
             )
         }
     }

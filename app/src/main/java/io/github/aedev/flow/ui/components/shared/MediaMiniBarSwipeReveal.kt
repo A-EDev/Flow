@@ -26,6 +26,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,20 +91,21 @@ val MiniBarSwipeAction.isDestructive: Boolean
             this == MiniBarSwipeAction.REMOVE_FROM_QUEUE
 
 /**
- * The layer under a swiping mini bar. [offset] is the card's horizontal offset: dragged towards the
- * start it uncovers the end edge with [towardsStart], and the other way [towardsEnd]. It fades in
- * over the first stretch of the drag, read in the draw phase.
+ * The layer under a swiping mini bar. [offset] is the card's horizontal offset: dragged left it
+ * uncovers the right edge with [towardsLeft], and the other way [towardsRight]. Placement is
+ * physical, because the card moves physically in both layout directions. It fades in over the first
+ * stretch of the drag, read in the draw phase.
  */
 @Composable
 fun MediaMiniBarSwipeReveal(
     offset: () -> Float,
-    towardsStart: MiniBarReveal?,
-    towardsEnd: MiniBarReveal?,
+    towardsLeft: MiniBarReveal?,
+    towardsRight: MiniBarReveal?,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
-    val goingStart by remember { derivedStateOf { offset() < 0f } }
-    val reveal = (if (goingStart) towardsStart else towardsEnd) ?: return
+    val goingLeft by remember { derivedStateOf { offset() < 0f } }
+    val reveal = (if (goingLeft) towardsLeft else towardsRight) ?: return
     val fullAtPx = with(LocalDensity.current) { RevealFullAt.toPx() }
     val container = if (reveal.destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
     val content = if (reveal.destructive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
@@ -114,15 +116,15 @@ fun MediaMiniBarSwipeReveal(
                 .graphicsLayer { alpha = (abs(offset()) / fullAtPx).coerceIn(0f, 1f) }
                 .background(container, shape)
                 .padding(horizontal = 20.dp),
-        contentAlignment = if (goingStart) Alignment.CenterEnd else Alignment.CenterStart,
+        contentAlignment = if (goingLeft) AbsoluteAlignment.CenterRight else AbsoluteAlignment.CenterLeft,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.Absolute.spacedBy(10.dp),
             modifier = Modifier.graphicsLayer { alpha = if (reveal.enabled) 1f else DISABLED_CONTENT_ALPHA },
         ) {
             // The picture sits at the uncovered edge, so the card reaches it last.
-            if (!goingStart) RevealVisual(reveal, content)
+            if (!goingLeft) RevealVisual(reveal, content)
             Text(
                 text = reveal.label,
                 style = MaterialTheme.typography.labelLarge,
@@ -131,7 +133,7 @@ fun MediaMiniBarSwipeReveal(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 200.dp),
             )
-            if (goingStart) RevealVisual(reveal, content)
+            if (goingLeft) RevealVisual(reveal, content)
         }
     }
 }

@@ -102,6 +102,7 @@ internal fun PlayerQueueSheetHost(
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
     loadStreamsInPlayer: Boolean = false,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val manager = EnhancedPlayerManager.getInstance()
     val queueVideos by manager.queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -131,6 +132,7 @@ internal fun PlayerQueueSheetHost(
         enableVerticalDismiss = !asSidePanel,
         onSheetProgressChange = onSheetProgressChange,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
+        footer = footer,
     )
 }
 

@@ -45,7 +45,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator" to false,
             "zoomIndicatorSequence" to 0,
             "exitDragOffsetY" to 0f,
-            "exitDragProgress" to 0f,
             "isSpeedBoostActive" to false,
             "normalSpeed" to 1.0f,
             "showShortsPrompt" to false,
@@ -78,7 +77,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator",
             "zoomIndicatorSequence",
             "exitDragOffsetY",
-            "exitDragProgress",
         )
 
     // Pins current behaviour: bufferedPosition, isSpeedBoostActive and seekAccumulation
@@ -144,7 +142,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator" to showZoomIndicator,
             "zoomIndicatorSequence" to zoomIndicatorSequence,
             "exitDragOffsetY" to exitDragOffsetY,
-            "exitDragProgress" to exitDragProgress,
             "isSpeedBoostActive" to isSpeedBoostActive,
             "normalSpeed" to normalSpeed,
             "showShortsPrompt" to showShortsPrompt,
@@ -184,7 +181,6 @@ class PlayerScreenStateTest {
         showZoomIndicator = true
         zoomIndicatorSequence = 4
         exitDragOffsetY = 300f
-        exitDragProgress = 0.4f
         isSpeedBoostActive = true
         normalSpeed = 1.5f
         showShortsPrompt = true

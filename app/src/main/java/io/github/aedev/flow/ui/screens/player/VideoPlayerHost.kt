@@ -304,6 +304,14 @@ fun VideoPlayerHost(
         pipPreferences = pipPreferences,
     )
 
+    val fullscreenShown =
+        rememberShownFullscreen(
+            isFullscreen = screenState.isFullscreen,
+            isFullscreenPortrait = screenState.isFullscreenPortrait,
+            videoAspectRatio = effectiveVideoAspectRatio,
+            windowIsLandscape = isLandscape,
+            rotationHonoured = !isLargeWindow && !context.orientationRequestIgnored(config),
+        )
     FullscreenEffect(
         isFullscreen = screenState.isFullscreen,
         activity = activity,
@@ -318,7 +326,7 @@ fun VideoPlayerHost(
         hideSystemBars =
             isImmersivePlayer(
                 isExpanded = playerSheetState.currentValue == PlayerSheetValue.Expanded,
-                isFullscreen = screenState.isFullscreen,
+                isFullscreen = fullscreenShown,
                 isLandscape = isLandscape,
                 isLargeWindow = isLargeWindow,
             ),
@@ -449,6 +457,7 @@ fun VideoPlayerHost(
             prefs = prefs,
             audioSystemInfo = audioSystemInfo,
             pipPreferences = pipPreferences,
+            isFullscreenShown = fullscreenShown,
         )
 
     // Turning the preference off swaps Compose's own no-op implementation in over the whole
@@ -485,7 +494,7 @@ fun VideoPlayerHost(
             DraggablePlayerLayout(
                 state = playerSheetState,
                 progress = progressProvider,
-                isFullscreen = screenState.isFullscreen,
+                isFullscreen = fullscreenShown,
                 thumbnailUrl =
                     video.thumbnailUrl.takeIf { it.isNotEmpty() }
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),

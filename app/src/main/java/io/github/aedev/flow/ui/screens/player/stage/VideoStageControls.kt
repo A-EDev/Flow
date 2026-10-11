@@ -62,7 +62,7 @@ internal fun VideoStageControls(
     val configuration = LocalConfiguration.current
     val isPortraitFullscreenLayout =
         usesPortraitFullscreenLayout(
-            isFullscreen = screenState.isFullscreen,
+            isFullscreen = session.isFullscreenShown,
             isFullscreenPortrait = screenState.isFullscreenPortrait,
             videoAspectRatio = videoAspectRatio,
             orientationRequestIgnored = context.orientationRequestIgnored(configuration),
@@ -108,7 +108,7 @@ internal fun VideoStageControls(
             channelName = video.channelName,
             playbackSpeed = playerState.playbackSpeed,
             resizeMode = screenState.resizeMode,
-            isFullscreen = screenState.isFullscreen,
+            isFullscreen = session.isFullscreenShown,
             isPortraitFullscreen = isPortraitFullscreenLayout,
             isPipSupported =
                 PictureInPictureHelper.isPlayerPopupSupported(context) &&

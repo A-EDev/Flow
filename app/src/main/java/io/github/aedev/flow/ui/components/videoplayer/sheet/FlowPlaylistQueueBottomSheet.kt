@@ -59,6 +59,7 @@ fun FlowPlaylistQueueBottomSheet(
     enableVerticalDismiss: Boolean = true,
     onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val sheetState = rememberFlowBottomSheetState()
     val listState = rememberLazyListState()
@@ -176,6 +177,7 @@ fun FlowPlaylistQueueBottomSheet(
                 )
             }
         }
+        footer?.invoke()
     }
 }
 
