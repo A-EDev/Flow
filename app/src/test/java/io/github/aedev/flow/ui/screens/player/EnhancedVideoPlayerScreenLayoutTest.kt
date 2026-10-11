@@ -65,6 +65,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
                         video = video,
                         alpha = { 1f },
                         screenState = screenState,
+                        isFullscreenShown = screenState.isFullscreen,
                         prefs = rememberVideoPlayerPreferences(LocalContext.current),
                         onVideoClick = {},
                         onChannelClick = {},
