@@ -68,7 +68,7 @@ import java.time.format.FormatStyle
 
 private const val TAG = "ChangelogSheet"
 private const val CHANGELOG_DIR = "changelog"
-private const val RELEASES_URL = "https://github.com/A-EDev/Flow/releases"
+private const val RELEASES_URL = "https://github.com/Flow-Tube/Flow/releases"
 
 private val ListPadding = 16.dp
 private val RowPadding = 16.dp
