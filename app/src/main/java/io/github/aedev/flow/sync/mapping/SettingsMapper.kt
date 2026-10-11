@@ -14,8 +14,9 @@ import kotlinx.serialization.json.longOrNull
 /**
  * Curated, device-independent settings whitelist. ONLY these
  * keys are ever put on the wire — device-specific values (paths, proxy creds, geometry,
- * caches, telemetry) are deliberately excluded. v1 stamps a single coarse per-payload HLC for all
- * settings (Android lacks per-key timestamps), so settings LWW is "whoever synced last wins".
+ * caches, telemetry) are deliberately excluded. Each setting is stamped with when it last changed
+ * here, recovered by [io.github.aedev.flow.sync.apply.SyncChangeTracker] (preferences keep no
+ * per-key timestamps).
  *
  * Bridges via [SettingsBackup] (the typed maps already produced by `PlayerPreferences`).
  */

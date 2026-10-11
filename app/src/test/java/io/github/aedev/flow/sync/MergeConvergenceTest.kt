@@ -177,9 +177,8 @@ class MergeConvergenceTest {
         val ab = BrainMerger.merge(a, b)
         assertEquals(ab, BrainMerger.merge(ab, ab))
 
-        // G-Counter sums experience; vectors keep the stronger signal; blocklists union.
+        // G-Counter sums experience; blocklists union. Vectors are BrainVectorBlend's job.
         assertEquals(1500L, ab.counters.idfTotalDocuments.sum())
-        assertEquals(0.8, ab.vectors.globalVector.topics["kotlin"]!!, 0.0)
         assertEquals(setOf("politics", "spam"), ab.sets.blockedTopics.members())
         // LWW maps keep both sides' keys; only a collision resolves by stamp.
         assertEquals(setOf("va", "vb"), ab.lwwMaps.suppressedVideoIds.keys)

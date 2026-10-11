@@ -1,0 +1,20 @@
+[
+  {
+    "channelId": "UCabc",
+    "name": "Some Channel",
+    "avatarUrl": "https://cdn.example/UCabc.jpg",
+    "subscribedAtMs": 1781000000000,
+    "isMusic": false,
+    "hlc": "1781000000000:0:deviceaa",
+    "deleted": false
+  },
+  {
+    "channelId": "UCgone",
+    "name": "",
+    "avatarUrl": "",
+    "subscribedAtMs": 0,
+    "isMusic": false,
+    "hlc": "1781000900000:0:deviceaa",
+    "deleted": true
+  }
+]

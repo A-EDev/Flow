@@ -1,0 +1,5 @@
+{
+  "_comment": "FLOW-SYNC/1 canonical JSON golden vector: object keys sorted ascending by Unicode codepoint, recursively, compact (no whitespace). `input` is intentionally unsorted; `expected` is the canonical serialization both platforms must produce (the basis of the payload hash).",
+  "input": { "z": 1, "a": { "y": 2, "b": 3 }, "m": [ { "d": 4, "c": 5 } ] },
+  "expected": "{\"a\":{\"b\":3,\"y\":2},\"m\":[{\"c\":5,\"d\":4}],\"z\":1}"
+}

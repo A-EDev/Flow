@@ -1,0 +1,28 @@
+[
+  {
+    "videoId": "dQw4w9WgXcQ",
+    "title": "Never Gonna Give You Up",
+    "channelName": "Rick Astley",
+    "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+    "watchedAtMs": 1781512000000,
+    "progress": 0.8,
+    "durationSeconds": 212,
+    "isMusic": false,
+    "isShort": false,
+    "hlc": "1781512000000:0:device-aaa",
+    "deleted": false
+  },
+  {
+    "videoId": "9bZkp7q19f0",
+    "title": "PSY - GANGNAM STYLE",
+    "channelName": "officialpsy",
+    "channelId": "UCrDkAvwZum-UTjHmzDI2iIw",
+    "watchedAtMs": 1781512100000,
+    "progress": 1.0,
+    "durationSeconds": 253,
+    "isMusic": true,
+    "isShort": false,
+    "hlc": "1781512100000:0:device-aaa",
+    "deleted": false
+  }
+]

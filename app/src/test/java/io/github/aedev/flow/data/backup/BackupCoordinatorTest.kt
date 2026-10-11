@@ -32,7 +32,15 @@ class BackupCoordinatorTest {
     private val favourites: FavouriteArtistsStore = mockk(relaxed = true)
 
     private fun coordinator() =
-        BackupCoordinator(context, repository, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), favourites)
+        BackupCoordinator(
+            context,
+            repository,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            favourites,
+            mockk(relaxed = true),
+        )
 
     @Before
     fun setUp() {
