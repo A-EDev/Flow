@@ -52,6 +52,7 @@ class SyncApplier
         @ApplicationContext private val context: Context,
         private val db: AppDatabase,
         private val dataAccess: SyncDataAccess,
+        private val brains: BrainSyncAccess,
         private val syncLogDao: SyncLogDao,
         private val syncPeerDao: SyncPeerDao,
         private val deviceIdentity: DeviceIdentity,
@@ -96,11 +97,11 @@ class SyncApplier
                         }
 
                         SyncCollection.FLOW_NEURO_BRAIN -> {
-                            SyncSerialization.encodeBrain(dataAccess.readBrain(node, hlc))
+                            SyncSerialization.encodeBrain(brains.exportBrain(node, hlc))
                         }
 
                         SyncCollection.MUSIC_BRAIN -> {
-                            SyncSerialization.encodeMusicBrain(dataAccess.readMusicBrain(node, hlc))
+                            SyncSerialization.encodeMusicBrain(brains.exportMusicBrain(node, hlc))
                         }
 
                         else -> {
@@ -212,8 +213,9 @@ class SyncApplier
                 // Brain: stateful CRDT merge + engine reload.
                 fresh[SyncCollection.FLOW_NEURO_BRAIN]?.let { rc ->
                     failedCollection = SyncCollection.FLOW_NEURO_BRAIN
-                    SyncSerialization.decodeBrain(rc.lines)?.let { remote ->
-                        dataAccess.mergeAndWriteBrain(remote, myDeviceId, hlc)
+                    val snapshots = SyncSerialization.decodeBrainSnapshots(rc.lines)
+                    if (snapshots.isNotEmpty()) {
+                        brains.mergeBrain(snapshots, peer.deviceId, node, myDeviceId, hlc)
                         stats[SyncCollection.FLOW_NEURO_BRAIN] = ApplyStats(updated = 1)
                     }
                 }
@@ -222,7 +224,7 @@ class SyncApplier
                 fresh[SyncCollection.MUSIC_BRAIN]?.let { rc ->
                     failedCollection = SyncCollection.MUSIC_BRAIN
                     SyncSerialization.decodeMusicBrain(rc.lines)?.let { remote ->
-                        dataAccess.mergeAndWriteMusicBrain(remote, myDeviceId, hlc)
+                        brains.mergeMusicBrain(remote, peer.deviceId, node, myDeviceId, hlc)
                         stats[SyncCollection.MUSIC_BRAIN] = ApplyStats(updated = 1)
                     }
                 }

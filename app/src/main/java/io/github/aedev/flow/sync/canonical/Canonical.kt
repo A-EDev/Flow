@@ -339,12 +339,15 @@ data class CanonicalTopicEvidence(
     val lastSeenAt: Long = 0,
 )
 
-/** The blendable, experience-weighted learned vectors */
+/**
+ * The blendable, experience-weighted learned vectors. [shortsVector] is null for a device that has
+ * none (the desktop), which the blend must skip rather than average in as zeros.
+ */
 @Serializable
 data class CanonicalBrainVectors(
     val globalVector: CanonicalVector = CanonicalVector(),
     val timeVectors: Map<String, CanonicalVector> = emptyMap(),
-    val shortsVector: CanonicalVector = CanonicalVector(),
+    val shortsVector: CanonicalVector? = null,
     val topicAffinities: Map<String, Double> = emptyMap(),
     val channelScores: Map<String, Double> = emptyMap(),
     val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),

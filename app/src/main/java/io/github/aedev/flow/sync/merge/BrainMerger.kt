@@ -7,16 +7,14 @@ import io.github.aedev.flow.sync.canonical.BrainPerVideo
 import io.github.aedev.flow.sync.canonical.BrainSets
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalBrainVectors
-import io.github.aedev.flow.sync.canonical.CanonicalVector
 import io.github.aedev.flow.sync.canonical.Lww
 
 /**
- * Brain merge. Every field is a join-semilattice op so the merge is commutative,
- * associative, and idempotent:
+ * Brain merge for everything except the learned vectors. Every field is a join-semilattice op so
+ * the merge is commutative, associative, and idempotent:
  * - additive counters (idf docs/interactions/word-freq): **G-Counter** (per-device max, value=sum)
- *   — the per-device breakdown is maintained by the sidecar so repeat syncs never double-count.
- * - learned vectors / affinity maps: **per-key max** (preserves the stronger signal from either
- *   device — a 5-video device can never erase a 1000-video one).
+ *   — the per-device breakdown is maintained by the sidecar so repeat syncs never double-count, and
+ *   [CounterOwnership] then settles who may write each entry.
  * - `perVideo` progress: **max-register** per key.
  * - `lwwMaps` (suppressions, rejection patterns, topic evidence, feed history, channel strikes):
  *   **LWW register** per key, higher HLC wins. Keys present on only one side always survive.
@@ -24,8 +22,8 @@ import io.github.aedev.flow.sync.canonical.Lww
  *   unblock propagates instead of being resurrected by the other device's stale add.
  * - onboarding flag: OR.
  *
- * The field grouping and per-field semantics mirror the desktop's `merge.rs` exactly; both sides
- * must converge on the *same* numbers, not merely converge.
+ * The learned vectors are left empty here: they are an experience-weighted mean over every
+ * device's snapshot, which no pairwise merge can compute. [BrainVectorBlend] derives them.
  */
 object BrainMerger {
     fun merge(
@@ -36,7 +34,7 @@ object BrainMerger {
             schema = maxOf(local.schema, remote.schema),
             deviceId = local.deviceId,
             hlc = Crdt.maxHlc(local.hlc, remote.hlc),
-            vectors = mergeVectors(local.vectors, remote.vectors),
+            vectors = CanonicalBrainVectors(),
             counters =
                 BrainCounters(
                     idfTotalDocuments = local.counters.idfTotalDocuments.merge(remote.counters.idfTotalDocuments),
@@ -77,27 +75,4 @@ object BrainMerger {
         a: Map<String, Lww<T>>,
         b: Map<String, Lww<T>>,
     ): Map<String, Lww<T>> = Crdt.mergeKeyed(a, b) { x, y -> x.merge(y) }
-
-    private fun mergeVectors(
-        a: CanonicalBrainVectors,
-        b: CanonicalBrainVectors,
-    ) = CanonicalBrainVectors(
-        globalVector = mergeVector(a.globalVector, b.globalVector),
-        timeVectors = Crdt.mergeKeyed(a.timeVectors, b.timeVectors) { x, y -> mergeVector(x, y) },
-        shortsVector = mergeVector(a.shortsVector, b.shortsVector),
-        topicAffinities = Crdt.mergeMaxDouble(a.topicAffinities, b.topicAffinities),
-        channelScores = Crdt.mergeMaxDouble(a.channelScores, b.channelScores),
-        channelTopicProfiles =
-            Crdt.mergeKeyed(a.channelTopicProfiles, b.channelTopicProfiles) { x, y ->
-                Crdt.mergeMaxDouble(x, y)
-            },
-    )
-
-    private fun mergeVector(
-        a: CanonicalVector,
-        b: CanonicalVector,
-    ) = CanonicalVector(
-        topics = Crdt.mergeMaxDouble(a.topics, b.topics),
-        dims = Crdt.mergeMaxDouble(a.dims, b.dims),
-    )
 }
