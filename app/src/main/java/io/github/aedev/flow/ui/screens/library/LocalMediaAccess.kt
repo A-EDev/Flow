@@ -3,8 +3,11 @@ package io.github.aedev.flow.ui.screens.library
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
@@ -64,3 +67,16 @@ internal fun Context.musicAccess(): MediaAccess {
 
 /** After a denial, whether the system will still show the prompt, or only app settings can grant it. */
 internal fun Activity.canStillAsk(): Boolean = localMediaPermissions().any { ActivityCompat.shouldShowRequestPermissionRationale(this, it) }
+
+/** What Downloads asks for to list the files an earlier install saved: videos and songs, never photos. */
+internal fun downloadReadPermissions(): Array<String> =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+    } else {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+/** Flow's page in system settings, the only place left to grant a permission after "Don't allow". */
+internal fun Context.openAppPermissionSettings() {
+    runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))) }
+}

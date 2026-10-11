@@ -50,7 +50,7 @@ class GitHubReleaseTest {
     fun `a newer release carries its apk size, digest and date`() {
         val json =
             """
-            {"tag_name":"v2.3.0","body":"## New features","html_url":"https://github.com/A-EDev/Flow/releases/tag/v2.3.0",
+            {"tag_name":"v2.3.0","body":"## New features","html_url":"https://github.com/Flow-Tube/Flow/releases/tag/v2.3.0",
              "published_at":"2026-09-28T10:00:00Z","draft":false,
              "assets":[{"name":"flow-arm64-v8a.apk","browser_download_url":"https://example.test/a","size":17613193,
                         "digest":"sha256:F900AB"}]}

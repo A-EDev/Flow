@@ -53,16 +53,7 @@ class DownloadTagReader
         private suspend fun retrieveEntries(uri: Uri): List<Metadata.Entry> =
             try {
                 MetadataRetriever.Builder(context, MediaItem.fromUri(uri)).build().use { retriever ->
-                    val groups = retriever.retrieveTrackGroups().await()
-                    buildList {
-                        for (groupIndex in 0 until groups.length) {
-                            val group = groups[groupIndex]
-                            for (trackIndex in 0 until group.length) {
-                                val metadata = group.getFormat(trackIndex).metadata ?: continue
-                                for (entryIndex in 0 until metadata.length()) add(metadata[entryIndex])
-                            }
-                        }
-                    }
+                    retriever.retrieveTrackGroups().await().metadataEntries()
                 }
             } catch (e: CancellationException) {
                 throw e

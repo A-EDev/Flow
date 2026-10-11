@@ -52,17 +52,21 @@ enum class ExportKind(
     }
 }
 
-/** Something Flow can import, and the file types the system picker should offer for it. */
+/**
+ * Something Flow can import, and the file types the system picker should offer for it. With
+ * [takesSeveralFiles], the picker lets the viewer choose several files that make up one import.
+ */
 enum class ImportKind(
     @StringRes val titleRes: Int,
     @StringRes val descriptionRes: Int,
     val mimeTypes: Array<String>,
+    val takesSeveralFiles: Boolean = false,
 ) {
     FLOW_BACKUP(R.string.import_flow_backup_item_title, R.string.import_flow_backup_desc, arrayOf(JSON)),
     MASTER(R.string.import_master_backup_title, R.string.import_master_backup_desc, arrayOf(ZIP, BINARY)),
     ENGINE(R.string.import_engine_data, R.string.import_engine_data_desc, arrayOf(JSON)),
     MUSIC_BRAIN(R.string.import_music_brain_title, R.string.import_music_brain_desc, arrayOf(JSON)),
-    TAKEOUT(R.string.import_yt_takeout_all, R.string.import_yt_takeout_all_desc, ZipTypes),
+    TAKEOUT(R.string.import_yt_takeout_all, R.string.import_yt_takeout_all_desc, ZipTypes, takesSeveralFiles = true),
     YOUTUBE_SUBSCRIPTIONS(R.string.import_from_youtube, R.string.import_from_youtube_desc, CsvTypes),
     YOUTUBE_HISTORY(R.string.import_yt_watch_history, R.string.import_yt_watch_history_desc, arrayOf("text/html", "text/plain", ANY)),
     YOUTUBE_LIKES(R.string.import_yt_likes, R.string.import_yt_likes_desc, arrayOf(JSON, ZIP, BINARY, ANY)),
@@ -84,13 +88,22 @@ enum class ImportKind(
 
     fun start(
         coordinator: BackupCoordinator,
+        uris: List<Uri>,
+    ): Boolean {
+        if (uris.isEmpty()) return false
+        if (this == TAKEOUT) return coordinator.importYouTubeTakeout(uris)
+        return start(coordinator, uris.first())
+    }
+
+    private fun start(
+        coordinator: BackupCoordinator,
         uri: Uri,
     ) = when (this) {
         FLOW_BACKUP -> coordinator.importFlowBackup(uri)
         MASTER -> coordinator.importMaster(uri)
         ENGINE -> coordinator.importEngine(uri)
         MUSIC_BRAIN -> coordinator.importMusicBrain(uri)
-        TAKEOUT -> coordinator.importYouTubeTakeout(uri)
+        TAKEOUT -> coordinator.importYouTubeTakeout(listOf(uri))
         YOUTUBE_SUBSCRIPTIONS -> coordinator.importYouTube(uri)
         YOUTUBE_HISTORY -> coordinator.importYouTubeWatchHistory(uri)
         YOUTUBE_LIKES -> coordinator.importYouTubeLikes(uri)

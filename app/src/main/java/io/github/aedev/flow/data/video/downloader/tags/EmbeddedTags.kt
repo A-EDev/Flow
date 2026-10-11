@@ -4,7 +4,6 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Metadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.container.MdtaMetadataEntry
-import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
@@ -52,7 +51,6 @@ class EmbeddedTags(
             val fields = linkedMapOf<String, String>()
             val frames = linkedMapOf<String, String>()
             var comment: String? = null
-            var cover: ByteArray? = null
             val vorbis = linkedMapOf<String, String>()
             var id3Lyrics: String? = null
             entries.forEach { entry ->
@@ -75,10 +73,6 @@ class EmbeddedTags(
                         if (comment == null) comment = entry.text
                     }
 
-                    is ApicFrame -> {
-                        if (cover == null) cover = entry.pictureData
-                    }
-
                     is VorbisComment -> {
                         vorbis.putIfAbsent(entry.key.uppercase(), entry.value)
                     }
@@ -96,7 +90,7 @@ class EmbeddedTags(
                 title = title,
                 artist = frames[FRAME_ARTIST] ?: flow?.displayArtist(),
                 album = frames[FRAME_ALBUM] ?: flow?.album,
-                cover = cover,
+                cover = entries.coverPicture(),
                 description = (flow?.description ?: vorbis[VORBIS_DESCRIPTION])?.takeIf(String::isNotBlank),
                 comment = (comment ?: vorbis[VORBIS_COMMENT])?.takeIf(String::isNotBlank),
                 lyrics =

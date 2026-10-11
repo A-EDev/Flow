@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -56,6 +57,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.player.MusicLoadErrorPolicy
 import io.github.aedev.flow.player.MusicMutePause
+import io.github.aedev.flow.player.MusicPlaybackDiagnostics
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
@@ -63,6 +65,7 @@ import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
+import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.factory.LoadControlFactory
@@ -590,6 +593,8 @@ class Media3MusicService : MediaLibraryService() {
 
         // The item that failed is not always the current one: a next-item preload can fail while
         // the previous track still plays. Only EventTime names the window that actually broke.
+        player.addAnalyticsListener(EventLogger("MusicPlayerEvents"))
+        player.addAnalyticsListener(MusicPlaybackDiagnostics(player, lifecycleScope))
         player.addAnalyticsListener(
             object : AnalyticsListener {
                 override fun onPlayerError(
@@ -772,6 +777,13 @@ class Media3MusicService : MediaLibraryService() {
 
         Log.e(TAG, "Playback error for $mediaId: ${error.errorCodeName} (code=${error.errorCode})", error)
         lastPlaybackErrorAtMap[mediaId] = System.currentTimeMillis()
+
+        if (MusicLoadErrorPolicy.isUnavailable(error)) {
+            Log.w(TAG, "$mediaId is unavailable on every client, skipping without retries")
+            PlayerDiagnostics.logWarning(TAG, "music $mediaId unavailable on every client, skipped")
+            handleFinalFailure(failed, getString(R.string.music_playback_warning_unavailable))
+            return
+        }
 
         if (recentlyFailedSongs.contains(mediaId)) {
             Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
@@ -1117,10 +1129,13 @@ class Media3MusicService : MediaLibraryService() {
             }
     }
 
-    private fun handleFinalFailure(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
+    private fun handleFinalFailure(
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
+        warning: String = getString(R.string.music_playback_warning_final),
+    ) {
         val mediaId = failed.mediaId
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
-        notifyMusicWarning(getString(R.string.music_playback_warning_final))
+        notifyMusicWarning(warning)
         retryCountMap.remove(mediaId)
         lastPlaybackErrorAtMap.remove(mediaId)
         if (recentlyFailedSongs.size >= FAILED_SONGS_CACHE_SIZE) {

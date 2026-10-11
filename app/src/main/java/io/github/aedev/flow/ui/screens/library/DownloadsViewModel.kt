@@ -1,9 +1,12 @@
 package io.github.aedev.flow.ui.screens.library
 
+import android.content.Context
+import android.content.IntentSender
 import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
@@ -15,13 +18,20 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.collection.DownloadedCollections
 import io.github.aedev.flow.data.video.downloader.work.DownloadController
+import io.github.aedev.flow.data.video.storage.deleteRequestFor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,6 +43,7 @@ import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 class DownloadsViewModel
     @Inject
     constructor(
+        @param:ApplicationContext private val context: Context,
         private val videoDownloadManager: VideoDownloadManager,
         private val recoveryScanner: DownloadRecoveryScanner,
         private val musicDownloadManager: MusicDownloadManager,
@@ -57,7 +68,7 @@ class DownloadsViewModel
             observeDownloads()
             downloadController.ensureQueueRunning()
             downloadController.scheduleRetagOnce()
-            if (!recoveryScanner.hasScannedThisSession) rescan()
+            scanIfMoreIsReadable()
         }
 
         fun setQuery(value: String) {
@@ -210,12 +221,31 @@ class DownloadsViewModel
             viewModelScope.launch { collections.remove(id, deleteFiles) }
         }
 
-        fun rescan() {
+        /** The system's delete prompt for files an earlier install owns, which Flow can't remove itself. */
+        val deleteConsent: Flow<IntentSender> =
+            videoDownloadManager.undeletable.mapNotNull { context.deleteRequestFor(it) }.flowOn(Dispatchers.IO)
+
+        /** How many earlier downloads a scan brought back; sent when there were some, or when the viewer asked. */
+        private val _recovered = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+        val recovered: SharedFlow<Int> = _recovered.asSharedFlow()
+
+        fun rescan() = scan(reportNone = false)
+
+        /** After media access is granted, which is when an earlier install's files become visible. */
+        fun findEarlierDownloads() = scan(reportNone = true)
+
+        /** On open and on return to the screen: the viewer may have granted access in system settings. */
+        fun scanIfMoreIsReadable() {
+            if (recoveryScanner.needsScan()) scan(reportNone = false)
+        }
+
+        private fun scan(reportNone: Boolean) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isScanning = true) }
-                recoveryScanner.scanAndRecoverDownloads()
+                val count = recoveryScanner.scanAndRecoverDownloads()
                 refreshTick.update { it + 1 }
                 _uiState.update { it.copy(isScanning = false) }
+                if (count > 0 || reportNone) _recovered.tryEmit(count)
             }
         }
 

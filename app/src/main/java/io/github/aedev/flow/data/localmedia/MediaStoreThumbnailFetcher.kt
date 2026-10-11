@@ -37,7 +37,7 @@ class MediaStoreThumbnailFetcher(
             options: Options,
             imageLoader: ImageLoader,
         ): Fetcher? {
-            if (data.scheme != "content" || data.authority != "media" || data.path?.contains("/audio/") != true) return null
+            if (data.scheme != "content" || data.authority != "media" || data.path?.contains(AUDIO_MEDIA_PATH) != true) return null
             return MediaStoreThumbnailFetcher(context.applicationContext, android.net.Uri.parse(data.toString()))
         }
     }

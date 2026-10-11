@@ -24,6 +24,7 @@ internal fun openGroundRect(
     width: Float,
     height: Float,
 ): Rect {
+    if (origin.coversWindow) return Rect(0f, 0f, width, height)
     val progress = 1f - fraction.coerceIn(0f, 1f)
     return Rect(
         left = lerpClamped(origin.left, 0f, progress),

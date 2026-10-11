@@ -9,13 +9,14 @@ import android.os.Build
 import android.util.Size
 
 private const val MEDIA_AUTHORITY = "media"
-private const val AUDIO_PATH = "/audio/"
+internal const val AUDIO_MEDIA_PATH = "/audio/media/"
 
 /**
  * Artwork for a file on the device. A song shows the cover embedded in its own file first: the
  * platform thumbnail for audio is its album's art, and MediaStore files untagged songs under their
  * folder's name as the album, so every such song in one artist's folder would show one picture
- * (#807). Otherwise the supported `ContentResolver.loadThumbnail` on Android 10 and later, and the
+ * (#807). The platform reader misses many Ogg and FLAC covers, so [LocalCovers] looks again
+ * (#1250). Otherwise the supported `ContentResolver.loadThumbnail` on Android 10 and later, and the
  * file's own embedded picture or a frame read by [MediaMetadataRetriever] before that.
  */
 object MediaStoreThumbnails {
@@ -27,7 +28,10 @@ object MediaStoreThumbnails {
         sizePx: Int,
     ): Bitmap? =
         runCatching {
-            if (isAudio(uri)) runCatching { embeddedCover(context, uri, sizePx) }.getOrNull()?.let { return@runCatching it }
+            if (isAudio(uri)) {
+                runCatching { embeddedCover(context, uri, sizePx) }.getOrNull()?.let { return@runCatching it }
+                LocalCovers.find(context, uri)?.let { decodeSampled(it, sizePx) }?.let { return@runCatching it }
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 context.contentResolver.loadThumbnail(uri, Size(sizePx, sizePx), null)
             } else {
@@ -35,7 +39,7 @@ object MediaStoreThumbnails {
             }
         }.getOrNull()
 
-    private fun isAudio(uri: Uri): Boolean = uri.path?.contains(AUDIO_PATH) == true
+    private fun isAudio(uri: Uri): Boolean = uri.path?.contains(AUDIO_MEDIA_PATH) == true
 
     private fun embeddedCover(
         context: Context,
@@ -50,6 +54,13 @@ object MediaStoreThumbnails {
             } finally {
                 retriever.release()
             } ?: return null
+        return decodeSampled(picture, sizePx)
+    }
+
+    private fun decodeSampled(
+        picture: ByteArray,
+        sizePx: Int,
+    ): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(picture, 0, picture.size, bounds)
         val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, sizePx) }

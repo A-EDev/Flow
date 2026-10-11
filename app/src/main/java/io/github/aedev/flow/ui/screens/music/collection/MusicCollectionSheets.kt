@@ -1,11 +1,14 @@
 package io.github.aedev.flow.ui.screens.music.collection
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +60,7 @@ internal fun CollectionSheets(
 
         is CollectionSheet.AddTo -> {
             val targets by viewModel.mergeTargets.collectAsStateWithLifecycle()
+            var creating by remember { mutableStateOf(false) }
             MergeIntoCollectionSheet(
                 targets =
                     remember(targets) {
@@ -71,9 +75,23 @@ internal fun CollectionSheets(
                     },
                 placeholder = Icons.Rounded.MusicNote,
                 itemCountLabel = { pluralStringResource(R.plurals.songs_count_template, it, it) },
+                createLabel = stringResource(R.string.create_new_playlist),
                 onSelect = { target -> targets.firstOrNull { it.id == target.id }?.let { viewModel.addTo(it, sheet.songs) } },
+                onCreateNew = { creating = true },
                 onDismiss = onDismiss,
             )
+            if (creating) {
+                CollectionEditDialog(
+                    title = stringResource(R.string.create_new_playlist),
+                    confirmLabel = stringResource(R.string.create),
+                    icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                    onDismiss = { creating = false },
+                    onConfirm = { name, description ->
+                        viewModel.createAndAdd(name, description, sheet.songs)
+                        onDismiss()
+                    },
+                )
+            }
         }
 
         CollectionSheet.Edit -> {

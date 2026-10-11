@@ -265,20 +265,17 @@ class PlaylistDetailViewModel
 
         fun mergeIntoPlaylist(targetPlaylistId: String) {
             viewModelScope.launch {
-                val videos = _uiState.value.videos
-                try {
-                    repository.addVideosToPlaylist(targetPlaylistId, videos)
-                    val targetInfo = repository.getPlaylistInfo(targetPlaylistId)
-                    _messages.send(
-                        PlaylistUiMessage(
-                            pluralRes = R.plurals.merge_playlist_success,
-                            count = videos.size,
-                            args = listOf(videos.size, targetInfo?.name ?: ""),
-                        ),
-                    )
-                } catch (_: Exception) {
-                    _messages.send(PlaylistUiMessage(stringRes = R.string.toast_failed_to_merge_playlist))
-                }
+                _messages.send(mergeVideosIntoPlaylist(repository, _uiState.value.videos, targetPlaylistId))
+            }
+        }
+
+        /** Makes a video playlist and copies every video here onto it. */
+        fun createAndMerge(
+            name: String,
+            description: String,
+        ) {
+            viewModelScope.launch {
+                _messages.send(createVideoPlaylistAndMerge(repository, _uiState.value.videos, name, description))
             }
         }
 

@@ -46,12 +46,12 @@ import io.github.aedev.flow.ui.screens.settings.index.AboutIndex
 
 private enum class AboutDialog { CHANGELOG, DEVICE }
 
-private const val WEBSITE_URL = "https://flow.aedev.me"
-private const val GITHUB_URL = "https://github.com/A-EDev/flow"
+private const val WEBSITE_URL = "https://flow-tube.org"
+private const val GITHUB_URL = "https://github.com/Flow-Tube/Flow"
 private const val REDDIT_URL = "https://www.reddit.com/r/Flow_Official/"
 private const val CREATOR_URL = "https://github.com/A-EDev"
 private const val NEWPIPE_URL = "https://github.com/TeamNewPipe/NewPipeExtractor"
-private const val LICENSE_URL = "https://github.com/A-EDev/Flow/blob/main/License"
+private const val LICENSE_URL = "https://github.com/Flow-Tube/Flow/blob/main/License"
 private const val CREATOR_AVATAR_URL = "https://github.com/A-EDev.png?size=144"
 
 private val LogoSize = 72.dp

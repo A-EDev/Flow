@@ -15,6 +15,7 @@ class AutoplayCountdownController(
     private val log: (String) -> Unit = {},
 ) {
     private var job: Job? = null
+    private var held = false
 
     private val _state = MutableStateFlow(AutoplayCountdownState())
     val state: StateFlow<AutoplayCountdownState> = _state.asStateFlow()
@@ -27,29 +28,34 @@ class AutoplayCountdownController(
         nextVideo: Video,
     ) {
         job?.cancel()
-        job =
-            scope.launch {
-                var remaining = totalSeconds
-                _state.value =
-                    AutoplayCountdownState(
-                        isActive = true,
-                        secondsRemaining = remaining,
-                        totalSeconds = totalSeconds,
-                        nextVideoTitle = nextVideo.title,
-                        nextVideoChannel = nextVideo.channelName,
-                        nextVideoThumbnailUrl = nextVideo.thumbnailUrl,
-                    )
-                log("autoplay countdown start ${totalSeconds}s next=${nextVideo.id}")
-                while (remaining > 0) {
-                    delay(1000L)
-                    remaining--
-                    _state.value = _state.value.copy(secondsRemaining = remaining)
-                }
-                _state.value = AutoplayCountdownState()
-                job = null
-                log("autoplay countdown elapsed -> advance")
-                onElapsed()
-            }
+        job = null
+        _state.value =
+            AutoplayCountdownState(
+                isActive = true,
+                secondsRemaining = totalSeconds,
+                totalSeconds = totalSeconds,
+                nextVideoTitle = nextVideo.title,
+                nextVideoChannel = nextVideo.channelName,
+                nextVideoThumbnailUrl = nextVideo.thumbnailUrl,
+            )
+        log("autoplay countdown start ${totalSeconds}s next=${nextVideo.id}")
+        if (!held) tick()
+    }
+
+    /**
+     * Freezes a running countdown without clearing it, so opening comments does not skip the next
+     * video and closing them continues from the remaining seconds. A countdown that starts while
+     * held waits until [setHold] is false.
+     */
+    fun setHold(hold: Boolean) {
+        if (held == hold) return
+        held = hold
+        if (hold) {
+            job?.cancel()
+            job = null
+        } else {
+            tick()
+        }
     }
 
     /**
@@ -66,5 +72,24 @@ class AutoplayCountdownController(
         job = null
         if (wasActive) _state.value = AutoplayCountdownState()
         return wasActive
+    }
+
+    private fun tick() {
+        val current = _state.value
+        if (!current.isActive || held) return
+        job?.cancel()
+        job =
+            scope.launch {
+                var remaining = current.secondsRemaining
+                while (remaining > 0) {
+                    delay(1000L)
+                    remaining--
+                    _state.value = _state.value.copy(secondsRemaining = remaining)
+                }
+                _state.value = AutoplayCountdownState()
+                job = null
+                log("autoplay countdown elapsed -> advance")
+                onElapsed()
+            }
     }
 }

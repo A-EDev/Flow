@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  *
  * The word lists below are ported from NewPipe Extractor's timeago patterns
  * (https://github.com/TeamNewPipe/NewPipeExtractor, package

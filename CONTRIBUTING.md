@@ -14,7 +14,7 @@ AI assistant, point it at `AGENTS.md`.
 
 ## ❓ Asking Questions About the Codebase
 
-**Use [GitHub Discussions](https://github.com/A-EDev/Flow/discussions) — that is the right place, and
+**Use [GitHub Discussions](https://github.com/Flow-Tube/Flow/discussions) — that is the right place, and
 questions are welcome.** The codebase is deliberately light on comments (see "Comments" below), so
 asking is expected rather than a sign you missed something.
 
@@ -59,7 +59,7 @@ git clone https://github.com/YOUR_USERNAME/Flow.git
 cd Flow
 
 # Add upstream remote
-git remote add upstream https://github.com/A-EDev/Flow.git
+git remote add upstream https://github.com/Flow-Tube/Flow.git
 
 # Create a feature branch
 git checkout -b feature/your-feature-name
@@ -610,7 +610,7 @@ a `v*` tag build when the keystore secret is missing rather than publishing them
 
 ## ❓ Questions?
 
-- Open a [discussion](https://github.com/A-EDev/Flow/discussions) — including questions about how the
+- Open a [discussion](https://github.com/Flow-Tube/Flow/discussions) — including questions about how the
   codebase works
 - Comment on existing issues
 - Reach out to maintainers

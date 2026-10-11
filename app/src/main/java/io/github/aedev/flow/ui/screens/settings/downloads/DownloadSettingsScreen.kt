@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.Settings
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderSpecial
@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -55,6 +56,7 @@ import io.github.aedev.flow.data.repository.MediaCacheType
 import io.github.aedev.flow.data.video.downloader.work.RetagStatus
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
+import io.github.aedev.flow.data.video.storage.StorageAccess
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
@@ -95,6 +97,8 @@ internal fun DownloadSettingsScreen(
     val musicQuality by viewModel.musicQuality.collectAsStateWithLifecycle()
     val retagStatus by viewModel.retagStatus.collectAsStateWithLifecycle()
     val retagValue = retagStatus?.let { retagLabel(it) }
+    val earlierDownloads by viewModel.earlierDownloads.collectAsStateWithLifecycle()
+    val earlierDownloadsValue = earlierDownloads?.let { earlierDownloadsLabel(it) }
     val codec by viewModel.codec.collectAsStateWithLifecycle()
     val menuStyle by viewModel.menuStyle.collectAsStateWithLifecycle()
     val threads by viewModel.threads.collectAsStateWithLifecycle()
@@ -196,6 +200,13 @@ internal fun DownloadSettingsScreen(
                 onClick = { onNavigate(SettingsTarget(SettingsDestination.LOCAL_MEDIA)) },
             )
             info(DownloadsIndex.retag, value = retagValue)
+            nav(
+                DownloadsIndex.findEarlier,
+                value = earlierDownloadsValue,
+                icon = Icons.AutoMirrored.Outlined.ManageSearch,
+                showChevron = false,
+                onClick = viewModel::findEarlierDownloads,
+            )
         }
         group(key = "downloads.performance", header = R.string.performance_header, footer = R.string.performance_optimization_note) {
             slider(
@@ -355,34 +366,6 @@ private fun StorageUsageRow(
     }
 }
 
-@Composable
-private fun LocationUi.label(): String =
-    if (notWritable) stringResource(R.string.download_location_not_writable, saveFolder) else saveFolder
-
-private fun autoDownloadLabel(mode: AutoDownloadMode): Int =
-    when (mode) {
-        AutoDownloadMode.OFF -> R.string.off
-        AutoDownloadMode.WIFI -> R.string.auto_download_wifi
-        AutoDownloadMode.ALWAYS -> R.string.auto_download_always
-    }
-
-private data class StorageAccess(
-    val allFiles: Boolean,
-    val video: Boolean,
-    val audio: Boolean,
-) {
-    companion object {
-        fun read(context: Context): StorageAccess {
-            val tiramisu = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-            return StorageAccess(
-                allFiles = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager(),
-                video = tiramisu && context.granted(Manifest.permission.READ_MEDIA_VIDEO),
-                audio = tiramisu && context.granted(Manifest.permission.READ_MEDIA_AUDIO),
-            )
-        }
-    }
-}
-
 private fun Context.granted(permission: String) = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
 private fun Context.openAllFilesAccess() {
@@ -390,11 +373,3 @@ private fun Context.openAllFilesAccess() {
     runCatching { startActivity(appPage) }
         .onFailure { runCatching { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) } }
 }
-
-@Composable
-private fun retagLabel(status: RetagStatus): String =
-    when (status) {
-        RetagStatus.Waiting -> stringResource(R.string.download_retag_waiting)
-        is RetagStatus.Running -> stringResource(R.string.download_retag_progress, status.done, status.total)
-        is RetagStatus.Finished -> stringResource(R.string.download_retag_result, status.result.tagged, status.result.skipped)
-    }

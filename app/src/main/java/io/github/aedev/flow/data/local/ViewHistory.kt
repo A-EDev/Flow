@@ -126,6 +126,11 @@ class ViewHistory private constructor(
         dao.markCompleted(videoId, durationMs)
     }
 
+    /** Clears playback progress for [videoId]. The history row stays; the card stops reading as watched. */
+    suspend fun clearProgress(videoId: String) {
+        dao.clearProgress(videoId)
+    }
+
     suspend fun getSavedPosition(videoId: String): Long = dao.getPosition(videoId) ?: 0L
 
     /**

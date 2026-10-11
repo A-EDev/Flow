@@ -164,10 +164,10 @@ class OnboardingViewModel
 
         fun startImport(
             kind: ImportKind,
-            uri: Uri,
+            uris: List<Uri>,
         ) {
             pendingSource = ImportSource.entries.firstOrNull { kind in it.kinds }
-            if (!kind.start(backup, uri)) pendingSource = null
+            if (!kind.start(backup, uris)) pendingSource = null
         }
 
         fun dismissImport() = backup.dismiss()

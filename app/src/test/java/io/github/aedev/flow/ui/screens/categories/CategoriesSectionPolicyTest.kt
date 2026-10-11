@@ -15,7 +15,6 @@ class CategoriesSectionPolicyTest {
                 ExploreDestination.LIVE,
                 ExploreDestination.GAMING,
                 ExploreDestination.MUSIC,
-                ExploreDestination.MOVIES,
                 ExploreDestination.NEWS,
                 ExploreDestination.SPORTS,
                 ExploreDestination.LEARNING,
@@ -29,7 +28,6 @@ class CategoriesSectionPolicyTest {
         assertThat(ExploreDestination.NEWS.kind).isEqualTo(ExploreSectionKind.SHELVES)
         assertThat(ExploreDestination.GAMING.kind).isEqualTo(ExploreSectionKind.GRID)
         assertThat(ExploreDestination.MUSIC.kind).isEqualTo(ExploreSectionKind.CHART)
-        assertThat(ExploreDestination.MOVIES.kind).isEqualTo(ExploreSectionKind.CHART)
     }
 
     @Test
@@ -40,22 +38,9 @@ class CategoriesSectionPolicyTest {
     }
 
     @Test
-    fun `the two charts differ only by chart type`() {
-        assertThat(ExploreDestination.MUSIC.chartType).isEqualTo("TRENDING_VIDEOS")
-        assertThat(ExploreDestination.MOVIES.chartType).isEqualTo("TRENDING_MOVIES")
-        assertThat(ExploreDestination.MUSIC.browseId).isEqualTo(ExploreDestination.MOVIES.browseId)
-    }
-
-    @Test
-    fun `a browse destination takes no chart country`() {
-        assertThat(ExploreDestination.LIVE.chartCountryFor("GB")).isNull()
-        assertThat(ExploreDestination.NEWS.chartCountryFor("ZZ")).isNull()
-    }
-
-    @Test
-    fun `a chart falls back when the region is one it does not serve`() {
-        assertThat(ExploreDestination.MUSIC.chartCountryFor("GB")).isEqualTo("GB")
-        assertThat(ExploreDestination.MUSIC.chartCountryFor("ZZ")).isEqualTo("US")
+    fun `music reads youtube music charts, not the rate limited analytics host`() {
+        assertThat(ExploreDestination.MUSIC.browseId).isEqualTo("FEmusic_charts")
+        assertThat(CATEGORY_TABS.map { it.destination.browseId }).doesNotContain("FEmusic_analytics_charts_home")
     }
 
     @Test

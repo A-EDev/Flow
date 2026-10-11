@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -106,6 +107,31 @@ internal fun LibraryShelf(
             ) {
                 content(cardWidth)
             }
+        }
+    }
+}
+
+/** A shelf with nothing in it yet that still opens its page, with [message] where the cards go. */
+@Composable
+internal fun LibraryEmptyShelf(
+    title: String,
+    icon: ImageVector,
+    message: String,
+    onTitleClick: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onTitleClick)) {
+        LibraryShelfHeader(title = title, icon = icon, showChevron = true, horizontalInset = 16.dp)
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 }

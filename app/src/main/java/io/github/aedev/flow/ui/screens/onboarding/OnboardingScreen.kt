@@ -73,12 +73,18 @@ fun OnboardingScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             val kind = pendingImport
             pendingImport = null
-            if (uri != null && kind != null) viewModel.startImport(kind, uri)
+            if (uri != null && kind != null) viewModel.startImport(kind, listOf(uri))
+        }
+    val multiImportPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            val kind = pendingImport
+            pendingImport = null
+            if (uris.isNotEmpty() && kind != null) viewModel.startImport(kind, uris)
         }
 
     fun pick(kind: ImportKind) {
         pendingImport = kind
-        importPicker.launch(kind.mimeTypes)
+        if (kind.takesSeveralFiles) multiImportPicker.launch(kind.mimeTypes) else importPicker.launch(kind.mimeTypes)
     }
 
     // The step the backdrop and hero last settled on; a new step morphs out of it.

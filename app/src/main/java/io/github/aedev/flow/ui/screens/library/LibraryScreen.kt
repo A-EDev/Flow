@@ -165,6 +165,15 @@ fun LibraryScreen(
             item(key = "settings-data", contentType = "navigation-section") {
                 Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
                     LibrarySectionHeader(stringResource(R.string.library_settings_data_header))
+                    // An empty library has no shelves, but downloads from an earlier install can still be found.
+                    if (shelfPreviewsEnabled && isLibraryEmpty) {
+                        LibraryNavigationRow(
+                            icon = LibrarySection.DOWNLOADS.icon,
+                            title = LibrarySection.DOWNLOADS.title,
+                            subtitle = stringResource(R.string.empty_downloads),
+                            onClick = onNavigateToDownloads,
+                        )
+                    }
                     LibrarySectionRow(
                         section = LibrarySection.LOCAL_MEDIA,
                         counts = null,
@@ -291,6 +300,7 @@ private fun LazyListScope.libraryShelves(
     }
 
     item(key = "downloads", contentType = "media-shelf") {
+        val activeDownloads by viewModel.activeDownloadCount.collectAsStateWithLifecycle()
         LibraryMediaShelfRoute(
             section = LibrarySection.DOWNLOADS,
             itemsFlow = viewModel.downloads,
@@ -299,6 +309,8 @@ private fun LazyListScope.libraryShelves(
             onMusicClick = onMusicClick,
             onDownloadedVideoClick = onDownloadedVideoClick,
             onDownloadedMusicClick = onDownloadedMusicClick,
+            emptyMessage =
+                stringResource(if ((activeDownloads ?: 0) > 0) R.string.downloads_section_in_progress else R.string.empty_downloads),
         )
     }
 

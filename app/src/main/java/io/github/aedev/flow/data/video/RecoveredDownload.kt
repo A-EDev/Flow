@@ -8,6 +8,8 @@ import io.github.aedev.flow.data.video.downloader.request.StoredArtist
 import io.github.aedev.flow.data.video.downloader.tags.DownloadKind
 import io.github.aedev.flow.data.video.downloader.tags.DownloadTags
 import io.github.aedev.flow.data.video.downloader.tags.displayArtist
+import io.github.aedev.flow.utils.YouTubeLink
+import io.github.aedev.flow.utils.parseYouTubeLink
 
 /** A media file met on disk, as the recovery scan measured it. */
 internal data class FoundFile(
@@ -23,8 +25,9 @@ internal data class FoundFile(
 
 /**
  * The rows a file found on disk is recorded with. A file Flow tagged comes back as the download it
- * was, under its real video id with its channel, album and counts; any other file gets an id made
- * from its path and whatever title and artist it carries. Pure, so it is unit tested.
+ * was, under its real video id with its channel, album and counts; a file whose comment names its
+ * video keeps that id; any other file gets an id made from its path and whatever title and artist
+ * it carries. Pure, so it is unit tested.
  */
 internal object RecoveredDownload {
     val VIDEO_EXTENSIONS = setOf("mp4", "webm", "mkv", "avi", "mov")
@@ -40,7 +43,23 @@ internal object RecoveredDownload {
     fun idFor(
         path: String,
         tags: DownloadTags?,
-    ): String = tags?.videoId?.takeIf { it.isNotBlank() } ?: "recovered_${path.hashCode().toLong() and 0xFFFFFFFFL}"
+        sourceUrl: String? = null,
+    ): String = knownIdFor(tags, sourceUrl) ?: "recovered_${path.hashCode().toLong() and 0xFFFFFFFFL}"
+
+    /**
+     * The video the file is a copy of: Flow's own tag, or else the watch URL in its comment, which
+     * yt-dlp writes by default and Flow wrote before it had tags of its own.
+     */
+    fun knownIdFor(
+        tags: DownloadTags?,
+        sourceUrl: String?,
+    ): String? =
+        tags?.videoId?.takeIf { it.isNotBlank() }
+            ?: when (val link = sourceUrl?.let(::parseYouTubeLink)) {
+                is YouTubeLink.Video -> link.id
+                is YouTubeLink.Short -> link.id
+                else -> null
+            }
 
     fun mimeTypeOf(extension: String): String =
         when (extension) {
@@ -62,8 +81,9 @@ internal object RecoveredDownload {
         title: String?,
         artist: String?,
         coverPath: String?,
+        sourceUrl: String? = null,
     ): Pair<DownloadEntity, DownloadItemEntity> {
-        val videoId = idFor(file.path, tags)
+        val videoId = idFor(file.path, tags, sourceUrl)
         val kind = tags?.kind ?: if (file.isVideo) DownloadKind.VIDEO else DownloadKind.MUSIC
         val download =
             DownloadEntity(

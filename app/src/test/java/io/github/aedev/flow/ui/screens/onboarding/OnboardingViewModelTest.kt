@@ -145,12 +145,12 @@ class OnboardingViewModelTest {
             val viewModel = viewModel()
             runCurrent()
 
-            viewModel.startImport(ImportKind.NEWPIPE_HISTORY, mockk())
+            viewModel.startImport(ImportKind.NEWPIPE_HISTORY, listOf(mockk()))
             operation.value = BackupOperation.Failed("no")
             runCurrent()
             assertThat(viewModel.state.value.importedSources).isEmpty()
 
-            viewModel.startImport(ImportKind.NEWPIPE_SUBSCRIPTIONS, mockk())
+            viewModel.startImport(ImportKind.NEWPIPE_SUBSCRIPTIONS, listOf(mockk()))
             operation.value = BackupOperation.Succeeded("ok")
             runCurrent()
             assertThat(viewModel.state.value.importedSources).containsExactly(ImportSource.NEWPIPE)

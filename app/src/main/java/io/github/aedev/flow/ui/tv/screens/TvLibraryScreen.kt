@@ -27,12 +27,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.playlist.PlaylistListOrder
+import io.github.aedev.flow.data.playlist.sortedFor
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
 import io.github.aedev.flow.ui.tv.components.TvMessageState
@@ -91,6 +94,8 @@ fun TvLibraryScreen(
     val musicPlaylists by playlistRepository
         .getMusicPlaylistsFlow()
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    val playerPreferences = remember { PlayerPreferences(context.applicationContext) }
+    val playlistOrder by playerPreferences.playlistListOrder.collectAsStateWithLifecycle(initialValue = PlaylistListOrder.NEWEST)
     var selectedSection by rememberSaveable { mutableStateOf(TvLibrarySection.HISTORY) }
     val dimens = LocalTvDimens.current
 
@@ -160,6 +165,7 @@ fun TvLibraryScreen(
                     TvLibraryPlaylists(
                         videoPlaylists =
                             videoPlaylists
+                                .sortedFor(playlistOrder)
                                 .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID }
                                 .map { info ->
                                     Playlist(
@@ -172,6 +178,7 @@ fun TvLibraryScreen(
                                 },
                         musicPlaylists =
                             musicPlaylists
+                                .sortedFor(playlistOrder)
                                 .filterNot { it.id == PlaylistRepository.WATCH_LATER_ID || it.id == PlaylistRepository.SAVED_SHORTS_ID },
                         onOpenPlaylist = onOpenPlaylist,
                         onOpenMusicCollection = onOpenMusicCollection,

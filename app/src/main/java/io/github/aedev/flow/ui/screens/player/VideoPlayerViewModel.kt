@@ -209,6 +209,8 @@ class VideoPlayerViewModel
 
         fun setLiveChatPanelVisible(visible: Boolean) = liveChat.setPanelVisible(visible)
 
+        fun setAutoplayHold(hold: Boolean) = playerManager.setAutoplayHold(hold)
+
         override fun onCleared() {
             super.onCleared()
             watchSessions.finalizeActiveSession()

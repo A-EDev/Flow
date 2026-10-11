@@ -238,11 +238,12 @@ class BackupCoordinator
         fun importLibreTubePlaylists(uri: Uri) =
             importCounted(R.string.import_label_libretube_playlists) { progress -> repository.importLibreTubePlaylists(uri, progress) }
 
-        fun importYouTubeTakeout(uri: Uri): Boolean {
+        /** Every archive of one export; Google splits large exports into several. */
+        fun importYouTubeTakeout(uris: List<Uri>): Boolean {
             val label = context.getString(R.string.import_label_youtube_takeout)
             return run(label) {
                 repository
-                    .importYouTubeTakeout(uri) { step, current, total -> progress("$label – $step", current, total) }
+                    .importYouTubeTakeout(uris) { step, current, total -> progress("$label – $step", current, total) }
                     .fold(
                         onSuccess = { summary ->
                             BackupOperation.Succeeded(summary.ifBlank { context.getString(R.string.import_success, label) })
