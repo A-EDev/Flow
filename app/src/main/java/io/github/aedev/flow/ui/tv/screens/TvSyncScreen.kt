@@ -86,7 +86,7 @@ fun TvSyncScreen(
                         TvSyncStep.CHOOSER -> {
                             TvSyncChooser(
                                 onSend = { step = TvSyncStep.SEND_SELECT },
-                                onReceive = { viewModel.hostForTv(SyncRole.RECEIVER, COLLECTION_KEYS) },
+                                onReceive = { viewModel.host(SyncRole.RECEIVER, COLLECTION_KEYS) },
                             )
                         }
 
@@ -96,7 +96,7 @@ fun TvSyncScreen(
                                 onToggle = { key ->
                                     selected = if (key in selected) selected - key else selected + key
                                 },
-                                onContinue = { viewModel.hostForTv(SyncRole.SENDER, selected.toList()) },
+                                onContinue = { viewModel.host(SyncRole.SENDER, selected.toList()) },
                             )
                         }
                     }

@@ -8,9 +8,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QrCodecTest {
-
     private val sid = SyncCrypto.randomSessionId()
     private val key = SyncCrypto.randomMasterKey()
+
+    /** A well-formed code without a lease, as older builds emit it. */
+    private fun codeJson(
+        ip: String = "192.168.1.4",
+        exp: Long = 9_999_999_999L,
+        extra: String = "",
+    ) = """{"v":1,"sid":"$VALID_SID","k":"$VALID_KEY","ip":"$ip","p":5000,"d":"x","exp":$exp$extra}"""
 
     @Test
     fun build_parse_roundtrip() {
@@ -23,7 +29,7 @@ class QrCodecTest {
         assertEquals("192.168.1.42", qr.ip)
         assertEquals(49210, qr.port)
         assertEquals("Flow Desktop (Windows)", qr.deviceName)
-        assertEquals("ws://192.168.1.42:49210/flow-sync", qr.wsUrl)
+        assertEquals(listOf("ws://192.168.1.42:49210/flow-sync"), qr.wsUrls)
     }
 
     @Test
@@ -37,34 +43,48 @@ class QrCodecTest {
     }
 
     @Test
-    fun expired_qr_is_rejected() {
+    fun every_host_code_is_session_bound_and_ignores_the_scanners_clock() {
         val text = QrCodec.build(sid, key, "10.0.0.5", 8080, "Pixel", 1_000L)
-        val result = QrCodec.parse(text, nowEpochSeconds = 2_000L)
-        assertEquals(QrCodec.QrError.EXPIRED, (result as QrCodec.Result.Err).error)
+
+        assertTrue(text.contains("\"lease\":\"host\""))
+        assertTrue(QrCodec.parse(text, nowEpochSeconds = 1_000_000L) is QrCodec.Result.Ok)
     }
 
     @Test
-    fun tv_session_bound_qr_does_not_depend_on_scanner_wall_clock() {
-        val text = QrCodec.build(
-            sid,
-            key,
-            "10.0.0.5",
-            8080,
-            "Flow TV",
-            1_000L,
-            sessionBound = true,
+    fun leaseless_code_expires_after_a_clock_skew_grace() {
+        val text = codeJson(exp = 1_000L)
+
+        assertTrue(QrCodec.parse(text, nowEpochSeconds = 1_599L) is QrCodec.Result.Ok)
+        assertEquals(QrCodec.QrError.EXPIRED, (QrCodec.parse(text, nowEpochSeconds = 1_600L) as QrCodec.Result.Err).error)
+    }
+
+    @Test
+    fun only_local_network_addresses_are_accepted() {
+        fun parse(ip: String) = QrCodec.parse(codeJson(ip = ip), nowEpochSeconds = 1L)
+        for (ok in listOf("192.168.1.4", "10.0.0.2", "172.20.1.1", "169.254.3.4", "100.101.1.1", "127.0.0.1", "fd12::1")) {
+            assertTrue("$ok should be accepted", parse(ok) is QrCodec.Result.Ok)
+        }
+        for (bad in listOf("8.8.8.8", "example.com", "192.168.1.4/evil", "attacker@192.168.1.4", "2001:db8::1", "999.1.1.1")) {
+            assertEquals("$bad should be refused", QrCodec.QrError.NOT_LOCAL, (parse(bad) as QrCodec.Result.Err).error)
+        }
+    }
+
+    @Test
+    fun fallback_addresses_are_dialled_after_the_primary() {
+        val text = codeJson(extra = ""","ips":["10.0.0.7","fd12::1","192.168.1.4"]""")
+        val qr = (QrCodec.parse(text, nowEpochSeconds = 1L) as QrCodec.Result.Ok).qr
+
+        assertEquals(
+            listOf("ws://192.168.1.4:5000/flow-sync", "ws://10.0.0.7:5000/flow-sync", "ws://[fd12::1]:5000/flow-sync"),
+            qr.wsUrls,
         )
-
-        val qr = (QrCodec.parse(text, nowEpochSeconds = 2_000L) as QrCodec.Result.Ok).qr
-
-        assertTrue(qr.isSessionBound)
     }
 
     @Test
-    fun regular_mobile_qr_does_not_include_session_bound_lease() {
-        val text = QrCodec.build(sid, key, "10.0.0.5", 8080, "Pixel", 2_000L)
+    fun a_public_fallback_address_poisons_the_code() {
+        val text = codeJson(extra = ""","ips":["8.8.8.8"]""")
 
-        assertTrue(!text.contains("\"lease\""))
+        assertEquals(QrCodec.QrError.NOT_LOCAL, (QrCodec.parse(text, nowEpochSeconds = 1L) as QrCodec.Result.Err).error)
     }
 
     @Test
@@ -90,8 +110,7 @@ class QrCodecTest {
     @Test
     fun role_defaults_to_sender_for_back_compat() {
         // A v1 QR with no "role" field must parse as the displayer being the SENDER.
-        val text = """{"v":1,"sid":"AAAAAAAAAAAAAAAAAAAAAA","k":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","ip":"1.2.3.4","p":1,"d":"x","exp":9999999999}"""
-        val qr = (QrCodec.parse(text, nowEpochSeconds = 1L) as QrCodec.Result.Ok).qr
+        val qr = (QrCodec.parse(codeJson(), nowEpochSeconds = 1L) as QrCodec.Result.Ok).qr
         assertEquals(QrCodec.ROLE_SENDER, qr.displayerRole)
         assertTrue(qr.displayerIsSender)
     }
@@ -103,5 +122,10 @@ class QrCodecTest {
         val qr = (QrCodec.parse(text, nowEpochSeconds = 1_000_000_000L) as QrCodec.Result.Ok).qr
         assertEquals(QrCodec.ROLE_RECEIVER, qr.displayerRole)
         assertTrue(!qr.displayerIsSender)
+    }
+
+    private companion object {
+        const val VALID_SID = "AAAAAAAAAAAAAAAAAAAAAA"
+        const val VALID_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     }
 }
