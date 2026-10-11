@@ -1152,7 +1152,6 @@
     <string name="import_libretube_playlists">Importar playlists do LibreTube</string>
     <string name="import_libretube_playlists_desc">Importe suas playlists locais do LibreTube a partir de um arquivo JSON de backup.</string>
     <string name="import_yt_takeout_all">Importar do Google Takeout</string>
-    <string name="import_yt_takeout_all_desc"></string>
     <string name="import_music_apps_section_title">Aplicativos de Música</string>
     <string name="import_music_apps_section_subtitle">Importe sua biblioteca de músicas de outros reprodutores</string>
     <string name="import_from_metrolist">Importar do Metrolist</string>
