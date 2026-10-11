@@ -1,0 +1,8 @@
+{
+  "_comment": "FLOW-SYNC/1 HKDF-SHA256 golden vector. Shared anti-drift gate: the Android repo must produce identical prk/k_h2c/k_c2h for these inputs. salt=session_id, IKM=master, info labels 'flow-sync/1 host->client' / 'flow-sync/1 client->host'.",
+  "master_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "session_id_hex": "202122232425262728292a2b2c2d2e2f",
+  "prk_hex": "d450ad2d19d4577b87beb00ff3d425283d08e6603f39b7d7c23481ee114f1b1e",
+  "k_h2c_hex": "3cbfb972316a2eb372a645a844ab5b817a9eca280227e8bcf069580e8d56a87c",
+  "k_c2h_hex": "8de56b114aea926f211c85aab926dd4e344332ddb6bac3870fa210fd926f10bf"
+}

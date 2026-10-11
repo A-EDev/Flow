@@ -1,0 +1,10 @@
+{
+  "_comment": "FLOW-SYNC/1 AES-256-GCM seal/open golden vector with a FIXED nonce (reproducibility only; production uses a random nonce per frame). AAD = ver(0x01) ∥ session_id(16) ∥ frame_type(1) ∥ seq(8 BE). wire = nonce(12) ∥ ciphertext ∥ tag(16). key_hex is the host->client directional key from hkdf.json.",
+  "key_hex": "3cbfb972316a2eb372a645a844ab5b817a9eca280227e8bcf069580e8d56a87c",
+  "session_id_hex": "202122232425262728292a2b2c2d2e2f",
+  "frame_type": 16,
+  "seq": 7,
+  "nonce_hex": "303132333435363738393a3b",
+  "plaintext_hex": "666c6f772d73796e6320676f6c64656e20766563746f72207061796c6f6164",
+  "wire_hex": "303132333435363738393a3b8de658ce0ddbfc32ee168445bd466d2c23ebb0b38cd567d7f9ed4238f9fc921c4b642a30846a00dcf5144815b662eb"
+}
