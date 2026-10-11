@@ -41,9 +41,9 @@ import io.github.aedev.flow.ui.tv.components.TvNavRow
 import io.github.aedev.flow.ui.tv.components.TvSectionHeader
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
 
-private const val FLOW_WEBSITE_URL = "https://flow.aedev.me"
-private const val FLOW_RELEASES_URL = "https://github.com/A-EDev/Flow/releases"
-private const val FLOW_GITHUB_URL = "https://github.com/A-EDev/Flow"
+private const val FLOW_WEBSITE_URL = "https://flow-tube.org"
+private const val FLOW_RELEASES_URL = "https://github.com/Flow-Tube/Flow/releases"
+private const val FLOW_GITHUB_URL = "https://github.com/Flow-Tube/Flow"
 private const val FLOW_REDDIT_URL = "https://www.reddit.com/r/Flow_Official/"
 private const val FLOW_CREATOR_URL = "https://github.com/A-EDev"
 private const val FLOW_DONATION_URL = "https://patreon.com/A_EDev"
@@ -181,11 +181,12 @@ private fun TvAboutIdentity() {
                     style = MaterialTheme.typography.headlineMedium,
                 )
                 Text(
-                    text = stringResource(
-                        R.string.v_version_template,
-                        BuildConfig.VERSION_NAME,
-                        BuildConfig.VERSION_CODE.toString(),
-                    ),
+                    text =
+                        stringResource(
+                            R.string.v_version_template,
+                            BuildConfig.VERSION_NAME,
+                            BuildConfig.VERSION_CODE.toString(),
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -203,13 +204,15 @@ private fun TvAboutSectionHeader(title: String) {
 }
 
 private fun Context.openUrl(url: String) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { startActivity(intent) }
 }
 
 private fun Context.openDeviceInfo() {
-    val intent = Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val intent =
+        Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { startActivity(intent) }
 }
