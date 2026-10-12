@@ -82,10 +82,24 @@ object FunctionNameExtractor {
      *
      * Neither the array's name nor its delimiter is stable — measured 2026-09-22, player `ecb23058`
      * used `var LJ=...split(";")` and `dac2d7b2` used `var jd=...split(";")`. Matching only `Q` and
-     * `}` (and, in NewPipe 0.26.5, only a *single-character* name) misses both.
+     * `}` (and, in NewPipe 0.26.5, only a *single-character* name) misses both. `5203c085` declares
+     * it inside a `var` list and single-quotes it: `,aX='push;...'.split(";")`.
      */
     private val STRING_ARRAY_PATTERN =
-        Regex("""var\s+([A-Za-z0-9_${'$'}]{1,6})\s*=\s*"[^"]{100,}"\s*\.\s*split\s*\(\s*"([;{}])"\s*\)""")
+        Regex(
+            """(?:var\s+|[,;]\s*)([A-Za-z0-9_${'$'}]{1,6})\s*=\s*(?:"[^"]{100,}"|'[^']{100,}')\s*\.\s*split\s*\(\s*["']([;{}])["']\s*\)""",
+        )
+
+    /**
+     * The decipher call where the player signs a stream URL, as `5203c085` writes it:
+     * `.sp,T=rb(6,3439,mi(24,1406,H.s))`. One many-purpose function picks its behaviour from two
+     * leading constants, and the inner call (`decodeURIComponent`, picked the same way) prepares
+     * the signature. Matched by shape, so it outlives any one player hash.
+     */
+    private val SIG_CALL_SITE_PATTERN =
+        Regex(
+            """\.sp\s*,\s*[A-Za-z0-9_${'$'}]+\s*=\s*([A-Za-z0-9_${'$'}]+)\(\s*(\d+)\s*,\s*(\d+)\s*,\s*([A-Za-z0-9_${'$'}]+)\(\s*(\d+)\s*,\s*(\d+)\s*,\s*[A-Za-z0-9_${'$'}]+\.s\s*\)\s*\)""",
+        )
 
     private val PLAYER_HASH_PATTERNS =
         listOf(
@@ -203,6 +217,18 @@ object FunctionNameExtractor {
     ): SigFunctionInfo? {
         Log.d(TAG, "========== EXTRACTING SIG FUNCTION ==========")
         Log.d(TAG, "Player.js size: ${playerJs.length} chars")
+
+        SIG_CALL_SITE_PATTERN.find(playerJs)?.let { match ->
+            val (name, a, b, preprocess, c, d) = match.destructured
+            Log.d(TAG, "SIG FUNCTION FOUND at the call site: $name($a, $b, $preprocess($c, $d, sig))")
+            return SigFunctionInfo(
+                name = name,
+                constantArg = a.toInt(),
+                constantArgs = listOf(a.toInt(), b.toInt()),
+                preprocessFunc = preprocess,
+                preprocessArgs = listOf(c.toInt(), d.toInt()),
+            )
+        }
 
         for ((index, pattern) in SIG_FUNCTION_PATTERNS.withIndex()) {
             Log.v(TAG, "Trying sig pattern $index: ${pattern.pattern.take(60)}...")
