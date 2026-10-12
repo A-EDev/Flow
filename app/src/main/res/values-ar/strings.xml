@@ -1450,7 +1450,7 @@
     <string name="content_settings_subs_show_live_subtitle">إظهار البثوث المباشرة والحديثة في الخلاصة</string>
     <string name="history_tab_videos">الفيديوهات</string>
     <string name="history_tab_shorts">الشورتز</string>
-    <string name="hide_channel_shorts">إخفاء الفيديوهات القصيرة من هذه القناة</string>
+    <string name="hide_channel_shorts">إخفاء المقاطع القصيرة من هذه القناة</string>
     <string name="show_channel_shorts">أظهر الفيديوهات القصيرة للقناة</string>
     <string name="proxy_settings_description">توجيه حركة المرور البعيدة عبر وكيل HTTP أو SOCKS5. يظل الاتصال بأجهزة البث والأجهزة المحلية مباشرًا.</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">التمرير التلقائي بعد وقت محدد</string>
@@ -1673,7 +1673,7 @@
     <string name="player_settings_ambient_mode">وضع Ambient</string>
     <string name="player_settings_ambient_mode_subtitle">توهج خفيف بألوان الفيديو من حوله</string>
     <string name="player_appearance_shorts_ui_title">واجهة مشغل Shorts</string>
-    <string name="player_appearance_shorts_ui_subtitle">إختر مقدار الجزء المرئي من طبقة الـ Shorts</string>
+    <string name="player_appearance_shorts_ui_subtitle">إختر مقدار الجزء المرئي من طبقة الشورتز</string>
     <string name="shorts_player_ui_default">إفتراضي</string>
     <string name="shorts_player_ui_simple">بسيط</string>
     <string name="shorts_player_ui_impressive">مُبهر</string>
