@@ -517,9 +517,10 @@ object InnerTubeVideoStreamExtractor {
                         continue
                     }
 
-                    primeRemoteNsigIfNeeded(videoId, adaptiveFormats)
+                    val deciphered = adaptiveFormats.decipherWhilePossible(videoId)
+                    primeRemoteNsigIfNeeded(videoId, deciphered)
 
-                    val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId, allowUntransformedN) }
+                    val formatsWithUrl = deciphered.mapNotNull { it.withPlayableUrl(videoId, allowUntransformedN) }
                     // Capability probe : logs, per client,
                     // how many adaptive formats carried a direct URL vs how many resolved to a playable
                     // stream, plus whether the response is SABR-capable. Makes "why was this client skipped"
@@ -896,67 +897,56 @@ object InnerTubeVideoStreamExtractor {
         return "yes(${challenge.length}c$shared)"
     }
 
-    private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
-        videoId: String,
-        allowUntransformedN: Boolean,
-    ): PlayerResponse.StreamingData.Format? = withCipherResolvedUrl(videoId)?.withPlayableUrl(videoId, allowUntransformedN)
-
     /**
-     * Deciphers a whole ladder, and stops trying once one signature fails.
-     *
-     * Whether a `signatureCipher` can be resolved is a property of the player script, not of the
-     * format, so the first failure settles it for all of them. Measured 2026-09-22: without this,
-     * a player script whose signature function the patterns cannot find sent every one of ~30
-     * formats through a failing WebView round trip and blew the whole extraction budget.
+     * Gives every format of a ladder a real `url`, solving its `signatureCipher` first. Done for the
+     * whole ladder before any of it is n-transformed, because [primeRemoteNsigIfNeeded] can only
+     * sample formats that already have a URL. Formats that cannot be solved are dropped.
      */
     private suspend fun List<PlayerResponse.StreamingData.Format>.decipherWhilePossible(
         videoId: String,
     ): List<PlayerResponse.StreamingData.Format> {
-        var cipherUsable = true
+        val ciphers =
+            filter { it.url.isNullOrEmpty() }
+                .mapNotNull { format -> SignatureCipher.parse(format.signatureCipher ?: format.cipher)?.let { format to it } }
+                .toMap()
+        val solved = if (ciphers.isEmpty()) emptyMap() else solveSignatures(videoId, ciphers.values.map { it.signature })
         return mapNotNull { format ->
             when {
-                !format.url.isNullOrEmpty() -> {
-                    format
-                }
-
-                !cipherUsable -> {
-                    null
-                }
-
-                else -> {
-                    format.withCipherResolvedUrl(videoId).also {
-                        if (it == null) {
-                            cipherUsable = false
-                            Log.w(TAG, "Signature deciphering unavailable for $videoId — skipping the remaining ciphered formats")
-                        }
-                    }
-                }
+                !format.url.isNullOrEmpty() -> format
+                else -> ciphers[format]?.let { cipher -> solved[cipher.signature]?.let { format.copy(url = cipher.signedUrl(it)) } }
             }
         }
     }
 
     /**
-     * The format with a real `url`, deciphered if it only carried a `signatureCipher`, and with the
-     * `n` parameter still untransformed.
+     * The player script's own signature function first, then one remote batch for whatever it
+     * left. Whether the local function works is a property of the script, not of the format, so
+     * the first local failure sends the rest remote instead of retrying each (measured 2026-09-22:
+     * ~30 failing WebView round trips blew the extraction budget).
      *
-     * Split out of [toPlayableFormat] so a whole ladder can be deciphered before any of it is
-     * n-transformed: [primeRemoteNsigIfNeeded] can only sample formats that already have a URL, and
-     * on a SABR response almost none of them do until this has run. Priming first collapses what
-     * would otherwise be one remote round trip per format into one for the batch.
+     * The remote decoder is asked for the local script's hash: a signature only matches the
+     * timestamp the `/player` request carried, which is the local script's.
      */
-    private suspend fun PlayerResponse.StreamingData.Format.withCipherResolvedUrl(videoId: String): PlayerResponse.StreamingData.Format? {
-        if (!url.isNullOrEmpty()) return this
-        if (signatureCipher.isNullOrEmpty() && cipher.isNullOrEmpty()) return null
-        val resolved =
-            try {
-                NewPipeExtractor.getStreamUrl(this, videoId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
-                null
-            }
-        return resolved?.takeIf { it.isNotEmpty() }?.let { copy(url = it) }
+    private suspend fun solveSignatures(
+        videoId: String,
+        signatures: List<String>,
+    ): Map<String, String> {
+        val wanted = signatures.distinct()
+        val solved = mutableMapOf<String, String>()
+        for (signature in wanted) {
+            solved[signature] = CipherDeobfuscator.deobfuscateSignature(signature) ?: break
+        }
+        val missing = wanted.filterNot { it in solved }
+        if (missing.isEmpty()) return solved
+        val playerHash = CipherDeobfuscator.playerHash()
+        if (playerHash == null) {
+            Log.w(TAG, "Signature deciphering unavailable for $videoId — no player script")
+            return solved
+        }
+        Log.w(TAG, "Local signature function unavailable for $videoId; solving ${missing.size} remotely for $playerHash")
+        PlayerDiagnostics.logWarning(TAG, "local signature FAILED for $videoId — remote decoder for player $playerHash")
+        solved += PipePipeNsigDecoder.decodeSignatures(missing, playerId = playerHash)
+        return solved
     }
 
     /**
