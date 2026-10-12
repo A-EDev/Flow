@@ -257,6 +257,8 @@ FIXES AND STABILITY
 - Fix fullscreen transitions jumping: pulling the page down slides the video to the centre instead of growing its box, leaving fullscreen continues from where your finger let go, the landscape switch waits for the rotation, and the seek bar no longer jumps to the bottom edge (#1065)
 - A short swipe on the video no longer collapses the player or enters fullscreen by accident, and the player moves at the screen's full refresh rate while a video plays (#1065)
 - Fix songs removed from YouTube sitting on the loading spinner for minutes: they are now skipped right away with a message, and finding a song's stream now gives up after 30 seconds instead of waiting indefinitely
+- Fix label and kids videos (Disney, VEVO, CoComelon) failing to load after another such video passed its first minute: when the web clients have nothing, the player now goes straight to the TV client that serves them (#1292)
+- Fix videos only the web player serves being treated as removed from YouTube, which made playlists and autoplay skip them without a word
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
