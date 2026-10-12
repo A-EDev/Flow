@@ -2697,4 +2697,15 @@
     <string name="desc_see_less">Ver menos</string>
     <string name="start_radio">Iniciar radio</string>
     <string name="start_radio_desc">Reproducir una estación de radio basada en esta canción</string>
+    <string name="mark_as_unwatched">Marcar como no visto</string>
+    <string name="mark_as_unwatched_toast">Marcado como no visto</string>
+    <string name="channel_name_copied">Nombre del canal copiado al portapapeles</string>
+    <string name="copy_channel_name">Copiar nombre del canal</string>
+    <string name="channel_name_clip_label">Nombre del canal</string>
+    <string name="transcript">Transcribir</string>
+    <string name="transcript_show">Mostrar transcripción</string>
+    <string name="transcript_unavailable">No hay transcripción disponible para este vídeo</string>
+    <string name="transcript_search_hint">Buscar transcripción</string>
+    <string name="transcript_language">Idioma</string>
+    <string name="channel_links">Enlaces</string>
 </resources>
