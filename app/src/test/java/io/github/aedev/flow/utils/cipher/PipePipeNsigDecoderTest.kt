@@ -52,6 +52,13 @@ class PipePipeNsigDecoderTest {
     }
 
     @Test
+    fun `signatures are solved for the player the request names, in one batch`() {
+        val url = PipePipeNsigDecoder.signatureRequestUrl("5203c085", listOf("AOq0=", "BPr1/x"))
+
+        assertThat(url).isEqualTo("https://api.pipepipe.dev/decoder/decode?player=5203c085&sig=AOq0%3D,BPr1%2Fx")
+    }
+
+    @Test
     fun `a round trip through read and replace is stable`() {
         val replaced = PipePipeNsigDecoder.replaceNParam(streamUrl, "NEWVALUE")
 

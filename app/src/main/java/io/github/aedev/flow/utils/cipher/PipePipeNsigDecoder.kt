@@ -300,16 +300,23 @@ object PipePipeNsigDecoder {
         return cachedSignatureTimestamp
     }
 
-    /** Solves every distinct signature in [signatures] in one request; unsolved ones are absent. */
-    suspend fun decodeSignatures(signatures: Collection<String>): Map<String, String> {
-        val pid = ensurePlayerId() ?: return emptyMap()
+    /**
+     * Solves every distinct signature in [signatures] in one request; unsolved ones are absent.
+     *
+     * @param playerId the player the signatures were issued for. Defaults to the decoder's latest,
+     *   which is only right for a request that sent [signatureTimestamp].
+     */
+    suspend fun decodeSignatures(
+        signatures: Collection<String>,
+        playerId: String? = null,
+    ): Map<String, String> {
+        val pid = playerId ?: ensurePlayerId() ?: return emptyMap()
         val wanted = signatures.distinct()
         val missing = wanted.filter { sigCache["$pid:$it"] == null }
         if (missing.isNotEmpty()) {
             withContext(Dispatchers.IO) {
                 try {
-                    val joined = missing.joinToString(",") { URLEncoder.encode(it, "UTF-8") }
-                    val data = parseData(get("$DECODE_URL?player=$pid&sig=$joined")) ?: return@withContext
+                    val data = parseData(get(signatureRequestUrl(pid, missing))) ?: return@withContext
                     for (signature in missing) {
                         data.optString(signature).takeIf { it.isNotEmpty() }?.let { sigCache["$pid:$signature"] = it }
                     }
@@ -322,6 +329,11 @@ object PipePipeNsigDecoder {
         }
         return wanted.mapNotNull { signature -> sigCache["$pid:$signature"]?.let { signature to it } }.toMap()
     }
+
+    internal fun signatureRequestUrl(
+        playerId: String,
+        signatures: Collection<String>,
+    ): String = "$DECODE_URL?player=$playerId&sig=" + signatures.joinToString(",") { URLEncoder.encode(it, "UTF-8") }
 
     suspend fun deobfuscateUrl(url: String): String? {
         val n = rawN(url) ?: return null
