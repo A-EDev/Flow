@@ -323,10 +323,14 @@ internal object Issue907Scenarios {
         val topics: Int,
         val interactions: Int,
         val saves: Int,
+        val oldFilesRead: Boolean,
     )
 
-    /** The saved brain after a reset with no blocks reads as empty; storage then offers an old brain file. */
-    fun restartAfterReset(): Restart =
+    /**
+     * Startup when the saved brain reads as empty and an older brain file is still on disk: after a
+     * reset ([savedBrainExists]) or on the first start after an upgrade from an older format.
+     */
+    fun restartWithOldBrainFile(savedBrainExists: Boolean): Restart =
         runBlocking {
             val old =
                 UserBrain(
@@ -335,10 +339,15 @@ internal object Issue907Scenarios {
                     globalVector = ContentVector(topics = (1..50).associate { "old topic $it" to 0.05 + it / 100.0 }),
                 )
             var saves = 0
+            var oldFilesRead = false
             val storage: NeuroStorage =
                 mockk(relaxed = true) {
                     coEvery { load() } returns null
-                    coEvery { migrateLegacy() } returns old
+                    coEvery { hasSavedBrain() } returns savedBrainExists
+                    coEvery { migrateLegacy() } answers {
+                        oldFilesRead = true
+                        old
+                    }
                     coEvery { save(any()) } answers { saves++ }
                 }
             val contentStore: NeuroContentStore = mockk(relaxed = true)
@@ -346,7 +355,15 @@ internal object Issue907Scenarios {
             engine.initialize()
             val held = engine.getBrainSnapshot()
             engine.shutdown()
-            Restart(held.globalVector.topics.size, held.totalInteractions, saves)
+            Restart(held.globalVector.topics.size, held.totalInteractions, saves, oldFilesRead)
+        }
+
+    /** What Home searches with on a brand-new brain, and whether those searches count as learned. */
+    fun starterSearches(): Pair<List<String>, Int> =
+        runBlocking {
+            val engine = NeuroLearningBenchmark.engine()
+            val queries = engine.generateDiscoveryQueries(resetDepth = true)
+            (queries to engine.getBrainSnapshot().recentQueryTokens.size).also { engine.shutdown() }
         }
 
     // ── Problem 9: onboarding picks as interest groups and chips ──

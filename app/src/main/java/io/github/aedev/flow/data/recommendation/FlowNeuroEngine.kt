@@ -425,21 +425,15 @@ class FlowNeuroEngine internal constructor(
             val loaded = storage.load()
             if (loaded != null) {
                 currentUserBrain = loaded
-            } else {
-                val legacy = storage.migrateLegacy()
-                if (legacy != null) {
-                    currentUserBrain = legacy
-                    Log.i(TAG, "Migrated legacy brain to DataStore")
-                } else {
-                    val previous = storage.tryMigrateFromPreviousDataStore()
-                    if (previous != null) {
-                        currentUserBrain = previous
-                        Log.i(TAG, "Migrated previous DataStore brain")
-                    }
+            } else if (!storage.hasSavedBrain()) {
+                // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
+                storage.migrateLegacy()?.let { migrated ->
+                    currentUserBrain = migrated
+                    Log.i(TAG, "Migrated an earlier brain")
                 }
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
-                storage.deleteLegacyFile()
             }
+            storage.deleteOldBrainFiles()
 
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
@@ -604,6 +598,7 @@ class FlowNeuroEngine internal constructor(
             watchHistory.clear()
             resetSessionInternal()
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
+            storage.deleteOldBrainFiles()
             contentStore.clear()
         }
     }
@@ -1394,7 +1389,7 @@ class FlowNeuroEngine internal constructor(
                         if (preferred.isNotEmpty()) {
                             preferred.shuffled().take(5)
                         } else {
-                            listOf("Music", "Science", "Technology", "Education", "Nature")
+                            NeuroDiscovery.STARTER_QUERIES
                         }
                     }
 
@@ -1421,11 +1416,14 @@ class FlowNeuroEngine internal constructor(
                     }
                 }
 
-                // ── Track used queries for future rotation ──
-                val newQueryTokens = candidates.map { tokenizer.tokenize(it).toSet() }
+                // ── Track used queries for future rotation; fallback searches were never learned ──
                 val updatedRecentTokens =
-                    (brain.recentQueryTokens + newQueryTokens)
-                        .takeLast(NeuroScoring.RECENT_QUERY_TOKENS_MAX)
+                    if (discoveryQueries.isEmpty()) {
+                        brain.recentQueryTokens
+                    } else {
+                        (brain.recentQueryTokens + candidates.map { tokenizer.tokenize(it).toSet() })
+                            .takeLast(NeuroScoring.RECENT_QUERY_TOKENS_MAX)
+                    }
 
                 // ── Advance cluster rotation for the interest clusters actually served ──
                 val candidateSet = candidates.toHashSet()

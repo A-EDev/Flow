@@ -36,8 +36,10 @@ internal class NeuroDiscovery(
     private val topicCategories: List<TopicCategory>,
     private val tokenizer: NeuroTokenizer,
 ) {
-    private companion object {
-        const val SPECIFIC_QUERY_MAX_WORDS = 4
+    companion object {
+        /** What Home searches before anything is learned or picked; never recorded as learned (#907). */
+        val STARTER_QUERIES = listOf("Music", "Science", "Technology", "Education", "Nature")
+        private const val SPECIFIC_QUERY_MAX_WORDS = 4
     }
 
     // ═══════════════════════════════════════════════

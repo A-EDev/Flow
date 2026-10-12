@@ -19,6 +19,7 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
+import androidx.datastore.dataStoreFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -40,6 +41,8 @@ internal class NeuroStorage(
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
+        private const val BRAIN_DATASTORE_FILE = "flow_neuro_brain_v10.json"
+        private val PREVIOUS_DATASTORE_FILES = listOf("v9", "v8", "v7").map { "flow_neuro_brain_$it.json" }
         private const val SCHEMA_VERSION = 17
     }
 
@@ -170,7 +173,7 @@ internal class NeuroStorage(
 
     private val Context.brainDataStore: DataStore<SerializableBrain>
         by dataStore(
-            fileName = "flow_neuro_brain_v10.json",
+            fileName = BRAIN_DATASTORE_FILE,
             serializer = BrainSerializer,
         )
 
@@ -418,13 +421,19 @@ internal class NeuroStorage(
             tryMigrateFromPreviousDataStore()
         }
 
-    fun deleteLegacyFile() {
-        val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
-        if (legacyFile.exists()) {
-            legacyFile.delete()
-            Log.i(TAG, "Migrated legacy brain to DataStore")
+    /** True once any brain, even an empty one after a reset, has been saved in the current format. */
+    suspend fun hasSavedBrain(): Boolean = withContext(Dispatchers.IO) { appContext.dataStoreFile(BRAIN_DATASTORE_FILE).exists() }
+
+    /** Removes the brain files of earlier formats once a current one is saved, so nothing can bring an old brain back. */
+    suspend fun deleteOldBrainFiles() =
+        withContext(Dispatchers.IO) {
+            if (!appContext.dataStoreFile(BRAIN_DATASTORE_FILE).exists()) return@withContext
+            (listOf(File(appContext.filesDir, BRAIN_FILENAME)) + PREVIOUS_DATASTORE_FILES.map(appContext::dataStoreFile))
+                .filter { it.exists() }
+                .forEach { file ->
+                    if (file.delete()) Log.i(TAG, "Deleted old brain file ${file.name}")
+                }
         }
-    }
 
     fun migrateLegacyBackup(
         rawJson: String,
@@ -577,18 +586,13 @@ internal class NeuroStorage(
         }
     }
 
-    suspend fun tryMigrateFromPreviousDataStore(): UserBrain? {
-        val versions = listOf("v9", "v8", "v7")
-        for (version in versions) {
+    private suspend fun tryMigrateFromPreviousDataStore(): UserBrain? {
+        for (fileName in PREVIOUS_DATASTORE_FILES) {
             try {
-                val file =
-                    File(
-                        appContext.filesDir,
-                        "datastore/flow_neuro_brain_$version.json",
-                    )
+                val file = appContext.dataStoreFile(fileName)
                 if (!file.exists()) continue
 
-                Log.i(TAG, "Found $version DataStore, migrating to V9...")
+                Log.i(TAG, "Found $fileName, migrating...")
                 val text = file.readText()
                 if (text.isBlank()) continue
 
@@ -603,13 +607,13 @@ internal class NeuroStorage(
                     val brain = data.toUserBrain()
                     Log.i(
                         TAG,
-                        "Migrated $version brain " +
+                        "Migrated $fileName " +
                             "(${data.interactions} interactions)",
                     )
                     return brain
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "$version migration failed", e)
+                Log.e(TAG, "$fileName migration failed", e)
             }
         }
         return null

@@ -7,6 +7,7 @@
 package io.github.aedev.flow.data.recommendation.eval
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.recommendation.NeuroDiscovery
 import org.junit.AfterClass
 import org.junit.Test
 import java.io.File
@@ -81,11 +82,21 @@ class Issue907ScenariosTest {
 
     @Test
     fun `problem 8 - restart after a reset`() {
-        val r = Issue907Scenarios.restartAfterReset()
-        log("P8 restart after reset: ${r.topics} topics, ${r.interactions} interactions, ${r.saves} save")
-        // Today: an empty reset brain reads as missing, so startup loads and saves the old brain file.
-        assertThat(r.topics).isEqualTo(50)
-        assertThat(r.saves).isAtLeast(1)
+        val afterReset = Issue907Scenarios.restartWithOldBrainFile(savedBrainExists = true)
+        val afterUpgrade = Issue907Scenarios.restartWithOldBrainFile(savedBrainExists = false)
+        val (starters, recorded) = Issue907Scenarios.starterSearches()
+        log(
+            "P8 restart after reset: ${afterReset.topics} topics, old files read ${afterReset.oldFilesRead}" +
+                " | first start after an upgrade: ${afterUpgrade.topics} topics | starter searches $starters, recorded $recorded",
+        )
+        // A reset brain stays empty; only a first start in the current format migrates an older brain.
+        assertThat(afterReset.topics).isEqualTo(0)
+        assertThat(afterReset.oldFilesRead).isFalse()
+        assertThat(afterUpgrade.topics).isEqualTo(50)
+        assertThat(afterUpgrade.saves).isAtLeast(1)
+        // The starter searches are used, but never stored as if they had been learned.
+        assertThat(starters).containsExactlyElementsIn(NeuroDiscovery.STARTER_QUERIES)
+        assertThat(recorded).isEqualTo(0)
     }
 
     @Test
