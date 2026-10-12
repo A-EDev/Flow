@@ -268,3 +268,4 @@ BUILD AND CI
 - Add learning benchmarks that drive the real recommendation engine through a Shorts binge, rejections and phrase learning, with regression floors
 - Search, channel and player parsing are now covered by tests against real captured API responses
 - Limit concurrent Kotlin compilations so CI stops running out of memory
+- Add #907 scenario tests that measure off-topic drift, junk interests, recency and reset behaviour on the real recommendation engine, and a Home benchmark through the real ranker
