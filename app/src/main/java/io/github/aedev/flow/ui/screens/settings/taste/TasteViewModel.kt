@@ -183,22 +183,13 @@ class TasteViewModel
             val brain = FlowNeuroEngine.getSavedBrainSnapshot()
             val names = channelNames()
             val profile = runCatching { musicBrain.tasteProfile() }.getOrNull()
-            val strongest =
-                brain.globalVector.topics.values
-                    .maxOrNull()
-                    ?.takeIf { it > 0.0 } ?: 1.0
             return TasteState(
                 loading = false,
                 persona = FlowNeuroEngine.getPersona(brain),
                 maturity = (brain.totalInteractions / MATURE_INTERACTIONS).coerceIn(0f, 1f),
                 profile = brain.globalVector.traits(),
                 now = (brain.timeVectors[TimeBucket.current()] ?: ContentVector()).traits(),
-                topics =
-                    brain.globalVector.topics.entries
-                        .filter { it.value > 0.0 && it.key !in brain.blockedTopics }
-                        .sortedByDescending { it.value }
-                        .take(TOPIC_COUNT)
-                        .map { TasteTopic(it.key, (it.value / strongest).toFloat(), it.key in brain.preferredTopics) },
+                topics = tasteTopics(brain, TOPIC_COUNT),
                 channels =
                     brain.channelScores.entries
                         .filter { it.key !in brain.blockedChannels }
