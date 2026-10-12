@@ -123,7 +123,8 @@ class FlowNeuroEngine internal constructor(
         suspend fun rank(
             candidates: List<Video>,
             userSubs: Set<String>,
-        ): List<Video> = requireInstance().rank(candidates, userSubs)
+            minRelevance: Double = 0.0,
+        ): List<Video> = requireInstance().rank(candidates, userSubs, minRelevance)
 
         suspend fun recordFeedImpressions(ids: List<String>) = requireInstance().recordFeedImpressions(ids)
 
@@ -1761,9 +1762,11 @@ class FlowNeuroEngine internal constructor(
     // MAIN RANKING FUNCTION
     // =================================================
 
+    /** [minRelevance] above 0 drops candidates that share less topic overlap with the viewer (see [NeuroScoring.keepRelevant]). */
     suspend fun rank(
         candidates: List<Video>,
         userSubs: Set<String>,
+        minRelevance: Double = 0.0,
     ): List<Video> =
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()
@@ -1861,7 +1864,7 @@ class FlowNeuroEngine internal constructor(
 
             // Vector-level topic blocking: remove videos whose top topics match blocked topics
             val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.normalizeLemma(it) }.toSet()
-            val vectorFiltered =
+            val unblocked =
                 if (blockedTopicLemmas.isEmpty()) {
                     videoVectors
                 } else {
@@ -1880,6 +1883,19 @@ class FlowNeuroEngine internal constructor(
                             }
                         }
                     }
+                }
+
+            val vectorFiltered =
+                if (minRelevance <= 0.0 || brain.totalInteractions < NeuroScoring.COLD_START_THRESHOLD) {
+                    unblocked
+                } else {
+                    NeuroScoring.keepRelevant(
+                        unblocked,
+                        NeuroVectorMath.PreparedVector(brain.globalVector),
+                        minRelevance,
+                        userSubs,
+                        brain.channelScores,
+                    )
                 }
 
             // Time context

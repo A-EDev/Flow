@@ -9,6 +9,7 @@ package io.github.aedev.flow.data.recommendation.eval
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.NeuroMaintenance
+import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -109,20 +110,26 @@ class NeuroRankCostBenchmarkTest {
         val random = Random(42)
         val engine = NeuroLearningBenchmark.engine(brain(random))
         val pool = pool(random)
-        val timings =
+
+        fun time(minRelevance: Double) =
             runBlocking {
-                repeat(5) { engine.rank(pool, emptySet()) }
-                (0 until 20).map {
-                    val start = System.nanoTime()
-                    engine.rank(pool, emptySet())
-                    (System.nanoTime() - start) / 1_000_000.0
-                }
-            }.sorted()
+                val start = System.nanoTime()
+                engine.rank(pool, emptySet(), minRelevance)
+                (System.nanoTime() - start) / 1_000_000.0
+            }
+        repeat(5) {
+            time(0.0)
+            time(NeuroScoring.LANE_RELEVANCE_FLOOR)
+        }
+        val runs = (0 until 20).map { time(0.0) to time(NeuroScoring.LANE_RELEVANCE_FLOOR) }
+        val timings = runs.map { it.first }.sorted()
+        val floored = runs.map { it.second }.sorted()
         engine.shutdown()
         val report =
             "RANK COST (600 candidates, 200-topic brain, 500 affinities, 15k IDF words; JVM, 20 runs after 5 warm-ups)\n" +
                 "  median ms = %.1f\n".format(timings[timings.size / 2]) +
-                "  p90 ms    = %.1f\n".format(timings[(timings.size * 9) / 10])
+                "  p90 ms    = %.1f\n".format(timings[(timings.size * 9) / 10]) +
+                "  median ms with the lane floor = %.1f\n".format(floored[floored.size / 2])
         println(report)
         val out = File("build/reports/neuro-benchmark").apply { mkdirs() }
         File(out, "rank-cost.txt").writeText(report)

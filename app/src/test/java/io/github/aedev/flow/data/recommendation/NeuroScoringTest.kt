@@ -188,4 +188,42 @@ class NeuroScoringTest {
         NeuroScoring.capIdfVocabulary(freq)
         assertThat(freq).hasSize(2)
     }
+
+    @Test
+    fun `lanes keep what shares a topic or a known channel and drop the rest`() {
+        val user = NeuroVectorMath.PreparedVector(vec("comedy" to 0.8, "guitar" to 0.2))
+        val onTopic = (0 until 6).map { video("comedy$it") to vec("comedy" to 1.0) }
+        val subscribed = video("sub", channelId = "subscribed") to vec("prank" to 1.0)
+        val watched = video("watched", channelId = "watched") to vec("prank" to 1.0)
+        val disliked = video("disliked", channelId = "disliked") to vec("prank" to 1.0)
+        val drift = video("drift") to vec("lottery" to 1.0)
+
+        val kept =
+            NeuroScoring
+                .keepRelevant(
+                    onTopic + listOf(subscribed, watched, disliked, drift),
+                    user,
+                    NeuroScoring.LANE_RELEVANCE_FLOOR,
+                    userSubs = setOf("subscribed"),
+                    channelScores = mapOf("watched" to 0.6, "disliked" to 0.3),
+                ).map { it.first.id }
+
+        assertThat(kept).containsExactlyElementsIn(onTopic.map { it.first.id } + listOf("sub", "watched"))
+    }
+
+    @Test
+    fun `a thin lane keeps its most relevant candidates`() {
+        val user = NeuroVectorMath.PreparedVector(vec("comedy" to 0.8, "guitar" to 0.2))
+        val onTopic = (0 until 2).map { video("comedy$it") to vec("comedy" to 1.0) }
+        val drift = (0 until 6).map { video("drift$it") to vec("lottery" to 1.0) }
+        val faint = video("faint") to vec("lottery" to 1.0, "comedy" to 0.001)
+
+        val kept =
+            NeuroScoring
+                .keepRelevant(onTopic + drift + faint, user, NeuroScoring.LANE_RELEVANCE_FLOOR, emptySet(), emptyMap())
+                .map { it.first.id }
+
+        assertThat(kept).hasSize(NeuroScoring.MIN_RELEVANT_KEPT)
+        assertThat(kept).containsAtLeast("comedy0", "comedy1", "faint")
+    }
 }

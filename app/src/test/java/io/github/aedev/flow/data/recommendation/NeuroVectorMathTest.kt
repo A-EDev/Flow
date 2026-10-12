@@ -23,6 +23,15 @@ class NeuroVectorMathTest {
     }
 
     @Test
+    fun `topic similarity counts shared topics only`() {
+        val user = NeuroVectorMath.PreparedVector(vec("python" to 0.6, "cooking:food" to 0.8))
+
+        assertThat(NeuroVectorMath.topicSimilarity(user, vec("chess" to 1.0))).isEqualTo(0.0)
+        assertThat(NeuroVectorMath.topicSimilarity(user, vec("python" to 1.0))).isWithin(1e-9).of(0.6)
+        assertThat(NeuroVectorMath.topicSimilarity(user, vec("cooking" to 1.0))).isWithin(1e-9).of(0.8 * 0.3)
+    }
+
+    @Test
     fun `no topic intersection yields a damped scalar-only score`() {
         // Scalars are equal (0.5) so the raw scalar score is 0.30; with no topic
         // overlap it is damped (I-11a) so off-topic content can be floored.

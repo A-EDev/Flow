@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
+import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.recommendation.eval.NeuroLearningBenchmark.Family
 import io.github.aedev.flow.ui.screens.home.DURATION_COMFORT_DEFAULT_SEC
@@ -219,6 +220,7 @@ internal object HomeLaneBenchmark {
                     freshSlotTarget = 3,
                     subAvatarMap = emptyMap(),
                     rank = { engine.rank(it, emptySet()) },
+                    rankRelevant = { engine.rank(it, emptySet(), NeuroScoring.LANE_RELEVANCE_FLOOR) },
                 )
             val feed = assembleHomeFeed(lanes, emptySet(), subCount = 0, totalInteractions = brain.totalInteractions).videos
             engine.shutdown()

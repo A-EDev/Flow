@@ -55,8 +55,10 @@ class Issue907ScenariosTest {
         // Today: a fully watched four-minute playalong outweighs a long comedy special almost four to one.
         assertThat(seeds.guitarSeeds).isEqualTo(2)
         assertThat(seeds.guitarSeedWeight).isGreaterThan(seeds.comedySeedWeight * 3)
-        assertThat(lanes.guitarInTop20).isAtLeast(0.25)
-        assertThat(lanes.unrelatedIn5to20).isAtLeast(0.2)
+        // Videos that share nothing with the viewer stay off Home.
+        assertThat(lanes.unrelatedIn5to20).isAtMost(0.15)
+        // Today: with only two interests, the playalongs are a major one and get as many searches as comedy.
+        assertThat(lanes.guitarInTop20).isAtLeast(0.3)
     }
 
     @Test

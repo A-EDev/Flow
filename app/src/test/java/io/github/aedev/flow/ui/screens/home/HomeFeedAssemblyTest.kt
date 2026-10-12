@@ -56,6 +56,7 @@ class HomeFeedAssemblyTest {
         shown: Set<String> = emptySet(),
         freshSlots: Int = 3,
         avatars: Map<String, String> = emptyMap(),
+        rankRelevant: suspend (List<Video>) -> List<Video> = { it },
     ) = buildHomeFeedLanes(
         rawSubs = subs,
         rawDiscovery = discovery,
@@ -70,6 +71,7 @@ class HomeFeedAssemblyTest {
         freshSlotTarget = freshSlots,
         subAvatarMap = avatars,
         rank = { it },
+        rankRelevant = rankRelevant,
     )
 
     @Test
@@ -387,5 +389,23 @@ class HomeFeedAssemblyTest {
                     .map { it.video.id }
 
             assertThat(subsLane.indexOf("seen")).isEqualTo(3)
+        }
+
+    @Test
+    fun `only discovery and related candidates face the relevance floor`() =
+        runTest {
+            val result =
+                lanes(
+                    subs = listOf(video("sub")),
+                    discovery = listOf(video("found")),
+                    memory = listOf(video("remembered")),
+                    related = listOf(GraphCandidate(video("neighbour"), "seed", 1.0, 0, "misc", 1)),
+                    rankRelevant = { pool -> pool.filterNot { it.id in setOf("sub", "found", "remembered", "neighbour") } },
+                )
+
+            assertThat(result.bestSubs.map { it.id }).containsExactly("sub")
+            assertThat(result.bestMemory.map { it.id }).containsExactly("remembered")
+            assertThat(result.bestDiscovery).isEmpty()
+            assertThat(result.bestRelated).isEmpty()
         }
 }

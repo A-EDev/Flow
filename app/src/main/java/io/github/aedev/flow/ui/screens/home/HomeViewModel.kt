@@ -587,6 +587,7 @@ class HomeViewModel
                                 freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
                                 subAvatarMap = subAvatarMap,
                                 rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
+                                rankRelevant = { pool -> FlowNeuroEngine.rank(pool, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR) },
                             )
 
                         Log.d(
@@ -737,7 +738,7 @@ class HomeViewModel
                             if (wave2Valid.isEmpty()) return@wave2
 
                             val wave2Ranked =
-                                demoteByFit(FlowNeuroEngine.rank(wave2Valid, userSubs), taste)
+                                demoteByFit(FlowNeuroEngine.rank(wave2Valid, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste)
                                     .take(15)
 
                             if (wave2Ranked.isNotEmpty()) {
@@ -857,7 +858,7 @@ class HomeViewModel
             val graphRanked =
                 demoteByFit(
                     applyGraphBoost(
-                        FlowNeuroEngine.rank(graphCandidates.map { it.video }, userSubs),
+                        FlowNeuroEngine.rank(graphCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
                         graphMetadata,
                     ),
                     taste,
@@ -980,7 +981,7 @@ class HomeViewModel
                         .filterRecentHomeSuggestion(now)
 
                 if (newVideos.isNotEmpty()) {
-                    val rankedDiscovery = demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs), taste)
+                    val rankedDiscovery = demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste)
                     addUniquePageVideos(
                         candidates = rankedDiscovery,
                         targetList = page,
@@ -1026,7 +1027,7 @@ class HomeViewModel
                         val fallbackRanked =
                             demoteByFit(
                                 applyGraphBoost(
-                                    FlowNeuroEngine.rank(fallbackCandidates.map { it.video }, userSubs),
+                                    FlowNeuroEngine.rank(fallbackCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
                                     fallbackMetadata,
                                 ),
                                 taste,
@@ -1439,6 +1440,7 @@ class HomeViewModel
                                             .map { it.video }
                                             .filterNot { existing.contains(it.id) },
                                         userSubs,
+                                        NeuroScoring.LANE_RELEVANCE_FLOOR,
                                     ),
                                     relatedMetadata,
                                 ),

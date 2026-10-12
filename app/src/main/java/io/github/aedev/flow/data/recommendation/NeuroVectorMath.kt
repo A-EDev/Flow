@@ -92,6 +92,31 @@ internal object NeuroVectorMath {
         }
     }
 
+    /**
+     * How much [content]'s topics overlap [user]'s, from 0 to 1, without duration, pacing and
+     * complexity: two videos that share no topic score 0 however alike their length.
+     */
+    fun topicSimilarity(
+        user: PreparedVector,
+        content: ContentVector,
+    ): Double {
+        if (content.topics.isEmpty() || user.magnitudeSquared <= 0.0) return 0.0
+        var dotProduct = 0.0
+        var magnitude = 0.0
+        for ((key, value) in content.topics) {
+            magnitude += value * value
+            val match =
+                user.vector.topics[key]
+                    ?: if (':' in key) {
+                        user.untagged[key.substringBefore(':')]?.times(0.3)
+                    } else {
+                        user.baseToTagged[key]?.second?.times(0.3)
+                    }
+            if (match != null) dotProduct += value * match
+        }
+        return if (dotProduct > 0.0 && magnitude > 0.0) dotProduct / (sqrt(user.magnitudeSquared) * sqrt(magnitude)) else 0.0
+    }
+
     /** Same result as [calculateCosineSimilarity] with [user] as the first argument. */
     fun calculateCosineSimilarity(
         user: PreparedVector,

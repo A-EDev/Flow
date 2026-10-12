@@ -133,6 +133,15 @@ internal object NeuroScoring {
     /** Long-form videos skipped in a row before the feed gets an extra exploration slot. */
     const val BOREDOM_SKIPS = 5
 
+    /** Topic overlap a Home lane needs from a candidate: below it the video shares nothing with your taste. */
+    const val LANE_RELEVANCE_FLOOR = 0.02
+
+    /** A lane is never thinned below this many candidates by [LANE_RELEVANCE_FLOOR]. */
+    const val MIN_RELEVANT_KEPT = 6
+
+    /** A channel's score before any watch; below it the viewer has turned away from the channel. */
+    private const val NEUTRAL_CHANNEL_SCORE = 0.5
+
     const val EXPLORATION_MIN_SCORE_RATIO = 0.30
 
     // ── Feed History Constants ──
@@ -1070,6 +1079,26 @@ internal object NeuroScoring {
                 .associate { it.key to it.value }
         freq.clear()
         freq.putAll(kept)
+    }
+
+    /**
+     * Candidates that share a topic with [user] or come from a channel the viewer subscribes to or
+     * watches without disliking, so a lane cannot fill its later slots with videos that have nothing
+     * to do with the viewer (#907). When fewer than [MIN_RELEVANT_KEPT] pass, the most relevant of
+     * the rest make up the difference.
+     */
+    fun keepRelevant(
+        candidates: List<Pair<Video, ContentVector>>,
+        user: NeuroVectorMath.PreparedVector,
+        minRelevance: Double,
+        userSubs: Set<String>,
+        channelScores: Map<String, Double>,
+    ): List<Pair<Video, ContentVector>> {
+        fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= NEUTRAL_CHANNEL_SCORE
+        val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second) }
+        val (kept, dropped) = scored.partition { (pair, relevance) -> relevance >= minRelevance || knownChannel(pair.first.channelId) }
+        if (kept.size >= MIN_RELEVANT_KEPT || dropped.isEmpty()) return kept.map { it.first }
+        return (kept + dropped.sortedByDescending { it.second }.take(MIN_RELEVANT_KEPT - kept.size)).map { it.first }
     }
 
     /**

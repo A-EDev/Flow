@@ -60,6 +60,8 @@ internal data class HomeFeedLanes(
  * Turns the raw fetch results into the ranked lanes the blend draws from.
  *
  * [rank] is the engine call, passed in so the whole pipeline can be exercised without one.
+ * [rankRelevant] ranks the discovery and related lanes and may drop candidates that share nothing
+ * with the viewer's taste; subscriptions and remembered channels use [rank].
  */
 internal suspend fun buildHomeFeedLanes(
     rawSubs: List<Video>,
@@ -75,6 +77,7 @@ internal suspend fun buildHomeFeedLanes(
     freshSlotTarget: Int,
     subAvatarMap: Map<String, String>,
     rank: suspend (List<Video>) -> List<Video>,
+    rankRelevant: suspend (List<Video>) -> List<Video> = rank,
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
@@ -149,7 +152,7 @@ internal suspend fun buildHomeFeedLanes(
         overflowFresh = unshownFresh.drop(FRESH_SUBS_PIN_TOP),
         shownFresh = shownFresh,
         bestSubs = bestSubs,
-        bestDiscovery = demoteByFit(rank(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
+        bestDiscovery = demoteByFit(rankRelevant(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
         // One upload per remembered channel: the lane spreads across channels, never floods with one.
         bestMemory =
             demoteByFit(rank(memoryPool), taste)
@@ -157,7 +160,7 @@ internal suspend fun buildHomeFeedLanes(
                 .take(BEST_MEMORY_LIMIT),
         bestRelated =
             demoteByFit(
-                applyGraphBoost(rank(relatedPool), relatedMetadata),
+                applyGraphBoost(rankRelevant(relatedPool), relatedMetadata),
                 taste,
             ).take(BEST_RELATED_LIMIT),
         relatedCandidates = relatedCandidates,
