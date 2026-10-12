@@ -1,10 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12 and newer. The YouTube visitor identity belongs to one install (#921). -->
+<!--
+  Android 12 and newer. Cloud backup carries settings only; moving to a new phone also carries the
+  library. The recommendation engine, sync identity, caches and downloads never leave the device
+  (#907), and neither does the YouTube visitor identity (#921). Anything not listed stays local.
+-->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="sharedpref" path="youtube_identity.xml" />
+        <include domain="file" path="datastore/player_preferences.preferences_pb" />
+        <include domain="file" path="datastore/flow_preferences.preferences_pb" />
+        <include domain="file" path="datastore/app_font.preferences_pb" />
+        <include domain="file" path="datastore/app_ui_mode.preferences_pb" />
+        <include domain="file" path="datastore/audio_settings.preferences_pb" />
+        <include domain="file" path="datastore/local_media.preferences_pb" />
+        <include domain="sharedpref" path="flow_language_prefs.xml" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="sharedpref" path="youtube_identity.xml" />
+        <include domain="file" path="datastore/player_preferences.preferences_pb" />
+        <include domain="file" path="datastore/flow_preferences.preferences_pb" />
+        <include domain="file" path="datastore/app_font.preferences_pb" />
+        <include domain="file" path="datastore/app_ui_mode.preferences_pb" />
+        <include domain="file" path="datastore/audio_settings.preferences_pb" />
+        <include domain="file" path="datastore/local_media.preferences_pb" />
+        <include domain="sharedpref" path="flow_language_prefs.xml" />
+        <include domain="database" path="flow_database" />
+        <include domain="database" path="flow_database-wal" />
+        <include domain="database" path="flow_database-shm" />
+        <include domain="file" path="datastore/liked_videos.preferences_pb" />
+        <include domain="file" path="datastore/subscriptions.preferences_pb" />
+        <include domain="file" path="datastore/search_history.preferences_pb" />
+        <include domain="file" path="datastore/view_history.preferences_pb" />
+        <include domain="file" path="datastore/playlists.preferences_pb" />
+        <include domain="file" path="datastore/favourite_artists.preferences_pb" />
+        <include domain="file" path="datastore/saved_playlist_sync.preferences_pb" />
+        <include domain="file" path="datastore/watch_later_metadata_migration.preferences_pb" />
+        <include domain="file" path="datastore/flow_recap.preferences_pb" />
+        <include domain="file" path="datastore/flow_recap_images.preferences_pb" />
+        <include domain="file" path="datastore/flow_video_stats_v1.json" />
+        <include domain="file" path="datastore/flow_video_stats_hot_v1.json" />
+        <include domain="file" path="datastore/flow_music_stats_v1.json" />
+        <include domain="file" path="datastore/flow_music_stats_hot_v1.json" />
     </device-transfer>
 </data-extraction-rules>
