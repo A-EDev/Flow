@@ -9,7 +9,6 @@ import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
-import io.github.aedev.flow.sync.merge.BrainMerger
 import io.github.aedev.flow.sync.merge.MusicBrainMerger
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -137,10 +136,9 @@ object SyncSerialization {
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalNote.serializer(), it) }
 
     // --- brain ---
-    fun encodeBrain(brain: CanonicalBrain): CollectionWire {
-        val line = enc(CanonicalBrain.serializer(), brain)
-        return CollectionWire(listOf(line), 1, sha256Hex(line))
-    }
+
+    /** One line per device snapshot, the sender's own carrying the shared CRDT state. */
+    fun encodeBrain(snapshots: List<CanonicalBrain>) = wire(snapshots.sortedBy { it.deviceId }, CanonicalBrain.serializer())
 
     // --- music brain ---
     fun encodeMusicBrain(brain: CanonicalMusicBrain): CollectionWire {
@@ -156,13 +154,12 @@ object SyncSerialization {
             .reduceOrNull(MusicBrainMerger::merge)
 
     /**
-     * Fold **every** record, not just the first: the desktop ships one snapshot per device it knows
-     * about (`brainmap::merged_flow_to_snapshots`) so a third device converges transitively. Taking
-     * only the first silently discarded every other device's learned vectors.
+     * Every record, kept apart: the desktop ships one snapshot per device it knows about
+     * (`brainmap::merged_flow_to_snapshots`), and the learned vectors are a weighted mean over those
+     * devices, which a fold into one record would lose.
      */
-    fun decodeBrain(lines: List<String>): CanonicalBrain? =
+    fun decodeBrainSnapshots(lines: List<String>): List<CanonicalBrain> =
         lines
             .filter { it.isNotBlank() }
             .map { json.decodeFromString(CanonicalBrain.serializer(), it) }
-            .reduceOrNull(BrainMerger::merge)
 }

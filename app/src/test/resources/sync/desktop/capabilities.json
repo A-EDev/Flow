@@ -1,0 +1,11 @@
+{
+  "collections": {
+    "watch_history": { "schema": 1, "produce": true, "consume": true },
+    "playlists": { "schema": 1, "produce": true, "consume": true },
+    "likes": { "schema": 1, "produce": true, "consume": true },
+    "settings": { "schema": 1, "produce": true, "consume": true },
+    "flow_neuro_brain": { "schema": 14, "produce": true, "consume": true },
+    "music_brain": { "schema": 3, "produce": true, "consume": false },
+    "subscriptions": { "schema": 1, "produce": true, "consume": true }
+  }
+}

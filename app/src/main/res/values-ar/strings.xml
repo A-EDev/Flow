@@ -652,7 +652,7 @@
     <string name="location_downloads_label">Downloads / Flow</string>
     <string name="location_movies_label">Movies / Flow</string>
     <string name="location_internal_app_label">التخزين الداخلي للتطبيق</string>
-    <string name="location_internal_app_desc">خاص بـ Flow. يُحذف عند إلغاء تثبيت التطبيق</string>
+    <string name="location_internal_app_desc">خاص بـ Flow. يُحذف عند إلغاء تثبيت التطبيق.</string>
     <string name="location_custom_saf_label">تصفح…</string>
     <string name="location_custom_saf_desc">اختر أي مجلد باستخدام أداة اختيار الملفات في النظام</string>
     <string name="location_custom_manual_label">أدخل المسار يدويًا</string>
@@ -1735,7 +1735,7 @@
     <string name="sync_error_no_network">لا يوجد اتصال بشبكة Wi-Fi/LAN. قم بتوصيل كلا الجهازين بنفس الشبكة أو بنقطة اتصال لاسلكية hotspot.</string>
     <string name="sync_error_peer_also_send">الجهاز الآخر مضبوط أيضًا على «إرسال». اضبطه على «استقبال»، ثم حاول مرة أخرى.</string>
     <string name="sync_error_peer_also_receive">الجهاز الآخر جاهز أيضاً على وضع الاستقبال. قم بضبطه على وضع الإرسال، ثم قم بالمسح الضوئي مرة أخرى.</string>
-    <string name="sync_error_qr_expired">انتهت صلاحية جلسة الاقتران. اطلب من الجهاز الآخر إنشاء جلسة جديدة.</string>
+    <string name="sync_error_qr_expired">انتهت صلاحية هذا الرمز. اطلب من الجهاز الآخر إنشاء رمز جديد. إذا استمرت صلاحية الرموز في الانتهاء على الفور، فتحقق من صحة التاريخ والوقت على كلا الجهازين.</string>
     <string name="sync_error_qr_wrong_version">إصدار التطبيق غير متوافق على الجهاز الآخر.</string>
     <string name="sync_error_qr_not_flow">هذه ليست بيانات اتصال صالحة لـ Flow.</string>
     <string name="sync_error_qr_bad_address">بيانات الاتصال تفتقد إلى عنوان شبكة صالح.</string>
@@ -2121,7 +2121,7 @@
     <string name="discord_presence_gateway_warning">يستخدم هذا تسجيل الدخول عبر رمز Discord الخاص بك بدلًا من تسجيل الدخول الرسمي. هذا يخالف شروط خدمة Discord وقد يؤدي إلى تقييد حسابك أو حظره.</string>
     <string name="discord_presence_risk_dialog_title">هل تقبل مخاطر استخدام حساب Discord؟</string>
     <string name="about_creator_name">A-EDev</string>
-    <string name="about_website_address">flow.aedev.me</string>
+    <string name="about_website_address">flow-tube.org</string>
     <string name="about_reddit">Reddit</string>
     <string name="about_reddit_subtitle">r/Flow_Official</string>
     <string name="about_license_name">GNU GPL v3</string>
@@ -3646,7 +3646,7 @@
     <string name="settings_music_folder_label">الموسيقى / Flow</string>
     <string name="settings_keywords_downloads">حفظ بلا إنترنت، مجلد، مساحة التخزين، بطاقة SD</string>
     <string name="settings_section_notification_types">أبلغني بشأن</string>
-    <string name="settings_keywords_notifications">‎التنبيهات، الإشعارات الفورية، التحميلات الجديدة، التحقق في الخلفية</string>
+    <string name="settings_keywords_notifications">‎التنبيهات، الإشعارات الفورية، التحميلات الجديدة، التحقق في الخلفية، Shorts</string>
     <string name="settings_section_proxy_server">الخادم</string>
     <string name="settings_section_proxy_sign_in">تسجيل الدخول</string>
     <string name="settings_keywords_network">الوكيل، SOCKS، HTTP، VPN، الاتصال</string>
@@ -4511,4 +4511,22 @@
         <item quantity="many">%d عملية بحث</item>
         <item quantity="other">%d عملية بحث</item>
     </plurals>
+    <string name="mark_as_unwatched_toast">تمت تحديده كغير مشاهد</string>
+    <string name="mark_as_unwatched">علّم كغير مشاهَد</string>
+    <string name="sync_error_qr_not_local">يشير هذا الرمز خارج شبكتك المحلية، لذلك Flow لن يتصل به. استخدم فقط الرموز التي تظهرها أجهزتك الخاصة.</string>
+    <string name="sync_error_no_peer">لم يتم توصيل أي جهاز قبل انتهاء صلاحية الرمز. تحقق من أن كلا الجهازين متصلان بنفس شبكة الـ Wi-Fi، ثم حاول مرة أخرى.</string>
+    <string name="sync_error_unreachable">تعذّر الوصول لجهاز الآخر. تحقق من أن كلا الجهازين متصلان بنفس شبكة الـ Wi-Fi وأن شبكة الـ VPN أو جدار الحماية لا يعيقان الاتصال.</string>
+    <string name="sync_error_timeout">توقف الجهاز الآخر عن الاستجابة. أبقِ Flow مفتوحًا على كلا الجهازين وحاول مرة أخرى.</string>
+    <string name="sync_error_peer_closed">أغلق الجهاز الآخر الاتصال. تحقق منه بوجود رسالة، ثم حاول مرة أخرى.</string>
+    <string name="sync_error_corrupted">تعرضت البيانات للتلف أثناء النقل. حاول مرة أخرى.</string>
+    <string name="sync_error_apply_failed">وصلت البيانات لكن تعذّر حفظها. لم يتم تغيير أي شيء على هذا الجهاز.</string>
+    <string name="sync_error_peer_apply_failed">تعذّر على الجهاز الآخر حفظ البيانات. لم يتم تغيير أي شيء فيه.</string>
+    <string name="sync_error_code_not_confirmed">لم يتم تأكيد رموز التحقق، لذلك لم يتم تحويل أي شيء.</string>
+    <string name="sync_error_code_rejected">لم يؤكد الجهاز الآخر رمز التحقق، لذلك لم يتم نقل أي شيء.</string>
+    <string name="sync_error_declined">تم رفض الدمج. لم يتم نقل أي شيء.</string>
+    <string name="sync_error_protocol">تعذّر على الجهازين الاتفاق على خطوات المزامنة. حدّث Flow على كلا الجهازين وحاول مرة أخرى.</string>
+    <string name="sync_error_peer">أبلغ الجهاز الآخر عن مشكلة: %1$s</string>
+    <string name="music_playback_warning_unavailable">لم تعد هذه الأغنية متاحة على YouTube.</string>
+    <string name="notif_type_shorts_subtitle">تضمين المقاطع القصيرة في تنبيهات الفيديو الجديد من الاشتراكات</string>
+    <string name="notif_type_shorts">Shorts</string>
 </resources>

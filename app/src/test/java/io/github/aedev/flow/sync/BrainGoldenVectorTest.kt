@@ -45,7 +45,7 @@ class BrainGoldenVectorTest {
 
     @Test
     fun android_decodes_the_desktop_brain_fixture() {
-        val brain = SyncSerialization.decodeBrain(listOf(fixture()))
+        val brain = SyncSerialization.decodeBrainSnapshots(listOf(fixture())).singleOrNull()
         assertNotNull("the desktop's canonical brain must decode", brain)
         requireNotNull(brain)
 
@@ -65,7 +65,7 @@ class BrainGoldenVectorTest {
                 .topics["music"]!!,
             0.0,
         )
-        assertEquals(0.3, brain.vectors.shortsVector.topics["comedy"]!!, 0.0)
+        assertEquals(0.3, brain.vectors.shortsVector!!.topics["comedy"]!!, 0.0)
         assertEquals(0.8, brain.vectors.topicAffinities["minecraft"]!!, 0.0)
         assertEquals(0.7, brain.vectors.channelScores["UCabc"]!!, 0.0)
         assertEquals(0.9, brain.vectors.channelTopicProfiles.getValue("UCabc")["coding"]!!, 0.0)
@@ -139,8 +139,8 @@ class BrainGoldenVectorTest {
 
     @Test
     fun re_encoding_the_fixture_loses_nothing() {
-        val decoded = requireNotNull(SyncSerialization.decodeBrain(listOf(fixture())))
-        val reDecoded = SyncSerialization.decodeBrain(SyncSerialization.encodeBrain(decoded).lines)
+        val decoded = SyncSerialization.decodeBrainSnapshots(listOf(fixture()))
+        val reDecoded = SyncSerialization.decodeBrainSnapshots(SyncSerialization.encodeBrain(decoded).lines)
         assertEquals("a wire round-trip must be lossless", decoded, reDecoded)
     }
 
@@ -233,10 +233,10 @@ class BrainGoldenVectorTest {
                 """"preferredTopics":{"adds":{"coding":"100:0:aaa"},"removes":{}}},""" +
                 """"vectors":{"channelScores":{"UCabc":0.7},"channelTopicProfiles":{"UCabc":{"coding":0.9}},""" +
                 """"globalVector":{"dims":{"duration":0.4},"topics":{"kotlin":0.8}},""" +
-                """"shortsVector":{"dims":{},"topics":{}},""" +
+                """"shortsVector":null,""" +
                 """"timeVectors":{"WEEKDAY_EVENING":{"dims":{},"topics":{"music":0.6}}},""" +
                 """"topicAffinities":{"kotlin":0.8}}}"""
 
-        assertEquals(expected, SyncSerialization.encodeBrain(brain).lines.single())
+        assertEquals(expected, SyncSerialization.encodeBrain(listOf(brain)).lines.single())
     }
 }

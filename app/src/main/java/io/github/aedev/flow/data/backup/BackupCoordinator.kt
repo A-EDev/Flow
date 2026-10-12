@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.RecapBackup
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +68,7 @@ class BackupCoordinator
         private val localDataManager: LocalDataManager,
         private val videoStats: VideoStatsRecorder,
         private val favouriteArtists: FavouriteArtistsStore,
+        private val syncLedger: SyncChangeLedgerStore,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val _operation = MutableStateFlow<BackupOperation>(BackupOperation.Idle)
@@ -151,7 +153,9 @@ class BackupCoordinator
 
         fun importFlowBackup(uri: Uri) =
             run(context.getString(R.string.import_flow_backup_item_title)) {
-                repository.importData(uri).fold(
+                val result = repository.importData(uri)
+                if (result.isSuccess) syncLedger.reset()
+                result.fold(
                     onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_flow_backup_success)) },
                     onFailure = { failed(R.string.import_flow_backup_failed_template, it) },
                 )
@@ -159,16 +163,18 @@ class BackupCoordinator
 
         fun importMaster(uri: Uri) =
             run(context.getString(R.string.master_backup_title)) {
-                repository
-                    .importMasterBackup(
+                val result =
+                    repository.importMasterBackup(
                         uri,
                         onMusicBrain = { bytes -> musicBrain.importBrainFromStream(bytes.inputStream()) },
                         onRecap = ::restoreRecap,
                         onFavouriteArtists = favouriteArtists::restore,
-                    ).fold(
-                        onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
-                        onFailure = { failed(R.string.import_failed_template, it) },
                     )
+                if (result.isSuccess) syncLedger.reset()
+                result.fold(
+                    onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
+                    onFailure = { failed(R.string.import_failed_template, it) },
+                )
             }
 
         fun importEngine(uri: Uri) =

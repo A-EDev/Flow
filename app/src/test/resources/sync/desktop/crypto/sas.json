@@ -1,0 +1,6 @@
+{
+  "_comment": "FLOW-SYNC/1 SAS golden vector. num = ((mac[0]&0x7F)<<24)|(mac[1]<<16)|(mac[2]<<8)|mac[3] mod 1e6, mac = HMAC-SHA256(master, 'flow-sync/1 sas' ∥ session_id), 6 zero-padded digits.",
+  "master_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "session_id_hex": "202122232425262728292a2b2c2d2e2f",
+  "sas": "920700"
+}
