@@ -266,6 +266,7 @@ FIXES AND STABILITY
 - Backups now carry only your settings and a new phone also receives your library, while the recommendation engine and sync identity never leave the device, so a reinstall starts the engine clean (#907)
 - Fix Home favouring less relevant videos after you skip several in a row, and swiping through Shorts no longer counts as skipping (#907)
 - Fix later cards on Home drifting to videos that have nothing to do with what you watch, and a couple of videos on a new subject no longer take over the related videos or jump ahead of interests you have kept for months (#907)
+- Videos played one after another now teach recommendations their tags and description too, not only their title, and a video's YouTube category no longer turns into interests such as "science technology" (#907)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
