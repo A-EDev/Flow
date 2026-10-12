@@ -9,6 +9,8 @@ package io.github.aedev.flow.ui.screens.home
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
+import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -408,4 +410,30 @@ class HomeFeedAssemblyTest {
             assertThat(result.bestDiscovery).isEmpty()
             assertThat(result.bestRelated).isEmpty()
         }
+
+    @Test
+    fun `a related card names the video it was found from`() {
+        val seeds =
+            listOf(
+                GraphSeedInput(
+                    id = "seed",
+                    title = "Wonderwall guitar playalong",
+                    channelId = "",
+                    source = GraphSeedSource.WATCH_HISTORY,
+                    engagementWeight = 1.0,
+                    timestamp = now,
+                    durationSec = 240,
+                    percentWatched = 100.0,
+                ),
+            )
+        val candidates =
+            listOf(
+                GraphCandidate(video("shown"), "seed", 1.0, 0, "misc", 1),
+                GraphCandidate(video("hidden"), "seed", 1.0, 1, "misc", 1),
+                GraphCandidate(video("orphan"), "gone", 1.0, 2, "misc", 1),
+            )
+
+        assertThat(relatedSeedTitles(candidates, seeds, setOf("shown", "orphan")))
+            .containsExactly("shown", "Wonderwall guitar playalong")
+    }
 }

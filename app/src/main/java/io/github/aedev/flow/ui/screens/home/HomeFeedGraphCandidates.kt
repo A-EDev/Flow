@@ -33,6 +33,19 @@ internal fun graphSeedInputsFromHistory(
             )
         }
 
+/** The title of the seed each of [shownIds] was found from, for the reason under its card. */
+internal fun relatedSeedTitles(
+    candidates: Collection<GraphCandidate>,
+    seedInputs: List<GraphSeedInput>,
+    shownIds: Set<String>,
+): Map<String, String> {
+    val titles = seedInputs.associate { it.id to it.title }
+    return candidates
+        .filter { it.video.id in shownIds }
+        .mapNotNull { candidate -> titles[candidate.seedId]?.takeIf { it.isNotBlank() }?.let { candidate.video.id to it } }
+        .toMap()
+}
+
 /** Saved-interest seed pools: watch history (newest-first), liked videos, and saved playlists. */
 internal data class SavedSeedSources(
     val history: List<GraphSeedInput>,

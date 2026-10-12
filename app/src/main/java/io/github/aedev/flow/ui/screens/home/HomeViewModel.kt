@@ -651,6 +651,7 @@ class HomeViewModel
                                 limit = 8,
                             )
                         val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
+                        val relatedTo = relatedSeedTitles(lanes.relatedCandidates, relatedFetch.seedInputs, relatedPickIds)
                         val reserveCandidates =
                             cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
                                 cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
@@ -661,6 +662,7 @@ class HomeViewModel
                             state.copy(
                                 videos = visibleFeed,
                                 channelMemoryVideoIds = memoryIds,
+                                relatedTo = relatedTo,
                                 isLoading = false,
                                 isRefreshing = false,
                                 hasMorePages = true,
@@ -862,6 +864,7 @@ class HomeViewModel
             userSubs: Set<String>,
             taste: FeedTasteProfile,
             brain: UserBrain,
+            relatedTo: MutableMap<String, String>,
         ): Int {
             val seedInputs = loadMoreSeedInputs()
             val longTermInputs = feedSources.longTermSeedInputs()
@@ -891,7 +894,9 @@ class HomeViewModel
                 usedVideoIds = pageIds,
                 targetSize = MIN_PAGE_SIZE,
             )
-            page.drop(graphStartIndex).mapTo(relatedPickIds) { it.id }
+            val graphAdded = page.drop(graphStartIndex).mapTo(HashSet()) { it.id }
+            relatedPickIds += graphAdded
+            relatedTo += relatedSeedTitles(graphCandidates, graphFetch.seedInputs, graphAdded)
             persistentHomeFeedCache.saveReserve(
                 cacheRelatedCandidates(graphRanked, graphMetadata, pageIds),
             )
@@ -928,6 +933,7 @@ class HomeViewModel
                 val page = mutableListOf<Video>()
                 val channelCounts = HashMap<String, Int>()
                 val pageIds = HashSet<String>(currentIds)
+                val relatedTo = HashMap<String, String>()
 
                 fillPageFromChannelMemory(page, channelCounts, pageIds, userSubs, now)
 
@@ -939,9 +945,9 @@ class HomeViewModel
                     return appended != null
                 }
 
-                val graphSeedCount = fillPageFromRelatedGraph(page, channelCounts, pageIds, now, userSubs, taste, brain)
+                val graphSeedCount = fillPageFromRelatedGraph(page, channelCounts, pageIds, now, userSubs, taste, brain, relatedTo)
                 if (page.size >= MIN_PAGE_SIZE) {
-                    val appended = appendLoadMorePage(page, generation)
+                    val appended = appendLoadMorePage(page, generation, relatedTo)
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
                     Log.d(TAG, "Load-more filled from reserve/graph: reserve=$reserveAdded graphSeeds=$graphSeedCount")
                     return appended != null
@@ -1061,7 +1067,9 @@ class HomeViewModel
                             usedVideoIds = pageIds,
                             targetSize = MIN_PAGE_SIZE,
                         )
-                        page.drop(fallbackStartIndex).mapTo(relatedPickIds) { it.id }
+                        val fallbackAdded = page.drop(fallbackStartIndex).mapTo(HashSet()) { it.id }
+                        relatedPickIds += fallbackAdded
+                        relatedTo += relatedSeedTitles(fallbackCandidates, fallbackFetch.seedInputs, fallbackAdded)
                         persistentHomeFeedCache.saveReserve(
                             cacheRelatedCandidates(fallbackRanked, fallbackMetadata, pageIds),
                         )
@@ -1070,7 +1078,7 @@ class HomeViewModel
                 }
 
                 if (page.isNotEmpty()) {
-                    val appended = appendLoadMorePage(page, generation)
+                    val appended = appendLoadMorePage(page, generation, relatedTo)
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
                     return appended != null
                 }
@@ -1086,6 +1094,7 @@ class HomeViewModel
         private suspend fun appendLoadMorePage(
             page: List<Video>,
             generation: Int,
+            relatedTo: Map<String, String> = emptyMap(),
         ): List<Video>? {
             if (page.isEmpty() || !homePrefetchQueue.isCurrent(generation)) return null
             val exclusions = feedExclusions()
@@ -1103,9 +1112,11 @@ class HomeViewModel
                 val updated = state.videos + spaceByChannel(appendedPage, seedRecent = tailChannels)
                 updatedSnapshot = updated
                 HomeFeedCache.update(updated, state.shorts)
+                val appendedIds = appendedPage.mapTo(HashSet()) { it.id }
                 state.copy(
                     videos = updated,
                     hasMorePages = true,
+                    relatedTo = state.relatedTo + relatedTo.filterKeys { it in appendedIds },
                 )
             }
             if (appendedPage.isEmpty()) return null
@@ -1469,7 +1480,11 @@ class HomeViewModel
                             val tail = state.videos.takeLast(2).map { it.channelId }
                             val merged = state.videos + spaceByChannel(visibleEnriched, seedRecent = tail)
                             HomeFeedCache.update(merged, state.shorts)
-                            state.copy(videos = merged)
+                            val shownIds = visibleEnriched.mapTo(HashSet()) { it.id }
+                            state.copy(
+                                videos = merged,
+                                relatedTo = state.relatedTo + relatedSeedTitles(relatedCandidates, seedInputs + longTermInputs, shownIds),
+                            )
                         }
                         Log.d(TAG, "Saved-interest enrichment: +${enriched.size} from ${seeds.size} seeds")
                     } catch (e: Exception) {
