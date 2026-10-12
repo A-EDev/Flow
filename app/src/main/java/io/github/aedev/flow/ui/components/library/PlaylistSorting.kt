@@ -47,18 +47,16 @@ enum class PlaylistSortOrder(
 
 internal fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> =
     when (sortOrder) {
-        PlaylistSortOrder.MANUAL,
-        PlaylistSortOrder.DATE_ADDED_NEWEST,
-        -> this
-
-        PlaylistSortOrder.DATE_ADDED_OLDEST -> asReversed()
-
+        PlaylistSortOrder.MANUAL -> this
+        PlaylistSortOrder.DATE_ADDED_NEWEST -> sortedByDateAdded()
+        PlaylistSortOrder.DATE_ADDED_OLDEST -> sortedByDateAdded().asReversed()
         PlaylistSortOrder.MOST_POPULAR -> sortedByDescending { it.viewCount }
-
         PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByPublishDate(descending = true)
-
         PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedByPublishDate(descending = false)
     }
+
+// Rows without an add time predate every timed one; those and any ties go by position, latest first.
+private fun List<Video>.sortedByDateAdded(): List<Video> = asReversed().sortedByDescending { it.addedAtInPlaylist ?: 0L }
 
 private fun List<Video>.sortedByPublishDate(descending: Boolean): List<Video> {
     val now = System.currentTimeMillis()
