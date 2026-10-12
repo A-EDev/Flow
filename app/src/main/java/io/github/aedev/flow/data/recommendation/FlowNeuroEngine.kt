@@ -64,7 +64,8 @@ class FlowNeuroEngine internal constructor(
         private const val TAG = "FlowNeuroEngine"
 
         // ── Orchestrator-only constants ──
-        private const val FEATURE_CACHE_MAX = 150
+        // A refresh ranks about 600 candidates; a smaller cache missed on every one of them.
+        private const val FEATURE_CACHE_MAX = 700
         private const val SESSION_TOPIC_HISTORY_MAX = 50
         private const val SAVE_DEBOUNCE_MS = 5000L
 
