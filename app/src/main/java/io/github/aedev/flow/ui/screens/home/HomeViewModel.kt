@@ -93,6 +93,9 @@ class HomeViewModel
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
             private const val LOAD_MORE_GRAPH_SEEDS = 3
+
+            // Saved rows of each source ranked again on load-more; the best of them fill the page.
+            private const val RESERVE_RERANK_PER_SOURCE = 16
             private const val MAX_SAVED_SEEDS = 5
             private const val SAVED_RELATED_SLOTS = 8
 
@@ -791,30 +794,45 @@ class HomeViewModel
             }
         }
 
-        /** Cheapest load-more source: candidates already fetched and persisted by an earlier pass. */
+        /**
+         * Cheapest load-more source: candidates already fetched and persisted by an earlier pass, ranked
+         * again because the viewer's taste may have moved since they were saved.
+         */
         private suspend fun fillPageFromReserve(
             page: MutableList<Video>,
             channelCounts: MutableMap<String, Int>,
             pageIds: MutableSet<String>,
+            userSubs: Set<String>,
             now: Long,
         ): Int {
             val reserveRows =
                 try {
-                    persistentHomeFeedCache.loadReservePage(cacheFilters())
+                    persistentHomeFeedCache.loadReservePage(
+                        cacheFilters(),
+                        maxRelated = RESERVE_RERANK_PER_SOURCE,
+                        maxDiscovery = RESERVE_RERANK_PER_SOURCE,
+                    )
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
                     Log.d(TAG, "Reserve prefetch unavailable: ${error.message}")
                     emptyList()
                 }
-            reserveRows
-                .filter { it.source == HomeFeedCacheRepository.SOURCE_RELATED }
-                .mapTo(relatedPickIds) { it.video.id }
-            val reserveVideos =
+            if (reserveRows.isEmpty()) return 0
+            val relatedIds =
                 reserveRows
-                    .map { it.video }
-                    .filterValid()
-                    .filterRecentHomeSuggestion(now)
+                    .filter { it.source == HomeFeedCacheRepository.SOURCE_RELATED }
+                    .mapTo(HashSet()) { it.video.id }
+            val reserveVideos =
+                FlowNeuroEngine.rank(
+                    reserveRows
+                        .map { it.video }
+                        .filterValid()
+                        .filterRecentHomeSuggestion(now),
+                    userSubs,
+                    NeuroScoring.LANE_RELEVANCE_FLOOR,
+                )
+            val start = page.size
             val reserveAdded =
                 addUniquePageVideos(
                     candidates = reserveVideos,
@@ -823,10 +841,11 @@ class HomeViewModel
                     usedVideoIds = pageIds,
                     targetSize = MIN_PAGE_SIZE,
                 )
-            if (reserveAdded > 0) {
-                runCatching {
-                    persistentHomeFeedCache.consumeReserve(page.take(reserveAdded).map { it.id })
-                }
+            // Channel memory may already be on the page, so the served rows are the ones added here.
+            val served = page.drop(start).map { it.id }
+            served.filterTo(relatedPickIds) { it in relatedIds }
+            if (served.isNotEmpty()) {
+                runCatching { persistentHomeFeedCache.consumeReserve(served) }
             }
             return reserveAdded
         }
@@ -911,7 +930,7 @@ class HomeViewModel
 
                 fillPageFromChannelMemory(page, channelCounts, pageIds, userSubs, now)
 
-                val reserveAdded = fillPageFromReserve(page, channelCounts, pageIds, now)
+                val reserveAdded = fillPageFromReserve(page, channelCounts, pageIds, userSubs, now)
                 if (page.size >= MIN_PAGE_SIZE) {
                     val appended = appendLoadMorePage(page, generation)
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }
