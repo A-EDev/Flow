@@ -70,6 +70,7 @@ class MusicPlayerViewModel
         private var loadTrackJob: kotlinx.coroutines.Job? = null
         private var pendingSeekPosition: Long? = null
         private var pendingSeekStartedAtMs: Long = 0L
+        private val radioSwitch = MusicRadioSwitch(viewModelScope, _uiState, playerPreferences)
         private val lyrics =
             MusicPlayerLyrics(
                 context,
@@ -101,11 +102,7 @@ class MusicPlayerViewModel
                     _uiState.update { it.copy(lyricsTextAlign = align) }
                 }
             }
-            viewModelScope.launch {
-                playerPreferences.musicEndlessRadioEnabled.collect { enabled ->
-                    _uiState.update { it.copy(endlessRadioEnabled = enabled) }
-                }
-            }
+            radioSwitch.observe()
         }
 
         private fun initializeObservers() {
@@ -474,9 +471,7 @@ class MusicPlayerViewModel
             if (index >= 0) EnhancedMusicPlayerManager.playFromQueue(index) else loadAndPlayTrack(track)
         }
 
-        fun setEndlessRadioEnabled(enabled: Boolean) {
-            viewModelScope.launch { playerPreferences.setMusicEndlessRadioEnabled(enabled) }
-        }
+        fun setEndlessRadioEnabled(enabled: Boolean) = radioSwitch.set(enabled)
 
         fun seekTo(position: Long) {
             val duration =
