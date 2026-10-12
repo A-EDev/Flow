@@ -2235,9 +2235,13 @@ class FlowNeuroEngine internal constructor(
                         0
                     }
 
+                    // A swiped-away Short is how Shorts are browsed, not a sign of boredom with the feed (#907).
                     InteractionType.SKIPPED -> {
-                        (currentUserBrain.consecutiveSkips + 1)
-                            .coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
+                        if (video.isShort) {
+                            currentUserBrain.consecutiveSkips
+                        } else {
+                            (currentUserBrain.consecutiveSkips + 1).coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
+                        }
                     }
 
                     InteractionType.DISLIKED -> {
