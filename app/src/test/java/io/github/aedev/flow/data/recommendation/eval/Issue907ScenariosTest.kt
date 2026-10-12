@@ -122,7 +122,7 @@ class Issue907ScenariosTest {
         assertThat(pixel.planted).containsExactly("google pixel", "pixel pro")
         assertThat(search.keys).contains("encryption work")
         assertThat(pool.plantedUnprovenShare).isAtLeast(0.9)
-        assertThat(real.titles).isAtLeast(200)
+        assertThat(real.titles).isAtLeast(100)
         assertThat(real.plantedUnprovenShare).isAtLeast(0.9)
     }
 

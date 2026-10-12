@@ -22,12 +22,16 @@ internal object RealTitleCorpus {
     private const val MIN_LENGTH = 8
     private const val MAX_LENGTH = 140
 
+    // Local captures that git ignores, so every checkout and CI read the same titles.
+    private val ignoredFolders = setOf("explore", "shorts")
+
     val titles: List<String> by lazy { load(File("src/test/resources")) }
 
     fun load(root: File): List<String> {
         val byVideo = LinkedHashMap<String, String>()
         root
             .walkTopDown()
+            .onEnter { it == root || it.name !in ignoredFolders || it.parentFile != root }
             .filter { it.isFile && it.extension == "json" }
             .sortedBy { it.path }
             .forEach { file ->
