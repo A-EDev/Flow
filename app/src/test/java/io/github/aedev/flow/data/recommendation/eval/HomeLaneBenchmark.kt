@@ -54,12 +54,40 @@ internal object HomeLaneBenchmark {
         ): List<Video> = List(count) { remaining.getValue(family).removeFirstOrNull() }.filterNotNull()
     }
 
-    private fun familyOfQuery(query: String): Family =
-        when {
-            listOf("guitar", "playalong", "tabs").any { it in query } -> Family.GUITAR
-            listOf("comedy", "stand", "special", "comedian", "funny").any { it in query } -> Family.COMEDY
+    // Search words of each family as the learned keys spell them, song and comedian names included.
+    private val guitarWords =
+        listOf("guitar", "playalong", "tabs", "child", "mine", "wonderwall", "california", "spirit", "sandman", "nation", "highway")
+    private val comedyWords =
+        listOf(
+            "comedy",
+            "stand",
+            "special",
+            "comedian",
+            "funny",
+            "mulaney",
+            "gaffigan",
+            "wong",
+            "burr",
+            "birbiglia",
+            "tomlinson",
+            "airport",
+            "dentist",
+            "wedding",
+            "kid",
+            "parent",
+            "hotel",
+            "road",
+            "gym",
+        )
+
+    private fun familyOfQuery(query: String): Family {
+        val words = query.lowercase().split(' ')
+        return when {
+            words.any { word -> guitarWords.any { word.startsWith(it) } } -> Family.GUITAR
+            words.any { word -> comedyWords.any { word.startsWith(it) } } -> Family.COMEDY
             else -> Family.OTHER
         }
+    }
 
     private fun supply(): Supply {
         val pool = NeuroLearningBenchmark.pool()
