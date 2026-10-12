@@ -19,6 +19,15 @@ internal fun SettingsListScope.sponsorModelSection(
 ) {
     group(key = "integrations.sponsorblock.on_device.group", header = R.string.sponsor_model_header) {
         switch(IntegrationsIndex.onDevice, viewModel.onDeviceDetection, viewModel::setOnDeviceDetection)
+        row("integrations.sponsorblock.on_device.source") { shape ->
+            val uriHandler = LocalUriHandler.current
+            FlowNavRow(
+                title = stringResource(R.string.sponsor_model_credits_title),
+                supportingText = stringResource(R.string.sponsor_model_credits_body),
+                onClick = { runCatching { uriHandler.openUri(SponsorModelConfig.MODEL_PAGE_URL) } },
+                shape = shape,
+            )
+        }
         row("integrations.sponsorblock.on_device.model") { shape ->
             val context = LocalContext.current
             when (modelState) {
@@ -75,14 +84,6 @@ internal fun SettingsListScope.sponsorModelSection(
                     )
                 }
             }
-        }
-        row("integrations.sponsorblock.on_device.source") { shape ->
-            val uriHandler = LocalUriHandler.current
-            FlowNavRow(
-                title = stringResource(R.string.sponsor_model_source),
-                onClick = { runCatching { uriHandler.openUri(SponsorModelConfig.MODEL_PAGE_URL) } },
-                shape = shape,
-            )
         }
     }
 }
