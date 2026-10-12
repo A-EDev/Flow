@@ -1885,14 +1885,12 @@ class FlowNeuroEngine internal constructor(
             val bucket = TimeBucket.current()
             val timeContextVector = brain.timeVectors[bucket] ?: ContentVector()
 
-            // Dynamic temperature (boredom detection)
-            val boredomFactor =
-                (brain.consecutiveSkips / 20.0)
-                    .coerceIn(0.0, 0.5)
-            val tasteWeight = 0.8 - boredomFactor
+            // Skipping several videos in a row earns an exploration slot (see applySmartDiversity); it
+            // never reweights scoring, where it once made less relevant videos outscore relevant ones (#907).
+            val tasteWeight = 0.8
             val wContext = tasteWeight * 0.5 * NeuroScoring.timeBucketConfidence(brain, bucket)
             val wPersonality = tasteWeight - wContext
-            val wNovelty = 0.2 + boredomFactor
+            val wNovelty = 0.2
 
             // Onboarding warmup factor
             val isColdStart = brain.totalInteractions < NeuroScoring.COLD_START_THRESHOLD
@@ -1972,7 +1970,8 @@ class FlowNeuroEngine internal constructor(
                     }.toMutableList()
 
             // Apply diversity reranking
-            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer)
+            val extraExploration = if (brain.consecutiveSkips >= NeuroScoring.BOREDOM_SKIPS) 1 else 0
+            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration)
         }
 
     suspend fun recordFeedImpressions(ids: List<String>) {

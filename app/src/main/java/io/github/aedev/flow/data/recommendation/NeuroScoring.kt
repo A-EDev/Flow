@@ -130,6 +130,9 @@ internal object NeuroScoring {
     const val RELEVANCE_FLOOR_SEVERE_PENALTY = 0.15
     const val RELEVANCE_FLOOR_MODERATE_PENALTY = 0.40
 
+    /** Long-form videos skipped in a row before the feed gets an extra exploration slot. */
+    const val BOREDOM_SKIPS = 5
+
     const val EXPLORATION_MIN_SCORE_RATIO = 0.30
 
     // ── Feed History Constants ──
@@ -1338,6 +1341,7 @@ internal object NeuroScoring {
     fun applySmartDiversity(
         candidates: MutableList<ScoredVideo>,
         tokenizer: NeuroTokenizer,
+        extraExplorationSlots: Int = 0,
     ): List<Video> {
         val finalPlaylist = mutableListOf<Video>()
         val channelWindow = mutableListOf<String>()
@@ -1369,7 +1373,7 @@ internal object NeuroScoring {
                 topicDiversity <= 2 -> 2
                 topicDiversity <= 4 -> 2
                 else -> 1
-            }
+            } + extraExplorationSlots
 
         val userTopTopics =
             candidates

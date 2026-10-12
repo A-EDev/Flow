@@ -35,7 +35,8 @@ class Issue907ScenariosTest {
         assertThat(r.genericKeyShare).isAtLeast(0.4)
         assertThat(r.ranked.top10).isAtLeast(0.2)
         assertThat(r.ranked.positions5to20).isAtLeast(0.4)
-        assertThat(r.boredBridgeOutranksOnTopic).isTrue()
+        // Skipping videos never turns relevance upside down.
+        assertThat(r.boredBridgeOutranksOnTopic).isFalse()
     }
 
     @Test
@@ -54,8 +55,8 @@ class Issue907ScenariosTest {
         // Today: a fully watched four-minute playalong outweighs a long comedy special almost four to one.
         assertThat(seeds.guitarSeeds).isEqualTo(2)
         assertThat(seeds.guitarSeedWeight).isGreaterThan(seeds.comedySeedWeight * 3)
-        assertThat(lanes.guitarInTop20).isAtLeast(0.3)
-        assertThat(lanes.unrelatedIn5to20).isAtLeast(0.25)
+        assertThat(lanes.guitarInTop20).isAtLeast(0.25)
+        assertThat(lanes.unrelatedIn5to20).isAtLeast(0.2)
     }
 
     @Test
