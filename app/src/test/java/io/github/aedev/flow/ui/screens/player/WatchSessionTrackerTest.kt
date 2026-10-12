@@ -77,7 +77,7 @@ class WatchSessionTrackerTest {
             networkDispatcher = testDispatcher,
             shortsEnabled = { true },
             relatedVideosFor = { relatedLane },
-            richVideoFor = { richVideo },
+            richVideoFor = { id -> richVideo?.takeIf { it.id == id } },
             elapsedRealtime = { clockMs },
         )
 
@@ -256,6 +256,28 @@ class WatchSessionTrackerTest {
 
             verify(exactly = 1) {
                 FlowNeuroEngine.onVideoInteractionAsync(any(), match { it.description == "rich" }, any(), any())
+            }
+        }
+
+    @Test
+    fun `a video's tags and description are still learned after the next video takes over`() =
+        runTest(testDispatcher) {
+            val tracker = tracker()
+
+            richVideo = video("v1").copy(description = "rich", tags = listOf("guitar playalong"))
+            tracker.report("v1", positionMs = 30_000L)
+            tracker.report("v1", positionMs = 60_000L)
+            richVideo = video("v2")
+            tracker.report("v2", positionMs = 1_000L)
+            advanceUntilIdle()
+
+            verify(exactly = 1) {
+                FlowNeuroEngine.onVideoInteractionAsync(
+                    any(),
+                    match { it.id == "v1" && it.description == "rich" && it.tags == listOf("guitar playalong") },
+                    InteractionType.WATCHED,
+                    any(),
+                )
             }
         }
 
