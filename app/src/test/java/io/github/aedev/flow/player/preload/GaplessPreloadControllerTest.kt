@@ -79,6 +79,7 @@ class GaplessPreloadControllerTest {
         val resolve: suspend (Video) -> ResolvedStreamData? = { null },
         val source: MediaSource? = mockk(relaxed = true),
         val downloaded: Set<String> = emptySet(),
+        val gone: Set<String> = emptySet(),
     ) {
         val logs = mutableListOf<String>()
         var resolveCalls = 0
@@ -99,6 +100,7 @@ class GaplessPreloadControllerTest {
                 hasLocalCopy = { it.id in downloaded },
                 buildMediaSource = { _, _ -> source },
                 log = { logs += it },
+                isGone = { it in gone },
             )
     }
 
@@ -324,6 +326,26 @@ class GaplessPreloadControllerTest {
 
             assertThat(harness.resolveCalls).isEqualTo(4)
             assertThat(harness.logs).contains("schedulePreloadRetry giving up next=next")
+        }
+
+    @Test
+    fun `a next video YouTube removed is not retried`() =
+        runTest {
+            val harness =
+                Harness(
+                    backgroundScope,
+                    player = playerWith(),
+                    target = PreloadTarget(video("next"), fromQueue = false),
+                    resolve = { null },
+                    gone = setOf("next"),
+                )
+
+            harness.controller.schedule()
+            runCurrent()
+            advanceTimeBy(40_000)
+            runCurrent()
+
+            assertThat(harness.resolveCalls).isEqualTo(1)
         }
 
     @Test
