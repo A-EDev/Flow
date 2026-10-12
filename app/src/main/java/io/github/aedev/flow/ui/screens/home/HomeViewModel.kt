@@ -864,10 +864,11 @@ class HomeViewModel
             brain: UserBrain,
         ): Int {
             val seedInputs = loadMoreSeedInputs()
-            val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, LOAD_MORE_GRAPH_SEEDS)
+            val longTermInputs = feedSources.longTermSeedInputs()
+            val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, LOAD_MORE_GRAPH_SEEDS, longTermInputs)
             if (seedIds.isEmpty()) return 0
 
-            val graphFetch = feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
+            val graphFetch = feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
             val graphCandidates =
                 graphFetch.candidates
                     .filterValidGraph()
@@ -1032,11 +1033,12 @@ class HomeViewModel
                 // its scarcity fallback re-admits cooled seeds when the pool is thin.
                 if (page.size < MIN_PAGE_SIZE) {
                     val fallbackInputs = loadMoreSeedInputs()
+                    val fallbackLongTerm = feedSources.longTermSeedInputs()
                     val fallbackSeeds =
-                        FlowNeuroEngine.selectRelatedSeeds(fallbackInputs, LOAD_MORE_FALLBACK_SEEDS)
+                        FlowNeuroEngine.selectRelatedSeeds(fallbackInputs, LOAD_MORE_FALLBACK_SEEDS, fallbackLongTerm)
                     if (fallbackSeeds.isNotEmpty() && homePrefetchQueue.isCurrent(generation)) {
                         val fallbackFetch =
-                            feedSources.fetchRelatedGraph(fallbackInputs, fallbackSeeds, ::cacheFilters)
+                            feedSources.fetchRelatedGraph(fallbackInputs + fallbackLongTerm, fallbackSeeds, ::cacheFilters)
                         val fallbackCandidates =
                             fallbackFetch.candidates
                                 .filterValidGraph()
@@ -1426,23 +1428,17 @@ class HomeViewModel
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     try {
                         val now = System.currentTimeMillis()
-                        val seedInputs =
-                            savedInterestSeedInputs(
-                                feedSources.gatherSavedSeedSources(),
-                                feedSources.activeSavedSeedCooldown(now),
-                            )
-                        val seeds =
-                            FlowNeuroEngine.selectRelatedSeeds(
-                                seedInputs,
-                                MAX_SAVED_SEEDS,
-                            )
+                        val cooldown = feedSources.activeSavedSeedCooldown(now)
+                        val seedInputs = savedInterestSeedInputs(feedSources.gatherSavedSeedSources(), cooldown)
+                        val longTermInputs = feedSources.longTermSeedInputs().filterNot { it.id in cooldown }
+                        val seeds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_SAVED_SEEDS, longTermInputs)
                         if (seeds.isEmpty()) return@launch
                         feedSources.markSeedsUsed(seeds, now)
 
                         val exclusions = feedExclusions()
                         val relatedCandidates =
                             feedSources
-                                .fetchRelatedGraphCandidates(seedInputs, seeds, ::cacheFilters)
+                                .fetchRelatedGraphCandidates(seedInputs + longTermInputs, seeds, ::cacheFilters)
                                 .filterValidGraph()
                                 .filterWatchedGraph(watchedVideoIds.value)
                                 .filterRecentHomeSuggestionGraph(now)
