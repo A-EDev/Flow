@@ -261,6 +261,8 @@ FIXES AND STABILITY
 - Fix videos only the web player serves being treated as removed from YouTube, which made playlists and autoplay skip them without a word
 - Fix videos whose streams are all signature-protected, mostly label and kids channels, failing to load since YouTube's player update of 6 October: signatures are solved again from the player itself, with a remote fallback, and stream URLs no longer go through NewPipe at all (#1291, analysis by @Chiehx0220)
 - Fix the like count sometimes missing beside the like button: it is now read from the button itself when YouTube leaves the usual count empty, and a count already shown is no longer wiped by later page data (#1282)
+- Fix a reset recommendation profile coming back on the next start, and the starter searches a new profile uses being listed as learned searches (#907)
+- Backups now carry only your settings and a new phone also receives your library, while the recommendation engine and sync identity never leave the device, so a reinstall starts the engine clean (#907)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
