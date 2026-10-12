@@ -38,6 +38,9 @@ internal object NeuroClusters {
     /** Never-served and long-unserved clusters get this max staleness boost. */
     private const val STALENESS_MAX = 4.0
 
+    /** A cluster whose topics were all first seen this recently is new and gets no staleness boost. */
+    private const val NEW_CLUSTER_MS = 3L * 24L * 3_600_000L
+
     /** Weakest link admitted into the topic graph. */
     private const val MIN_EDGE_WEIGHT = 0.02
 
@@ -169,18 +172,32 @@ internal object NeuroClusters {
      * Orders clusters for serving: weight = mass^0.7 × staleness. Flattened mass
      * stops the top cluster monopolizing; staleness guarantees the tail cycles in.
      * A cluster never served (or long unserved) gets the max boost, so every
-     * saved interest reaches the feed within a bounded number of refreshes.
+     * saved interest reaches the feed within a bounded number of refreshes. A new
+     * cluster, every topic of it first seen (per [firstSeenAt]) within the last
+     * three days, waits its turn instead while the brain holds an older interest:
+     * a short burst of watching must not jump ahead of lasting interests (#907).
      */
     fun schedule(
         clusters: List<TopicCluster>,
         rotation: Map<String, Long>,
         now: Long,
-    ): List<TopicCluster> =
-        clusters
+        firstSeenAt: (String) -> Long? = { null },
+    ): List<TopicCluster> {
+        val ages =
+            clusters.associateWith { cluster ->
+                cluster.topics.map { topic -> firstSeenAt(topic)?.takeIf { it > 0L }?.let { now - it } }
+            }
+        // A brain that is new itself has no lasting interest to protect, so its clusters rotate as before.
+        val hasLastingInterest = ages.values.any { topicAges -> topicAges.any { it != null && it >= NEW_CLUSTER_MS } }
+        return clusters
             .map { cluster ->
                 val lastServed = rotation[cluster.representative]
+                val topicAges = ages.getValue(cluster)
+                val isNew = hasLastingInterest && topicAges.isNotEmpty() && topicAges.all { it != null && it < NEW_CLUSTER_MS }
                 val staleness =
-                    if (lastServed == null || lastServed <= 0L) {
+                    if (isNew) {
+                        1.0
+                    } else if (lastServed == null || lastServed <= 0L) {
                         STALENESS_MAX
                     } else {
                         val hoursSince = (now - lastServed) / 3_600_000.0
@@ -191,4 +208,5 @@ internal object NeuroClusters {
                 compareByDescending<Pair<TopicCluster, Double>> { it.second }
                     .thenBy { it.first.representative },
             ).map { it.first }
+    }
 }

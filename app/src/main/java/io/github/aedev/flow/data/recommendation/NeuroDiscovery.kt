@@ -189,7 +189,7 @@ internal class NeuroDiscovery(
             )
         if (clusters.isEmpty()) return emptySelection()
 
-        val scheduled = NeuroClusters.schedule(clusters, brain.clusterRotation, now)
+        val scheduled = NeuroClusters.schedule(clusters, brain.clusterRotation, now) { brain.topicEvidence[it]?.firstSeenAt }
 
         val byBase = HashMap<String, MatureTopic>()
         matureTopics.forEach { topic ->
