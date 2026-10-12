@@ -1,8 +1,14 @@
 package io.github.aedev.flow.data.recommendation
 
+import kotlin.math.exp
+import kotlin.math.roundToInt
+
 internal object GraphSeedSelector {
     private const val DAY_MS = 24L * 60L * 60L * 1000L
     private const val MIN_LONG_WATCH_SECONDS = 180
+
+    /** Minutes of watching at which a watch counts about two thirds as much as it ever can. */
+    private const val WATCH_MINUTES_SCALE = 8.0
 
     private val tokenizer by lazy { NeuroTokenizer() }
 
@@ -26,6 +32,7 @@ internal object GraphSeedSelector {
         maxPerCluster: Int = 2,
         topicScores: Map<String, Double> = emptyMap(),
         communityOf: ((String) -> String)? = null,
+        communityMass: Map<String, Double> = emptyMap(),
     ): List<String> {
         if (candidates.isEmpty() || maxSeeds <= 0) return emptyList()
         val ranked =
@@ -48,7 +55,13 @@ internal object GraphSeedSelector {
                 .map { SeedRank(it.id, it.clusterKey, it.weight) }
                 .toList()
 
-        return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster)
+        // A light interest gets fewer seeds than [maxPerCluster], so a burst of one new interest takes one
+        // seed rather than half of them (#907). Interests with no known weight get one each.
+        val presentMass = ranked.map { it.clusterKey }.distinct().sumOf { communityMass[it] ?: 0.0 }
+        if (presentMass <= 0.0) return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster)
+        return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster) { community ->
+            communityMass[community]?.let { mass -> (maxSeeds * mass / presentMass).roundToInt().coerceIn(1, maxPerCluster) } ?: 1
+        }
     }
 
     /**
@@ -68,7 +81,15 @@ internal object GraphSeedSelector {
         topicScores: Map<String, Double> = emptyMap(),
     ): List<String> {
         fun pick(from: List<GraphSeedInput>) =
-            select(from, maxSeeds, now, excludedChannelIds, topicScores = topicScores, communityOf = communityOf)
+            select(
+                from,
+                maxSeeds,
+                now,
+                excludedChannelIds,
+                topicScores = topicScores,
+                communityOf = communityOf,
+                communityMass = communityMass,
+            )
 
         // Cooled seeds come back only when no other seed qualifies: half-watched history never does,
         // so a size check on the raw list let a refresh inside the cooldown pick no seed at all.
@@ -142,8 +163,18 @@ internal object GraphSeedSelector {
             (percentWatched >= 35.0 && watchedSeconds >= MIN_LONG_WATCH_SECONDS)
     }
 
-    private fun GraphSeedInput.score(now: Long): Double =
-        engagementWeight.coerceAtLeast(0.0) * sourceWeight() * recencyWeight(timestamp, now)
+    private fun GraphSeedInput.score(now: Long): Double = engagement() * sourceWeight() * recencyWeight(timestamp, now)
+
+    /**
+     * A watch counts by how much of the video was seen and for how many minutes, half each, so a long
+     * special watched in part weighs as much as a short clip watched in full (#907).
+     */
+    private fun GraphSeedInput.engagement(): Double {
+        if (source != GraphSeedSource.WATCH_HISTORY || durationSec <= 0) return engagementWeight.coerceAtLeast(0.0)
+        val completion = (percentWatched / 100.0).coerceIn(0.0, 1.0)
+        val minutes = durationSec * completion / 60.0
+        return 0.5 * completion + 0.5 * (1.0 - exp(-minutes / WATCH_MINUTES_SCALE))
+    }
 
     private fun GraphSeedInput.sourceWeight(): Double =
         when (source) {
@@ -151,7 +182,7 @@ internal object GraphSeedSelector {
 
             GraphSeedSource.PLAYLIST -> 1.0
 
-            GraphSeedSource.WATCH_HISTORY -> if (percentWatched >= 70.0) 1.2 else 0.8
+            GraphSeedSource.WATCH_HISTORY -> 1.0
 
             // Engine picks the viewer never touched: always below any real watch, like or save.
             GraphSeedSource.FEED -> 0.15

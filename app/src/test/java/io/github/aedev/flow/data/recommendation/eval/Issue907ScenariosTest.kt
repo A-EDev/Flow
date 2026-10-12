@@ -52,10 +52,10 @@ class Issue907ScenariosTest {
             "P1/P6 Home: unrelated in 5-20 ${f(lanes.unrelatedIn5to20)} | guitar in top 20 ${f(lanes.guitarInTop20)}" +
                 " | comedy in top 20 ${f(lanes.comedyInTop20)} | searches ${lanes.searches}",
         )
-        // Today: a fully watched four-minute playalong outweighs a long comedy special almost four to one.
-        assertThat(seeds.guitarSeeds).isEqualTo(2)
-        assertThat(seeds.guitarSeedWeight).isGreaterThan(seeds.comedySeedWeight * 3)
-        // Videos that share nothing with the viewer stay off Home.
+        // A short playalong watched in full weighs about as much as a long special watched in part, and a
+        // new interest gets one seed. Videos that share nothing with the viewer stay off Home.
+        assertThat(seeds.guitarSeeds).isAtMost(1)
+        assertThat(seeds.guitarSeedWeight).isLessThan(seeds.comedySeedWeight * 1.5)
         assertThat(lanes.unrelatedIn5to20).isAtMost(0.15)
         // Today: with only two interests, the playalongs are a major one and get as many searches as comedy.
         assertThat(lanes.guitarInTop20).isAtLeast(0.3)

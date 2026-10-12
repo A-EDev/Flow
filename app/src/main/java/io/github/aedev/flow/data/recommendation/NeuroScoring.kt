@@ -1111,6 +1111,7 @@ internal object NeuroScoring {
         seeds: List<SeedRank>,
         maxSeeds: Int,
         maxPerCluster: Int,
+        capOf: (String) -> Int = { maxPerCluster },
     ): List<String> {
         val sortedSeeds = seeds.sortedByDescending { it.weight }
         val out = LinkedHashSet<String>()
@@ -1120,7 +1121,7 @@ internal object NeuroScoring {
                 if (out.size >= maxSeeds) return out.toList()
                 if (s.id in out) continue
                 val count = perCluster[s.clusterKey] ?: 0
-                if (count >= allowed) continue
+                if (count >= minOf(allowed, capOf(s.clusterKey))) continue
                 out.add(s.id)
                 perCluster[s.clusterKey] = count + 1
             }
