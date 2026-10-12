@@ -12,6 +12,40 @@ class PlayabilityVerdictTest {
     }
 
     @Test
+    fun `a web client that served formats means the video exists`() {
+        val webOnly =
+            listOf(
+                "VISIONOS: status=UNPLAYABLE, reason=This video is not available",
+                "MWEB: SABR resolved but no format survived decipher/n-transform",
+                "ANDROID_VR: status=UNPLAYABLE, reason=This video is not available",
+                "MOBILE: 22 formats, none resolvable (SABR-only)",
+            )
+        val webDemoted =
+            listOf(
+                "VISIONOS: status=UNPLAYABLE, reason=This video is not available",
+                "all SABR clients demoted: MWEB",
+                "WEB: SABR resolved but no format survived decipher/n-transform",
+                "ANDROID_VR: status=UNPLAYABLE, reason=This video is not available",
+            )
+
+        assertThat(PlayabilityVerdict.isGone(webOnly)).isFalse()
+        assertThat(PlayabilityVerdict.isGone(webDemoted)).isFalse()
+    }
+
+    @Test
+    fun `a client skipped without asking leaves a removed video gone`() {
+        val reasons =
+            listOf(
+                "VISIONOS: status=ERROR, reason=Video unavailable",
+                "all SABR clients demoted: MWEB, WEB",
+                "ANDROID_VR: status=UNPLAYABLE, reason=Video unavailable",
+                "TV_TIZEN: status=ERROR, reason=Video unavailable",
+            )
+
+        assertThat(PlayabilityVerdict.isGone(reasons)).isTrue()
+    }
+
+    @Test
     fun `a bot check, timeout or exception leaves the answer unknown`() {
         assertThat(PlayabilityVerdict.isGone(listOf("WEB: BOT_WALL, reason=Sign in", "IOS: status=ERROR, reason=x"))).isFalse()
         assertThat(PlayabilityVerdict.isGone(listOf("IOS: timeout or null response", "WEB: status=ERROR, reason=x"))).isFalse()

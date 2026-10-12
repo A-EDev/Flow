@@ -27,6 +27,14 @@ class StringArrayObfuscationTest {
     }
 
     @Test
+    fun `a single quoted array declared inside a var list is recognised`() {
+        val js = """var a,b,c;aX='${blob("push", "L", "split")}'.split(";");var x=f[aX[v^3442]](aX[2]);"""
+
+        assertThat(FunctionNameExtractor.hasQArrayObfuscation(js)).isTrue()
+        assertThat(FunctionNameExtractor.hasComputedArrayIndices(js)).isTrue()
+    }
+
+    @Test
     fun `a player with no string array is not flagged`() {
         val js = """var a=function(b){b=b.split("");b.reverse();return b.join("")};"""
 

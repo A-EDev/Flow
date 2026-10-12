@@ -304,6 +304,43 @@ class PlayerPlaybackReducersTest {
         assertThat(blankVideo("vid_a", null).title).isEmpty()
     }
 
+    @Test
+    fun `a like count already shown survives later copies of the same video that have none`() {
+        val shown = VideoPlayerUiState(cachedVideo = video("vid_a").copy(likeCount = 19_000_000L))
+
+        val afterWatchInfo = shown.applyWatchInfo(video("vid_a").copy(likeCount = 0L))
+        val afterStreams = shown.applyVodStreamsWith(video("vid_a").copy(likeCount = 0L))
+
+        assertThat(afterWatchInfo.cachedVideo!!.likeCount).isEqualTo(19_000_000L)
+        assertThat(afterStreams.cachedVideo!!.likeCount).isEqualTo(19_000_000L)
+    }
+
+    @Test
+    fun `a real like count still replaces the shown one, and another video keeps its own`() {
+        val shown = VideoPlayerUiState(cachedVideo = video("vid_a").copy(likeCount = 19_000_000L))
+
+        assertThat(shown.applyWatchInfo(video("vid_a").copy(likeCount = 19_485_233L)).cachedVideo!!.likeCount)
+            .isEqualTo(19_485_233L)
+        assertThat(shown.applyWatchInfo(video("vid_b").copy(likeCount = 0L)).cachedVideo!!.likeCount).isEqualTo(0L)
+    }
+
+    private fun VideoPlayerUiState.applyVodStreamsWith(video: Video): VideoPlayerUiState =
+        applyVodStreams(
+            cachedVideo = video,
+            isArchivedLivestream = false,
+            relatedVideos = emptyList(),
+            videoStream = null,
+            audioStream = null,
+            availableQualities = emptyList(),
+            savedPositionMs = 0L,
+            isAdaptiveMode = true,
+            autoplayEnabled = false,
+            innerTubeVideoFormats = emptyList(),
+            innerTubeAudioFormats = emptyList(),
+            streamSizes = emptyMap(),
+            storyboard = emptyList(),
+        )
+
     private fun video(id: String): Video =
         Video(
             id = id,

@@ -8,7 +8,6 @@ import io.github.aedev.flow.innertube.models.AttestationPlatform
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.core.SabrCpn
@@ -173,7 +172,7 @@ object InnerTubeVideoStreamExtractor {
                 )
                 // The walled visitor's other app clients and token-backed web clients stop at the
                 // same minute; TV_TIZEN is the measured way past it (#921).
-                TizenStreamResolver.resolve(videoId)?.let {
+                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
                     Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
                     PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
                     return@withContext it
@@ -209,6 +208,17 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+            }
+
+            // 2b) Label and kids videos are UNPLAYABLE on the app clients, so once the web clients
+            // fail this is their only source (#1292). The gated clients below stop at a minute and
+            // swap to it mid-playback anyway. Skipped when step 1 already asked it.
+            if (fastClients.isNotEmpty() && !liveDetected[0]) {
+                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
+                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/web-fallback)")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/web-fallback")
+                    return@withContext it
+                }
             }
 
             // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
@@ -506,9 +516,10 @@ object InnerTubeVideoStreamExtractor {
                         continue
                     }
 
-                    primeRemoteNsigIfNeeded(videoId, adaptiveFormats)
+                    val deciphered = adaptiveFormats.decipherWhilePossible(videoId)
+                    primeRemoteNsigIfNeeded(videoId, deciphered)
 
-                    val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId, allowUntransformedN) }
+                    val formatsWithUrl = deciphered.mapNotNull { it.withPlayableUrl(videoId, allowUntransformedN) }
                     // Capability probe : logs, per client,
                     // how many adaptive formats carried a direct URL vs how many resolved to a playable
                     // stream, plus whether the response is SABR-capable. Makes "why was this client skipped"
@@ -885,67 +896,56 @@ object InnerTubeVideoStreamExtractor {
         return "yes(${challenge.length}c$shared)"
     }
 
-    private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
-        videoId: String,
-        allowUntransformedN: Boolean,
-    ): PlayerResponse.StreamingData.Format? = withCipherResolvedUrl(videoId)?.withPlayableUrl(videoId, allowUntransformedN)
-
     /**
-     * Deciphers a whole ladder, and stops trying once one signature fails.
-     *
-     * Whether a `signatureCipher` can be resolved is a property of the player script, not of the
-     * format, so the first failure settles it for all of them. Measured 2026-09-22: without this,
-     * a player script whose signature function the patterns cannot find sent every one of ~30
-     * formats through a failing WebView round trip and blew the whole extraction budget.
+     * Gives every format of a ladder a real `url`, solving its `signatureCipher` first. Done for the
+     * whole ladder before any of it is n-transformed, because [primeRemoteNsigIfNeeded] can only
+     * sample formats that already have a URL. Formats that cannot be solved are dropped.
      */
     private suspend fun List<PlayerResponse.StreamingData.Format>.decipherWhilePossible(
         videoId: String,
     ): List<PlayerResponse.StreamingData.Format> {
-        var cipherUsable = true
+        val ciphers =
+            filter { it.url.isNullOrEmpty() }
+                .mapNotNull { format -> SignatureCipher.parse(format.signatureCipher ?: format.cipher)?.let { format to it } }
+                .toMap()
+        val solved = if (ciphers.isEmpty()) emptyMap() else solveSignatures(videoId, ciphers.values.map { it.signature })
         return mapNotNull { format ->
             when {
-                !format.url.isNullOrEmpty() -> {
-                    format
-                }
-
-                !cipherUsable -> {
-                    null
-                }
-
-                else -> {
-                    format.withCipherResolvedUrl(videoId).also {
-                        if (it == null) {
-                            cipherUsable = false
-                            Log.w(TAG, "Signature deciphering unavailable for $videoId — skipping the remaining ciphered formats")
-                        }
-                    }
-                }
+                !format.url.isNullOrEmpty() -> format
+                else -> ciphers[format]?.let { cipher -> solved[cipher.signature]?.let { format.copy(url = cipher.signedUrl(it)) } }
             }
         }
     }
 
     /**
-     * The format with a real `url`, deciphered if it only carried a `signatureCipher`, and with the
-     * `n` parameter still untransformed.
+     * The player script's own signature function first, then one remote batch for whatever it
+     * left. Whether the local function works is a property of the script, not of the format, so
+     * the first local failure sends the rest remote instead of retrying each (measured 2026-09-22:
+     * ~30 failing WebView round trips blew the extraction budget).
      *
-     * Split out of [toPlayableFormat] so a whole ladder can be deciphered before any of it is
-     * n-transformed: [primeRemoteNsigIfNeeded] can only sample formats that already have a URL, and
-     * on a SABR response almost none of them do until this has run. Priming first collapses what
-     * would otherwise be one remote round trip per format into one for the batch.
+     * The remote decoder is asked for the local script's hash: a signature only matches the
+     * timestamp the `/player` request carried, which is the local script's.
      */
-    private suspend fun PlayerResponse.StreamingData.Format.withCipherResolvedUrl(videoId: String): PlayerResponse.StreamingData.Format? {
-        if (!url.isNullOrEmpty()) return this
-        if (signatureCipher.isNullOrEmpty() && cipher.isNullOrEmpty()) return null
-        val resolved =
-            try {
-                NewPipeExtractor.getStreamUrl(this, videoId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
-                null
-            }
-        return resolved?.takeIf { it.isNotEmpty() }?.let { copy(url = it) }
+    private suspend fun solveSignatures(
+        videoId: String,
+        signatures: List<String>,
+    ): Map<String, String> {
+        val wanted = signatures.distinct()
+        val solved = mutableMapOf<String, String>()
+        for (signature in wanted) {
+            solved[signature] = CipherDeobfuscator.deobfuscateSignature(signature) ?: break
+        }
+        val missing = wanted.filterNot { it in solved }
+        if (missing.isEmpty()) return solved
+        val playerHash = CipherDeobfuscator.playerHash()
+        if (playerHash == null) {
+            Log.w(TAG, "Signature deciphering unavailable for $videoId — no player script")
+            return solved
+        }
+        Log.w(TAG, "Local signature function unavailable for $videoId; solving ${missing.size} remotely for $playerHash")
+        PlayerDiagnostics.logWarning(TAG, "local signature FAILED for $videoId — remote decoder for player $playerHash")
+        solved += PipePipeNsigDecoder.decodeSignatures(missing, playerId = playerHash)
+        return solved
     }
 
     /**
@@ -991,7 +991,7 @@ object InnerTubeVideoStreamExtractor {
         val rawN = extractNParameter(rawUrl) ?: return rawUrl
         return try {
             val transformed =
-                localNTransformOrNull(videoId, rawUrl, rawN)
+                localNTransformOrNull(rawUrl, rawN)
                     ?: PipePipeNsigDecoder
                         .deobfuscateUrl(rawUrl)
                         ?.takeIf { isNParameterTransformed(rawN, it) }
@@ -1007,31 +1007,25 @@ object InnerTubeVideoStreamExtractor {
         }
     }
 
-    /** NewPipe's decoder, then the in-app cipher. Null when neither could transform [rawN]. */
+    /** The player script's own n function. Null when it could not transform [rawN]. */
     private suspend fun localNTransformOrNull(
-        videoId: String,
         rawUrl: String,
         rawN: String,
-    ): String? {
-        NewPipeExtractor
-            .deobfuscateThrottling(videoId, rawUrl)
-            ?.takeIf { isNParameterTransformed(rawN, it) }
-            ?.let { return it }
-        return CipherDeobfuscator
+    ): String? =
+        CipherDeobfuscator
             .transformNParamInUrl(rawUrl)
             .takeIf { isNParameterTransformed(rawN, it) }
-    }
 
     /**
-     * Batch-primes the remote n decoder, but only once both local decoders have failed on a
+     * Batch-primes the remote n decoder, but only once the local decoder has failed on a
      * representative URL.
      *
-     * The remote decoder is the third fallback in [transformNParamInUrlOrNull], yet priming it
+     * The remote decoder is the fallback in [transformNParamInUrlOrNull], yet priming it
      * unconditionally put a third-party round trip in front of *every* extraction — the dominant
      * cost of the InnerTube leg on a cold start. Probing locally first keeps that round trip off
-     * the path to first frame whenever a local decoder can do the job, while still collapsing the
+     * the path to first frame whenever the local decoder can do the job, while still collapsing the
      * whole ladder into one request when it genuinely is needed. The probe is not wasted work:
-     * both local decoders cache their player script, so it warms exactly what the per-format loop
+     * the local decoder caches its player script, so it warms exactly what the per-format loop
      * below is about to ask for.
      */
     private suspend fun primeRemoteNsigIfNeeded(
@@ -1043,11 +1037,11 @@ object InnerTubeVideoStreamExtractor {
             urls.firstNotNullOfOrNull { url ->
                 extractNParameter(url)?.let { url to it }
             } ?: return
-        if (localNTransformOrNull(videoId, sample.first, sample.second) != null) return
-        Log.w(TAG, "Local n-decoders failed for $videoId; priming remote decoder for ${urls.size} formats")
+        if (localNTransformOrNull(sample.first, sample.second) != null) return
+        Log.w(TAG, "Local n-decoder failed for $videoId; priming remote decoder for ${urls.size} formats")
         PlayerDiagnostics.logWarning(
             TAG,
-            "local n-decoders FAILED for $videoId" +
+            "local n-decoder FAILED for $videoId" +
                 (CipherDeobfuscator.unparseablePlayerHash?.let { " — player JS $it is unreadable to this build" } ?: "") +
                 " — falling back to the remote decoder",
         )

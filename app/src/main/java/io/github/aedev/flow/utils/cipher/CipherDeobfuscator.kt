@@ -5,6 +5,8 @@ import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -30,6 +32,10 @@ object CipherDeobfuscator {
 
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
+
+    // Signature and n callers can arrive together (a song resolving during a video load); without
+    // this each would build its own WebView around the same 3 MB script.
+    private val webViewMutex = Mutex()
 
     @Volatile
     private var cachedSignatureTimestamp: Int? = null
@@ -72,6 +78,24 @@ object CipherDeobfuscator {
         }
     }
 
+    /**
+     * [signature] run through the player script's own signature function, or null when the script
+     * has none this build can find or the function failed.
+     */
+    suspend fun deobfuscateSignature(signature: String): String? =
+        try {
+            val webView = webViewMutex.withLock { getOrCreateWebView(forceRefresh = false) }
+            webView?.takeIf { it.sigFunctionAvailable }?.decipherSignature(signature)?.takeIf { it != signature }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Signature decipher failed: ${e.message}")
+            null
+        }
+
+    /** The hash of the player script whose signature timestamp the web `/player` requests carry. */
+    suspend fun playerHash(): String? = PlayerJsFetcher.getPlayerJs()?.second
+
     fun invalidateSignatureTimestamp() {
         Log.d(TAG, "Invalidating signature timestamp")
         cachedSignatureTimestamp = null
@@ -105,7 +129,7 @@ object CipherDeobfuscator {
         Log.d(TAG, "N-param: encoded=$nValueEncoded, decoded=$nValue")
 
         val webView =
-            getOrCreateWebView(forceRefresh = false) ?: run {
+            webViewMutex.withLock { getOrCreateWebView(forceRefresh = false) } ?: run {
                 Log.e(TAG, "Failed to get CipherWebView for n-transform")
                 return url
             }

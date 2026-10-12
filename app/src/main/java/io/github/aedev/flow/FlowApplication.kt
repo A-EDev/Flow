@@ -17,7 +17,6 @@ import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
-import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.notification.NotificationHelper
@@ -285,7 +284,6 @@ class FlowApplication :
         AppProxyManager.update(config, vpnActive)
         YouTube.proxy = AppProxyManager.currentProxy()
         YouTube.proxyAuth = AppProxyManager.currentHttpProxyAuthorizationHeader()
-        NewPipeExtractor.invalidateClient()
     }
 
     override fun onTerminate() {

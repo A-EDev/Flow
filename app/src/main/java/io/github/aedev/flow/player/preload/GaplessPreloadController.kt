@@ -6,6 +6,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedStreamData
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ internal class GaplessPreloadController(
     private val hasLocalCopy: suspend (Video) -> Boolean,
     private val buildMediaSource: (ResolvedStreamData, Context) -> MediaSource?,
     private val log: (String) -> Unit,
+    private val isGone: (String) -> Boolean = InnerTubeVideoStreamExtractor::isGone,
 ) {
     private companion object {
         const val TAG = "GaplessPreload"
@@ -166,8 +168,9 @@ internal class GaplessPreloadController(
             }
             val resolved =
                 resolveStreams(nextVideo, ctx) ?: run {
-                    shouldRetry = true
-                    log("schedulePreloadNext resolve failed next=${nextVideo.id}")
+                    // Every client already said the video is removed; another ladder run says it again.
+                    shouldRetry = !isGone(nextVideo.id)
+                    log("schedulePreloadNext resolve failed next=${nextVideo.id} retry=$shouldRetry")
                     return
                 }
             if (resolved.streamType == StreamType.LIVE_STREAM) {
