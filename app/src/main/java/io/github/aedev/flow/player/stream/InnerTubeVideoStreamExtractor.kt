@@ -8,7 +8,6 @@ import io.github.aedev.flow.innertube.models.AttestationPlatform
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.core.SabrCpn
@@ -992,7 +991,7 @@ object InnerTubeVideoStreamExtractor {
         val rawN = extractNParameter(rawUrl) ?: return rawUrl
         return try {
             val transformed =
-                localNTransformOrNull(videoId, rawUrl, rawN)
+                localNTransformOrNull(rawUrl, rawN)
                     ?: PipePipeNsigDecoder
                         .deobfuscateUrl(rawUrl)
                         ?.takeIf { isNParameterTransformed(rawN, it) }
@@ -1008,31 +1007,25 @@ object InnerTubeVideoStreamExtractor {
         }
     }
 
-    /** NewPipe's decoder, then the in-app cipher. Null when neither could transform [rawN]. */
+    /** The player script's own n function. Null when it could not transform [rawN]. */
     private suspend fun localNTransformOrNull(
-        videoId: String,
         rawUrl: String,
         rawN: String,
-    ): String? {
-        NewPipeExtractor
-            .deobfuscateThrottling(videoId, rawUrl)
-            ?.takeIf { isNParameterTransformed(rawN, it) }
-            ?.let { return it }
-        return CipherDeobfuscator
+    ): String? =
+        CipherDeobfuscator
             .transformNParamInUrl(rawUrl)
             .takeIf { isNParameterTransformed(rawN, it) }
-    }
 
     /**
-     * Batch-primes the remote n decoder, but only once both local decoders have failed on a
+     * Batch-primes the remote n decoder, but only once the local decoder has failed on a
      * representative URL.
      *
-     * The remote decoder is the third fallback in [transformNParamInUrlOrNull], yet priming it
+     * The remote decoder is the fallback in [transformNParamInUrlOrNull], yet priming it
      * unconditionally put a third-party round trip in front of *every* extraction — the dominant
      * cost of the InnerTube leg on a cold start. Probing locally first keeps that round trip off
-     * the path to first frame whenever a local decoder can do the job, while still collapsing the
+     * the path to first frame whenever the local decoder can do the job, while still collapsing the
      * whole ladder into one request when it genuinely is needed. The probe is not wasted work:
-     * both local decoders cache their player script, so it warms exactly what the per-format loop
+     * the local decoder caches its player script, so it warms exactly what the per-format loop
      * below is about to ask for.
      */
     private suspend fun primeRemoteNsigIfNeeded(
@@ -1044,11 +1037,11 @@ object InnerTubeVideoStreamExtractor {
             urls.firstNotNullOfOrNull { url ->
                 extractNParameter(url)?.let { url to it }
             } ?: return
-        if (localNTransformOrNull(videoId, sample.first, sample.second) != null) return
-        Log.w(TAG, "Local n-decoders failed for $videoId; priming remote decoder for ${urls.size} formats")
+        if (localNTransformOrNull(sample.first, sample.second) != null) return
+        Log.w(TAG, "Local n-decoder failed for $videoId; priming remote decoder for ${urls.size} formats")
         PlayerDiagnostics.logWarning(
             TAG,
-            "local n-decoders FAILED for $videoId" +
+            "local n-decoder FAILED for $videoId" +
                 (CipherDeobfuscator.unparseablePlayerHash?.let { " — player JS $it is unreadable to this build" } ?: "") +
                 " — falling back to the remote decoder",
         )

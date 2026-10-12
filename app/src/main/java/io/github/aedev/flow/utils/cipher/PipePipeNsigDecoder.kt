@@ -27,12 +27,11 @@ import kotlin.coroutines.resumeWithException
  * Remote `n` (throttling) parameter and signature deobfuscation via PipePipe's public decoder API
  * (https://api.pipepipe.dev/decoder), using PipePipe's exact protocol.
  *
- * Signatures are only ever solved here: the player script inlines its signature transform in a
- * control-flow-flattened dispatch no local extractor can name (measured 2026-09-22), so the TV
- * client that serves a walled visitor (#921) is reachable only through this endpoint.
+ * Signatures for the TV client that serves a walled visitor (#921) are solved here, against the
+ * decoder's own latest player. Web signatures come here only when the local player script's
+ * signature function cannot be found (as on `ecb23058`, 2026-09-22), and name the local player.
  *
- * This is the *last* of three n-transform strategies — the extractor tries NewPipe's local decoder
- * and the in-app [CipherDeobfuscator] first. Every call here is a round trip to a third-party host
+ * For `n`, this is the fallback after the in-app [CipherDeobfuscator]. Every call here is a round trip to a third-party host
  * sitting on the path to first frame, so three properties are load-bearing:
  *
  *  - the player id survives process death, because a fresh process otherwise refetches it before
