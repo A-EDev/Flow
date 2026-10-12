@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
+import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.recommendation.eval.NeuroLearningBenchmark.Family
 import io.github.aedev.flow.ui.screens.home.DURATION_COMFORT_DEFAULT_SEC
 import io.github.aedev.flow.ui.screens.home.FeedTasteProfile
@@ -25,7 +26,8 @@ import kotlinx.coroutines.runBlocking
  * Home as the viewer scrolls it: the real lanes, quotas and blend around the real ranker. The
  * viewer has watched comedy for months (long specials, about half of each) and then two guitar
  * playalongs in full. What YouTube returns is modelled: a search gives mostly its subject plus a
- * quarter of unrelated videos, a related list mostly its seed's subject plus 15 % unrelated.
+ * quarter of unrelated videos, a related list mostly its seed's subject plus 15 % unrelated. The
+ * searches are drawn at random, so the shares are averaged over [REFRESHES] refreshes.
  */
 internal object HomeLaneBenchmark {
     private const val DAY_MS = 24L * 60L * 60L * 1000L
@@ -34,6 +36,7 @@ internal object HomeLaneBenchmark {
     private const val RESULTS_PER_SEED = 20
     private const val UNRELATED_PER_SEED = 3
     private const val SEEDS = 4
+    private const val REFRESHES = 8
 
     data class Result(
         val unrelatedIn5to20: Double,
@@ -89,11 +92,17 @@ internal object HomeLaneBenchmark {
         }
     }
 
+    // YouTube never runs out of a subject, so past the pool each family continues with more of its own videos.
     private fun supply(): Supply {
-        val pool = NeuroLearningBenchmark.pool()
-        val byFamily = pool.groupBy { NeuroLearningBenchmark.familyOf(it.id) }
-        val unrelated = byFamily.getValue(Family.OTHER) + (200 until 300).map { NeuroLearningBenchmark.other(it) }
-        return Supply(byFamily + (Family.OTHER to unrelated))
+        val byFamily = NeuroLearningBenchmark.pool().groupBy { NeuroLearningBenchmark.familyOf(it.id) }
+        return Supply(
+            byFamily +
+                mapOf(
+                    Family.COMEDY to byFamily.getValue(Family.COMEDY) + (100 until 300).map { NeuroLearningBenchmark.comedy(it) },
+                    Family.GUITAR to byFamily.getValue(Family.GUITAR) + (100 until 300).map { NeuroLearningBenchmark.guitar(it) },
+                    Family.OTHER to byFamily.getValue(Family.OTHER) + (200 until 300).map { NeuroLearningBenchmark.other(it) },
+                ),
+        )
     }
 
     private fun history(now: Long): List<GraphSeedInput> {
@@ -142,6 +151,21 @@ internal object HomeLaneBenchmark {
             learner.resetSession()
             val brain = learner.getBrainSnapshot()
             learner.shutdown()
+            val refreshes = List(REFRESHES) { refresh(brain, now) }
+            Result(
+                unrelatedIn5to20 = refreshes.map { it.unrelatedIn5to20 }.average(),
+                guitarInTop20 = refreshes.map { it.guitarInTop20 }.average(),
+                comedyInTop20 = refreshes.map { it.comedyInTop20 }.average(),
+                guitarSeeds = refreshes.first().guitarSeeds,
+                searches = refreshes.first().searches,
+            )
+        }
+
+    private suspend fun refresh(
+        brain: UserBrain,
+        now: Long,
+    ): Result =
+        run {
             val engine = NeuroLearningBenchmark.engine(brain, NeuroLearningBenchmark.NO_JITTER)
             val supply = supply()
 
