@@ -3906,13 +3906,15 @@
     <string name="taste_export_music">Export music profile</string>
     <string name="taste_import_music">Import music profile</string>
     <string name="taste_reset_music">Reset music profile</string>
-    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap and hidden channels, topics and videos stay.</string>
+    <string name="taste_reset_video_body">Flow forgets what it learned from your videos and searches. History, likes, playlists and hidden items stay, and Home still uses them.</string>
     <string name="taste_reset_music_title">Reset music profile?</string>
     <string name="taste_reset_music_body">This clears what Flow learned from your music and starts again from zero. Your recap stays.</string>
     <string name="taste_trait_now">Now %1$s</string>
     <string name="taste_reset_done">Profile reset</string>
     <string name="diagnostics_engine_header">Engine details</string>
     <string name="diagnostics_engine_queries_none">None yet</string>
+    <string name="taste_starter_searches">Starter searches</string>
+    <string name="taste_starter_searches_detail">%1$s. Used until Flow learns what you watch.</string>
 
     <!-- Flow Recap -->
     <string name="recap_title">Flow Recap</string>

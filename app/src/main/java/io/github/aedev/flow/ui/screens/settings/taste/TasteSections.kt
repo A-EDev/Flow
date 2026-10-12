@@ -56,6 +56,7 @@ internal fun SettingsListScope.tasteContent(
     state: TasteState,
     hiddenLabel: String,
     noQueriesLabel: String,
+    startersLabel: String?,
     actions: TasteActions,
 ) {
     state.persona?.let { persona -> item("taste.persona") { PersonaHeroCard(persona, state.maturity) } }
@@ -78,7 +79,7 @@ internal fun SettingsListScope.tasteContent(
             icon = Icons.Outlined.PersonSearch,
         )
     }
-    state.engine?.let { engineDetails(it, noQueriesLabel) }
+    state.engine?.let { engineDetails(it, noQueriesLabel, startersLabel) }
     data(actions)
 }
 
@@ -96,6 +97,7 @@ internal fun SettingsListScope.learningPaused(
 private fun SettingsListScope.engineDetails(
     details: EngineDetails,
     noQueries: String,
+    starters: String?,
 ) {
     group(key = "taste.engine", header = R.string.diagnostics_engine_header) {
         info(TasteIndex.engineInteractions, details.interactions.toString())
@@ -106,6 +108,7 @@ private fun SettingsListScope.engineDetails(
         info(TasteIndex.engineSuppressed, details.suppressed.toString())
         info(TasteIndex.engineShortsSeen, details.shortsSeen.toString())
         info(TasteIndex.engineQueries, details.recentQueries.joinToString("\n").ifEmpty { noQueries })
+        starters?.let { info(TasteIndex.engineStarters, it) }
     }
 }
 
