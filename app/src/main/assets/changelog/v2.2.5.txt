@@ -91,6 +91,7 @@ NEW FEATURES
 - Tapping a video opens the player out of the card you tapped, with its thumbnail on screen until the video starts (#1091)
 - A video playing in the background keeps a mini bar in the music bar's place, with play and pause, its queue, and a tap or a swipe up to bring the video back (#980)
 - Choose what swiping a mini bar left or right does in Player appearance: close, next or previous with a peek at that video, save to Watch later, like, download, not interested or remove from queue (#980)
+- Related videos on Home say which of your videos they came from (#907)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -264,6 +265,7 @@ FIXES AND STABILITY
 - Fix a reset recommendation profile coming back on the next start, and the starter searches a new profile uses being listed as learned searches (#907)
 - Backups now carry only your settings and a new phone also receives your library, while the recommendation engine and sync identity never leave the device, so a reinstall starts the engine clean (#907)
 - Fix Home favouring less relevant videos after you skip several in a row, and swiping through Shorts no longer counts as skipping (#907)
+- Fix later cards on Home drifting to videos that have nothing to do with what you watch, and a couple of videos on a new subject no longer take over the related videos or jump ahead of interests you have kept for months (#907)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
