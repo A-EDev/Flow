@@ -68,6 +68,7 @@ internal object Issue907Scenarios {
         uploadDate: String = "3 days ago",
         tags: List<String> = emptyList(),
         duration: Int = 720,
+        category: String? = null,
     ) = Video(
         id = id,
         title = title,
@@ -78,6 +79,7 @@ internal object Issue907Scenarios {
         viewCount = 400_000,
         uploadDate = uploadDate,
         tags = tags,
+        category = category,
     )
 
     private fun family(family: Family) = NeuroLearningBenchmark.pool().filter { NeuroLearningBenchmark.familyOf(it.id) == family }
@@ -241,8 +243,9 @@ internal object Issue907Scenarios {
                     "review-pixel",
                     "Google Pixel 10 Pro Review",
                     "MKBHD",
-                    tags = listOf("Science & Technology", "google pixel", "pixel 10 pro"),
+                    tags = listOf("google pixel", "pixel 10 pro"),
                     duration = 900,
+                    category = "Science & Technology",
                 )
             engine.watchAll(listOf(review))
             engine.resetSession()

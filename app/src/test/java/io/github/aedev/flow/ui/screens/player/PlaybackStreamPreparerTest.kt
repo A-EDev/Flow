@@ -148,7 +148,7 @@ class PlaybackStreamPreparerTest {
     }
 
     @Test
-    fun `the category leads the tags when the client returned a microformat`() {
+    fun `the category is kept apart from the creator's keywords`() {
         val identity =
             preparer
                 .assembleVod(
@@ -157,14 +157,18 @@ class PlaybackStreamPreparerTest {
                     step = vodStep(keywords = listOf("storage"), category = "Science & Technology"),
                 ).identity
 
-        assertThat(identity.enrichedVideo.tags).containsExactly("Science & Technology", "storage").inOrder()
+        assertThat(identity.enrichedVideo.tags).containsExactly("storage")
+        assertThat(identity.enrichedVideo.category).isEqualTo("Science & Technology")
     }
 
     @Test
-    fun `a response without a microformat contributes no category`() {
+    fun `a response without a microformat keeps the category already known`() {
         val identity = preparer.assembleVod(VIDEO_ID, cached = null, step = vodStep(keywords = listOf("storage"))).identity
+        val known = preparer.assembleVod(VIDEO_ID, cachedVideo().copy(category = "Music"), vodStep(keywords = listOf("storage"))).identity
 
         assertThat(identity.enrichedVideo.tags).containsExactly("storage")
+        assertThat(identity.enrichedVideo.category).isNull()
+        assertThat(known.enrichedVideo.category).isEqualTo("Music")
     }
 
     @Test

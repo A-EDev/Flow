@@ -65,8 +65,9 @@ class Issue907ScenariosTest {
     fun `problem 2 - one review among comedy and cooking`() {
         val r = Issue907Scenarios.occasionalReview()
         log("P2 one review: learned ${r.learned.take(10)} | bridges top 10 ${f(r.ranked.top10)}, 5-20 ${f(r.ranked.positions5to20)}")
-        // Today: one watch plants its word pairs and the category pair at the acquisition floor.
-        assertThat(r.learned).containsAtLeast("google pixel", "pixel pro", "science technology")
+        // Today: one watch plants its word pairs at the acquisition floor. YouTube's category is not a topic.
+        assertThat(r.learned).containsAtLeast("google pixel", "pixel pro")
+        assertThat(r.learned).containsNoneOf("science technology", "science", "technology")
         assertThat(r.ranked.top10).isAtLeast(0.1)
     }
 

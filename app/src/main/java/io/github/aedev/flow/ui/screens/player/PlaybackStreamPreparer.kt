@@ -134,10 +134,9 @@ internal class PlaybackStreamPreparer {
                     channelId = channelId,
                     thumbnailUrl = thumbnail,
                     duration = durationSeconds.toInt(),
-                    // The category when the winning client happened to return a microformat
-                    // (WEB/MWEB do, VISIONOS does not), then the creator-declared keywords. The
-                    // category leads because the engine reads only the first tags.
-                    tags = topicTags(result, cached),
+                    tags = keywordTags(result, cached),
+                    // Only when the winning client returned a microformat: WEB/MWEB do, VISIONOS does not.
+                    category = microformatCategory(result) ?: cached?.category,
                 ),
             title = title,
             channel = channel,
@@ -147,22 +146,21 @@ internal class PlaybackStreamPreparer {
         )
     }
 
-    private fun topicTags(
+    private fun keywordTags(
         result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
         cached: Video?,
-    ): List<String> {
-        val keywords =
-            result.playerResponse.videoDetails
-                ?.keywords
-                .orEmpty()
-        val category =
-            result.playerResponse.microformat
-                ?.playerMicroformatRenderer
-                ?.category
-                ?.takeIf { it.isNotBlank() }
-        val tags = (listOfNotNull(category) + keywords).distinct()
-        return tags.ifEmpty { cached?.tags.orEmpty() }
-    }
+    ): List<String> =
+        result.playerResponse.videoDetails
+            ?.keywords
+            .orEmpty()
+            .distinct()
+            .ifEmpty { cached?.tags.orEmpty() }
+
+    private fun microformatCategory(result: InnerTubeVideoStreamExtractor.VideoExtractionResult): String? =
+        result.playerResponse.microformat
+            ?.playerMicroformatRenderer
+            ?.category
+            ?.takeIf { it.isNotBlank() }
 
     private fun captionStreams(
         result: InnerTubeVideoStreamExtractor.VideoExtractionResult,

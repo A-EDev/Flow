@@ -335,6 +335,18 @@ class PlaybackSessionApplierTest {
         }
 
     @Test
+    fun `a late category is kept on the video, not added to its tags`() =
+        runTest(testDispatcher) {
+            uiState.value = VideoPlayerUiState(cachedVideo = video(VIDEO_ID).copy(tags = listOf("storage")))
+
+            applier().applySecondary(SecondaryMetadata.Category(VIDEO_ID, CURRENT_TOKEN, "Science & Technology"))
+            advanceUntilIdle()
+
+            assertThat(uiState.value.cachedVideo!!.category).isEqualTo("Science & Technology")
+            assertThat(uiState.value.cachedVideo!!.tags).containsExactly("storage")
+        }
+
+    @Test
     fun `watch info for a streamed video leaves the channel row to the stream path`() =
         runTest(testDispatcher) {
             uiState.value = VideoPlayerUiState(cachedVideo = video(VIDEO_ID))

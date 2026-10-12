@@ -316,6 +316,15 @@ class PlayerPlaybackReducersTest {
     }
 
     @Test
+    fun `a category already known survives later copies of the same video that have none`() {
+        val shown = VideoPlayerUiState(cachedVideo = video("vid_a").copy(category = "Music"))
+
+        assertThat(shown.applyWatchInfo(video("vid_a")).cachedVideo!!.category).isEqualTo("Music")
+        assertThat(shown.applyVodStreamsWith(video("vid_a")).cachedVideo!!.category).isEqualTo("Music")
+        assertThat(shown.applyWatchInfo(video("vid_b")).cachedVideo!!.category).isNull()
+    }
+
+    @Test
     fun `a real like count still replaces the shown one, and another video keeps its own`() {
         val shown = VideoPlayerUiState(cachedVideo = video("vid_a").copy(likeCount = 19_000_000L))
 
