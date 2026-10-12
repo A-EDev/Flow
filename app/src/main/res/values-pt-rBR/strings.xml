@@ -1239,7 +1239,7 @@
     <string name="about_creator">Criador</string>
     <string name="about_creator_name">A-EDev</string>
     <string name="about_website">Site</string>
-    <string name="about_website_address">flow.aedev.me</string>
+    <string name="about_website_address">flow-tube.org</string>
     <string name="about_reddit">Reddit</string>
     <string name="about_reddit_subtitle">r/Flow_Official</string>
     <string name="github_subtitle">Código-fonte e problemas</string>
@@ -1659,7 +1659,7 @@
     <string name="sync_error_no_network">Sem conexão Wi-Fi/LAN. Conecte ambos os dispositivos à mesma rede ou um ponto de acesso.</string>
     <string name="sync_error_peer_also_send">O outro dispositivo também está configurado para Enviar. Configure-o para Receber e tente novamente.</string>
     <string name="sync_error_peer_also_receive">O outro dispositivo também está configurado para Receber. Configure-o para Enviar e tente novamente.</string>
-    <string name="sync_error_qr_expired">Esta sessão de pareamento expirou. Peça ao outro dispositivo para criar uma nova.</string>
+    <string name="sync_error_qr_expired">Este código expirou. Peça ao outro dispositivo para criar um novo. Se os códigos continuarem expirando, verifique se a data e hora estão iguais nos dois dispositivos.</string>
     <string name="sync_error_qr_wrong_version">Versão de aplicativo incompatível no outro dispositivo.</string>
     <string name="sync_error_qr_not_flow">Isso não parece ser um dado de conexão válido do Flow.</string>
     <plurals name="subscriptions_failed_channels_title">
@@ -3433,4 +3433,24 @@
     <string name="import_takeout_step_history">Histórico de visualização</string>
     <string name="import_takeout_step_subscriptions">Inscrições</string>
     <string name="import_takeout_step_activity">Curtidas e pesquisas</string>
+    <string name="cache_other_summary">Letras e rede,%1$s</string>
+    <string name="import_yt_takeout_all_desc">Inscrições, histórico, pesquisas, playlists, curtidas e sua biblioteca do YouTube Music do Google Takeout. Pegue cada ZIP da exportação.</string>
+    <plurals name="import_takeout_part_subscriptions">
+        <item quantity="one">%d inscrição</item>
+        <item quantity="many">%d de inscrições</item>
+        <item quantity="other">%d inscrições</item>
+    </plurals>
+    <plurals name="import_takeout_part_playlists">
+        <item quantity="one">%1$d playlist (%2$d vídeos)</item>
+        <item quantity="many">%1$d de playlists (%2$d vídeos)</item>
+        <item quantity="other">%1$d playlists (%2$d vídeos)</item>
+    </plurals>
+    <string name="import_takeout_music_library_name">Biblioteca do YouTube Music</string>
+    <plurals name="import_takeout_part_searches">
+        <item quantity="one">%d pesquisa</item>
+        <item quantity="many">%d de pesquisas</item>
+        <item quantity="other">%d pesquisas</item>
+    </plurals>
+    <string name="sync_error_qr_not_local">Esse código leva para fora da sua rede local, então Flow não se conecta a ela. Use apenas códigos mostrados por seus próprios dispositivos.</string>
+    <string name="sync_error_no_peer">Nenhum dispositivo conectado antes do código expirar. Verifique se ambos os dispositivos estão no mesmo Wi-Fi e tente novamente.</string>
 </resources>
