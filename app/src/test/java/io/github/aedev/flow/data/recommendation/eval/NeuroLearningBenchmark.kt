@@ -317,7 +317,11 @@ internal object NeuroLearningBenchmark {
 
     fun familyOf(id: String): Family = families.getValue(id)
 
-    fun engine(brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION)): FlowNeuroEngine {
+    /** [random] fixes the ranking jitter; pass [NO_JITTER] to rank by score alone. */
+    fun engine(
+        brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION),
+        random: java.util.Random? = null,
+    ): FlowNeuroEngine {
         val storage: NeuroStorage =
             mockk(relaxed = true) {
                 coEvery { load() } returns brain
@@ -326,8 +330,13 @@ internal object NeuroLearningBenchmark {
             mockk(relaxed = true) {
                 every { topicsFor(any()) } returns null
             }
-        return FlowNeuroEngine(mockk(relaxed = true), storage, contentStore, learningPaused = { false })
+        return FlowNeuroEngine(mockk(relaxed = true), storage, contentStore, learningPaused = { false }, rankRandom = random)
     }
+
+    val NO_JITTER: java.util.Random =
+        object : java.util.Random() {
+            override fun nextDouble() = 0.0
+        }
 
     suspend fun FlowNeuroEngine.watch(
         video: Video,

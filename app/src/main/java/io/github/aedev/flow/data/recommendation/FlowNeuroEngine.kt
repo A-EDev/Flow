@@ -56,6 +56,7 @@ class FlowNeuroEngine internal constructor(
     private val storage: NeuroStorage,
     private val contentStore: NeuroContentStore,
     learningPaused: (suspend () -> Boolean)? = null,
+    private val rankRandom: java.util.Random? = null,
 ) {
     constructor(appContext: Context) : this(appContext, NeuroStorage(appContext), NeuroContentStore(appContext))
 
@@ -1796,7 +1797,7 @@ class FlowNeuroEngine internal constructor(
                 recentInteractionsSnapshot = recentInteractions.toList()
             }
 
-            val random = java.util.Random()
+            val random = rankRandom ?: java.util.Random()
             val now = System.currentTimeMillis()
 
             // Hard suppression: videos for good, channels for a rolling window
