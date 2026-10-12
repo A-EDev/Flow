@@ -1733,7 +1733,7 @@
     <string name="sync_error_no_network">Відсутня мережа. Підключіть обидва пристрої до однієї мережі або точки доступу.</string>
     <string name="sync_error_peer_also_send">Інший пристрій також налаштовано на надсилання. Переведіть його в режим отримання та спробуйте знову.</string>
     <string name="sync_error_peer_also_receive">Інший пристрій також налаштовано на отримання. Переведіть його в режим надсилання та спробуйте знову.</string>
-    <string name="sync_error_qr_expired">Термін дії цього сеансу з’єднання закінчився. Попросіть інший пристрій створити новий.</string>
+    <string name="sync_error_qr_expired">Термін дії цього коду минув. Попросіть інший пристрій створити новий код. Якщо термін дії кодів постійно закінчується майже одразу, перевірте, чи правильно встановлено дату й час на обох пристроях.</string>
     <string name="sync_error_qr_wrong_version">Версія програми на іншому пристрої несумісна.</string>
     <string name="sync_error_qr_not_flow">Це не схоже на коректні дані з’єднання Flow.</string>
     <string name="sync_error_qr_bad_address">У даних з\'єднання відсутня дійсна мережева адреса.</string>
@@ -1982,7 +1982,7 @@
     <string name="ui_in_library">В бібліотеці</string>
     <string name="ui_flow_logo">Логотип Flow</string>
     <string name="about_creator_name">A-EDev</string>
-    <string name="about_website_address">flow.aedev.me</string>
+    <string name="about_website_address">flow-tube.org</string>
     <string name="about_reddit">Reddit</string>
     <string name="about_reddit_subtitle">r/Flow_Official</string>
     <string name="about_license_name">GNU GPL v3</string>
@@ -4330,4 +4330,18 @@
         <item quantity="other">%d пошуків</item>
     </plurals>
     <string name="mark_as_unwatched_toast">Позначено як непереглянуте</string>
+    <string name="sync_error_qr_not_local">Цей код указує на пристрій за межами вашої локальної мережі, тому Flow не зможе до нього під’єднатися. Використовуйте лише коди, які показуються на ваших власних пристроях.</string>
+    <string name="sync_error_no_peer">До закінчення терміну дії коду не було під’єднано жодного пристрою. Переконайтеся, що обидва пристрої під’єднані до однієї мережі Wi-Fi, а потім спробуйте ще раз.</string>
+    <string name="sync_error_unreachable">Не вдалося під’єднатися до іншого пристрою. Переконайтеся, що обидва пристрої під’єднані до однієї мережі Wi-Fi і що VPN або брандмауер не блокує з’єднання.</string>
+    <string name="sync_error_timeout">Інший пристрій перестав відповідати. Не закривайте Flow на жодному з пристроїв і спробуйте ще раз.</string>
+    <string name="sync_error_peer_closed">Інший пристрій розірвав з’єднання. Перевірте, чи є на ньому повідомлення, а потім спробуйте ще раз.</string>
+    <string name="sync_error_corrupted">Дані пошкодилися під час передавання. Спробуйте ще раз.</string>
+    <string name="sync_error_apply_failed">Дані надійшли, але їх не вдалося зберегти. На цьому пристрої нічого не змінено.</string>
+    <string name="sync_error_peer_apply_failed">Інший пристрій не зміг зберегти дані. На ньому нічого не змінилося.</string>
+    <string name="sync_error_code_not_confirmed">Коди підтвердження не були підтверджені, тому нічого не було передано.</string>
+    <string name="sync_error_code_rejected">Інший пристрій не підтвердив код підтвердження, тож нічого не було передано.</string>
+    <string name="sync_error_declined">Злиття відхилено. Нічого не було передано.</string>
+    <string name="sync_error_protocol">Два пристрої не змогли узгодити кроки синхронізації. Оновіть Flow на обох пристроях і спробуйте ще раз.</string>
+    <string name="sync_error_peer">Інший пристрій повідомив про проблему: %1$s</string>
+    <string name="music_playback_warning_unavailable">Ця пісня більше недоступна на YouTube.</string>
 </resources>
