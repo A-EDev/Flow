@@ -24,9 +24,15 @@ internal object TizenStreamResolver {
     private const val TAG = "TizenStreams"
     private const val PLAYER_TIMEOUT_MS = 8_000L
 
-    suspend fun resolve(videoId: String): InnerTubeVideoStreamExtractor.VideoExtractionResult? =
+    /** @param failureReasons the ladder's list, so a refusal here counts toward its verdicts. */
+    suspend fun resolve(
+        videoId: String,
+        failureReasons: MutableList<String>? = null,
+    ): InnerTubeVideoStreamExtractor.VideoExtractionResult? =
         withContext(Dispatchers.IO) {
-            val signatureTimestamp = PipePipeNsigDecoder.signatureTimestamp() ?: return@withContext fail(videoId, "no signature timestamp")
+            val refuse = { why: String -> fail(videoId, why, failureReasons) }
+            val signatureTimestamp =
+                PipePipeNsigDecoder.signatureTimestamp() ?: return@withContext refuse("not asked (no signature timestamp)")
             val response =
                 withTimeoutOrNull(PLAYER_TIMEOUT_MS) {
                     YouTube
@@ -37,17 +43,19 @@ internal object TizenStreamResolver {
                             localeOverride = YouTubeLocale.EXTRACTION,
                             apiUrl = YouTubeClient.API_URL_YOUTUBE,
                         ).getOrNull()
-                } ?: return@withContext fail(videoId, "no /player answer")
+                } ?: return@withContext refuse("timeout or null response")
             val answeredAtMs = SystemClock.elapsedRealtime()
             if (response.playabilityStatus.status != "OK") {
-                return@withContext fail(videoId, "status=${response.playabilityStatus.status} reason=${response.playabilityStatus.reason}")
+                val reason = response.playabilityStatus.reason
+                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=${response.playabilityStatus.status}"
+                return@withContext refuse("$tag, reason=$reason")
             }
             val formats = response.streamingData?.adaptiveFormats.orEmpty()
             val playable = playableFormats(formats)
             val video = playable.filter { !it.isAudio && it.height != null && it.width != null }
             val audio = playable.filter { it.isAudio }
             if (video.isEmpty() || audio.isEmpty()) {
-                return@withContext fail(videoId, "${playable.size}/${formats.size} formats solved")
+                return@withContext refuse("${playable.size}/${formats.size} formats solved")
             }
             val prerollMs = PrerollWait.of(response.adPlacements)
             val waitMs = prerollMs - (SystemClock.elapsedRealtime() - answeredAtMs)
@@ -85,7 +93,9 @@ internal object TizenStreamResolver {
     private fun fail(
         videoId: String,
         why: String,
+        failureReasons: MutableList<String>?,
     ): InnerTubeVideoStreamExtractor.VideoExtractionResult? {
+        failureReasons?.add("TV_TIZEN: $why")
         Log.w(TAG, "TV_TIZEN unavailable for $videoId: $why")
         PlayerDiagnostics.logWarning(TAG, "TV_TIZEN unavailable for $videoId: $why")
         return null

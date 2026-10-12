@@ -173,7 +173,7 @@ object InnerTubeVideoStreamExtractor {
                 )
                 // The walled visitor's other app clients and token-backed web clients stop at the
                 // same minute; TV_TIZEN is the measured way past it (#921).
-                TizenStreamResolver.resolve(videoId)?.let {
+                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
                     Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
                     PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
                     return@withContext it
@@ -209,6 +209,17 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+            }
+
+            // 2b) Label and kids videos are UNPLAYABLE on the app clients, so once the web clients
+            // fail this is their only source (#1292). The gated clients below stop at a minute and
+            // swap to it mid-playback anyway. Skipped when step 1 already asked it.
+            if (fastClients.isNotEmpty() && !liveDetected[0]) {
+                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
+                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/web-fallback)")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/web-fallback")
+                    return@withContext it
+                }
             }
 
             // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
