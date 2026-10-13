@@ -26,6 +26,8 @@ internal object NeuroKeyMigration {
     /** What onboarding gave every pair of picks; a link that grew past it has real co-watching behind it. */
     private const val ONBOARDING_EDGE = 0.3
 
+    private const val WORD_PATTERN = "~"
+
     fun run(
         brain: UserBrain,
         tokenizer: NeuroTokenizer,
@@ -126,6 +128,8 @@ internal object NeuroKeyMigration {
 
         fun keysFor(key: String): List<String> =
             cache.getOrPut(key) {
+                // A word-level rejection pattern ("~guitar") keeps its mark.
+                if (key.startsWith(WORD_PATTERN)) return@getOrPut keysFor(key.removePrefix(WORD_PATTERN)).map { WORD_PATTERN + it }
                 val tag = key.substringAfter(':', "")
                 val base = if (tag.isEmpty()) key else key.substringBefore(':')
                 pickForms[key]?.let { return@getOrPut it }

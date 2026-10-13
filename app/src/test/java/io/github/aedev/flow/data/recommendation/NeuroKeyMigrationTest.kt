@@ -85,6 +85,23 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
+    fun `a word-level rejection pattern keeps its mark`() {
+        val brain =
+            schema17().copy(
+                rejectionPatterns =
+                    mapOf(
+                        "~lo-fi" to RejectionSignal(2, 5L),
+                        "lo-fi" to RejectionSignal(1, 4L),
+                        "~guitar" to RejectionSignal(1, 3L),
+                    ),
+            )
+
+        val patterns = NeuroKeyMigration.run(brain, tokenizer).rejectionPatterns
+
+        assertThat(patterns.keys).containsExactly("~lofi", "lofi", "~guitar")
+    }
+
+    @Test
     fun `chance pairs leave every vector, profile and record, but document frequency keeps them`() {
         val migrated = NeuroKeyMigration.run(schema17(), tokenizer)
         val dropped = listOf("big tech", "tech privacy", "privacy promises")
