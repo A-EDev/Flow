@@ -889,7 +889,11 @@ class FlowNeuroEngine internal constructor(
         labels: Collection<String>,
     ): Map<String, DisplayForm> =
         labels.fold(forms) { current, label ->
-            NeuroDisplayForms.record(current, NeuroDisplayForms.spellingsIn(label, tokenizer.keysOf(label), tokenizer)) { true }
+            val keys = tokenizer.keysOf(label)
+            // A label that is one key is that key's spelling, words like "of" included ("Call of Duty").
+            val spellings =
+                keys.singleOrNull()?.let { key -> mapOf(key to label.trim()) } ?: NeuroDisplayForms.spellingsIn(label, keys, tokenizer)
+            NeuroDisplayForms.record(current, spellings.filter { (key, spelling) -> key != spelling }) { true }
         }
 
     /** The keys the viewer's picks stand for, as titles key them. */
