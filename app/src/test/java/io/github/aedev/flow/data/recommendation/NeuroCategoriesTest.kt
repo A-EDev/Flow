@@ -90,6 +90,37 @@ class NeuroCategoriesTest {
         }
 
     @Test
+    fun `three games read as one Gaming chip that searches each game`() =
+        runBlocking<Unit> {
+            val store = NeuroCategoryStore(mockk(relaxed = true))
+            listOf("ch-mc", "ch-cod", "ch-fn").forEach { channel -> repeat(3) { store.record(channel, "gaming") } }
+            repeat(3) { store.record("ch-lofi", "music") }
+            val evidence = TopicEvidence(watchSignals = 3, positiveSignals = 3, positiveScore = 2.0)
+            val topics = mapOf("minecraft" to 0.6, "call of duty" to 0.55, "fortnite" to 0.5, "lofi" to 0.45)
+            val brain =
+                UserBrain(
+                    globalVector = ContentVector(topics = topics),
+                    channelTopicProfiles =
+                        mapOf(
+                            "ch-mc" to mapOf("minecraft" to 0.6),
+                            "ch-cod" to mapOf("call of duty" to 0.6),
+                            "ch-fn" to mapOf("fortnite" to 0.6),
+                            "ch-lofi" to mapOf("lofi" to 0.6),
+                        ),
+                    topicEvidence = topics.mapValues { evidence },
+                    totalInteractions = 100,
+                )
+            val engine = NeuroLearningBenchmark.engine(brain, categoryStore = store)
+
+            val chips = engine.interestChips(1_800_000_000_000L)
+            engine.shutdown()
+
+            assertThat(chips.map { it.category }).containsExactly("gaming", null).inOrder()
+            assertThat(chips.first().parts.map { it.representative }).containsExactly("minecraft", "call of duty", "fortnite")
+            assertThat(chips.last().label).isEqualTo("Lofi")
+        }
+
+    @Test
     fun `a video from a channel in a foreign category ranks below an equal one, unless subscribed`() =
         runBlocking {
             val store = NeuroCategoryStore(mockk(relaxed = true))

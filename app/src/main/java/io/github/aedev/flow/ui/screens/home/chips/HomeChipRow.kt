@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.home.chips
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,11 +72,31 @@ internal fun HomeChipRow(
     }
 }
 
+/** The name of a theme chip's YouTube category ([io.github.aedev.flow.data.recommendation.NeuroCategories]). */
+@StringRes
+private fun themeLabel(category: String): Int? =
+    when (category) {
+        "music" -> R.string.category_music
+        "gaming" -> R.string.category_gaming
+        "sports" -> R.string.category_sports
+        "education" -> R.string.category_education
+        "news" -> R.string.category_news
+        "science" -> R.string.home_theme_science
+        "comedy" -> R.string.home_theme_comedy
+        "film" -> R.string.home_theme_film
+        "autos" -> R.string.home_theme_autos
+        "pets" -> R.string.home_theme_pets
+        "travel" -> R.string.home_theme_travel
+        "howto" -> R.string.home_theme_howto
+        "nonprofits" -> R.string.home_theme_nonprofits
+        else -> null
+    }
+
 @Composable
 private fun HomeChip.label(): String =
     when (this) {
         HomeChip.All -> stringResource(R.string.home_chip_all)
-        is HomeChip.Interest -> interest.label
+        is HomeChip.Interest -> interest.category?.let(::themeLabel)?.let { stringResource(it) } ?: interest.label
         HomeChip.NewToYou -> stringResource(R.string.home_chip_new_to_you)
         HomeChip.RecentlyUploaded -> stringResource(R.string.home_chip_recently_uploaded)
         HomeChip.Mixes -> stringResource(R.string.home_chip_mixes)

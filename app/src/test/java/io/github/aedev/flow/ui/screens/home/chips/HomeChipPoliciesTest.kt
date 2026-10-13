@@ -53,6 +53,24 @@ class HomeChipPoliciesTest {
     }
 
     @Test
+    fun `a theme searches each of its interests in turn`() {
+        val theme =
+            InterestChip(
+                "theme:gaming",
+                "Minecraft",
+                emptyList(),
+                category = "gaming",
+                parts =
+                    listOf(
+                        InterestChip("minecraft", "Minecraft", listOf("minecraft", "minecraft redstone")),
+                        InterestChip("fortnite", "Fortnite", listOf("fortnite")),
+                    ),
+            )
+
+        assertThat(interestQueries(theme)).containsExactly("minecraft redstone", "fortnite").inOrder()
+    }
+
+    @Test
     fun `new to you keeps one video per channel the viewer never met`() {
         val videos = listOf(video("a", "known"), video("b", "fresh"), video("c", "fresh"), video("d", "other"))
 

@@ -4153,6 +4153,14 @@
     <string name="home_chip_mixes">Mixes</string>
     <string name="home_chip_live">Live</string>
     <string name="home_chip_watched">Watched</string>
+    <string name="home_theme_science">Science &amp; tech</string>
+    <string name="home_theme_comedy">Comedy</string>
+    <string name="home_theme_film">Film &amp; animation</string>
+    <string name="home_theme_autos">Cars &amp; vehicles</string>
+    <string name="home_theme_pets">Pets &amp; animals</string>
+    <string name="home_theme_travel">Travel</string>
+    <string name="home_theme_howto">How-to &amp; style</string>
+    <string name="home_theme_nonprofits">Nonprofits</string>
     <string name="home_chip_description">Show %1$s on Home</string>
     <string name="home_chip_empty_title">Nothing here right now</string>
     <string name="home_chip_empty_body">Pull down to look again later.</string>

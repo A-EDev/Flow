@@ -161,6 +161,11 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun interestChips(now: Long = System.currentTimeMillis()): List<InterestChip> = requireInstance().interestChips(now)
 
+        fun outsideCategory(
+            videos: List<Video>,
+            category: String,
+        ): Set<String> = requireInstance().outsideCategory(videos, category)
+
         suspend fun explorationQueries(limit: Int): List<String> = requireInstance().explorationQueries(limit)
 
         suspend fun rejectedByPattern(videos: List<Video>): Set<String> = requireInstance().rejectedByPattern(videos)
@@ -555,15 +560,21 @@ class FlowNeuroEngine internal constructor(
         withContext(Dispatchers.Default) {
             val brain = getBrainSnapshot()
             val clusters = clustersOf(brain)
+            val picks = pickKeys(brain)
             val hasEvidence = { cluster: NeuroClusters.TopicCluster ->
                 cluster.topics.size >= 2 ||
+                    cluster.topics.any { it in picks } ||
                     brain.topicEvidence[cluster.representative]?.let {
                         it.watchSignals >= 2 || it.explicitSignals > 0 ||
                             it.positiveScore >= 1.2
                     } ==
                     true
             }
-            val set = InterestChips.stable(brain.interestChips, clusters, hasEvidence, now)
+            val categoryOf = { cluster: NeuroClusters.TopicCluster ->
+                NeuroCategories.clusterCategory(cluster.topics, brain.channelTopicProfiles, categoryStore::categoryOf)
+            }
+            val groups = InterestChips.groups(clusters, hasEvidence, categoryOf)
+            val set = InterestChips.stable(brain.interestChips, groups, now)
             if (set != brain.interestChips) {
                 val deepFlow = isLearningPaused()
                 withBrainLock {
@@ -572,8 +583,19 @@ class FlowNeuroEngine internal constructor(
                     scheduleDebouncedSave(bookkeeping = true)
                 }
             }
-            InterestChips.chips(set, clusters, brain.displayForms)
+            InterestChips.chips(set, groups, brain.displayForms)
         }
+
+    /** Ids of [videos] from channels known to post in a category other than [category]. */
+    fun outsideCategory(
+        videos: List<Video>,
+        category: String,
+    ): Set<String> =
+        videos
+            .filter { video ->
+                val known = NeuroCategories.idOf(video.category) ?: categoryStore.categoryOf(video.channelId)?.id
+                known != null && known != category
+            }.mapTo(HashSet()) { it.id }
 
     suspend fun explorationQueries(limit: Int): List<String> =
         withContext(Dispatchers.Default) { discovery.explorationQueries(getBrainSnapshot(), limit) }

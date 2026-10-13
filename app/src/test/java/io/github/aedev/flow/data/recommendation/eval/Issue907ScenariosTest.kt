@@ -8,6 +8,7 @@ package io.github.aedev.flow.data.recommendation.eval
 
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import io.github.aedev.flow.data.recommendation.InterestChips
 import io.github.aedev.flow.data.recommendation.NeuroDiscovery
 import io.github.aedev.flow.data.recommendation.NeuroTokenizer
 import org.junit.AfterClass
@@ -131,8 +132,9 @@ class Issue907ScenariosTest {
         // Onboarding no longer links every pick to every other, so unrelated picks stay apart.
         assertThat(r.groups).isAtLeast(5)
         assertThat(r.groups).isEqualTo(r.groupsWithoutPickLinks)
-        // Today: a chip needs watches behind it, which a bare pick lacks.
-        assertThat(r.chipLabels).hasSize(1)
+        // A pick is evidence enough for a chip, labelled as the viewer chose it.
+        assertThat(r.chipLabels).hasSize(InterestChips.MAX_CHIPS)
+        assertThat(r.chipLabels).containsAnyOf("Cooking", "Gaming", "Fitness", "Anime", "Programming", "Travel", "Music")
     }
 
     @Test

@@ -58,6 +58,34 @@ internal object NeuroCategories {
     /** Past this many signals every count halves, so the mix follows what the viewer watches now. */
     private const val MAX_SIGNALS = 400.0
 
+    /** A category that names a theme of interests; the default ones say too little to group by. */
+    fun isTheme(id: String): Boolean = id in IDS.values && id !in SPECIFICITY
+
+    /** Share of the channel votes a category needs before a cluster counts as in it. */
+    private const val CLUSTER_MAJORITY = 0.6
+
+    /**
+     * The category a cluster of [topics] is in: each channel whose topic profile overlaps them votes
+     * for its own category ([categoryOf]), weighted by the overlap and its confidence. Null without a
+     * clear majority.
+     */
+    fun clusterCategory(
+        topics: Collection<String>,
+        channelTopicProfiles: Map<String, Map<String, Double>>,
+        categoryOf: (channelId: String) -> ChannelCategory?,
+    ): String? {
+        val votes = HashMap<String, Double>()
+        channelTopicProfiles.forEach { (channelId, profile) ->
+            val overlap = topics.sumOf { profile[it] ?: 0.0 }
+            if (overlap <= 0.0) return@forEach
+            val category = categoryOf(channelId) ?: return@forEach
+            votes.merge(category.id, overlap * category.confidence, Double::plus)
+        }
+        val total = votes.values.sum()
+        val top = votes.maxByOrNull { it.value } ?: return null
+        return top.key.takeIf { top.value / total >= CLUSTER_MAJORITY }
+    }
+
     /** The stable id of a category [name] as the microformat writes it; null for anything else. */
     fun idOf(name: String?): String? = name?.trim()?.lowercase()?.let(IDS::get)
 
