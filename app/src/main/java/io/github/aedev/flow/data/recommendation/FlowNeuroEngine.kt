@@ -85,6 +85,8 @@ class FlowNeuroEngine internal constructor(
 
         private const val TOPIC_EVIDENCE_MAX_ENTRIES = 500
 
+        private const val COUNTED_DOCUMENTS_MAX = 500
+
         // ── Import bootstrap constants ──
         private const val SUBSCRIPTION_SEED_WEIGHT = 0.25
 
@@ -380,6 +382,13 @@ class FlowNeuroEngine internal constructor(
     private var idfWordFrequency = mutableMapOf<String, Int>()
     private var idfTotalDocuments = 0
 
+    // Videos counted as documents this session. With the persisted watch history, one video is one
+    // document however often it is opened, watched and liked, so it cannot promote its own pairs (#907).
+    private val countedDocuments =
+        object : LinkedHashMap<String, Unit>(COUNTED_DOCUMENTS_MAX + 50, 0.75f, false) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Unit>?): Boolean = size > COUNTED_DOCUMENTS_MAX
+        }
+
     // Impression cache
     private val impressionCache =
         object : LinkedHashMap<String, ImpressionEntry>(
@@ -595,6 +604,7 @@ class FlowNeuroEngine internal constructor(
             featureCache.clear()
             idfWordFrequency.clear()
             idfTotalDocuments = 0
+            countedDocuments.clear()
             impressionCache.clear()
             watchHistory.clear()
             resetSessionInternal()
@@ -1214,10 +1224,7 @@ class FlowNeuroEngine internal constructor(
                         isExplicitSignal = false,
                     )
 
-                videoVector.topics.keys.forEach { word ->
-                    idfWordFrequency[word] = (idfWordFrequency[word] ?: 0) + 1
-                }
-                idfTotalDocuments++
+                countDocument(video.id, videoVector)
 
                 updatedBrain =
                     updatedBrain.copy(
@@ -1257,6 +1264,21 @@ class FlowNeuroEngine internal constructor(
     }
 
     // Periodic IDF maintenance: halve aged counts and cap the distinct vocabulary.
+
+    /** Counts [vector]'s words as one more document, unless [videoId] already counted as one. */
+    private fun countDocument(
+        videoId: String,
+        vector: ContentVector,
+    ): Boolean {
+        if (videoId.isNotBlank()) {
+            if (videoId in watchHistory || videoId in countedDocuments) return false
+            countedDocuments[videoId] = Unit
+        }
+        vector.topics.keys.forEach { word -> idfWordFrequency[word] = (idfWordFrequency[word] ?: 0) + 1 }
+        idfTotalDocuments++
+        return true
+    }
+
     private fun compactIdfIfNeeded() {
         if (idfTotalDocuments > 10000) {
             idfWordFrequency.replaceAll { _, v -> v / 2 }
@@ -2375,13 +2397,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // 6. Update IDF counters on interaction
-            if (learningRate > 0) {
-                videoVector.topics.keys.forEach { word ->
-                    idfWordFrequency[word] =
-                        (idfWordFrequency[word] ?: 0) + 1
-                }
-                idfTotalDocuments++
-
+            if (learningRate > 0 && countDocument(video.id, videoVector)) {
                 compactIdfIfNeeded()
 
                 if (idfTotalDocuments % 100 == 0) {
@@ -2720,6 +2736,7 @@ class FlowNeuroEngine internal constructor(
                     // From the maintained brain: maintenance re-keys words, and the next event saves this map over it.
                     idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
                     idfTotalDocuments = currentUserBrain.idfTotalDocuments
+                    countedDocuments.clear()
                     watchHistory.clear()
                     finalBrain.watchHistoryMap.forEach { (id, pct) ->
                         watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
