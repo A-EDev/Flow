@@ -215,9 +215,22 @@ class NeuroKeyMigrationTest {
         assertThat(migrated.topicEvidence.getValue("guitar").positiveSignals).isEqualTo(5)
         assertThat(migrated.idfWordFrequency).containsExactly("guitar", 10, "kayak", 2)
         assertThat(migrated.displayForms.getValue("kayak").form).isEqualTo("Kayaking")
+        assertThat(migrated.displayForms).doesNotContainKey("guitar")
         assertThat(migrated.rejectionPatterns.keys).containsExactly("~guitar")
         assertThat(migrated.topicAffinities.keys).containsExactly(NeuroScoring.makeAffinityKey("guitar", "kayak"))
         assertThat(NeuroKeyMigration.toKeySpec2(migrated, stemming)).isEqualTo(migrated)
+    }
+
+    @Test
+    fun `a key that stems keeps the label it had`() {
+        val brain = UserBrain(globalVector = ContentVector(topics = mapOf("restoring vintage guitars" to 0.05, "vintage" to 0.2)))
+
+        val forms = NeuroKeyMigration.toKeySpec2(brain, stemming).displayForms
+
+        assertThat(
+            NeuroDisplayForms.label(forms, stemming.keysOf("restoring vintage guitars").single()),
+        ).isEqualTo("Restoring Vintage Guitars")
+        assertThat(NeuroDisplayForms.label(forms, stemming.keysOf("vintage").single())).isEqualTo("Vintage")
     }
 
     @Test

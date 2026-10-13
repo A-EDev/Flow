@@ -2613,10 +2613,18 @@ class FlowNeuroEngine internal constructor(
                     languageVotes = language.second,
                     displayForms =
                         if (learningRate > 0) {
-                            NeuroDisplayForms.record(
-                                currentUserBrain.displayForms,
-                                NeuroDisplayForms.spellingsIn(video.title, learningVector.topics.keys, tokenizer),
-                            ) { it in newGlobal.topics }
+                            val keys = learningVector.topics.keys
+                            val fromTitle =
+                                NeuroDisplayForms.record(
+                                    currentUserBrain.displayForms,
+                                    NeuroDisplayForms.spellingsIn(video.title, keys, tokenizer),
+                                ) { it in newGlobal.topics }
+                            // Keys stemmed from tags or the channel name still read as written somewhere.
+                            val elsewhere = (video.tags + video.channelName).joinToString(" | ")
+                            NeuroDisplayForms.fillGaps(fromTitle, NeuroDisplayForms.spellingsIn(elsewhere, keys, tokenizer)) {
+                                it in
+                                    newGlobal.topics
+                            }
                         } else {
                             currentUserBrain.displayForms
                         },
@@ -2710,7 +2718,12 @@ class FlowNeuroEngine internal constructor(
             val learned =
                 NeuroSearchLearning.learn(currentUserBrain, rawQuery, tokenizer, System.currentTimeMillis())
                     ?: return
-            currentUserBrain = learned.copy(topicEvidence = capEvidence(learned.topicEvidence.toMutableMap()))
+            val spellings = NeuroDisplayForms.spellingsIn(rawQuery, learned.globalVector.topics.keys, tokenizer)
+            currentUserBrain =
+                learned.copy(
+                    topicEvidence = capEvidence(learned.topicEvidence.toMutableMap()),
+                    displayForms = NeuroDisplayForms.fillGaps(learned.displayForms, spellings) { it in learned.globalVector.topics },
+                )
             scheduleDebouncedSave()
         }
     }

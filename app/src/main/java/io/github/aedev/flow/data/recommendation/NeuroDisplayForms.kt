@@ -94,8 +94,22 @@ internal object NeuroDisplayForms {
         key: String,
     ): String {
         val base = NeuroScoring.stripDomainTag(key)
-        return forms[base]?.form ?: base.split(' ').joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
+        return forms[base]?.form ?: capitalized(base)
     }
+
+    /** [text] with each word capitalized, unless it already holds a capital ("iPhone" stays). */
+    fun capitalized(text: String): String =
+        if (text.any(Char::isUpperCase)) text else text.split(' ').joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
+
+    /**
+     * [forms] given spellings from text that is not a title (tags, a channel name, a typed search):
+     * they fill only keys no title has spelled yet, so "google pixel" never outvotes "Google Pixel".
+     */
+    fun fillGaps(
+        forms: Map<String, DisplayForm>,
+        spellings: Map<String, String>,
+        keep: (String) -> Boolean,
+    ): Map<String, DisplayForm> = record(forms, spellings.filterKeys { it !in forms }.mapValues { capitalized(it.value) }, keep)
 
     /** [query] with every key it holds written as titles write it ("machine learn" reads "machine learning"). */
     fun searchText(
