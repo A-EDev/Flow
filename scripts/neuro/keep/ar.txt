@@ -1,0 +1,7 @@
+# Content words stopwords-iso lists as stop words.
+زيارة
+قوة
+صباح
+برس
+اطار
+اعادة

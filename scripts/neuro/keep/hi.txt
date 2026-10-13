@@ -1,0 +1,2 @@
+# Content words stopwords-iso lists as stop words.
+घर

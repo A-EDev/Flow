@@ -1,0 +1,8 @@
+# Question words and fillers titles open with, which the source list leaves out.
+bagaimana
+kenapa
+mengapa
+dimana
+kapan
+siapa
+berapa
