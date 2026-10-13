@@ -364,6 +364,8 @@ internal data class ScoringParams(
     val now: Long,
     val exploreWeight: Double = 0.0,
     val categoryOf: (channelId: String) -> ChannelCategory? = { null },
+    /** Channel to the strength (0..1) of its strongest pair with a channel the viewer watches ([NeuroCoWatchStore]). */
+    val coWatchPrior: Map<String, Double> = emptyMap(),
 ) {
     val preparedTaste by lazy { NeuroVectorMath.PreparedVector(NeuroVectorMath.blend(brain.globalVector, brain.recentVector)) }
     val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }

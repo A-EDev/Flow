@@ -47,6 +47,8 @@ internal object NeuroClusters {
     private const val CHANNEL_PROFILE_TOP_TOPICS = 6
     private const val CHANNEL_EDGE_SCALE = 0.5
     private const val CATALOG_EDGE_WEIGHT = 0.3
+    private const val COWATCH_TOP_TOPICS = 2
+    private const val COWATCH_EDGE_SCALE = 0.3
     private const val PROPAGATION_ITERATIONS = 5
     private const val SELF_WEIGHT_SCALE = 0.5
 
@@ -67,6 +69,7 @@ internal object NeuroClusters {
         categories: List<TopicCategory>,
         normalizeLemma: (String) -> String,
         tagAffinities: Map<String, Double> = emptyMap(),
+        channelEdges: Map<String, Double> = emptyMap(),
     ): List<TopicCluster> {
         // Nodes: strip domain tags, keep the strongest score per base word.
         val scores = HashMap<String, Double>()
@@ -113,6 +116,21 @@ internal object NeuroClusters {
                     addEdge(top[i].first, top[j].first, minOf(top[i].second, top[j].second) * CHANNEL_EDGE_SCALE)
                 }
             }
+        }
+
+        // (b2) Channels watched together ([NeuroCoWatchStore]): their main topics belong together.
+        fun mainTopics(channelId: String) =
+            channelTopicProfiles[channelId]
+                .orEmpty()
+                .entries
+                .sortedByDescending { it.value }
+                .take(COWATCH_TOP_TOPICS)
+                .map { NeuroScoring.stripDomainTag(it.key) }
+        channelEdges.forEach { (key, strength) ->
+            val channels = key.split('|')
+            if (channels.size != 2) return@forEach
+            val second = mainTopics(channels[1])
+            mainTopics(channels[0]).forEach { a -> second.forEach { b -> addEdge(a, b, strength * COWATCH_EDGE_SCALE) } }
         }
 
         // (c) Catalog co-membership — links only topics the user already has.

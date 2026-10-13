@@ -57,6 +57,7 @@ class FlowNeuroEngine internal constructor(
     private val storage: NeuroStorage,
     private val contentStore: NeuroContentStore,
     private val categoryStore: NeuroCategoryStore = NeuroCategoryStore(appContext),
+    private val coWatchStore: NeuroCoWatchStore = NeuroCoWatchStore(appContext),
     learningPaused: (suspend () -> Boolean)? = null,
     private val rankRandom: java.util.Random? = null,
 ) {
@@ -88,6 +89,15 @@ class FlowNeuroEngine internal constructor(
         private const val TOPIC_EVIDENCE_MAX_ENTRIES = 500
 
         private const val COUNTED_DOCUMENTS_MAX = 500
+
+        /** Opened videos whose related lists wait for a real watch or a like ([NeuroCoWatchStore]). */
+        private const val PENDING_RELATED_MAX = 30
+
+        /** The most a channel watched alongside the viewer's own adds to a score. */
+        internal const val COWATCH_MAX_PRIOR = 0.04
+
+        /** Where a channel's score starts; a watch moves it above, a rejection below. */
+        private const val NEUTRAL_CHANNEL_SCORE = 0.5
 
         /** A subscription teaches its channel name about half what a full watch teaches. */
         private const val SUBSCRIPTION_RATE = 0.08
@@ -165,6 +175,12 @@ class FlowNeuroEngine internal constructor(
             videos: List<Video>,
             category: String,
         ): Set<String> = requireInstance().outsideCategory(videos, category)
+
+        suspend fun noteRelated(
+            context: Context,
+            videoId: String,
+            related: List<Video>,
+        ) = getInstance(context).noteRelated(videoId, related)
 
         suspend fun explorationQueries(limit: Int): List<String> = requireInstance().explorationQueries(limit)
 
@@ -483,6 +499,7 @@ class FlowNeuroEngine internal constructor(
 
             contentStore.load()
             categoryStore.load()
+            coWatchStore.load()
             appContext.registerComponentCallbacks(trimCallbacks)
 
             resetSessionInternal()
@@ -553,6 +570,7 @@ class FlowNeuroEngine internal constructor(
             categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
             normalizeLemma = tokenizer::keyOf,
             tagAffinities = brain.tagAffinities,
+            channelEdges = coWatchEdges(brain),
         )
 
     /** Home's interest chips, kept stable across loads by [InterestChips.stable]. */
@@ -585,6 +603,41 @@ class FlowNeuroEngine internal constructor(
             }
             InterestChips.chips(set, groups, brain.displayForms)
         }
+
+    private val pendingRelated =
+        object : LinkedHashMap<String, List<String>>(PENDING_RELATED_MAX, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > PENDING_RELATED_MAX
+        }
+
+    /** Keeps [related], the list shown beside [videoId], until the viewer really watches or likes the video. */
+    suspend fun noteRelated(
+        videoId: String,
+        related: List<Video>,
+    ) {
+        if (videoId.isBlank() || related.isEmpty()) return
+        withBrainLock { pendingRelated[videoId] = related.map { it.channelId } }
+    }
+
+    /** Records [related] for a [seed] from the viewer's history or likes; feed seeds teach nothing. */
+    suspend fun noteRelatedOfWatched(
+        seed: GraphSeedInput,
+        related: List<Video>,
+    ) {
+        if (seed.source != GraphSeedSource.WATCH_HISTORY && seed.source != GraphSeedSource.LIKED) return
+        if (isLearningPaused()) return
+        withBrainLock { coWatchStore.record(seed.id, seed.channelId, related.map { it.channelId }) }
+    }
+
+    /** Confirmed pairs of channels watched together, a channel counting as watched once a watch raised its score. */
+    private fun coWatchEdges(
+        brain: UserBrain,
+        now: Long = System.currentTimeMillis(),
+    ): Map<String, Double> = NeuroCoWatchStore.edges(coWatchStore.sources(), { isWatchedChannel(brain, it) }, now)
+
+    private fun isWatchedChannel(
+        brain: UserBrain,
+        channelId: String,
+    ) = (brain.channelScores[channelId] ?: 0.0) > NEUTRAL_CHANNEL_SCORE
 
     /** Ids of [videos] from channels known to post in a category other than [category]. */
     fun outsideCategory(
@@ -679,6 +732,8 @@ class FlowNeuroEngine internal constructor(
             storage.deleteCopiesBeforeMigration()
             contentStore.clear()
             categoryStore.clear()
+            coWatchStore.clear()
+            pendingRelated.clear()
         }
     }
 
@@ -737,6 +792,7 @@ class FlowNeuroEngine internal constructor(
             }
             contentStore.persistIfDirty()
             categoryStore.persistIfDirty()
+            coWatchStore.persistIfDirty()
         }
 
     private val trimCallbacks =
@@ -1472,7 +1528,12 @@ class FlowNeuroEngine internal constructor(
                 val depth = discoveryRound
                 discoveryRound++
 
-                val discoveryQueries = discovery.generateQueries(brain, depth = depth) { b -> getPersona(b) }
+                val discoveryQueries =
+                    discovery.generateQueries(
+                        brain,
+                        depth = depth,
+                        channelEdges = coWatchEdges(brain),
+                    ) { b -> getPersona(b) }
 
                 var candidates =
                     if (discoveryQueries.isNotEmpty()) {
@@ -2060,6 +2121,7 @@ class FlowNeuroEngine internal constructor(
                     now = now,
                     exploreWeight = exploreWeight,
                     categoryOf = categoryStore::categoryOf,
+                    coWatchPrior = NeuroCoWatchStore.neighbours(coWatchEdges(brain, now)) { isWatchedChannel(brain, it) },
                 )
 
             // Jitter magnitude is invariant across candidates in a single rank() call
@@ -2291,6 +2353,11 @@ class FlowNeuroEngine internal constructor(
             val categoryId = NeuroCategories.idOf(video.category)
             val sessionEnded = interactionType == InteractionType.WATCHED || interactionType == InteractionType.SKIPPED
             if (categoryId != null && sessionEnded) categoryStore.record(video.channelId, categoryId)
+            if (isStrongSignal &&
+                !video.isShort
+            ) {
+                pendingRelated.remove(video.id)?.let { coWatchStore.record(video.id, video.channelId, it) }
+            }
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =

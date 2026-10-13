@@ -178,6 +178,7 @@ internal class NeuroDiscovery(
         now: Long,
         depth: Int,
         maxClusters: Int,
+        channelEdges: Map<String, Double>,
     ): TopicSelection {
         if (matureTopics.isEmpty()) return emptySelection()
 
@@ -189,6 +190,7 @@ internal class NeuroDiscovery(
                 categories = topicCategories,
                 normalizeLemma = tokenizer::keyOf,
                 tagAffinities = brain.tagAffinities,
+                channelEdges = channelEdges,
             )
         if (clusters.isEmpty()) return emptySelection()
 
@@ -510,6 +512,7 @@ internal class NeuroDiscovery(
         brain: UserBrain,
         now: Long = System.currentTimeMillis(),
         depth: Int = 0,
+        channelEdges: Map<String, Double> = emptyMap(),
         personaProvider: (UserBrain) -> FlowPersona,
     ): List<DiscoveryQuery> {
         val persona = personaProvider(brain)
@@ -537,7 +540,7 @@ internal class NeuroDiscovery(
                 FlowPersona.SPECIALIST -> 3
                 else -> NeuroScoring.MAX_CLUSTERS_PER_REFRESH
             }
-        val selection = selectDiverseTopics(matureTopics, brain, now, depth, maxClusters)
+        val selection = selectDiverseTopics(matureTopics, brain, now, depth, maxClusters, channelEdges)
 
         // Step 3: Generate queries — every strategy is interest-rooted
         val queries = mutableListOf<DiscoveryQuery>()

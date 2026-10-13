@@ -524,6 +524,21 @@ internal class PlaybackSessionApplier(
             )
             uiState.update { it.applyRelatedVideos(videoId, videos) }
         }
+        noteRelatedForLearning(videoId, videos)
+    }
+
+    /** Hands the related list to the engine, which keeps it only if this video is then watched or liked. */
+    private fun noteRelatedForLearning(
+        videoId: String,
+        videos: List<Video>,
+    ) {
+        scope.launch(ioDispatcher) {
+            try {
+                FlowNeuroEngine.noteRelated(context, videoId, videos)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to note related videos", e)
+            }
+        }
     }
 
     private fun applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch) {

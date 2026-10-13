@@ -1284,6 +1284,8 @@ internal object NeuroScoring {
 
         totalScore += calculateChannelSignal(video, brain, p.userSubs)
 
+        totalScore += (p.coWatchPrior[video.channelId] ?: 0.0) * FlowNeuroEngine.COWATCH_MAX_PRIOR
+
         totalScore += calculateSerendipity(noveltyScore, contextScore)
 
         if (p.isColdStart && video.viewCount > 0) {

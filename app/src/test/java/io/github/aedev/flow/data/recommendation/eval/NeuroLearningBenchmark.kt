@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.IdfSnapshot
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.recommendation.NeuroCategoryStore
+import io.github.aedev.flow.data.recommendation.NeuroCoWatchStore
 import io.github.aedev.flow.data.recommendation.NeuroContentStore
 import io.github.aedev.flow.data.recommendation.NeuroMaintenance
 import io.github.aedev.flow.data.recommendation.NeuroStorage
@@ -324,6 +325,7 @@ internal object NeuroLearningBenchmark {
         brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION, languageProfile = "en"),
         random: java.util.Random = java.util.Random(JITTER_SEED),
         categoryStore: NeuroCategoryStore = NeuroCategoryStore(mockk(relaxed = true)),
+        coWatchStore: NeuroCoWatchStore = NeuroCoWatchStore(mockk(relaxed = true)),
     ): FlowNeuroEngine {
         val storage: NeuroStorage =
             mockk(relaxed = true) {
@@ -333,7 +335,9 @@ internal object NeuroLearningBenchmark {
             mockk(relaxed = true) {
                 every { topicsFor(any()) } returns null
             }
-        return FlowNeuroEngine(mockk(relaxed = true), storage, contentStore, categoryStore, learningPaused = { false }, rankRandom = random)
+        return FlowNeuroEngine(mockk(relaxed = true), storage, contentStore, categoryStore, coWatchStore, learningPaused = {
+            false
+        }, rankRandom = random)
     }
 
     val NO_JITTER: java.util.Random =
