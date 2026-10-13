@@ -267,6 +267,9 @@ FIXES AND STABILITY
 - Fix Home favouring less relevant videos after you skip several in a row, and swiping through Shorts no longer counts as skipping (#907)
 - Fix later cards on Home drifting to videos that have nothing to do with what you watch, and a couple of videos on a new subject no longer take over the related videos or jump ahead of interests you have kept for months (#907)
 - Videos played one after another now teach recommendations their tags and description too, not only their title, and a video's YouTube category no longer turns into interests such as "science technology" (#907)
+- Recommendations read a title in phrases: "Why Big Tech's Privacy Promises Are Lies" no longer becomes interests like "big tech's" or "promises lies", spellings such as lo-fi and lofi count as one, and on update the word pairs already learned by chance are cleared from your profile (#907)
+- Onboarding picks no longer join into one interest, so unrelated picks such as cooking and anime stay separate on Home (#907)
+- Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
