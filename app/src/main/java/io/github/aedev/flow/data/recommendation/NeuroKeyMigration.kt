@@ -26,8 +26,6 @@ internal object NeuroKeyMigration {
     /** What onboarding gave every pair of picks; a link that grew past it has real co-watching behind it. */
     private const val ONBOARDING_EDGE = 0.3
 
-    private val RekeyedMarks = setOf('\'', '-', '.', '&', '+', '#')
-
     fun run(
         brain: UserBrain,
         tokenizer: NeuroTokenizer,
@@ -132,12 +130,13 @@ internal object NeuroKeyMigration {
                 val base = if (tag.isEmpty()) key else key.substringBefore(':')
                 pickForms[key]?.let { return@getOrPut it }
                 if (!needsRekey(base)) return@getOrPut listOf(key)
-                val parts = tokenizer.keysOf(base)
+                // A key left with no word ("m/v") goes.
+                val parts = tokenizer.chunk(base).chunks.map { it.joinToString(" ") }
                 if (tag.isEmpty()) parts else parts.map { "$it:$tag" }
             }
 
         private fun needsRekey(base: String): Boolean =
-            base.any { it in RekeyedMarks } ||
+            base.any { it != ' ' && !NeuroText.isWordChar(it) } ||
                 base in NeuroKeySpec.EXPRESSIONS ||
                 NeuroKeySpec.EXPRESSIONS.keys.any { variant -> ' ' in variant && " $base ".contains(" $variant ") }
 

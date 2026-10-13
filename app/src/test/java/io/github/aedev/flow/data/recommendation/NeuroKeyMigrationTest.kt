@@ -76,6 +76,15 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
+    fun `a key holding punctuation splits into its words, and one with none left goes`() {
+        val brain = schema17().copy(globalVector = ContentVector(topics = mapOf("style(강남스타일" to 0.2, "m/v" to 0.2, "psy" to 0.1)))
+
+        val topics = NeuroKeyMigration.run(brain, tokenizer).globalVector.topics
+
+        assertThat(topics).containsExactly("style", 0.2, "강남스타일", 0.2, "psy", 0.1)
+    }
+
+    @Test
     fun `chance pairs leave every vector, profile and record, but document frequency keeps them`() {
         val migrated = NeuroKeyMigration.run(schema17(), tokenizer)
         val dropped = listOf("big tech", "tech privacy", "privacy promises")
