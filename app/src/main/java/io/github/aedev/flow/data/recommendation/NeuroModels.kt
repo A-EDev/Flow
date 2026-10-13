@@ -141,6 +141,8 @@ data class UserBrain(
     val languageProfile: String? = null,
     /** Confident title languages since the profile was last weighed ([NeuroLanguages.vote]). Device-local. */
     val languageVotes: Map<String, Int> = emptyMap(),
+    /** The language keys are stemmed for ([NeuroStemmer]): the profile when first seeded, fixed after. */
+    val keyLanguage: String? = null,
     val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
 )
 

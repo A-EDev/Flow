@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.recommendation.NeuroKeySpec
 import io.github.aedev.flow.sync.apply.PeerInfo
 import io.github.aedev.flow.sync.apply.ReceivedCollection
 import io.github.aedev.flow.sync.apply.SyncApplier
@@ -315,7 +316,7 @@ class SyncManager
                     sessionId = sessionId,
                     sasDigits = sas,
                     localHello = hello,
-                    localCaps = androidCapabilities(),
+                    localCaps = androidCapabilities(applier.neuroKeyLanguage()),
                     localSelection = selection,
                     callbacks = callbacks,
                     buildPayload = { cols: List<String> -> applier.exportPayload(cols, node, hlc) },
@@ -351,14 +352,15 @@ class SyncManager
                 }
             }
 
-        private fun androidCapabilities() =
+        private fun androidCapabilities(keyLanguage: String) =
             Capabilities(
                 mapOf(
                     SyncCollection.WATCH_HISTORY to Capability(1, produce = true, consume = true),
                     SyncCollection.PLAYLISTS to Capability(1, produce = true, consume = true),
                     SyncCollection.LIKES to Capability(1, produce = true, consume = true),
                     SyncCollection.SETTINGS to Capability(1, produce = true, consume = true),
-                    SyncCollection.FLOW_NEURO_BRAIN to Capability(13, produce = true, consume = true),
+                    SyncCollection.FLOW_NEURO_BRAIN to
+                        Capability(13, produce = true, consume = true, keySpec = NeuroKeySpec.VERSION, keyLanguage = keyLanguage),
                     SyncCollection.SUBSCRIBED_CHANNELS to Capability(1, produce = true, consume = true),
                     SyncCollection.SUBSCRIPTIONS to Capability(1, produce = true, consume = true),
                     SyncCollection.MUSIC_BRAIN to Capability(1, produce = true, consume = true),

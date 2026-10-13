@@ -50,6 +50,9 @@ data class BrainCrdtState(
     val channelStrikes: Map<String, Lww<CanonicalChannelStrike>> = emptyMap(),
     val deviceVectors: Map<String, DeviceVectors> = emptyMap(),
     val syncedLww: BrainLwwMaps = BrainLwwMaps(),
+    /** The key spec and key language the topic-keyed state above is written in; see [BrainKeyRekey]. */
+    val keySpec: Int = 1,
+    val keyLanguage: String = "",
 ) {
     companion object {
         /**

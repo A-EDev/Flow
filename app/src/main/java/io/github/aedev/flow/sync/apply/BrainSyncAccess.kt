@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync.apply
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.NeuroKeySpec
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainStorage
 import io.github.aedev.flow.sync.canonical.BrainCounters
@@ -14,6 +15,7 @@ import io.github.aedev.flow.sync.mapping.BrainMapper
 import io.github.aedev.flow.sync.mapping.MusicBrainMapper
 import io.github.aedev.flow.sync.merge.BrainCrdtState
 import io.github.aedev.flow.sync.merge.BrainCrdtStore
+import io.github.aedev.flow.sync.merge.BrainKeyRekey
 import io.github.aedev.flow.sync.merge.BrainMerger
 import io.github.aedev.flow.sync.merge.BrainVectorBlend
 import io.github.aedev.flow.sync.merge.CounterOwnership
@@ -51,7 +53,7 @@ class BrainSyncAccess
             hlc: String,
         ): List<CanonicalBrain> {
             val local = parseLocalBrain(exportLocalBrainJson())
-            val attributed = attributeLocalEdits(brainCrdtStore.load(), myNode, local, hlc)
+            val attributed = attributeLocalEdits(loadState(), myNode, local, hlc)
             val own = BrainMapper.toCanonical(local, myNode, hlc, attributed)
             val devices = withOwnVectors(attributed.deviceVectors, own)
             brainCrdtStore.save(attributed.copy(deviceVectors = devices))
@@ -81,9 +83,10 @@ class BrainSyncAccess
             if (remotes.isEmpty()) return
             val localJson = exportLocalBrainJson()
             val local = parseLocalBrain(localJson)
-            val attributed = attributeLocalEdits(brainCrdtStore.load(), myNode, local, hlc)
+            val attributed = attributeLocalEdits(loadState(), myNode, local, hlc)
             val own = BrainMapper.toCanonical(local, myNode, hlc, attributed)
-            val incoming = remotes.map(BrainMapper::normalizeIncoming)
+            val keys = neuroEngine.topicKeyFunction()
+            val incoming = remotes.map { BrainKeyRekey.canonical(BrainMapper.normalizeIncoming(it), keys) }
 
             val counters =
                 CounterOwnership.brain(
@@ -106,6 +109,17 @@ class BrainSyncAccess
             val mergedBrain = BrainMapper.writeBack(merged, local)
             neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serializeOver(localJson, mergedBrain)), afterSync = true)
             brainCrdtStore.save(BrainCrdtState.afterMerge(attributed, merged, devices))
+        }
+
+        /** The language this brain's topic keys are stemmed for. */
+        suspend fun keyLanguage(): String = neuroEngine.keyLanguage()
+
+        /** The sidecar, its topic keys read the way this brain reads them now. */
+        private suspend fun loadState(): BrainCrdtState {
+            val state = brainCrdtStore.load()
+            val language = neuroEngine.keyLanguage()
+            if (state.keySpec == NeuroKeySpec.VERSION && state.keyLanguage == language) return state
+            return BrainKeyRekey.state(state, neuroEngine.topicKeyFunction()).copy(keySpec = NeuroKeySpec.VERSION, keyLanguage = language)
         }
 
         private fun withOwnVectors(

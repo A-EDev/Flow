@@ -828,6 +828,13 @@ internal class NeuroTokenizer {
     @Volatile
     var languageProfile: String = "en"
 
+    /**
+     * The language keys are stemmed for ([UserBrain.keyLanguage]). Unlike [languageProfile] it never
+     * follows what the viewer watches, so a word keeps one key for the life of a brain.
+     */
+    @Volatile
+    var keyLanguage: String = "en"
+
     /** The [NeuroKeySpec] keys are made by. Spec 1 keeps lemmas; migrations up to schema 18 read keys by it. */
     var keySpec: Int = NeuroKeySpec.VERSION
         private set
@@ -837,6 +844,7 @@ internal class NeuroTokenizer {
         NeuroTokenizer().also {
             it.keySpec = spec
             it.languageProfile = languageProfile
+            it.keyLanguage = keyLanguage
         }
 
     // Words no language's stop list may remove: they are topics here, whatever they mean elsewhere.
@@ -890,13 +898,13 @@ internal class NeuroTokenizer {
     }
 
     /**
-     * [word]'s key ([NeuroKeySpec] stage 8): its lemma stemmed for [languageProfile] by
+     * [word]'s key ([NeuroKeySpec] stage 8): its lemma stemmed for [keyLanguage] by
      * [NeuroStemmer], or the lemma when the stem is itself a lemma-map word. A key is its own key.
      */
     fun keyOf(word: String): String {
         val lemma = normalizeLemma(word)
         if (keySpec < 2) return lemma
-        val stem = NeuroStemmer.key(lemma, languageProfile)
+        val stem = NeuroStemmer.key(lemma, keyLanguage)
         return if (normalizeLemma(stem) == stem) stem else lemma
     }
 

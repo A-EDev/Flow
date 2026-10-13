@@ -486,11 +486,29 @@ class FlowNeuroEngine internal constructor(
         appContext.unregisterComponentCallbacks(trimCallbacks)
     }
 
-    /** [brain] with a language profile, the app language the first time; the tokenizer follows it. */
+    /** [brain] with a language profile and key language, the app language the first time; the tokenizer follows them. */
     private fun withLanguageProfile(brain: UserBrain): UserBrain {
         val profile = brain.languageProfile ?: NeuroLanguages.normalize(Locale.getDefault().language)
+        val keyLanguage = brain.keyLanguage ?: profile
         tokenizer.languageProfile = profile
-        return if (brain.languageProfile == profile) brain else brain.copy(languageProfile = profile)
+        tokenizer.keyLanguage = keyLanguage
+        return if (brain.languageProfile == profile && brain.keyLanguage == keyLanguage) {
+            brain
+        } else {
+            brain.copy(languageProfile = profile, keyLanguage = keyLanguage)
+        }
+    }
+
+    /** The language this brain's keys are stemmed for ([UserBrain.keyLanguage]). */
+    internal suspend fun keyLanguage(): String {
+        initialize()
+        return tokenizer.keyLanguage
+    }
+
+    /** How this brain reads a stored key, so sync reads a peer's keys the same way ([NeuroKeyMigration.keyFunction]). */
+    internal suspend fun topicKeyFunction(): (String) -> List<String> {
+        initialize()
+        return NeuroKeyMigration.keyFunction(tokenizer)
     }
 
     /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
@@ -620,7 +638,7 @@ class FlowNeuroEngine internal constructor(
     /** Forgets what was learned; what the viewer chose to hide stays hidden. */
     suspend fun resetBrain() {
         withBrainLock {
-            currentUserBrain = withLanguageProfile(currentUserBrain.keepingHiddenContent().copy(languageProfile = null))
+            currentUserBrain = withLanguageProfile(currentUserBrain.keepingHiddenContent().copy(languageProfile = null, keyLanguage = null))
             deepFlowBookkeeping.forget()
             featureCache.clear()
             idfWordFrequency.clear()

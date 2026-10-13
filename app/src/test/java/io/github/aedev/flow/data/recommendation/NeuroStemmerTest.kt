@@ -22,7 +22,7 @@ class NeuroStemmerTest {
         profile: String,
         vararg words: String,
     ): List<String> {
-        tokenizer.languageProfile = profile
+        tokenizer.keyLanguage = profile
         return words.map(tokenizer::keyOf)
     }
 
@@ -90,7 +90,7 @@ class NeuroStemmerTest {
                 .filter { it.length >= 3 }
                 .toSet()
         listOf("en", "es", "pt", "fr", "de", "it", "ru").forEach { profile ->
-            tokenizer.languageProfile = profile
+            tokenizer.keyLanguage = profile
             val changed = words.filter { word -> tokenizer.keyOf(word).let { tokenizer.keyOf(it) != it } }
             assertWithMessage(profile).that(changed).isEmpty()
         }

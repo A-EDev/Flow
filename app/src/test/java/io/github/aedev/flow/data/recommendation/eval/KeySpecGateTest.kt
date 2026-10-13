@@ -30,7 +30,11 @@ class KeySpecGateTest {
     @Test
     fun `a spelling has one key for one viewer`() {
         listOf("en", "es", "ru").forEach { profile ->
-            val tokenizer = NeuroTokenizer().also { it.languageProfile = profile }
+            val tokenizer =
+                NeuroTokenizer().also {
+                    it.languageProfile = profile
+                    it.keyLanguage = profile
+                }
             val keysBySpelling = HashMap<String, MutableSet<String>>()
             titles.forEach { title ->
                 val keys = tokenizer.chunk(title).words.filter { ' ' !in it }

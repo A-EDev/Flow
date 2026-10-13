@@ -98,6 +98,10 @@ data class Capability(
     val schema: Int,
     val produce: Boolean,
     val consume: Boolean,
+    /** The key spec a collection's topic keys are written in; 0 when it has none or predates them (#907). */
+    val keySpec: Int = 0,
+    /** The language those keys are stemmed for. */
+    val keyLanguage: String = "",
 )
 
 @Serializable
