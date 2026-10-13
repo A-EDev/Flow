@@ -31,11 +31,11 @@ class Issue907ScenariosTest {
                 )} | fresh bridges ${f(r.freshBridgesOldTech.top10)}, ${f(r.freshBridgesOldTech.positions5to20)}" +
                 " | bored bridge outranks on-topic ${r.boredBridgeOutranksOnTopic}",
         )
-        // Today: no chance pair is learned, but real phrases of tech titles ("long term", "battery life") still
-        // hold words that unrelated videos share, and those still bridge to them.
+        // A weak video no longer takes an early slot for coming from a new channel. Today: real phrases of tech
+        // titles ("long term", "pixel") still match a few unrelated videos.
         assertThat(r.genericKeyShare).isAtLeast(0.3)
         assertThat(r.ranked.top10).isAtLeast(0.2)
-        assertThat(r.ranked.positions5to20).isAtLeast(0.4)
+        assertThat(r.ranked.positions5to20).isAtMost(0.35)
         // Skipping videos never turns relevance upside down.
         assertThat(r.boredBridgeOutranksOnTopic).isFalse()
     }
