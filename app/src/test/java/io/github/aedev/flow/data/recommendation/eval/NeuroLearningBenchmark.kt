@@ -319,7 +319,7 @@ internal object NeuroLearningBenchmark {
 
     /** [random] fixes the ranking jitter; pass [NO_JITTER] to rank by score alone. */
     fun engine(
-        brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION),
+        brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION, languageProfile = "en"),
         random: java.util.Random? = null,
     ): FlowNeuroEngine {
         val storage: NeuroStorage =

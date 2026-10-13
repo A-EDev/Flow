@@ -821,7 +821,43 @@ internal class NeuroTokenizer {
 
     fun normalizeLemma(word: String): String = lemmaMap[word.lowercase()] ?: word.lowercase()
 
-    private val chunker by lazy { NeuroChunker(stopWords::contains, ::normalizeLemma) }
+    /** The viewer's language ([UserBrain.languageProfile]); its stop words apply to every title. */
+    @Volatile
+    var languageProfile: String = "en"
+
+    // Words no language's stop list may remove: they are topics here, whatever they mean elsewhere.
+    private val protectedWords: Set<String> by lazy {
+        buildSet {
+            addAll(NeuroText.SHORT_TOPICS)
+            addAll(lemmaMap.values)
+            addAll(polysemousWords)
+            addAll(alwaysTopical)
+            NeuroKeySpec.EXPRESSION_KEYS.forEach { addAll(it.split(' ')) }
+            compoundTerms.forEach { addAll(it.split(' ')) }
+            NeuroTopicCatalog.TOPIC_CATEGORIES.forEach { category ->
+                category.topics.forEach { topic ->
+                    addAll(NeuroText.words(NeuroText.fold(topic)).map { it.trim { c -> !NeuroText.isWordChar(c) } })
+                }
+            }
+        }
+    }
+
+    private val stopLists = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
+
+    /** [language]'s stop words, less the [protectedWords]. */
+    fun stopList(language: String): Set<String> = stopLists.getOrPut(language) { NeuroLanguages.stopList(language) - protectedWords }
+
+    private fun stopWordsFor(pieces: List<String>): (String) -> Boolean {
+        val profile = stopList(languageProfile)
+        val title = NeuroLanguages.detect(pieces)?.takeIf { it != languageProfile }?.let(::stopList)
+        return if (title.isNullOrEmpty()) {
+            { word -> word in stopWords || word in profile }
+        } else {
+            { word -> word in stopWords || word in profile || word in title }
+        }
+    }
+
+    private val chunker by lazy { NeuroChunker(::stopWordsFor, ::normalizeLemma) }
 
     /** Multi-word catalog topics, keyed the way a title spells them. */
     private val catalogPhrases: Set<String> by lazy {
@@ -879,7 +915,7 @@ internal class NeuroTokenizer {
         // Degenerate bigrams like "code code" are tokenizer echoes, not topics.
         if (parts.size > 1 && parts.distinct().size < parts.size) return true
         return parts.any { part ->
-            part in stopWords || normalizeLemma(part) in stopWords || !NeuroText.isTopicSized(part)
+            part in stopWords || normalizeLemma(part) in stopWords || part in stopList(languageProfile) || !NeuroText.isTopicSized(part)
         }
     }
 

@@ -12,7 +12,7 @@ package io.github.aedev.flow.data.recommendation
  * Lies" never yields "promises lies" (#907).
  */
 internal class NeuroChunker(
-    private val isStopWord: (String) -> Boolean,
+    private val stopWordsFor: (pieces: List<String>) -> (String) -> Boolean,
     private val normalizeLemma: (String) -> String,
 ) {
     /** A run of [words] inside one chunk, from word [from] up to but not including [to]. */
@@ -67,7 +67,9 @@ internal class NeuroChunker(
 
     fun chunk(text: String): Chunks {
         val items = ArrayList<Item>()
-        NeuroText.words(NeuroText.fold(text)).forEach { piece -> split(piece, items) }
+        val pieces = NeuroText.words(NeuroText.fold(text))
+        val isStopWord = stopWordsFor(pieces)
+        pieces.forEach { piece -> split(piece, items) }
         val merged = mergeExpressions(items)
         val chunks = ArrayList<List<String>>()
         val modelPairs = ArrayList<String>()
@@ -79,7 +81,7 @@ internal class NeuroChunker(
             current = ArrayList()
         }
         merged.forEach { item ->
-            when (val word = classify(item)) {
+            when (val word = classify(item, isStopWord)) {
                 is Item.Word -> {
                     current += word.text
                 }
@@ -237,7 +239,10 @@ internal class NeuroChunker(
     }
 
     // Stage 5: what ends a chunk.
-    private fun classify(item: Item): Item {
+    private fun classify(
+        item: Item,
+        isStopWord: (String) -> Boolean,
+    ): Item {
         if (item !is Item.Word) return item
         NeuroFormats.formatOf(item.text)?.let { return Item.Format(it) }
         if (item.whole) return item

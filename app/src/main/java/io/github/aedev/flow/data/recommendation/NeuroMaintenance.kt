@@ -31,9 +31,14 @@ package io.github.aedev.flow.data.recommendation
  * vector is rehydrated from channel knowledge once more, and blocked topics leave the vector.
  *
  * V18 brings every key to [NeuroKeySpec] 1 and drops word pairs learned by chance ([NeuroKeyMigration]).
+ *
+ * V19 drops keys that are stop words in the viewer's language ([NeuroLanguages]), such as "para" or "les".
  */
 internal object NeuroMaintenance {
-    const val TARGET_SCHEMA_VERSION = NeuroKeyMigration.SCHEMA_VERSION
+    /** Stop lists for the viewer's language ([NeuroLanguages]): keys that are now stop words go. */
+    const val STOP_LIST_SCHEMA_VERSION = 19
+
+    const val TARGET_SCHEMA_VERSION = STOP_LIST_SCHEMA_VERSION
     private const val V15_SCHEMA_VERSION = 15
     private const val V16_SCHEMA_VERSION = 16
 

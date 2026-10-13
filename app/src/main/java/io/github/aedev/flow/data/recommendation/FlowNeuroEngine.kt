@@ -32,6 +32,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.Locale
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -447,6 +448,7 @@ class FlowNeuroEngine internal constructor(
             }
             storage.deleteOldBrainFiles()
 
+            currentUserBrain = withLanguageProfile(currentUserBrain)
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
                 if (currentUserBrain.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) {
@@ -482,6 +484,13 @@ class FlowNeuroEngine internal constructor(
         pendingSaveJob?.cancel()
         saveScope.cancel()
         appContext.unregisterComponentCallbacks(trimCallbacks)
+    }
+
+    /** [brain] with a language profile, the app language the first time; the tokenizer follows it. */
+    private fun withLanguageProfile(brain: UserBrain): UserBrain {
+        val profile = brain.languageProfile ?: NeuroLanguages.normalize(Locale.getDefault().language)
+        tokenizer.languageProfile = profile
+        return if (brain.languageProfile == profile) brain else brain.copy(languageProfile = profile)
     }
 
     /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
@@ -611,7 +620,7 @@ class FlowNeuroEngine internal constructor(
     /** Forgets what was learned; what the viewer chose to hide stays hidden. */
     suspend fun resetBrain() {
         withBrainLock {
-            currentUserBrain = currentUserBrain.keepingHiddenContent()
+            currentUserBrain = withLanguageProfile(currentUserBrain.keepingHiddenContent().copy(languageProfile = null))
             deepFlowBookkeeping.forget()
             featureCache.clear()
             idfWordFrequency.clear()
@@ -2543,6 +2552,23 @@ class FlowNeuroEngine internal constructor(
                     entry.percentWatched
                 }
 
+            val profile = currentUserBrain.languageProfile ?: tokenizer.languageProfile
+            val language =
+                if (learningRate > 0 && interactionType == InteractionType.WATCHED) {
+                    val firstLine =
+                        video.description
+                            .lineSequence()
+                            .firstOrNull { it.isNotBlank() }
+                            .orEmpty()
+                    NeuroLanguages.vote(profile, currentUserBrain.languageVotes, NeuroLanguages.detectText("${video.title}\n$firstLine"))
+                } else {
+                    profile to currentUserBrain.languageVotes
+                }
+            if (language.first != profile) {
+                Log.i(TAG, "Language profile $profile → ${language.first}")
+                tokenizer.languageProfile = language.first
+            }
+
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
@@ -2565,6 +2591,8 @@ class FlowNeuroEngine internal constructor(
                         } else {
                             currentUserBrain.formatAffinity
                         },
+                    languageProfile = language.first,
+                    languageVotes = language.second,
                     displayForms =
                         if (learningRate > 0) {
                             NeuroDisplayForms.record(
@@ -2774,7 +2802,7 @@ class FlowNeuroEngine internal constructor(
 
                 withBrainLock {
                     // Imported brains may pre-date the current maintenance, so run it.
-                    val maintained = runMaintenanceIfNeeded(finalBrain)
+                    val maintained = runMaintenanceIfNeeded(withLanguageProfile(finalBrain))
                     currentUserBrain = if (afterSync) NeuroKeyMigration.afterSync(maintained, tokenizer) else maintained
                     deepFlowBookkeeping.forget()
                     // From the maintained brain: maintenance re-keys words, and the next event saves this map over it.

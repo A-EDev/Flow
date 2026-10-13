@@ -137,6 +137,10 @@ data class UserBrain(
     val displayForms: Map<String, DisplayForm> = emptyMap(),
     /** How much the viewer takes to each format ([NeuroFormats]), 0..1. Device-local, never synced. */
     val formatAffinity: Map<String, Double> = emptyMap(),
+    /** The language most titles are in, seeded from the app language ([NeuroLanguages]). Null until seeded. */
+    val languageProfile: String? = null,
+    /** Confident title languages since the profile was last weighed ([NeuroLanguages.vote]). Device-local. */
+    val languageVotes: Map<String, Int> = emptyMap(),
     val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
 )
 

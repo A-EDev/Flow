@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.IdfSnapshot
 import io.github.aedev.flow.data.recommendation.NeuroClusters
 import io.github.aedev.flow.data.recommendation.NeuroContentStore
+import io.github.aedev.flow.data.recommendation.NeuroMaintenance
 import io.github.aedev.flow.data.recommendation.NeuroPhrases
 import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.NeuroStorage
@@ -172,6 +173,159 @@ internal object Issue907Scenarios {
             boredBridgeOutranksOnTopic = rankOnce(bored, listOf(onTopic, bridge)).first().id == bridge.id,
         )
     }
+
+    // ── Problems 3 and 5 in other languages: function words are never interests ──
+
+    private class Language(
+        val code: String,
+        val dishes: List<String>,
+        val watched: List<String>,
+        val unrelated: List<String>,
+    )
+
+    // "%s" is a dish. Watched and unrelated titles share only function words, never a content word.
+    private val languages =
+        listOf(
+            Language(
+                "es",
+                listOf("tortilla", "paella", "gazpacho", "croquetas", "empanadas", "churros", "lentejas", "fabada"),
+                listOf(
+                    "Cómo hacer %s para la cena",
+                    "La mejor receta de %s con los trucos de la abuela",
+                    "%s casero en el horno",
+                    "Por qué mis %s salen así",
+                ),
+                listOf(
+                    "Cómo arreglar la bicicleta para el verano",
+                    "La manera correcta de aprender a nadar con los niños",
+                    "Por qué el cielo es azul",
+                    "Los secretos de la bolsa para el que empieza",
+                    "Cómo cambiar la rueda del coche en la carretera",
+                    "La historia de los romanos en el norte",
+                    "Por qué los gatos duermen tanto",
+                    "El truco de la batería para el móvil",
+                    "Cómo pintar la casa con los amigos",
+                    "La verdad sobre el fútbol de los noventa",
+                ),
+            ),
+            Language(
+                "fr",
+                listOf("crêpes", "ratatouille", "quiche", "cassoulet", "tartiflette", "croissants", "madeleines", "bouillabaisse"),
+                listOf(
+                    "Comment faire des %s pour le dîner",
+                    "La meilleure recette de %s avec les astuces de mamie",
+                    "Les %s maison au four",
+                    "Pourquoi mes %s ratent toujours",
+                ),
+                listOf(
+                    "Comment réparer le vélo pour l'été",
+                    "La bonne façon d'apprendre à nager avec les enfants",
+                    "Pourquoi le ciel est bleu",
+                    "Les secrets de la bourse pour les débutants",
+                    "Comment changer la roue de la voiture sur la route",
+                    "L'histoire des Romains dans le nord",
+                    "Pourquoi les chats dorment autant",
+                    "Le truc de la batterie pour le téléphone",
+                    "Comment peindre la façade avec des amis",
+                    "La vérité sur le football des années 90",
+                ),
+            ),
+            Language(
+                "ru",
+                listOf("борщ", "пельмени", "блины", "оливье", "шашлык", "сырники", "солянка", "голубцы"),
+                listOf(
+                    "Как приготовить %s на ужин",
+                    "Лучший рецепт: %s как у бабушки",
+                    "%s в духовке это просто",
+                    "Почему у меня не получается %s",
+                ),
+                listOf(
+                    "Как починить велосипед на лето",
+                    "Простой способ научить детей плавать как профи",
+                    "Почему небо голубое и что это значит",
+                    "Как поменять колесо на дороге",
+                    "История римлян на севере это интересно",
+                    "Почему кошки спят так много",
+                    "Как покрасить дом на выходных",
+                    "Правда о футболе в девяностые как это было",
+                    "Как выбрать ноутбук для учёбы",
+                    "Почему у меня не работает телефон",
+                ),
+            ),
+            Language(
+                "de",
+                listOf("käsespätzle", "schnitzel", "sauerbraten", "rouladen", "kartoffelsalat", "apfelstrudel", "brezeln", "maultaschen"),
+                listOf(
+                    "Wie man %s für das Abendessen macht",
+                    "Das beste Rezept für %s mit den Tricks von Oma",
+                    "%s aus dem Ofen ist einfach",
+                    "Warum mein %s nicht gelingt",
+                ),
+                listOf(
+                    "Wie man das Fahrrad für den Sommer repariert",
+                    "Die richtige Art mit den Kindern schwimmen zu lernen",
+                    "Warum der Himmel blau ist",
+                    "Die Geheimnisse der Börse für den Anfang",
+                    "Wie man das Rad am Auto auf der Straße wechselt",
+                    "Die Geschichte der Römer im Norden",
+                    "Warum Katzen so viel schlafen",
+                    "Der Trick mit dem Akku für das Handy",
+                    "Wie man das Haus mit den Freunden streicht",
+                    "Die Wahrheit über den Fußball der Neunziger",
+                ),
+            ),
+        )
+
+    data class LanguageViewer(
+        val language: String,
+        val functionWordKeys: List<String>,
+        val ranked: OffFamily,
+    )
+
+    /** A viewer who watches cooking in [Language.code], ranked against unrelated titles in that language. */
+    fun languageViewers(): List<LanguageViewer> =
+        languages.map { language ->
+            runBlocking {
+                val engine =
+                    NeuroLearningBenchmark.engine(
+                        UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION, languageProfile = language.code),
+                    )
+                val watched =
+                    language.dishes.flatMapIndexed { d, dish ->
+                        language.watched.mapIndexed {
+                            t,
+                            template,
+                            ->
+                            video("${language.code}-w-$d-$t", template.format(dish), "Cocina ${d % 3}")
+                        }
+                    }
+                engine.watchAll(watched + watched)
+                val brain = engine.getBrainSnapshot()
+                engine.shutdown()
+                val stop = tokenizer.stopList(language.code)
+                val keys =
+                    brain.globalVector.topics.entries
+                        .sortedByDescending { it.value }
+                        .take(TOP_KEYS)
+                        .map { NeuroScoring.stripDomainTag(it.key) }
+                val onTopic =
+                    language.dishes.flatMapIndexed { d, dish ->
+                        listOf(1, 2).map { k ->
+                            video(
+                                "${language.code}-on-$d-$k",
+                                language.watched[(d + k) % language.watched.size].format(dish),
+                                "Recetas ${d % 5}",
+                            )
+                        }
+                    }
+                val unrelated = language.unrelated.mapIndexed { i, title -> video("${language.code}-off-$i", title, "Canal ${i % 5}") }
+                LanguageViewer(
+                    language = language.code,
+                    functionWordKeys = keys.filter { key -> key.split(' ').any { it in stop } },
+                    ranked = offFamily(rankOnce(brain, onTopic + unrelated)) { it.id.contains("-off-") },
+                )
+            }
+        }
 
     // ── Problem 6: months of comedy, then two guitar playalongs ──
 

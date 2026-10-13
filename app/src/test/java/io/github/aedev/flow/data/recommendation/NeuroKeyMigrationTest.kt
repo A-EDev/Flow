@@ -194,10 +194,10 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
-    fun `maintenance brings a schema 17 brain to 18 once`() {
+    fun `maintenance brings a schema 17 brain up to date once`() {
         val migrated = NeuroMaintenance.runIfNeeded(schema17(), tokenizer)
 
-        assertThat(migrated.schemaVersion).isEqualTo(18)
+        assertThat(migrated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
         assertThat(NeuroMaintenance.runIfNeeded(migrated, tokenizer)).isSameInstanceAs(migrated)
     }
 }

@@ -32,6 +32,7 @@ class NeuroKeySpecTest {
 
         cases.forEach { case ->
             val input = case.getValue("input").jsonPrimitive.content
+            tokenizer.languageProfile = case["languageProfile"]?.jsonPrimitive?.content ?: "en"
             val chunks = tokenizer.chunk(input)
             assertWithMessage(input).that(chunks.chunks).isEqualTo(case.getValue("chunks").jsonArray.map { it.jsonArray.strings() })
             assertWithMessage(input).that(chunks.modelPairs).isEqualTo(case.getValue("modelPairs").jsonArray.strings())

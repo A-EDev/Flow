@@ -1,6 +1,6 @@
 {
   "keySpec": 1,
-  "about": "NeuroKeySpec stages 1 to 6: each input's chunks, model pairs and formats. Flow Desktop checks the same cases. Hand-reviewed; Chinese, Japanese and Thai need the platform word breaker and are checked on a device.",
+  "about": "NeuroKeySpec stages 1 to 6: each input's chunks, model pairs and formats, read with the viewer's language profile (en unless a case names one) and the stop lists in resources/neuro/stop. Flow Desktop checks the same cases. Hand-reviewed; Chinese, Japanese and Thai need the platform word breaker and are checked on a device.",
   "cases": [
     {"input": "Why Big Tech's Privacy Promises Are Lies", "chunks": [["big", "tech", "privacy", "promises"], ["lies"]], "modelPairs": [], "formats": []},
     {"input": "Why Big Tech’s Privacy Promises Are Lies", "chunks": [["big", "tech", "privacy", "promises"], ["lies"]], "modelPairs": [], "formats": []},
@@ -69,6 +69,13 @@
     {"input": "half-life 2 speedrun", "chunks": [["half", "life"], ["speedrun"]], "modelPairs": ["life 2"], "formats": []},
     {"input": "Bill Burr rants about airlines", "chunks": [["bill", "burr", "rants"], ["airlines"]], "modelPairs": [], "formats": []},
     {"input": "The Ultimate Guide to Sourdough Bread", "chunks": [["sourdough", "bread"]], "modelPairs": [], "formats": []},
-    {"input": "Elden Ring: Shadow of the Erdtree DLC review", "chunks": [["elden", "ring"], ["shadow"], ["erdtree", "dlc"]], "modelPairs": [], "formats": ["review"]}
+    {"input": "Elden Ring: Shadow of the Erdtree DLC review", "chunks": [["elden", "ring"], ["shadow"], ["erdtree", "dlc"]], "modelPairs": [], "formats": ["review"]},
+    {"input": "Cómo hacer tortilla para la cena", "languageProfile": "en", "chunks": [["hacer", "tortilla"], ["cena"]], "modelPairs": [], "formats": []},
+    {"input": "Pourquoi les chats détestent l'eau", "languageProfile": "en", "chunks": [["chats", "détestent", "eau"]], "modelPairs": [], "formats": []},
+    {"input": "Los mejores trucos de cocina para principiantes", "languageProfile": "es", "chunks": [["mejores", "trucos"], ["cocina"], ["principiantes"]], "modelPairs": [], "formats": []},
+    {"input": "Les meilleures recettes de crêpes pour le goûter", "languageProfile": "fr", "chunks": [["meilleures", "recettes"], ["crêpes"], ["goûter"]], "modelPairs": [], "formats": []},
+    {"input": "Как приготовить борщ дома", "languageProfile": "ru", "chunks": [["приготовить", "борщ", "дома"]], "modelPairs": [], "formats": []},
+    {"input": "Warum der Himmel blau ist", "languageProfile": "de", "chunks": [["himmel", "blau"]], "modelPairs": [], "formats": []},
+    {"input": "How to make the best pizza at home", "languageProfile": "es", "chunks": [["pizza"], ["home"]], "modelPairs": [], "formats": []}
   ]
 }

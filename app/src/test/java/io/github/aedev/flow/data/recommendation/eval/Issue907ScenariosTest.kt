@@ -7,6 +7,7 @@
 package io.github.aedev.flow.data.recommendation.eval
 
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import io.github.aedev.flow.data.recommendation.NeuroDiscovery
 import org.junit.AfterClass
 import org.junit.Test
@@ -102,6 +103,15 @@ class Issue907ScenariosTest {
         // The starter searches are used, but never stored as if they had been learned.
         assertThat(starters).containsExactlyElementsIn(NeuroDiscovery.STARTER_QUERIES)
         assertThat(recorded).isEqualTo(0)
+    }
+
+    @Test
+    fun `problems 3 and 5 in four languages - function words are never interests`() {
+        Issue907Scenarios.languageViewers().forEach { viewer ->
+            log("P3/P5 ${viewer.language}: function-word keys ${viewer.functionWordKeys} | unrelated top 10 ${f(viewer.ranked.top10)}")
+            assertWithMessage(viewer.language).that(viewer.functionWordKeys).isEmpty()
+            assertWithMessage(viewer.language).that(viewer.ranked.top10).isAtMost(0.10)
+        }
     }
 
     @Test
