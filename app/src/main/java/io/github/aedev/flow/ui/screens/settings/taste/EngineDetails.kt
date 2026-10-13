@@ -25,7 +25,7 @@ data class EngineDetails(
         fun of(brain: UserBrain) =
             EngineDetails(
                 interactions = brain.totalInteractions,
-                topics = brain.globalVector.topics.size,
+                topics = brain.interests.topics.size,
                 channels = brain.channelScores.size,
                 history = brain.watchHistoryMap.size,
                 feedMemory = brain.feedHistory.size,

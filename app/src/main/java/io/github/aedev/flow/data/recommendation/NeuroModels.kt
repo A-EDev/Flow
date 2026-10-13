@@ -146,7 +146,16 @@ data class UserBrain(
     /** The language keys are stemmed for ([NeuroStemmer]): the profile when first seeded, fixed after. */
     val keyLanguage: String? = null,
     val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
-)
+) {
+    /**
+     * The long-term topics strong enough to be interests. Weaker ones are traces of evidence still
+     * adding up ([NeuroVectorMath.Horizon]); ranking reads them, but nothing searches for, groups or
+     * lists a topic from one half-watched video.
+     */
+    val interests: ContentVector by lazy {
+        globalVector.copy(topics = globalVector.topics.filterValues { it >= NeuroVectorMath.TOPIC_PRUNE_THRESHOLD })
+    }
+}
 
 // ── Interaction Types ──
 

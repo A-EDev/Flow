@@ -73,7 +73,7 @@ internal class NeuroDiscovery(
         brain: UserBrain,
         timeTopics: Set<String>,
     ): List<MatureTopic> {
-        val allTopics = brain.globalVector.topics
+        val allTopics = brain.interests.topics
         if (allTopics.isEmpty()) return emptyList()
 
         return allTopics.entries

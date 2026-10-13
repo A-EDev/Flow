@@ -14,10 +14,10 @@ internal fun tasteTopics(
     pickKeys: Set<String>,
 ): List<TasteTopic> {
     val strongest =
-        brain.globalVector.topics.values
+        brain.interests.topics.values
             .maxOrNull()
             ?.takeIf { it > 0.0 } ?: 1.0
-    return brain.globalVector.topics.entries
+    return brain.interests.topics.entries
         .filter { it.value > 0.0 && it.key !in brain.blockedTopics }
         .sortedByDescending { it.value }
         .take(count)

@@ -99,6 +99,23 @@ class NeuroTasteHorizonsTest {
     }
 
     @Test
+    fun `traces of a half-watched video are never searched for or listed`() {
+        val trace = TopicEvidence(positiveSignals = 2, positiveScore = 0.6, firstSeenAt = 1L, lastSeenAt = 1L)
+        val brain =
+            UserBrain(
+                globalVector = ContentVector(topics = mapOf("call of duty" to 0.51, "lofi" to 0.5, "ops" to 0.0115, "modern" to 0.008)),
+                preferredTopics = setOf("Call of Duty", "Lo-Fi"),
+                topicEvidence = mapOf("ops" to trace, "modern" to trace),
+            )
+        val discovery = NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, NeuroTokenizer())
+
+        val queries = (0..2).flatMap { depth -> discovery.generateQueries(brain, depth = depth) { FlowPersona.INITIATE } }
+
+        assertThat(queries.map { it.query.lowercase() }).containsNoneOf("ops", "modern")
+        assertThat(brain.interests.topics.keys).containsExactly("call of duty", "lofi")
+    }
+
+    @Test
     fun `a watch reaches both horizons, and a blocked topic leaves both`() =
         runBlocking {
             val engine = NeuroLearningBenchmark.engine()

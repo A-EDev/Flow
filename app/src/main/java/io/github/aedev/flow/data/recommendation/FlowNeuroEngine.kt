@@ -540,7 +540,7 @@ class FlowNeuroEngine internal constructor(
 
     private fun clustersOf(brain: UserBrain): List<NeuroClusters.TopicCluster> =
         NeuroClusters.buildClusters(
-            topicScores = brain.globalVector.topics,
+            topicScores = brain.interests.topics,
             affinities = brain.topicAffinities,
             channelTopicProfiles = brain.channelTopicProfiles,
             categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
@@ -1563,7 +1563,7 @@ class FlowNeuroEngine internal constructor(
                     currentUserBrain.recentRelatedSeeds
                         .filter { (_, ts) -> ts > seedCooldownCutoff }
                         .keys
-                topicScores = currentUserBrain.globalVector.topics
+                topicScores = currentUserBrain.interests.topics
             }
             val hidden = brainSnapshot.suppressedVideoIds.keys
 
@@ -1962,7 +1962,7 @@ class FlowNeuroEngine internal constructor(
                 } else {
                     NeuroScoring.keepRelevant(
                         unblocked,
-                        NeuroVectorMath.PreparedVector(brain.globalVector),
+                        NeuroVectorMath.PreparedVector(brain.interests),
                         minRelevance,
                         userSubs,
                         brain.channelScores,
@@ -2057,7 +2057,7 @@ class FlowNeuroEngine internal constructor(
 
             // Apply diversity reranking
             val extraExploration = if (brain.consecutiveSkips >= NeuroScoring.BOREDOM_SKIPS) 1 else 0
-            val viewer = NeuroVectorMath.PreparedVector(brain.globalVector)
+            val viewer = NeuroVectorMath.PreparedVector(brain.interests)
             val isUnrelated = { candidate: ScoredVideo ->
                 brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
                     candidate.video.channelId !in userSubs &&
