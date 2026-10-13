@@ -132,10 +132,25 @@ class NeuroLearningFixesTest {
     }
 
     @Test
-    fun `catalog words of a multi-word search are planted beside the phrase`() {
+    fun `a search plants its catalog topic rather than a pair nobody knows`() {
         val topics = NeuroSearchLearning.queryTopics("minecraft hardcore", tokenizer)
-        assertThat(topics.phrases).containsExactly("minecraft hardcore", "minecraft")
+        assertThat(topics.phrases).containsExactly("minecraft")
         assertThat(topics.weakWords).containsExactly("hardcore")
+    }
+
+    @Test
+    fun `a question plants what it asks about`() {
+        assertThat(NeuroSearchLearning.queryTopics("How does encryption work?", tokenizer).phrases).containsExactly("encryption")
+        assertThat(NeuroSearchLearning.queryTopics("what is a quantum computer", tokenizer).phrases).containsExactly("quantum computer")
+        assertThat(NeuroSearchLearning.queryTopics("black holes explained", tokenizer).phrases).containsExactly("black holes")
+    }
+
+    @Test
+    fun `a long search keeps every word and plants its known phrase`() {
+        val topics = NeuroSearchLearning.queryTopics("best budget gaming laptop for college students 2026", tokenizer)
+
+        assertThat(topics.phrases).contains("game laptop")
+        assertThat(topics.phrases + topics.weakWords).containsAtLeast("budget", "college", "students")
     }
 
     @Test

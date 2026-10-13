@@ -11,41 +11,72 @@
 package io.github.aedev.flow.data.recommendation
 
 /**
- * Turns a typed search into phrase-level interests. A query is one interest,
- * so "lofi hip hop" plants its contiguous bigrams ("lofi hip", "hip hop"), the
- * same keys title extraction emits, rather than three unrelated words at the
- * same floor weight. Generic words still nudge the vector, far below the floor.
+ * Turns a typed search into one interest (#907). The words a question wraps around its subject
+ * ("how does X work", "what is X", "X explained") are dropped, the subject is read by [NeuroKeySpec],
+ * and what gets planted is a phrase it holds that the engine knows, a catalog topic in it, or else the
+ * subject itself. Its other words only nudge the vector, far below the floor.
  */
 internal object NeuroSearchLearning {
-    private const val MAX_QUERY_TOKENS = 4
+    private const val MAX_QUERY_WORDS = 8
     private const val LEARNING_RATE = 0.05
     private const val EVIDENCE_SCORE = 0.5
     private const val EVIDENCE_SCORE_CAP = 50.0
     private const val WEAK_WORD_SHARE = 0.25
+
+    private val Templates =
+        listOf(
+            Regex("^how (?:do|does|did|can|could|would|will|is|are) (.+?) (?:work|works|working|happen|happens)$"),
+            Regex("^how (.+?) works?$"),
+            Regex("^(?:what|who) (?:is|are|was|were) (.+)$"),
+            Regex("^explain(?:ing)? (.+)$"),
+            Regex("^(.+?) explained$"),
+            Regex("^how to (.+)$"),
+        )
+
+    private val Whitespace = Regex("\\s+")
 
     data class QueryTopics(
         val phrases: List<String>,
         val weakWords: List<String>,
     )
 
+    /** What a search asks about, without the words of the question around it. */
+    fun subjectOf(query: String): String {
+        val folded =
+            NeuroText
+                .fold(query)
+                .trim()
+                .trimEnd('?', '!', '.')
+                .replace(Whitespace, " ")
+        return Templates.firstNotNullOfOrNull { it.matchEntire(folded)?.groupValues?.get(1) } ?: folded
+    }
+
     fun queryTopics(
         rawQuery: String,
         tokenizer: NeuroTokenizer,
         blockedTopics: Set<String> = emptySet(),
+        idf: IdfSnapshot = IdfSnapshot(emptyMap(), 0),
     ): QueryTopics {
-        val tokens = tokenizer.tokenize(rawQuery.trim()).distinct().take(MAX_QUERY_TOKENS)
-        val blocked = tokens.filter { token -> blockedTopics.any { token == it || token == tokenizer.normalizeLemma(it) } }.toSet()
-        val usable = tokens.filterNot { it in blocked }
+        val chunks = tokenizer.chunk(subjectOf(rawQuery))
+        val words = chunks.words.distinct().take(MAX_QUERY_WORDS)
+        val blockedKeys = blockedTopics.flatMapTo(HashSet()) { tokenizer.keysOf(it) }
+        val usable = words.filterNot { it in blockedKeys }
         if (usable.isEmpty()) return QueryTopics(emptyList(), emptyList())
         if (usable.size == 1) return QueryTopics(usable, emptyList())
-
-        val bigrams =
-            tokens
-                .zipWithNext { a, b -> "$a $b" }
-                .filter { bigram -> bigram.split(' ').none { it in blocked } && !tokenizer.isNoiseTopic(bigram) }
-        val catalog = catalogTopics(tokenizer)
-        val catalogWords = usable.filter { it in catalog }
-        val phrases = (bigrams + catalogWords).take(NeuroScoring.TOPIC_ACQUISITION_TOP_K)
+        val runs =
+            chunks
+                .runs()
+                .filter { run -> chunks.chunks[run.chunk].subList(run.from, run.to).none { it in blockedKeys } }
+                .map { it.key }
+        val known = runs.filter { tokenizer.isKnownPhrase(it, idf) }
+        val catalogWords = usable.filter { it in tokenizer.catalogKeys }
+        val subject =
+            chunks.chunks
+                .singleOrNull()
+                ?.takeIf { known.isEmpty() && catalogWords.isEmpty() && it.size >= 2 && it.none { word -> word in blockedKeys } }
+                ?.joinToString(" ")
+                ?.takeIf { it.count { c -> c == ' ' } < NeuroKeySpec.MAX_RUN_WORDS }
+        val phrases = (known + catalogWords + listOfNotNull(subject)).distinct().take(NeuroScoring.TOPIC_ACQUISITION_TOP_K)
         return QueryTopics(phrases, usable.filterNot { it in phrases })
     }
 
@@ -56,7 +87,7 @@ internal object NeuroSearchLearning {
         tokenizer: NeuroTokenizer,
         now: Long,
     ): UserBrain? {
-        val topics = queryTopics(rawQuery, tokenizer, brain.blockedTopics)
+        val topics = queryTopics(rawQuery, tokenizer, brain.blockedTopics, IdfSnapshot(brain.idfWordFrequency, brain.idfTotalDocuments))
         if (topics.phrases.isEmpty()) return null
 
         val evidence = brain.topicEvidence.toMutableMap()
@@ -89,12 +120,4 @@ internal object NeuroSearchLearning {
             NeuroVectorMath.plantKeys(learned, topics.phrases, NeuroScoring.TOPIC_ACQUISITION_FLOOR)
         return brain.copy(globalVector = planted, topicEvidence = evidence)
     }
-
-    /** Catalog topics as the tokenizer keys them ("Hip Hop" becomes "hip hop"). */
-    fun catalogTopics(tokenizer: NeuroTokenizer): Set<String> =
-        NeuroTopicCatalog.TOPIC_CATEGORIES
-            .flatMap { it.topics }
-            .map { tokenizer.tokenize(it).joinToString(" ") }
-            .filter { it.isNotEmpty() }
-            .toSet()
 }

@@ -709,6 +709,8 @@ internal class NeuroTokenizer {
             "race track",
             // Music
             "lofi hip hop",
+            // Tech
+            "game laptop",
             // Gaming
             "speed run",
             "play through",
@@ -833,6 +835,13 @@ internal class NeuroTokenizer {
                     ?.takeIf { it.size >= 2 }
                     ?.joinToString(" ")
             }.toSet()
+    }
+
+    /** Every catalog topic as titles key it, single words and phrases alike ("Hip Hop" reads "hip hop"). */
+    val catalogKeys: Set<String> by lazy {
+        NeuroTopicCatalog.TOPIC_CATEGORIES
+            .flatMap { it.topics }
+            .flatMapTo(HashSet()) { keysOf(it) }
     }
 
     /** [text] read by [NeuroKeySpec]: its chunks of words that belong together. */

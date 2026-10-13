@@ -210,7 +210,7 @@ internal object NeuroMaintenance {
         val sharedFirst = siblingTimes { it.firstSeenAt }
         val sharedLast = siblingTimes { it.lastSeenAt }
         val keep =
-            NeuroSearchLearning.catalogTopics(tokenizer) +
+            tokenizer.catalogKeys +
                 brain.preferredTopics.flatMap(tokenizer::keysOf)
         val scrubbed =
             searchOnlyWords

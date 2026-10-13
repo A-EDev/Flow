@@ -138,8 +138,9 @@ class Issue907ScenariosTest {
         assertThat(curly.learned.keys).isEqualTo(title.learned.keys)
         assertThat(pixel.planted).isEmpty()
         assertThat(pixel.learned.keys).containsExactly("google", "pixel")
-        // Today: a search still plants its word pair.
-        assertThat(search.keys).contains("encryption work")
+        // A question plants what it asks about.
+        assertThat(search.entries.maxBy { it.value }.key).isEqualTo("encryption")
+        assertThat(search.keys).doesNotContain("encryption work")
         assertThat(pool.plantedUnprovenShare).isEqualTo(0.0)
         assertThat(real.titles).isAtLeast(100)
         assertThat(real.plantedUnprovenShare).isEqualTo(0.0)
