@@ -250,6 +250,15 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
+    fun `a stop word learned before it was one leaves before keys are stemmed`() {
+        val brain = UserBrain(schemaVersion = 19, globalVector = ContentVector(topics = mapOf("youtube" to 0.05, "android" to 0.4)))
+
+        val migrated = NeuroMaintenance.runIfNeeded(brain, stemming)
+
+        assertThat(migrated.globalVector.topics.keys).containsExactly("android")
+    }
+
+    @Test
     fun `maintenance brings a schema 17 brain up to date once`() {
         val migrated = NeuroMaintenance.runIfNeeded(schema17(), stemming)
 

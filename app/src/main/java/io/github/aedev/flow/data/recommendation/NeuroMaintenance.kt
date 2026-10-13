@@ -69,7 +69,11 @@ internal object NeuroMaintenance {
         updated = estimateTimeBucketCounts(updated)
         updated = refoldKeys(updated)
         if (updated.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) updated = NeuroKeyMigration.run(updated, earlier)
-        if (updated.schemaVersion < KEY_SPEC_2_SCHEMA_VERSION) updated = NeuroKeyMigration.toKeySpec2(updated, tokenizer)
+        if (updated.schemaVersion < KEY_SPEC_2_SCHEMA_VERSION) {
+            // Stop words are spelled whole; once stemmed ("youtube" to "youtub") the list no longer finds them.
+            updated = dropNoise(updated, earlier)
+            updated = NeuroKeyMigration.toKeySpec2(updated, tokenizer)
+        }
         updated = dropBlockedTopics(updated, tokenizer)
         updated = dropNoise(updated, tokenizer)
         if (isHollow(updated)) updated = rehydrateFromChannelProfiles(updated, tokenizer)
