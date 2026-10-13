@@ -1373,6 +1373,7 @@ internal object NeuroScoring {
         candidates: MutableList<ScoredVideo>,
         tokenizer: NeuroTokenizer,
         extraExplorationSlots: Int = 0,
+        isUnrelated: (ScoredVideo) -> Boolean = { false },
     ): List<Video> {
         val finalPlaylist = mutableListOf<Video>()
         val channelWindow = mutableListOf<String>()
@@ -1467,11 +1468,10 @@ internal object NeuroScoring {
                     maxPerTopic
                 }
 
-            // A slot among the first is never a prize for being from a new channel alone: a weak
-            // video waits for the relaxed fill, after the strong ones from channels already shown (#907).
-            val isStrong = topScore <= 0 || current.score >= topScore * EXPLORATION_MIN_SCORE_RATIO
+            // A slot among the first is never a prize for being from a new channel alone: a video that
+            // shares nothing with the viewer waits for the relaxed fill, after the ones that do (#907).
             if (channelCount == 0 &&
-                isStrong &&
+                !isUnrelated(current) &&
                 topicCount < effectiveTopicCap &&
                 !isTitleSimilar
             ) {

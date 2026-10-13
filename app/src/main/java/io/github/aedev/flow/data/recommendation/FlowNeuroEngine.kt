@@ -2025,7 +2025,14 @@ class FlowNeuroEngine internal constructor(
 
             // Apply diversity reranking
             val extraExploration = if (brain.consecutiveSkips >= NeuroScoring.BOREDOM_SKIPS) 1 else 0
-            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration)
+            val viewer = NeuroVectorMath.PreparedVector(brain.globalVector)
+            val isUnrelated = { candidate: ScoredVideo ->
+                brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
+                    candidate.video.channelId !in userSubs &&
+                    (brain.channelScores[candidate.video.channelId] ?: 0.0) < 0.5 &&
+                    NeuroVectorMath.topicSimilarity(viewer, candidate.vector) <= 0.0
+            }
+            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated)
         }
 
     suspend fun recordFeedImpressions(ids: List<String>) {
