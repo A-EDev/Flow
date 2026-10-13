@@ -222,6 +222,22 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
+    fun `a key known only from a link keeps its spelling, so searches never send a stem`() {
+        val brain =
+            UserBrain(
+                schemaVersion = 19,
+                globalVector = ContentVector(topics = mapOf("design" to 0.3)),
+                topicAffinities =
+                    mapOf("claude|design" to 0.2),
+            )
+
+        val migrated = NeuroKeyMigration.toKeySpec2(brain, stemming)
+
+        assertThat(migrated.topicAffinities.keys).containsExactly("claud|design")
+        assertThat(NeuroDisplayForms.searchText(migrated.displayForms, "design claud")).isEqualTo("design Claude")
+    }
+
+    @Test
     fun `a key that stems keeps the label it had`() {
         val brain = UserBrain(globalVector = ContentVector(topics = mapOf("restoring vintage guitars" to 0.05, "vintage" to 0.2)))
 

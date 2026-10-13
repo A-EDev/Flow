@@ -56,17 +56,20 @@ internal object NeuroKeyMigration {
     ): UserBrain {
         val rekey = Rekey(tokenizer, emptyMap())
         val forms = rekey.merged(brain.displayForms) { a, b -> if (a.votes >= b.votes) a else b }.toMutableMap()
-        // A key that stems now reads as it did before ("Restoring Vintage Guitars", never "Restor Vintag Guitar").
+        // A key that stems now reads as it did before ("Restoring Vintage Guitars", never "Restor Vintag Guitar"),
+        // wherever a search or a label can reach it: a link's partner becomes search text too ("design claude").
+        val linked = (brain.topicAffinities.keys + brain.tagAffinities.keys).flatMap { it.split('|') }
+        val weighted =
+            brain.globalVector.topics +
+                (linked + brain.topicEvidence.keys).filterNot { it in brain.globalVector.topics }.associateWith { 0.0 }
         val spelledBefore = HashMap<String, Pair<String, Double>>()
-        brain.globalVector.topics.forEach { (key, weight) ->
+        weighted.forEach { (key, weight) ->
             val base = NeuroScoring.stripDomainTag(key)
             rekey.keysFor(base).singleOrNull()?.takeIf { it != base && it !in forms }?.let { stemmed ->
                 if (weight > (spelledBefore[stemmed]?.second ?: -1.0)) spelledBefore[stemmed] = base to weight
             }
         }
-        val unchanged =
-            brain.globalVector.topics.keys
-                .mapTo(HashSet(), NeuroScoring::stripDomainTag)
+        val unchanged = weighted.keys.mapTo(HashSet(), NeuroScoring::stripDomainTag)
         spelledBefore.forEach { (stemmed, before) ->
             if (stemmed !in unchanged) forms[stemmed] = DisplayForm(NeuroDisplayForms.capitalized(before.first))
         }
