@@ -56,6 +56,7 @@ class FlowNeuroEngine internal constructor(
     private val appContext: Context,
     private val storage: NeuroStorage,
     private val contentStore: NeuroContentStore,
+    private val categoryStore: NeuroCategoryStore = NeuroCategoryStore(appContext),
     learningPaused: (suspend () -> Boolean)? = null,
     private val rankRandom: java.util.Random? = null,
 ) {
@@ -476,6 +477,7 @@ class FlowNeuroEngine internal constructor(
             }
 
             contentStore.load()
+            categoryStore.load()
             appContext.registerComponentCallbacks(trimCallbacks)
 
             resetSessionInternal()
@@ -654,6 +656,7 @@ class FlowNeuroEngine internal constructor(
             storage.deleteOldBrainFiles()
             storage.deleteCopiesBeforeMigration()
             contentStore.clear()
+            categoryStore.clear()
         }
     }
 
@@ -711,6 +714,7 @@ class FlowNeuroEngine internal constructor(
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
             contentStore.persistIfDirty()
+            categoryStore.persistIfDirty()
         }
 
     private val trimCallbacks =
@@ -1969,6 +1973,14 @@ class FlowNeuroEngine internal constructor(
                     )
                 }
 
+            // How many candidates carry a category decides whether a category probe is worth adding (D4, #907).
+            val categorized =
+                vectorFiltered.count { (video, _) ->
+                    video.category != null ||
+                        categoryStore.categoryOf(video.channelId) != null
+                }
+            Log.d(TAG, "Category known for $categorized of ${vectorFiltered.size} candidates")
+
             // Time context
             val bucket = TimeBucket.current()
             val timeContextVector = brain.timeVectors[bucket] ?: ContentVector()
@@ -2025,6 +2037,7 @@ class FlowNeuroEngine internal constructor(
                     candidatePoolSize = gated.size,
                     now = now,
                     exploreWeight = exploreWeight,
+                    categoryOf = categoryStore::categoryOf,
                 )
 
             // Jitter magnitude is invariant across candidates in a single rank() call
@@ -2251,6 +2264,11 @@ class FlowNeuroEngine internal constructor(
                     )
             }
             newGlobal = NeuroVectorMath.capTopics(newGlobal, NeuroVectorMath.MAX_GLOBAL_TOPICS, pickKeys)
+
+            // A watch session ends in one WATCHED or SKIPPED; either way the channel posted in that category.
+            val categoryId = NeuroCategories.idOf(video.category)
+            val sessionEnded = interactionType == InteractionType.WATCHED || interactionType == InteractionType.SKIPPED
+            if (categoryId != null && sessionEnded) categoryStore.record(video.channelId, categoryId)
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =
@@ -2603,6 +2621,12 @@ class FlowNeuroEngine internal constructor(
                     idfWordFrequency = idfWordFrequency.toMap(),
                     idfTotalDocuments = idfTotalDocuments,
                     watchHistoryMap = watchHistoryMap,
+                    categoryAffinity =
+                        if (categoryId != null && isStrongSignal && !video.isShort) {
+                            NeuroCategories.learn(currentUserBrain.categoryAffinity, categoryId)
+                        } else {
+                            currentUserBrain.categoryAffinity
+                        },
                     formatAffinity =
                         if (learningRate > 0 && !video.isShort) {
                             NeuroFormats.learn(currentUserBrain.formatAffinity, videoVector.formats)

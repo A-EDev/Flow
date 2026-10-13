@@ -139,6 +139,8 @@ data class UserBrain(
     val displayForms: Map<String, DisplayForm> = emptyMap(),
     /** How much the viewer takes to each format ([NeuroFormats]), 0..1. Device-local, never synced. */
     val formatAffinity: Map<String, Double> = emptyMap(),
+    /** Strong signals per YouTube category ([NeuroCategories]). Device-local, never synced. */
+    val categoryAffinity: Map<String, Double> = emptyMap(),
     /** The language most titles are in, seeded from the app language ([NeuroLanguages]). Null until seeded. */
     val languageProfile: String? = null,
     /** Confident title languages since the profile was last weighed ([NeuroLanguages.vote]). Device-local. */
@@ -361,6 +363,7 @@ internal data class ScoringParams(
     val candidatePoolSize: Int,
     val now: Long,
     val exploreWeight: Double = 0.0,
+    val categoryOf: (channelId: String) -> ChannelCategory? = { null },
 ) {
     val preparedTaste by lazy { NeuroVectorMath.PreparedVector(NeuroVectorMath.blend(brain.globalVector, brain.recentVector)) }
     val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }

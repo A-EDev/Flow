@@ -15,6 +15,7 @@ internal object RestoredDataCleanup {
             "flow_neuro_brain_v9.json",
             "flow_neuro_brain_v10.json",
             "flow_neuro_content_v1.json",
+            "flow_neuro_categories_v1.json",
             "flow_music_brain_v1.json",
             "sync_identity.preferences_pb",
             "sync_brain_crdt.preferences_pb",

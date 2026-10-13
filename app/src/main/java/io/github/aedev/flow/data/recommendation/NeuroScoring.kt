@@ -1303,6 +1303,8 @@ internal object NeuroScoring {
             }
         totalScore *= finalAgeFactor
 
+        totalScore *= categoryFactor(video, videoVector, p, isSub)
+
         totalScore +=
             calculateCuriosityBonus(
                 personalityScore,
@@ -1369,6 +1371,21 @@ internal object NeuroScoring {
         }
 
         return totalScore
+    }
+
+    /** A soft category mismatch ([NeuroCategories]); subscriptions and picked topics are exempt. */
+    private fun categoryFactor(
+        video: Video,
+        videoVector: ContentVector,
+        p: ScoringParams,
+        isSub: Boolean,
+    ): Double {
+        if (isSub || p.lemmatizedPreferred.any { it in videoVector.topics }) return 1.0
+        val category =
+            NeuroCategories.idOf(video.category)?.let { ChannelCategory(it, 1.0) }
+                ?: p.categoryOf(video.channelId)
+                ?: return 1.0
+        return NeuroCategories.factor(p.brain.categoryAffinity, category)
     }
 
     /**
