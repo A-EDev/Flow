@@ -397,7 +397,8 @@ internal object NeuroScoring {
         val views = video.viewCount
         val likes = video.likeCount
 
-        if (views < ENGAGEMENT_MIN_VIEWS || likes < 0) return 1.0
+        // Search, related and feed lists carry no like count, so 0 means unknown, not a clickbait ratio (#907).
+        if (views < ENGAGEMENT_MIN_VIEWS || likes <= 0) return 1.0
 
         val rate = likes.toDouble() / views.toDouble()
 

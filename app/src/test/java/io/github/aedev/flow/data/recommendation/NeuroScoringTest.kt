@@ -226,4 +226,12 @@ class NeuroScoringTest {
         assertThat(kept).hasSize(NeuroScoring.MIN_RELEVANT_KEPT)
         assertThat(kept).containsAtLeast("comedy0", "comedy1", "faint")
     }
+
+    @Test
+    fun `a like count the list never carried is no sign of clickbait`() {
+        val popular = video("p", viewCount = 400_000L, uploadDate = "3 days ago")
+
+        assertThat(NeuroScoring.calculateEngagementQuality(popular, isColdStart = false)).isEqualTo(1.0)
+        assertThat(NeuroScoring.calculateEngagementQuality(popular.copy(likeCount = 100L), isColdStart = false)).isLessThan(0.5)
+    }
 }
