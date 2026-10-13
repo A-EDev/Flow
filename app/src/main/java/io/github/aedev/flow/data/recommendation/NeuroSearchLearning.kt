@@ -109,15 +109,23 @@ internal object NeuroSearchLearning {
 
         val shares = topics.phrases.associateWith { 1.0 } + topics.weakWords.associateWith { WEAK_WORD_SHARE }
         val total = shares.values.sum()
-        val learned =
-            NeuroVectorMath.adjustVector(
-                brain.globalVector,
-                ContentVector(topics = shares.mapValues { it.value / total }),
-                LEARNING_RATE,
-                NeuroVectorMath.decayStrength(LEARNING_RATE),
-            )
+        val query = ContentVector(topics = shares.mapValues { it.value / total })
+        val picks = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+
+        fun learnOn(
+            vector: ContentVector,
+            horizon: NeuroVectorMath.Horizon,
+        ) = NeuroVectorMath.learn(vector, query, LEARNING_RATE / NeuroVectorMath.DECAY_REFERENCE_RATE, horizon, LEARNING_RATE, picks)
         val planted =
-            NeuroVectorMath.plantKeys(learned, topics.phrases, NeuroScoring.TOPIC_ACQUISITION_FLOOR)
-        return brain.copy(globalVector = planted, topicEvidence = evidence)
+            NeuroVectorMath.plantKeys(
+                learnOn(brain.globalVector, NeuroVectorMath.LONG_TERM),
+                topics.phrases,
+                NeuroScoring.TOPIC_ACQUISITION_FLOOR,
+            )
+        return brain.copy(
+            globalVector = planted,
+            recentVector = learnOn(brain.recentVector, NeuroVectorMath.RECENT),
+            topicEvidence = evidence,
+        )
     }
 }

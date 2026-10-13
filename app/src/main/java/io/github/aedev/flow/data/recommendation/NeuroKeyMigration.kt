@@ -99,6 +99,7 @@ internal object NeuroKeyMigration {
             brain.copy(
                 globalVector = rekey.vector(brain.globalVector),
                 shortsVector = rekey.vector(brain.shortsVector),
+                recentVector = rekey.vector(brain.recentVector),
                 timeVectors = brain.timeVectors.mapValues { rekey.vector(it.value) },
                 topicAffinities = rekey.edges(brain.topicAffinities),
                 tagAffinities = rekey.edges(brain.tagAffinities),

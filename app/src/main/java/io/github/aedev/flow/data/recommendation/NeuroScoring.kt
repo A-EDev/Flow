@@ -1254,11 +1254,11 @@ internal object NeuroScoring {
 
         val personalityScore =
             if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
-                val globalSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
+                val globalSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedTaste, videoVector)
                 val shortsSim = NeuroVectorMath.calculateCosineSimilarity(p.preparedShorts, videoVector)
                 globalSim * 0.4 + shortsSim * 0.6
             } else {
-                NeuroVectorMath.calculateCosineSimilarity(p.preparedGlobal, videoVector)
+                NeuroVectorMath.calculateCosineSimilarity(p.preparedTaste, videoVector)
             }
         val contextScore = NeuroVectorMath.calculateCosineSimilarity(p.preparedContext, videoVector)
         // Smooth ramp instead of a cliff at the gate: two near-identical candidates

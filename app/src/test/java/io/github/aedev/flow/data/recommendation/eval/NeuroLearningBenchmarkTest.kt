@@ -31,7 +31,9 @@ class NeuroLearningBenchmarkTest {
         assertThat(retention.comedyTopicsAfter).isAtLeast(retention.comedyTopicsBefore)
         assertThat(retention.comedyKnownAfter).isAtLeast(retention.comedyKnownBefore * 0.9)
         assertThat(retention.profileAfter).isAtLeast(0.6)
-        assertThat(retention.guitarAfter).isAtMost(0.4)
+        // Two videos are two videos of evidence against months of it: the burst shows, and comedy keeps its place.
+        assertThat(retention.guitarAfter).isAtMost(0.15)
+        assertThat(retention.comedyAfter).isAtLeast(retention.comedyBefore * 0.9)
         // Rejections remove the topic without making the feed random.
         assertThat(rejection.phonkAfterDislikes).isAtMost(0.1)
         assertThat(rejection.phonkAfterNotInterested).isAtMost(0.1)

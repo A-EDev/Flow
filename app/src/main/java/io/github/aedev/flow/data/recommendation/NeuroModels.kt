@@ -99,6 +99,8 @@ data class UserBrain(
     val seenShortsHistory: Map<String, Long> = emptyMap(),
     val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
     val shortsVector: ContentVector = ContentVector(),
+    /** What the viewer took to lately ([NeuroVectorMath.RECENT]). Device-local, never synced. */
+    val recentVector: ContentVector = ContentVector(),
     /**
      * Hard suppression: video IDs that must NOT appear in ranked results.
      * Maps videoId → timestamp when suppression was applied. Entries never expire;
@@ -351,7 +353,7 @@ internal data class ScoringParams(
     val now: Long,
     val exploreWeight: Double = 0.0,
 ) {
-    val preparedGlobal by lazy { NeuroVectorMath.PreparedVector(brain.globalVector) }
+    val preparedTaste by lazy { NeuroVectorMath.PreparedVector(NeuroVectorMath.blend(brain.globalVector, brain.recentVector)) }
     val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }
     val preparedContext by lazy { NeuroVectorMath.PreparedVector(timeContextVector) }
 

@@ -121,6 +121,7 @@ internal class NeuroStorage(
         val seenShortsHistory: Map<String, Long> = emptyMap(),
         val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
         val shortsVector: SerializableVector = SerializableVector(),
+        val recentVector: SerializableVector = SerializableVector(),
         val suppressedVideoIds: Map<String, Long> = emptyMap(),
         val suppressedChannels: Map<String, Long> = emptyMap(),
         val rejectionPatterns: Map<String, SerializableRejectionSignal> = emptyMap(),
@@ -261,6 +262,7 @@ internal class NeuroStorage(
             seenShortsHistory = seenShortsHistory,
             channelTopicProfiles = channelTopicProfiles,
             shortsVector = shortsVector.toSerializable(),
+            recentVector = recentVector.toSerializable(),
             suppressedVideoIds = suppressedVideoIds,
             suppressedChannels = suppressedChannels,
             rejectionPatterns =
@@ -745,6 +747,7 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
         seenShortsHistory = seenShortsHistory,
         channelTopicProfiles = channelTopicProfiles,
         shortsVector = shortsVector.toContentVector(),
+        recentVector = recentVector.toContentVector(),
         suppressedVideoIds = suppressedVideoIds,
         suppressedChannels = suppressedChannels,
         rejectionPatterns =

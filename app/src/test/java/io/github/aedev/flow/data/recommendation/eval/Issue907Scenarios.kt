@@ -564,7 +564,7 @@ internal object Issue907Scenarios {
         val max: Double,
     )
 
-    /** Twelve picks set to 0.5, then 400 watches of unrelated videos on a mature brain's learning rate. */
+    /** Twelve picks set to 0.5, then 400 full watches of unrelated videos at a mature brain's learning rate. */
     fun pickedTopicsAfterUnrelatedWatching(): Spread {
         val rate = 0.051
         val picks =
@@ -585,8 +585,7 @@ internal object Issue907Scenarios {
         val unrelated = (family(Family.COMEDY) + family(Family.COOKING)).map { tokenizer.extractFeatures(it, IdfSnapshot(emptyMap(), 0)) }
         var vector = ContentVector(topics = picks.associateWith { 0.5 })
         repeat(400) { i ->
-            vector =
-                NeuroVectorMath.adjustVector(vector, unrelated[i % unrelated.size], rate, NeuroVectorMath.decayStrength(rate))
+            vector = NeuroVectorMath.learn(vector, unrelated[i % unrelated.size], 1.0, NeuroVectorMath.LONG_TERM, rate)
         }
         val weights = picks.map { vector.topics[it] ?: 0.0 }
         val strongest = weights.max()
@@ -608,7 +607,7 @@ internal object Issue907Scenarios {
             val rest = sqrt(1.0 - topics.values.sumOf { it * it })
             repeat(4) { k -> topics["filler-$i-$k"] = rest / 2.0 }
             val target = ContentVector(topics = topics)
-            vector = NeuroVectorMath.adjustVector(vector, NeuroVectorMath.phraseFirst(target), rate, NeuroVectorMath.decayStrength(rate))
+            vector = NeuroVectorMath.learn(vector, NeuroVectorMath.phraseFirst(target), 1.0, NeuroVectorMath.LONG_TERM, rate)
             vector = NeuroVectorMath.plantTopics(vector, target, NeuroScoring.TOPIC_ACQUISITION_FLOOR, NeuroScoring.TOPIC_ACQUISITION_TOP_K)
         }
         return Frequency(vector.topics["topic-a"] ?: 0.0, vector.topics["topic-b"] ?: 0.0)

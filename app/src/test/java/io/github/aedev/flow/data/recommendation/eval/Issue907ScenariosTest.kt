@@ -68,23 +68,24 @@ class Issue907ScenariosTest {
         val r = Issue907Scenarios.occasionalReview()
         log("P2 one review: learned ${r.learned.take(10)} | bridges top 10 ${f(r.ranked.top10)}, 5-20 ${f(r.ranked.positions5to20)}")
         // The creator's tag plants "google pixel"; nothing else of the title becomes a pair, and YouTube's
-        // category is not a topic.
+        // category is not a topic. One video is one video's evidence against eighty, so titles that
+        // share a word with it stay out of the top ten.
         assertThat(r.learned).contains(NeuroTokenizer().keysOf("google pixel").single())
         assertThat(r.learned).containsNoneOf("pixel pro", "science technology", "science", "technology")
-        assertThat(r.ranked.top10).isAtLeast(0.1)
+        assertThat(r.ranked.top10).isAtMost(0.1)
     }
 
     @Test
-    fun `problem 7 - picks decay together and watch frequency barely counts`() {
+    fun `problem 7 - picks decay together and watch frequency counts`() {
         val spread = Issue907Scenarios.pickedTopicsAfterUnrelatedWatching()
         val frequency = Issue907Scenarios.watchFrequency()
         log(
             "P7 picks after 400 unrelated watches: ${f(spread.min)} to ${f(spread.max)} of the strongest" +
                 " | in every video ${f(frequency.everyVideo)}, in one of four ${f(frequency.quarterOfVideos)}",
         )
-        // Today: twelve picks stay equal, and the topic in a quarter of the videos ends above the one in all of them.
+        // Picks nothing confirmed stay equal; a topic in every video ends above one in a quarter of them.
         assertThat(spread.min).isAtLeast(0.97)
-        assertThat(frequency.quarterOfVideos).isGreaterThan(frequency.everyVideo)
+        assertThat(frequency.everyVideo).isGreaterThan(frequency.quarterOfVideos)
     }
 
     @Test

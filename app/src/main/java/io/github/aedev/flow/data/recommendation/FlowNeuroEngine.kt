@@ -88,6 +88,9 @@ class FlowNeuroEngine internal constructor(
 
         private const val COUNTED_DOCUMENTS_MAX = 500
 
+        /** A subscription teaches its channel name about half what a full watch teaches. */
+        private const val SUBSCRIPTION_RATE = 0.08
+
         // ── Import bootstrap constants ──
         private const val SUBSCRIPTION_SEED_WEIGHT = 0.25
 
@@ -755,6 +758,7 @@ class FlowNeuroEngine internal constructor(
                 currentUserBrain.copy(
                     blockedTopics = currentUserBrain.blockedTopics + normalized,
                     globalVector = scrubbed,
+                    recentVector = scrubTopicFromVector(currentUserBrain.recentVector, lemma, normalized),
                     timeVectors = scrubbedTimeVectors,
                     preferredTopics = cleanedPreferred,
                 )
@@ -1225,10 +1229,13 @@ class FlowNeuroEngine internal constructor(
                 val effectiveRate = historyLearningRate * indexDecay.coerceIn(0.6, 1.0)
 
                 val newGlobal =
-                    NeuroVectorMath.adjustVector(
+                    NeuroVectorMath.learn(
                         updatedBrain.globalVector,
                         videoVector,
+                        effectiveRate / NeuroVectorMath.DECAY_REFERENCE_RATE,
+                        NeuroVectorMath.LONG_TERM,
                         effectiveRate,
+                        pickKeys(updatedBrain),
                     )
 
                 val currentChScore = updatedBrain.channelScores[video.channelId] ?: 0.5
@@ -1364,12 +1371,8 @@ class FlowNeuroEngine internal constructor(
                     updatedPatterns,
                     now,
                 )
-            val newGlobal =
-                adjustVectorByRejection(
-                    currentUserBrain.globalVector,
-                    videoVector,
-                    aggressionFactor,
-                )
+            val newGlobal = adjustVectorByRejection(currentUserBrain.globalVector, videoVector, aggressionFactor)
+            val newRecent = adjustVectorByRejection(currentUserBrain.recentVector, videoVector, aggressionFactor)
 
             // 5. Channel score — scales with rejection aggression
             val newChannelScores = currentUserBrain.channelScores.toMutableMap()
@@ -1387,11 +1390,13 @@ class FlowNeuroEngine internal constructor(
                     currentBucketVec,
                     videoVector,
                     NeuroScoring.NOT_INTERESTED_TIME_RATE,
+                    pruneBelow = NeuroVectorMath.EVIDENCE_PRUNE_THRESHOLD,
                 )
 
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
+                    recentVector = newRecent,
                     timeVectors = currentUserBrain.timeVectors + (bucket to newBucketVec),
                     channelScores = newChannelScores,
                     totalInteractions = currentUserBrain.totalInteractions + 1,
@@ -1419,7 +1424,7 @@ class FlowNeuroEngine internal constructor(
                         .coerceAtMost(0.3)
             }
         }
-        newTopics.entries.removeAll { it.value < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
+        newTopics.entries.removeAll { (key, weight) -> key in target.topics && weight < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
         return current.copy(topics = newTopics)
     }
 
@@ -2177,10 +2182,10 @@ class FlowNeuroEngine internal constructor(
         if (video.isShort) {
             learningRate *= NeuroScoring.SHORTS_LEARNING_PENALTY
         }
-        val decayStrength = NeuroVectorMath.decayStrength(learningRate)
+        var strength = learningRate / NeuroVectorMath.DECAY_REFERENCE_RATE
 
         withBrainLock {
-            // Maturity-scaled learning: slow down positive learning as brain matures.
+            // Maturity damping slows duration, pacing and complexity; topic evidence needs no brake (see NeuroVectorMath.Horizon).
             if (learningRate > 0) {
                 val maturityDamping =
                     1.0 / (
@@ -2210,22 +2215,27 @@ class FlowNeuroEngine internal constructor(
                             else -> 0.6 // much later
                         }
                     learningRate *= clickVelocity
+                    strength *= clickVelocity
                 }
             }
 
-            // 1. Update global vector
+            // 1. Update the long-term and recent taste
             val learningVector = if (learningRate > 0) NeuroVectorMath.phraseFirst(videoVector) else videoVector
-            var newGlobal =
-                NeuroVectorMath.adjustVector(
-                    currentUserBrain.globalVector,
-                    learningVector,
-                    learningRate,
-                    decayStrength,
-                )
+            val pickKeys = currentUserBrain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
 
-            // 1a. Acquisition floor: a real watch, like, or save is proof of interest —
-            // plant its top topics at a survivable weight so mature brains can still
-            // pick up NEW interests (see NeuroVectorMath.plantTopics).
+            fun learnOn(
+                vector: ContentVector,
+                horizon: NeuroVectorMath.Horizon,
+            ) = if (learningRate > 0) {
+                NeuroVectorMath.learn(vector, learningVector, strength, horizon, learningRate, pickKeys)
+            } else {
+                NeuroVectorMath.adjustVector(vector, videoVector, learningRate, pruneBelow = NeuroVectorMath.EVIDENCE_PRUNE_THRESHOLD)
+            }
+            var newGlobal = learnOn(currentUserBrain.globalVector, NeuroVectorMath.LONG_TERM)
+            val newRecent = learnOn(currentUserBrain.recentVector, NeuroVectorMath.RECENT)
+
+            // 1a. A real watch, like or save counts at least the acquisition floor for its top
+            // topics (see NeuroVectorMath.plantTopics).
             val isStrongSignal =
                 interactionType == InteractionType.LIKED ||
                     interactionType == InteractionType.SAVED ||
@@ -2240,12 +2250,7 @@ class FlowNeuroEngine internal constructor(
                         tokenizer.plantFilter(video, idfSnapshot, ownDocuments = if (isDocumentCounted(video.id)) 1 else 0),
                     )
             }
-            newGlobal =
-                NeuroVectorMath.capTopics(
-                    newGlobal,
-                    NeuroVectorMath.MAX_GLOBAL_TOPICS,
-                    currentUserBrain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf),
-                )
+            newGlobal = NeuroVectorMath.capTopics(newGlobal, NeuroVectorMath.MAX_GLOBAL_TOPICS, pickKeys)
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =
@@ -2273,13 +2278,7 @@ class FlowNeuroEngine internal constructor(
             val currentBucketVec =
                 currentUserBrain.timeVectors[bucket]
                     ?: ContentVector()
-            val newBucketVec =
-                NeuroVectorMath.adjustVector(
-                    currentBucketVec,
-                    learningVector,
-                    learningRate,
-                    decayStrength,
-                )
+            val newBucketVec = learnOn(currentBucketVec, NeuroVectorMath.TIME_OF_DAY)
             val newBucketCounts =
                 if (learningRate > 0 && !video.isShort) {
                     currentUserBrain.timeBucketCounts + (bucket to (currentUserBrain.timeBucketCounts[bucket] ?: 0) + 1)
@@ -2590,6 +2589,7 @@ class FlowNeuroEngine internal constructor(
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
+                    recentVector = newRecent,
                     timeVectors =
                         currentUserBrain.timeVectors +
                             (bucket to newBucketVec),
@@ -2684,11 +2684,13 @@ class FlowNeuroEngine internal constructor(
                 val nameTokens = tokenizer.tokenizeChannelName(channelName)
                 val newGlobal =
                     if (nameTokens.isNotEmpty()) {
-                        NeuroVectorMath.adjustVector(
+                        NeuroVectorMath.learn(
                             currentUserBrain.globalVector,
                             ContentVector(topics = nameTokens.associateWith { 0.5 }),
-                            0.08,
-                            NeuroVectorMath.decayStrength(0.08),
+                            SUBSCRIPTION_RATE / NeuroVectorMath.DECAY_REFERENCE_RATE,
+                            NeuroVectorMath.LONG_TERM,
+                            SUBSCRIPTION_RATE,
+                            pickKeys(currentUserBrain),
                         )
                     } else {
                         currentUserBrain.globalVector
