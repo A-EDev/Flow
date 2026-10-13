@@ -2212,4 +2212,58 @@
     <string name="import_label_metrolist_playlists">Playlisty Muzyki Metrolist</string>
     <string name="import_label_freetube_watch_history">Historia Oglądania FreeTube</string>
     <string name="settings_backup_source_freetube">FreeTube</string>
+    <plurals name="import_takeout_part_subscriptions">
+        <item quantity="one">%d subskrypcja</item>
+        <item quantity="few">%d subskrypcje</item>
+        <item quantity="many">%d subskrypcji</item>
+        <item quantity="other">%d subskrypcji</item>
+    </plurals>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Zaimportowano playlistę \"%1$s\" z %2$d filmem</item>
+        <item quantity="few">Zaimportowano playlistę \"%1$s\" z %2$d filmami</item>
+        <item quantity="many">Zaimportowano playlistę \"%1$s\" z %2$d filmami</item>
+        <item quantity="other">Zaimportowano playlistę \"%1$s\" z %2$d filmami</item>
+    </plurals>
+    <string name="update_action_installing">Instalowanie</string>
+    <string name="update_action_install">Zainstaluj aktualizacje</string>
+    <string name="update_ready_notification_text">Zweryfikowano. Kliknij, by zainstalować.</string>
+    <string name="update_failed_install">Nie udało się zainstalować aktualizacji. Spróbuj ponownie.</string>
+    <string name="update_action_allow">Zezwól na instalację</string>
+    <string name="downloads_recover_allow">Zezwól na dostęp</string>
+    <string name="downloads_recover_body">Flow zapisuje pobrane pliki w Download/Flow i Music/Flow. Aby wyświetlić pliki z poprzedniej instalacji, zezwól na dostęp do audio i wideo.</string>
+    <plurals name="onboarding_ready_artists">
+        <item quantity="one">%d artysta</item>
+        <item quantity="few">%d artystów</item>
+        <item quantity="many">%d artystów</item>
+        <item quantity="other">%d artystów</item>
+    </plurals>
+    <string name="home_chip_all">Wszystkie</string>
+    <string name="home_chip_new_to_you">Nowe dla Ciebie</string>
+    <string name="home_chip_recently_uploaded">Ostatnio dodane</string>
+    <string name="home_chip_mixes">Mixy</string>
+    <string name="home_chip_live">Na żywo</string>
+    <string name="home_chip_watched">Obejrzane</string>
+    <string name="home_chip_description">Pokaż %1$s na Stronie głównej</string>
+    <string name="home_chip_empty_title">Nic tu teraz nie ma</string>
+    <string name="home_chip_empty_body">Przeciągnij w dół, aby odświeżyć.</string>
+    <string name="home_chip_failed">Nie udało się wczytać treści.</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Odświeżono %1$d z %2$d kanału</item>
+        <item quantity="few">Odświeżano %1$d z %2$d kanałów</item>
+        <item quantity="many">Odświeżano %1$d z %2$d kanałów</item>
+        <item quantity="other">Odświeżano %1$d z %2$d kanałów</item>
+    </plurals>
+    <string name="settings_section_this_device">To urządzenie</string>
+    <string name="settings_diagnostics_model">Model</string>
+    <string name="device_info_model">Model</string>
+    <string name="settings_diagnostics_android">Wersja Androida</string>
+    <string name="settings_diagnostics_app_version">Wersja Aplikacji</string>
+    <string name="settings_section_report">Raport</string>
+    <string name="settings_diagnostics_copy_summary">Szczegóły urządzenia, ostrzeżenia i raporty o błędach</string>
+    <string name="settings_diagnostics_share_summary">Wyślij raport do innej aplikacji</string>
+    <string name="crash_report">Raport</string>
+    <string name="crash_copy">Skopiuj raport</string>
+    <string name="crash_full_report">Pełny raport</string>
+    <string name="crash_share">Udostępnij raport</string>
+    <string name="crash_subtitle">Ten raport pozostanie na Twoim urządzeniu, dopóki go nie udostępnisz.</string>
 </resources>
