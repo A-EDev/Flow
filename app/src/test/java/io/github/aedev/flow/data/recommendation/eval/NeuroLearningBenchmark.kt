@@ -37,7 +37,8 @@ import kotlin.math.ln
  * search and related results are.
  */
 internal object NeuroLearningBenchmark {
-    private const val RANK_RUNS = 6
+    private const val RANK_RUNS = 24
+    private const val JITTER_SEED = 907L
     private const val TOP_N = 20
 
     enum class Family { COMEDY, TECH, COOKING, GUITAR, PHONK, OTHER }
@@ -317,10 +318,10 @@ internal object NeuroLearningBenchmark {
 
     fun familyOf(id: String): Family = families.getValue(id)
 
-    /** [random] fixes the ranking jitter; pass [NO_JITTER] to rank by score alone. */
+    /** Ranking jitter is seeded so runs compare across commits; pass [NO_JITTER] to rank by score alone. */
     fun engine(
         brain: UserBrain = UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION, languageProfile = "en"),
-        random: java.util.Random? = null,
+        random: java.util.Random = java.util.Random(JITTER_SEED),
     ): FlowNeuroEngine {
         val storage: NeuroStorage =
             mockk(relaxed = true) {

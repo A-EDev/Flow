@@ -11,9 +11,9 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Writes app/build/reports/neuro-benchmark/learning.txt. Compare old and new code back to back:
- * ranking jitter is unseeded, so shares move by a few points between runs. The floors hold the #907
- * fixes with margin; the numbers before them are in the PR that added them.
+ * Writes app/build/reports/neuro-benchmark/learning.txt. Ranking jitter is seeded, so a run gives the
+ * same numbers every time and two commits compare directly. The floors hold the #907 fixes with
+ * margin; the numbers before them are in the PR that added them.
  */
 class NeuroLearningBenchmarkTest {
     @Test
