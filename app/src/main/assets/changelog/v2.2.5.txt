@@ -272,6 +272,7 @@ FIXES AND STABILITY
 - A search teaches recommendations what it asks about: "How does encryption work" adds "encryption", not "encryption work", and long searches keep all their words (#907)
 - Interests read as titles write them, such as "MMA" and "Machine Learning", in Your taste, on Home chips and in the searches Home makes, which never include a hidden topic tag (#907)
 - Fix Boost and Stop boosting missing the interests you picked when you started (#907)
+- Recommendations learn what kind of videos you watch, such as reviews, tutorials or playalongs, apart from what they are about, and Home searches ask for those kinds (#907)
 - Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
 - Fix Home handing early places to weak videos only because they came from a channel not yet shown, ahead of better videos from channels you watch (#907)
 
