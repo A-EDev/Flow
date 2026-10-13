@@ -61,15 +61,40 @@ internal object NeuroText {
 
     private val Whitespace = Regex("\\s+")
 
+    private val Apostrophes = setOf('\u2019', '\u2018', '\u02BC', '`', '\u00B4')
+
+    // Turkish dotted capital I, the emoji variation selector and joiner, and the Unicode hyphens.
+    private val Marks = setOf('\u0130', '\uFE0F', '\u200D', '\u2010', '\u2011')
+
     private val wordBreaks = ThreadLocal.withInitial { BreakIterator.getWordInstance(Locale.ROOT) }
 
-    /** Lowercase plain letters: "𝙋𝙃𝙊𝙉𝙆", "ｐｈｏｎｋ", "ⓟⓗⓞⓝⓚ" and "ᴘʜᴏɴᴋ" all read "phonk". */
+    /**
+     * Lowercase plain letters: "𝙋𝙃𝙊𝙉𝙆", "ｐｈｏｎｋ", "ⓟⓗⓞⓝⓚ" and "ᴘʜᴏɴᴋ" all read "phonk". Every apostrophe
+     * reads ', Turkish İ reads i, and emoji joiners are dropped ([NeuroKeySpec] stage 1).
+     */
     fun fold(text: String): String {
-        if (text.all { it.code < 0x80 }) return text.lowercase()
+        if (text.all { it.code < 0x80 }) return if ('`' in text) text.lowercase().replace('`', '\'') else text.lowercase()
+        // Before NFKC, which turns ´ into a space and a combining accent.
+        val marks =
+            if (text.none { it in Apostrophes || it in Marks }) {
+                text
+            } else {
+                buildString(text.length) {
+                    text.forEach { c ->
+                        when {
+                            c in Apostrophes -> append('\'')
+                            c == '\u0130' -> append('i')
+                            c == '\u2010' || c == '\u2011' -> append('-')
+                            c in Marks -> Unit
+                            else -> append(c)
+                        }
+                    }
+                }
+            }
         // NFKC splits Thai and Lao SARA AM into two characters no dictionary or title uses; put it back.
         val normalized =
             Normalizer
-                .normalize(text, Normalizer.Form.NFKC)
+                .normalize(marks, Normalizer.Form.NFKC)
                 .replace("\u0E4D\u0E32", "\u0E33")
                 .replace("\u0ECD\u0EB2", "\u0EB3")
         val plain = if (normalized.any { it in SmallCaps }) normalized.map { SmallCaps[it] ?: it }.joinToString("") else normalized

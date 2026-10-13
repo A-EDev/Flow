@@ -369,9 +369,10 @@ internal object NeuroVectorMath {
         source: ContentVector,
         floor: Double,
         topK: Int,
+        plantable: (String) -> Boolean = { true },
     ): ContentVector {
         if (source.topics.isEmpty()) return current
-        return plantKeys(current, selectPlantKeys(source, topK), floor)
+        return plantKeys(current, selectPlantKeys(source, topK, plantable), floor)
     }
 
     /** How much of its weight a word keeps when a stronger phrase of the same video contains it. */
@@ -405,17 +406,18 @@ internal object NeuroVectorMath {
     /**
      * Phrase keys first, and never the words of a planted phrase: planting
      * "hip hop" beside "hip" and "hop" gives generic words the same weight as
-     * the interest itself.
+     * the interest itself. Only [plantable] keys qualify.
      */
     fun selectPlantKeys(
         source: ContentVector,
         topK: Int,
+        plantable: (String) -> Boolean = { true },
     ): List<String> {
         val ranked =
             source.topics.entries
                 .sortedByDescending { it.value }
                 .map { it.key }
-                .filter { NeuroText.isTopicSized(NeuroScoring.stripDomainTag(it)) }
+                .filter { NeuroText.isTopicSized(NeuroScoring.stripDomainTag(it)) && plantable(it) }
         val phrases = ranked.filter { ' ' in NeuroScoring.stripDomainTag(it) }.take(topK)
         val phraseWords = phrases.flatMap { NeuroScoring.stripDomainTag(it).split(' ') }.toSet()
         val words = ranked.filter { ' ' !in it && NeuroScoring.stripDomainTag(it) !in phraseWords }

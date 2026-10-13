@@ -31,8 +31,9 @@ class Issue907ScenariosTest {
                 )} | fresh bridges ${f(r.freshBridgesOldTech.top10)}, ${f(r.freshBridgesOldTech.positions5to20)}" +
                 " | bored bridge outranks on-topic ${r.boredBridgeOutranksOnTopic}",
         )
-        // Today: pairs such as "life after" and "long term", learned from tech titles, bridge to unrelated videos.
-        assertThat(r.genericKeyShare).isAtLeast(0.4)
+        // Today: no chance pair is learned, but real phrases of tech titles ("long term", "battery life") still
+        // hold words that unrelated videos share, and those still bridge to them.
+        assertThat(r.genericKeyShare).isAtLeast(0.3)
         assertThat(r.ranked.top10).isAtLeast(0.2)
         assertThat(r.ranked.positions5to20).isAtLeast(0.4)
         // Skipping videos never turns relevance upside down.
@@ -57,17 +58,17 @@ class Issue907ScenariosTest {
         assertThat(seeds.guitarSeeds).isAtMost(1)
         assertThat(seeds.guitarSeedWeight).isLessThan(seeds.comedySeedWeight * 1.5)
         assertThat(lanes.unrelatedIn5to20).isAtMost(0.15)
-        // Today: with only two interests, the playalongs are a major one and get as many searches as comedy.
-        assertThat(lanes.guitarInTop20).isAtLeast(0.3)
+        assertThat(lanes.guitarInTop20).isLessThan(lanes.comedyInTop20)
     }
 
     @Test
     fun `problem 2 - one review among comedy and cooking`() {
         val r = Issue907Scenarios.occasionalReview()
         log("P2 one review: learned ${r.learned.take(10)} | bridges top 10 ${f(r.ranked.top10)}, 5-20 ${f(r.ranked.positions5to20)}")
-        // Today: one watch plants its word pairs at the acquisition floor. YouTube's category is not a topic.
-        assertThat(r.learned).containsAtLeast("google pixel", "pixel pro")
-        assertThat(r.learned).containsNoneOf("science technology", "science", "technology")
+        // The creator's tag plants "google pixel"; nothing else of the title becomes a pair, and YouTube's
+        // category is not a topic.
+        assertThat(r.learned).contains("google pixel")
+        assertThat(r.learned).containsNoneOf("pixel pro", "science technology", "science", "technology")
         assertThat(r.ranked.top10).isAtLeast(0.1)
     }
 
@@ -130,15 +131,17 @@ class Issue907ScenariosTest {
         log("P4 search: ${search.entries.sortedByDescending { it.value }.map { "${it.key} ${f(it.value)}" }}")
         log("P3 chance pairs, benchmark titles: $pool, planted share ${f(pool.plantedUnprovenShare)}")
         log("P3 chance pairs, ${real.titles} real titles: $real, planted share ${f(real.plantedUnprovenShare)}")
-        // Today: every adjacent pair is written, across "are" too, and the floor plants three of them.
-        assertThat(title.planted).containsExactly("big tech's", "tech's privacy", "privacy promises").inOrder()
-        assertThat(title.learned.keys).contains("promises lies")
-        assertThat(curly.planted).contains("big tech’s")
-        assertThat(pixel.planted).containsExactly("google pixel", "pixel pro")
+        // A bare title teaches its words at a low weight and plants nothing; no pair is learned by chance.
+        assertThat(title.planted).isEmpty()
+        assertThat(title.learned.keys).containsExactly("big", "tech", "privacy", "promises", "lies")
+        assertThat(curly.learned.keys).isEqualTo(title.learned.keys)
+        assertThat(pixel.planted).isEmpty()
+        assertThat(pixel.learned.keys).containsExactly("google", "pixel")
+        // Today: a search still plants its word pair.
         assertThat(search.keys).contains("encryption work")
-        assertThat(pool.plantedUnprovenShare).isAtLeast(0.9)
+        assertThat(pool.plantedUnprovenShare).isEqualTo(0.0)
         assertThat(real.titles).isAtLeast(100)
-        assertThat(real.plantedUnprovenShare).isAtLeast(0.9)
+        assertThat(real.plantedUnprovenShare).isEqualTo(0.0)
     }
 
     companion object {

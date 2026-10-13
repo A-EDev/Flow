@@ -1224,7 +1224,7 @@ class FlowNeuroEngine internal constructor(
                         isExplicitSignal = false,
                     )
 
-                countDocument(video.id, videoVector)
+                countDocument(video.id) { tokenizer.documentTerms(video, videoVector) }
 
                 updatedBrain =
                     updatedBrain.copy(
@@ -1265,16 +1265,18 @@ class FlowNeuroEngine internal constructor(
 
     // Periodic IDF maintenance: halve aged counts and cap the distinct vocabulary.
 
-    /** Counts [vector]'s words as one more document, unless [videoId] already counted as one. */
-    private fun countDocument(
+    private fun isDocumentCounted(videoId: String): Boolean = videoId in watchHistory || videoId in countedDocuments
+
+    /** Counts [terms] as one more document, unless [videoId] already counted as one. */
+    private inline fun countDocument(
         videoId: String,
-        vector: ContentVector,
+        terms: () -> Collection<String>,
     ): Boolean {
         if (videoId.isNotBlank()) {
-            if (videoId in watchHistory || videoId in countedDocuments) return false
+            if (isDocumentCounted(videoId)) return false
             countedDocuments[videoId] = Unit
         }
-        vector.topics.keys.forEach { word -> idfWordFrequency[word] = (idfWordFrequency[word] ?: 0) + 1 }
+        terms().forEach { term -> idfWordFrequency[term] = (idfWordFrequency[term] ?: 0) + 1 }
         idfTotalDocuments++
         return true
     }
@@ -2187,6 +2189,7 @@ class FlowNeuroEngine internal constructor(
                         videoVector,
                         NeuroScoring.TOPIC_ACQUISITION_FLOOR,
                         NeuroScoring.TOPIC_ACQUISITION_TOP_K,
+                        tokenizer.plantFilter(video, idfSnapshot, ownDocuments = if (isDocumentCounted(video.id)) 1 else 0),
                     )
             }
             newGlobal =
@@ -2397,7 +2400,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // 6. Update IDF counters on interaction
-            if (learningRate > 0 && countDocument(video.id, videoVector)) {
+            if (learningRate > 0 && countDocument(video.id) { tokenizer.documentTerms(video, videoVector) }) {
                 compactIdfIfNeeded()
 
                 if (idfTotalDocuments % 100 == 0) {

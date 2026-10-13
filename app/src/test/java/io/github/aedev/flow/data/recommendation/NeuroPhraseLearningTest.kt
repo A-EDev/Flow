@@ -107,7 +107,7 @@ class NeuroPhraseLearningTest {
             val features = tokenizer.extractFeatures(video, IdfSnapshot(counts.toMap(), documents))
             val target = if (phraseFirst) NeuroVectorMath.phraseFirst(features) else features
             global = NeuroVectorMath.adjustVector(global, target, 0.15)
-            features.topics.keys.forEach { counts.merge(it, 1, Int::plus) }
+            tokenizer.documentTerms(video, features).forEach { counts.merge(it, 1, Int::plus) }
             documents++
         }
         return global.topics

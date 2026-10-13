@@ -109,16 +109,13 @@ class NeuroLearningFixesTest {
     private val floor = NeuroScoring.TOPIC_ACQUISITION_FLOOR
 
     @Test
-    fun `multi-word search plants its bigrams and no word at the floor`() {
+    fun `multi-word search plants its phrase and catalog topics, never stray words`() {
         val learned = NeuroSearchLearning.learn(UserBrain(), "lofi hip hop", tokenizer, now = 1_000L)!!
         val topics = learned.globalVector.topics
 
-        assertThat(topics.getValue("hip hop")).isAtLeast(floor)
-        assertThat(topics.getValue("lofi hip")).isAtLeast(floor)
-        listOf("lofi", "hip", "hop").forEach { word ->
-            assertThat(topics[word] ?: 0.0).isLessThan(floor)
-        }
-        assertThat(learned.topicEvidence.keys).containsExactly("lofi hip", "hip hop")
+        listOf("lofi hip hop", "lofi", "hip hop").forEach { assertThat(topics.getValue(it)).isAtLeast(floor) }
+        assertThat(topics.keys).containsNoneOf("hip", "hop", "lofi hip")
+        assertThat(learned.topicEvidence.keys).containsExactly("lofi hip hop", "lofi", "hip hop")
     }
 
     @Test
@@ -181,8 +178,9 @@ class NeuroLearningFixesTest {
         val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
 
         assertThat(updated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
-        assertThat(updated.globalVector.topics.keys).containsExactly("woodworking", "minecraft", "claude")
-        assertThat(updated.topicEvidence.keys).containsExactly("woodworking", "minecraft", "claude")
+        // "lofi" is the catalog's "Lo-Fi", which catalog words keep.
+        assertThat(updated.globalVector.topics.keys).containsExactly("lofi", "woodworking", "minecraft", "claude")
+        assertThat(updated.topicEvidence.keys).containsExactly("lofi", "woodworking", "minecraft", "claude")
     }
 
     // ── F5: every cluster in every feed + tree-depth descent ──

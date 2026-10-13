@@ -415,8 +415,12 @@ internal object Issue907Scenarios {
             engine.watchAll(listOf(video))
             val learned = engine.getBrainSnapshot().globalVector.topics
             engine.shutdown()
-            val features = tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0))
-            Lesson(learned, NeuroVectorMath.selectPlantKeys(features, NeuroScoring.TOPIC_ACQUISITION_TOP_K))
+            val idf = IdfSnapshot(emptyMap(), 0)
+            val features = tokenizer.extractFeatures(video, idf)
+            Lesson(
+                learned,
+                NeuroVectorMath.selectPlantKeys(features, NeuroScoring.TOPIC_ACQUISITION_TOP_K, tokenizer.plantFilter(video, idf, 0)),
+            )
         }
 
     fun learnFromSearch(query: String): Map<String, Double> =
@@ -454,14 +458,19 @@ internal object Issue907Scenarios {
 
         fun isUnproven(key: String): Boolean {
             val base = NeuroScoring.stripDomainTag(key)
-            return ' ' in base && !NeuroPhrases.isPhrase(base, idf) && base !in tokenizer.compoundTerms
+            return ' ' in base && !tokenizer.isKnownPhrase(base, idf)
         }
         videos.forEach { video ->
             val features = tokenizer.extractFeatures(video, idf)
             val keys = features.topics.keys.filter { ' ' in NeuroScoring.stripDomainTag(it) }
             pairs += keys.size
             unproven += keys.count(::isUnproven)
-            val plant = NeuroVectorMath.selectPlantKeys(features, NeuroScoring.TOPIC_ACQUISITION_TOP_K)
+            val plant =
+                NeuroVectorMath.selectPlantKeys(
+                    features,
+                    NeuroScoring.TOPIC_ACQUISITION_TOP_K,
+                    tokenizer.plantFilter(video, idf, 0),
+                )
             planted += plant.size
             plantedUnproven += plant.count(::isUnproven)
         }
