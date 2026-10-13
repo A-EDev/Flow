@@ -1130,8 +1130,17 @@ internal class NeuroDiscovery(
             "network",
         )
 
-    private fun sanitizeQuery(raw: String): String? {
-        val words = raw.trim().split(NeuroTokenizer.WHITESPACE_REGEX)
+    /** 0 for confident searches, 1 for middling, 2 for the rest, with no gap between them (0.69 was in none). */
+    internal fun confidenceTier(confidence: Double): Int =
+        when {
+            confidence >= 0.7 -> 0
+            confidence >= 0.4 -> 1
+            else -> 2
+        }
+
+    internal fun sanitizeQuery(raw: String): String? {
+        // A domain tag ("metal:music") tells the engine which metal; YouTube would read it as text (#907).
+        val words = raw.trim().split(NeuroTokenizer.WHITESPACE_REGEX).map { it.substringBefore(':') }
         val deduped = LinkedHashSet(words)
         val cleaned =
             deduped.filter { word ->
@@ -1353,20 +1362,11 @@ internal class NeuroDiscovery(
         }
 
         // Phase 4: Shuffle within confidence tiers for variety
-        val highConf =
-            balanced
-                .filter { it.confidence >= 0.7 }
-                .shuffled()
-        val medConf =
-            balanced
-                .filter { it.confidence in 0.4..0.69 }
-                .shuffled()
-        val lowConf =
-            balanced
-                .filter { it.confidence < 0.4 }
-                .shuffled()
-
-        return highConf + medConf + lowConf
+        return balanced
+            .groupBy { confidenceTier(it.confidence) }
+            .toSortedMap()
+            .values
+            .flatMap { it.shuffled() }
     }
 
     private fun extractTopicRoot(query: String): String? {
