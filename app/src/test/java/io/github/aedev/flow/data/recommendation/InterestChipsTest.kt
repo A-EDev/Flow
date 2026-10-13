@@ -47,8 +47,9 @@ class InterestChipsTest {
     }
 
     @Test
-    fun `labels are title-cased phrases`() {
-        assertThat(InterestChips.label("claude 5.5")).isEqualTo("Claude 5.5")
-        assertThat(InterestChips.label("metal:music")).isEqualTo("Metal")
+    fun `labels are written as titles write them, else title-cased`() {
+        assertThat(NeuroDisplayForms.label(emptyMap(), "claude 5.5")).isEqualTo("Claude 5.5")
+        assertThat(NeuroDisplayForms.label(emptyMap(), "metal:music")).isEqualTo("Metal")
+        assertThat(NeuroDisplayForms.label(mapOf("mma" to DisplayForm("MMA")), "mma")).isEqualTo("MMA")
     }
 }

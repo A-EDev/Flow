@@ -552,7 +552,7 @@ internal class NeuroDiscovery(
                 .filter { q ->
                     !blocked.any { b -> q.query.lowercase().contains(b) }
                 }.mapNotNull { q ->
-                    sanitizeQuery(q.query)?.let { q.copy(query = it) }
+                    sanitizeQuery(NeuroDisplayForms.searchText(brain.displayForms, q.query))?.let { q.copy(query = it) }
                 }
 
         return balanceQueryStrategies(filtered, selection.uniqueTopicCount())

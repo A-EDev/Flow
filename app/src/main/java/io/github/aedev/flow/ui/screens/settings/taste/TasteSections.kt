@@ -153,7 +153,7 @@ private fun SettingsListScope.interests(
     group(key = TasteIndex.interests.key, header = R.string.taste_interests_header, footer = R.string.taste_interests_footer) {
         topics.forEach { topic ->
             row("taste.topic.${topic.id}") { shape ->
-                val label = topic.id.readableTopic()
+                val label = topic.label
                 TasteMeterRow(
                     title = label,
                     value = topic.share,

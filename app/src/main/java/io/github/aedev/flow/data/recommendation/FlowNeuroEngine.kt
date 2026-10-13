@@ -289,6 +289,8 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun removePreferredTopic(topic: String) = requireInstance().removePreferredTopic(topic)
 
+        fun pickKeys(brain: UserBrain): Set<String> = requireInstance().pickKeys(brain)
+
         suspend fun removePreferredTopic(
             context: Context,
             topic: String,
@@ -531,7 +533,7 @@ class FlowNeuroEngine internal constructor(
                     scheduleDebouncedSave(bookkeeping = true)
                 }
             }
-            InterestChips.chips(set, clusters)
+            InterestChips.chips(set, clusters, brain.displayForms)
         }
 
     suspend fun explorationQueries(limit: Int): List<String> =
@@ -860,9 +862,10 @@ class FlowNeuroEngine internal constructor(
         if (normalized.isBlank()) return
         withBrainLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
-            tokenizer.keysOf(normalized).forEach { key -> newTopics[key] = 0.5 }
+            tokenizer.keysOf(normalized).forEach { key -> newTopics[key] = maxOf(newTopics[key] ?: 0.0, 0.5) }
             currentUserBrain =
                 currentUserBrain.copy(
+                    displayForms = withPickSpellings(currentUserBrain.displayForms, listOf(normalized)),
                     preferredTopics = currentUserBrain.preferredTopics + normalized,
                     globalVector =
                         currentUserBrain.globalVector.copy(
@@ -873,11 +876,25 @@ class FlowNeuroEngine internal constructor(
         }
     }
 
+    /** A pick is written as the viewer chose it ("Cooking"), even before any title writes it. */
+    private fun withPickSpellings(
+        forms: Map<String, DisplayForm>,
+        labels: Collection<String>,
+    ): Map<String, DisplayForm> =
+        labels.fold(forms) { current, label ->
+            NeuroDisplayForms.record(current, NeuroDisplayForms.spellingsIn(label, tokenizer.keysOf(label), tokenizer)) { true }
+        }
+
+    /** The keys the viewer's picks stand for, as titles key them. */
+    fun pickKeys(brain: UserBrain): Set<String> = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+
+    /** [topic] is a pick as the viewer typed it, or the key Your taste lists for it. */
     suspend fun removePreferredTopic(topic: String) {
         withBrainLock {
             currentUserBrain =
                 currentUserBrain.copy(
-                    preferredTopics = currentUserBrain.preferredTopics - topic,
+                    preferredTopics =
+                        currentUserBrain.preferredTopics.filterNot { label -> label == topic || topic in tokenizer.keysOf(label) }.toSet(),
                 )
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
@@ -911,6 +928,7 @@ class FlowNeuroEngine internal constructor(
             // Picks are not linked to each other: unrelated picks must stay separate interests (#907).
             currentUserBrain =
                 currentUserBrain.copy(
+                    displayForms = withPickSpellings(currentUserBrain.displayForms, selectedTopics),
                     preferredTopics = selectedTopics,
                     globalVector =
                         currentUserBrain.globalVector.copy(
@@ -2523,6 +2541,15 @@ class FlowNeuroEngine internal constructor(
                     idfWordFrequency = idfWordFrequency.toMap(),
                     idfTotalDocuments = idfTotalDocuments,
                     watchHistoryMap = watchHistoryMap,
+                    displayForms =
+                        if (learningRate > 0) {
+                            NeuroDisplayForms.record(
+                                currentUserBrain.displayForms,
+                                NeuroDisplayForms.spellingsIn(video.title, learningVector.topics.keys, tokenizer),
+                            ) { it in newGlobal.topics }
+                        } else {
+                            currentUserBrain.displayForms
+                        },
                     channelTopicProfiles = newChannelProfiles,
                     shortsVector = newShortsVector,
                     topicEvidence = newTopicEvidence,

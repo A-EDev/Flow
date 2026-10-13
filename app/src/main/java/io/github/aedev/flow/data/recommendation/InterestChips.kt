@@ -66,17 +66,11 @@ internal object InterestChips {
     fun chips(
         set: InterestChipSet,
         clusters: List<NeuroClusters.TopicCluster>,
+        forms: Map<String, DisplayForm> = emptyMap(),
     ): List<InterestChip> {
         val byRep = clusters.associateBy { it.representative }
         return set.masses.keys.mapNotNull { rep ->
-            byRep[rep]?.let { InterestChip(rep, label(rep), it.topics) }
+            byRep[rep]?.let { InterestChip(rep, NeuroDisplayForms.label(forms, rep), it.topics) }
         }
     }
-
-    /** "claude 5.5" reads "Claude 5.5" on the chip. */
-    fun label(representative: String): String =
-        NeuroScoring
-            .stripDomainTag(representative)
-            .split(' ')
-            .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
 }

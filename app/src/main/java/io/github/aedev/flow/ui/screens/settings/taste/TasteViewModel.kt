@@ -45,6 +45,7 @@ data class TasteTraits(
 @Immutable
 data class TasteTopic(
     val id: String,
+    val label: String,
     /** This topic's weight relative to the strongest one, 0..1. */
     val share: Float,
     val preferred: Boolean,
@@ -189,7 +190,7 @@ class TasteViewModel
                 maturity = (brain.totalInteractions / MATURE_INTERACTIONS).coerceIn(0f, 1f),
                 profile = brain.globalVector.traits(),
                 now = (brain.timeVectors[TimeBucket.current()] ?: ContentVector()).traits(),
-                topics = tasteTopics(brain, TOPIC_COUNT),
+                topics = tasteTopics(brain, TOPIC_COUNT, FlowNeuroEngine.pickKeys(brain)),
                 channels =
                     brain.channelScores.entries
                         .filter { it.key !in brain.blockedChannels }

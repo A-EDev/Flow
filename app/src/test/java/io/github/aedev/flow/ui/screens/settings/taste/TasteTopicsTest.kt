@@ -2,6 +2,8 @@ package io.github.aedev.flow.ui.screens.settings.taste
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.recommendation.ContentVector
+import io.github.aedev.flow.data.recommendation.DisplayForm
+import io.github.aedev.flow.data.recommendation.NeuroTokenizer
 import io.github.aedev.flow.data.recommendation.UserBrain
 import org.junit.Test
 
@@ -14,7 +16,7 @@ class TasteTopicsTest {
                 blockedTopics = setOf("phonk"),
             )
 
-        val topics = tasteTopics(brain, count = 12)
+        val topics = tasteTopics(brain, count = 12, pickKeys = emptySet())
 
         assertThat(topics.map { it.id }).containsExactly("comedy", "cooking").inOrder()
         assertThat(topics.map { it.share }).containsExactly(1.0f, 0.5f).inOrder()
@@ -25,19 +27,23 @@ class TasteTopicsTest {
         val picks = listOf("android", "mma", "web development", "gym", "ai", "anime").associateWith { 0.3824 }
         val brain = UserBrain(globalVector = ContentVector(topics = picks + ("laptops" to 0.3367)))
 
-        val shares = tasteTopics(brain, count = 12).map { it.share }
+        val shares = tasteTopics(brain, count = 12, pickKeys = emptySet()).map { it.share }
 
         assertThat(shares.take(6)).containsExactly(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f)
     }
 
     @Test
-    fun `today an onboarding pick stored as typed is not shown as boosted (#907)`() {
+    fun `an onboarding pick stored as typed shows as boosted, under its own spelling (#907)`() {
         val brain =
             UserBrain(
                 globalVector = ContentVector(topics = mapOf("web development" to 0.38)),
                 preferredTopics = setOf("Web Development"),
+                displayForms = mapOf("web development" to DisplayForm("Web Development")),
             )
 
-        assertThat(tasteTopics(brain, count = 12).single().preferred).isFalse()
+        val topic = tasteTopics(brain, count = 12, pickKeys = NeuroTokenizer().keysOf("Web Development").toSet()).single()
+
+        assertThat(topic.preferred).isTrue()
+        assertThat(topic.label).isEqualTo("Web Development")
     }
 }

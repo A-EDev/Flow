@@ -131,6 +131,8 @@ data class UserBrain(
     val channelMemory: ChannelMemoryState = ChannelMemoryState(),
     /** The interest chips Home showed last; see [InterestChips]. */
     val interestChips: InterestChipSet = InterestChipSet(),
+    /** How titles write each key; see [NeuroDisplayForms]. Device-local, never synced. */
+    val displayForms: Map<String, DisplayForm> = emptyMap(),
     val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
 )
 
