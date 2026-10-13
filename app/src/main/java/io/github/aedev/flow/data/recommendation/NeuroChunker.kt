@@ -203,11 +203,16 @@ internal class NeuroChunker(
         val out = ArrayList<Item>(items.size)
         var i = 0
         while (i < items.size) {
+            val head = items[i]
             val match =
-                (NeuroKeySpec.LONGEST_EXPRESSION_WORDS downTo 2).firstNotNullOfOrNull { length ->
-                    val window = items.subList(i, minOf(items.size, i + length))
-                    if (window.size < length || window.any { it !is Item.Word || it.whole }) return@firstNotNullOfOrNull null
-                    NeuroKeySpec.EXPRESSIONS[window.joinToString(" ") { (it as Item.Word).text }]?.let { it to length }
+                if (head !is Item.Word || head.text !in NeuroKeySpec.EXPRESSION_FIRST_WORDS) {
+                    null
+                } else {
+                    (NeuroKeySpec.LONGEST_EXPRESSION_WORDS downTo 2).firstNotNullOfOrNull { length ->
+                        val window = items.subList(i, minOf(items.size, i + length))
+                        if (window.size < length || window.any { it !is Item.Word || it.whole }) return@firstNotNullOfOrNull null
+                        NeuroKeySpec.EXPRESSIONS[window.joinToString(" ") { (it as Item.Word).text }]?.let { it to length }
+                    }
                 }
             if (match != null) {
                 out += Item.Word(match.first, whole = true)

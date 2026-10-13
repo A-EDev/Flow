@@ -186,4 +186,7 @@ internal object NeuroKeySpec {
 
     /** The longest variant in words, so a scan knows how far ahead to look. */
     val LONGEST_EXPRESSION_WORDS: Int = EXPRESSIONS.keys.maxOf { it.count { c -> c == ' ' } + 1 }
+
+    /** First words of the variants written as several words, so a scan only looks ahead from them. */
+    val EXPRESSION_FIRST_WORDS: Set<String> = EXPRESSIONS.keys.filter { ' ' in it }.mapTo(HashSet()) { it.substringBefore(' ') }
 }
