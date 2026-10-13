@@ -8,6 +8,7 @@ package io.github.aedev.flow.sync.mapping
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.recommendation.NeuroStorage
+import io.github.aedev.flow.sync.merge.BrainCrdtState
 import kotlinx.serialization.json.Json
 import org.junit.Test
 
@@ -47,5 +48,12 @@ class BrainMapperOverlayTest {
         val written = decode(BrainMapper.serializeOver(localJson(), BrainMapper.parse(localJson())))
 
         assertThat(written).isEqualTo(local)
+    }
+
+    @Test
+    fun `a peer's schema never stamps this brain, so its own migrations still run`() {
+        val peer = BrainMapper.toCanonical(BrainMapper.parse(localJson()), "peer", "1", BrainCrdtState()).copy(schema = 18)
+
+        assertThat(BrainMapper.writeBack(peer, BrainMapper.parse(localJson())).schemaVersion).isEqualTo(17)
     }
 }
