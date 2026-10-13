@@ -106,7 +106,9 @@ internal object NeuroKeyMigration {
         val vectors = listOf(brain.globalVector, brain.shortsVector) + brain.timeVectors.values
         val weights = HashMap<String, Double>()
         vectors.forEach { vector -> vector.topics.forEach { (key, weight) -> weights.merge(key, weight, ::maxOf) } }
-        val keys = weights.keys + brain.topicEvidence.keys + brain.channelTopicProfiles.values.flatMap { it.keys }
+        // Older builds linked a video's top three keys, chance pairs among them, and the link can outlive the key.
+        val linked = brain.topicAffinities.keys.flatMap { it.split('|') }
+        val keys = weights.keys + brain.topicEvidence.keys + brain.channelTopicProfiles.values.flatMap { it.keys } + linked
         return keys.filterTo(HashSet()) { key ->
             val base = NeuroScoring.stripDomainTag(key)
             val evidence = brain.topicEvidence[base] ?: brain.topicEvidence[key]

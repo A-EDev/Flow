@@ -118,6 +118,15 @@ class NeuroKeyMigrationTest {
     }
 
     @Test
+    fun `a link whose end is a chance pair goes, even when no vector holds the pair`() {
+        val brain = schema17().copy(topicAffinities = mapOf("built chatgpt|chatgpt scratch" to 0.21, "chatgpt|tech" to 0.2))
+
+        val links = NeuroKeyMigration.run(brain, tokenizer).topicAffinities.keys
+
+        assertThat(links).containsExactly("chatgpt|tech")
+    }
+
+    @Test
     fun `a pair with proof stays`() {
         val topics = NeuroKeyMigration.run(schema17(), tokenizer).globalVector.topics
 
