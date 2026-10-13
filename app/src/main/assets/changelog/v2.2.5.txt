@@ -276,6 +276,7 @@ FIXES AND STABILITY
 - Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
 - Fix Home handing early places to weak videos only because they came from a channel not yet shown, ahead of better videos from channels you watch (#907)
 - Recommendations skip the small words of your language and of each title's own, so words like "para", "les" or "как" never become interests; the language follows your app language and later what you watch (#907)
+- Recommendations treat the forms of a word as one interest, such as "guitar" and "guitars" or "croqueta" and "croquetas", in English, Spanish, Portuguese, French, German, Italian and Russian (#907)
 - Add Open source notices to About
 
 BUILD AND CI

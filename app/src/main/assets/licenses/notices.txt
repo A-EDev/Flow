@@ -1,5 +1,5 @@
 Snowball (snowballstem.org)
-Stop word lists, used by the recommendation engine.
+Stemmers and stop word lists, used by the recommendation engine.
 
 Copyright (c) 2001, Dr Martin Porter
 Copyright (c) 2004,2005, Richard Boulton
