@@ -275,6 +275,8 @@ FIXES AND STABILITY
 - Recommendations learn what kind of videos you watch, such as reviews, tutorials or playalongs, apart from what they are about, and Home searches ask for those kinds (#907)
 - Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
 - Fix Home handing early places to weak videos only because they came from a channel not yet shown, ahead of better videos from channels you watch (#907)
+- Recommendations skip the small words of your language and of each title's own, so words like "para", "les" or "как" never become interests; the language follows your app language and later what you watch (#907)
+- Add Open source notices to About
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
