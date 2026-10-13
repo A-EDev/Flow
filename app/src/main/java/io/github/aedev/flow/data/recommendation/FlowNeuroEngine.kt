@@ -459,6 +459,13 @@ class FlowNeuroEngine internal constructor(
             idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
             idfTotalDocuments = currentUserBrain.idfTotalDocuments
 
+            // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
+            val unspelled =
+                currentUserBrain.preferredTopics.filter { label -> tokenizer.keysOf(label).any { it !in currentUserBrain.displayForms } }
+            if (unspelled.isNotEmpty()) {
+                currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
+            }
+
             currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
                 watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
             }

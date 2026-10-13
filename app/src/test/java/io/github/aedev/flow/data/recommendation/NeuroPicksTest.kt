@@ -52,4 +52,14 @@ class NeuroPicksTest {
 
             assertThat(weight).isEqualTo(0.8)
         }
+
+    @Test
+    fun `picks made before spellings were kept read as chosen`() =
+        runBlocking<Unit> {
+            val engine = NeuroLearningBenchmark.engine(UserBrain(preferredTopics = setOf("R&B", "K-Pop", "Guitar")))
+            val forms = engine.getBrainSnapshot().displayForms
+            engine.shutdown()
+
+            assertThat(listOf("rnb", "kpop", "guitar").map { NeuroDisplayForms.label(forms, it) }).containsExactly("R&B", "K-Pop", "Guitar")
+        }
 }
