@@ -108,10 +108,11 @@ class Issue907ScenariosTest {
     fun `problem 9 - onboarding picks as interest groups`() {
         val r = Issue907Scenarios.onboardingGroups()
         log("P9 seven onboarding picks: ${r.groups} group, ${r.groupsWithoutPickLinks} without the pick links | chips ${r.chipLabels}")
-        // Today: onboarding links every pick to every other, so seven picks form one group and one chip.
-        assertThat(r.groups).isEqualTo(1)
-        assertThat(r.groupsWithoutPickLinks).isAtLeast(5)
-        assertThat(r.chipLabels).containsExactly("Cook")
+        // Onboarding no longer links every pick to every other, so unrelated picks stay apart.
+        assertThat(r.groups).isAtLeast(5)
+        assertThat(r.groups).isEqualTo(r.groupsWithoutPickLinks)
+        // Today: a chip needs watches behind it, which a bare pick lacks.
+        assertThat(r.chipLabels).hasSize(1)
     }
 
     @Test

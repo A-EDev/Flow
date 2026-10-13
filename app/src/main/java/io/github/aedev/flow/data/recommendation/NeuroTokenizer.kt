@@ -840,6 +840,17 @@ internal class NeuroTokenizer {
 
     fun tokenize(text: String): List<String> = chunker.chunk(text).words
 
+    /**
+     * The keys a short label stands for, such as an onboarding pick: one per chunk, so "Lo-Fi" reads
+     * "lofi" and "Health & Fitness" reads "health" and "fitness", the keys titles produce.
+     */
+    fun keysOf(label: String): List<String> =
+        chunker
+            .chunk(label)
+            .chunks
+            .map { it.joinToString(" ") }
+            .ifEmpty { listOfNotNull(normalizeLemma(NeuroText.fold(label).trim()).takeIf { it.isNotBlank() }) }
+
     fun tokenizeForSimilarity(text: String): Set<String> = tokenize(text).toSet()
 
     /**

@@ -29,9 +29,11 @@ package io.github.aedev.flow.data.recommendation
  * every topic through [NeuroText.fold], so "𝙥𝙝𝙤𝙣𝙠" learned before folding merges into "phonk".
  * Full-strength decay from every Short had hollowed vectors out again after V15, so a hollow
  * vector is rehydrated from channel knowledge once more, and blocked topics leave the vector.
+ *
+ * V18 brings every key to [NeuroKeySpec] 1 and drops word pairs learned by chance ([NeuroKeyMigration]).
  */
 internal object NeuroMaintenance {
-    const val TARGET_SCHEMA_VERSION = 17
+    const val TARGET_SCHEMA_VERSION = NeuroKeyMigration.SCHEMA_VERSION
     private const val V15_SCHEMA_VERSION = 15
     private const val V16_SCHEMA_VERSION = 16
 
@@ -54,6 +56,7 @@ internal object NeuroMaintenance {
         if (updated.schemaVersion < V16_SCHEMA_VERSION) updated = scrubSearchWordPlants(updated, tokenizer)
         updated = estimateTimeBucketCounts(updated)
         updated = refoldKeys(updated)
+        if (updated.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) updated = NeuroKeyMigration.run(updated, tokenizer)
         updated = dropBlockedTopics(updated, tokenizer)
         updated = dropNoise(updated, tokenizer)
         if (isHollow(updated)) updated = rehydrateFromChannelProfiles(updated, tokenizer)
@@ -204,7 +207,7 @@ internal object NeuroMaintenance {
         val sharedLast = siblingTimes { it.lastSeenAt }
         val keep =
             NeuroSearchLearning.catalogTopics(tokenizer) +
-                brain.preferredTopics.map { tokenizer.normalizeLemma(it) }
+                brain.preferredTopics.flatMap(tokenizer::keysOf)
         val scrubbed =
             searchOnlyWords
                 .filter { (topic, ev) ->

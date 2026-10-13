@@ -169,6 +169,16 @@ internal object NeuroKeySpec {
             spell("nfl", "n.f.l")
             spell("ps5", "ps 5", "playstation 5")
             spell("ps4", "ps 4", "playstation 4")
+            // Names that hold a stop word, which would otherwise split them.
+            spell("call of duty")
+            spell("league of legends")
+            spell("legend of zelda", "the legend of zelda")
+            spell("lord of the rings")
+            spell("game of thrones")
+            spell("god of war")
+            spell("attack on titan")
+            spell("sea of thieves")
+            spell("house of the dragon")
         }
 
     /** The keys [EXPRESSIONS] produce: they stay whole even when they hold a stop word. */

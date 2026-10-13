@@ -104,7 +104,7 @@ class BrainSyncAccess
             }
             val merged = counters.copy(vectors = BrainVectorBlend.effective(devices))
             val mergedBrain = BrainMapper.writeBack(merged, local)
-            neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serializeOver(localJson, mergedBrain)))
+            neuroEngine.importBrainFromStream(ByteArrayInputStream(BrainMapper.serializeOver(localJson, mergedBrain)), afterSync = true)
             brainCrdtStore.save(BrainCrdtState.afterMerge(attributed, merged, devices))
         }
 

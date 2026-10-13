@@ -447,6 +447,9 @@ class FlowNeuroEngine internal constructor(
 
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
+                if (currentUserBrain.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) {
+                    storage.keepCopyBeforeMigration(currentUserBrain, NeuroKeyMigration.SCHEMA_VERSION)
+                }
                 currentUserBrain = maintained
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
@@ -610,6 +613,7 @@ class FlowNeuroEngine internal constructor(
             resetSessionInternal()
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             storage.deleteOldBrainFiles()
+            storage.deleteCopiesBeforeMigration()
             contentStore.clear()
         }
     }
@@ -829,11 +833,7 @@ class FlowNeuroEngine internal constructor(
                     .toSet()
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             normalizedPreferred.forEach { topic ->
-                newTopics[tokenizer.normalizeLemma(topic)] =
-                    maxOf(
-                        newTopics[tokenizer.normalizeLemma(topic)] ?: 0.0,
-                        0.5,
-                    )
+                tokenizer.keysOf(topic).forEach { key -> newTopics[key] = maxOf(newTopics[key] ?: 0.0, 0.5) }
             }
             normalizedBlocked.forEach { topic -> newTopics.remove(topic) }
 
@@ -860,7 +860,7 @@ class FlowNeuroEngine internal constructor(
         if (normalized.isBlank()) return
         withBrainLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
-            newTopics[tokenizer.normalizeLemma(normalized)] = 0.5
+            tokenizer.keysOf(normalized).forEach { key -> newTopics[key] = 0.5 }
             currentUserBrain =
                 currentUserBrain.copy(
                     preferredTopics = currentUserBrain.preferredTopics + normalized,
@@ -905,22 +905,10 @@ class FlowNeuroEngine internal constructor(
                         index < 6 -> 0.40
                         else -> 0.30
                     }
-                newTopics[tokenizer.normalizeLemma(topic)] = weight
+                tokenizer.keysOf(topic).forEach { key -> newTopics.merge(key, weight, ::maxOf) }
             }
 
-            val affinities = mutableMapOf<String, Double>()
-            val normalizedList = topicList.map { tokenizer.normalizeLemma(it) }
-            for (i in normalizedList.indices) {
-                for (j in i + 1 until normalizedList.size) {
-                    val key =
-                        NeuroScoring.makeAffinityKey(
-                            normalizedList[i],
-                            normalizedList[j],
-                        )
-                    affinities[key] = 0.3
-                }
-            }
-
+            // Picks are not linked to each other: unrelated picks must stay separate interests (#907).
             currentUserBrain =
                 currentUserBrain.copy(
                     preferredTopics = selectedTopics,
@@ -928,7 +916,6 @@ class FlowNeuroEngine internal constructor(
                         currentUserBrain.globalVector.copy(
                             topics = newTopics,
                         ),
-                    topicAffinities = affinities,
                     hasCompletedOnboarding = true,
                 )
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
@@ -1946,9 +1933,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // Precompute lemmatized preferred topics once (was per-candidate)
-            val lemmatizedPreferred =
-                brain.preferredTopics
-                    .mapTo(HashSet()) { tokenizer.normalizeLemma(it) }
+            val lemmatizedPreferred = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
 
             // Persona sets exploration appetite: explorers roam, specialists stay focused.
             val exploreWeight =
@@ -2196,7 +2181,7 @@ class FlowNeuroEngine internal constructor(
                 NeuroVectorMath.capTopics(
                     newGlobal,
                     NeuroVectorMath.MAX_GLOBAL_TOPICS,
-                    currentUserBrain.preferredTopics.mapTo(HashSet()) { tokenizer.normalizeLemma(it) },
+                    currentUserBrain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf),
                 )
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
@@ -2725,7 +2710,11 @@ class FlowNeuroEngine internal constructor(
         return storage.exportToStream(brainCopy, output)
     }
 
-    suspend fun importBrainFromStream(input: InputStream): Boolean =
+    /** [afterSync] marks a brain merged with peers, whose keys may follow an older key spec. */
+    suspend fun importBrainFromStream(
+        input: InputStream,
+        afterSync: Boolean = false,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             try {
                 val finalBrain =
@@ -2734,7 +2723,8 @@ class FlowNeuroEngine internal constructor(
 
                 withBrainLock {
                     // Imported brains may pre-date the current maintenance, so run it.
-                    currentUserBrain = runMaintenanceIfNeeded(finalBrain)
+                    val maintained = runMaintenanceIfNeeded(finalBrain)
+                    currentUserBrain = if (afterSync) NeuroKeyMigration.afterSync(maintained, tokenizer) else maintained
                     deepFlowBookkeeping.forget()
                     // From the maintained brain: maintenance re-keys words, and the next event saves this map over it.
                     idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()

@@ -48,6 +48,7 @@ internal class NeuroStorage(
         private const val BRAIN_DATASTORE_FILE = "flow_neuro_brain_v10.json"
         private val PREVIOUS_DATASTORE_FILES = listOf("v9", "v8", "v7").map { "flow_neuro_brain_$it.json" }
         private const val SCHEMA_VERSION = NeuroMaintenance.TARGET_SCHEMA_VERSION
+        private const val PRE_MIGRATION_PREFIX = "neuro_brain_before_v"
 
         /** The schema of a brain that predates the field, so every maintenance step runs on it. */
         const val LEGACY_SCHEMA_VERSION = 0
@@ -433,6 +434,28 @@ internal class NeuroStorage(
             }
 
             tryMigrateFromPreviousDataStore()
+        }
+
+    /**
+     * Keeps [brain] as it was before migration [toSchema] for one release, so a migration that went
+     * wrong can be undone. noBackupFilesDir never leaves the device.
+     */
+    suspend fun keepCopyBeforeMigration(
+        brain: UserBrain,
+        toSchema: Int,
+    ) = withContext(Dispatchers.IO) {
+        val file = File(appContext.noBackupFilesDir, "$PRE_MIGRATION_PREFIX$toSchema.json")
+        if (file.exists()) return@withContext
+        runCatching { file.writeText(Json { encodeDefaults = true }.encodeToString(brain.toSerializable())) }
+            .onFailure { Log.e(TAG, "Could not keep the brain before migration $toSchema", it) }
+    }
+
+    /** Removes the copies [keepCopyBeforeMigration] kept: a reset forgets what was learned. */
+    suspend fun deleteCopiesBeforeMigration() =
+        withContext(Dispatchers.IO) {
+            appContext.noBackupFilesDir
+                .listFiles { file -> file.name.startsWith(PRE_MIGRATION_PREFIX) }
+                ?.forEach { it.delete() }
         }
 
     /** True once any brain, even an empty one after a reset, has been saved in the current format. */
