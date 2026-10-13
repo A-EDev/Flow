@@ -1277,6 +1277,8 @@ internal object NeuroScoring {
 
         if (brain.topicAffinities.isNotEmpty()) totalScore += affinityBoost(videoVector, p)
 
+        totalScore += NeuroFormats.scoreTerm(brain.formatAffinity, videoVector.formats)
+
         totalScore += calculateChannelSignal(video, brain, p.userSubs)
 
         totalScore += calculateSerendipity(noveltyScore, contextScore)

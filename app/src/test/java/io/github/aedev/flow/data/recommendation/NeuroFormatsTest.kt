@@ -43,6 +43,25 @@ class NeuroFormatsTest {
         }
 
     @Test
+    fun `a format the viewer takes to lifts a video in that format`() =
+        runBlocking<Unit> {
+            val brain =
+                UserBrain(
+                    globalVector = ContentVector(topics = mapOf("guitar" to 0.5)),
+                    formatAffinity = mapOf("tutorial" to 0.9),
+                    totalInteractions = 100,
+                )
+            val engine = NeuroLearningBenchmark.engine(brain, NeuroLearningBenchmark.NO_JITTER)
+            val tutorial = Video("t", "Guitar tutorial", "Guitar Lessons", "ch-a", "", 600, 1L, uploadDate = "3 days ago")
+            val other = Video("o", "Guitar", "Guitar Lessons B", "ch-b", "", 600, 1L, uploadDate = "3 days ago")
+
+            val ranked = engine.rank(listOf(other, tutorial), emptySet())
+            engine.shutdown()
+
+            assertThat(ranked.first().id).isEqualTo("t")
+        }
+
+    @Test
     fun `a liked format only nudges a score`() {
         val affinity = NeuroFormats.learn(emptyMap(), setOf("review"))
         val saturated = (1..100).fold(affinity) { current, _ -> NeuroFormats.learn(current, setOf("review")) }
