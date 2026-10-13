@@ -279,6 +279,7 @@ FIXES AND STABILITY
 - Recommendations treat the forms of a word as one interest, such as "guitar" and "guitars" or "croqueta" and "croquetas", in English, Spanish, Portuguese, French, German, Italian and Russian (#907)
 - Recommendations remember how often you watch a topic, not just how much of the last video it filled, so months of comedy outweigh two guitar videos, while what you watched lately still gets a quarter of the say (#907)
 - Recommendations learn each channel's YouTube category from the videos you watch, and rank a video a little lower when its category is one you rarely watch; subscriptions and your picked interests are never lowered (#907)
+- Home chips group interests of one kind into a theme such as "Gaming", which searches each of them, so the row has room for more of what you like; interests you picked get a chip before you have watched anything (#907)
 - Add Open source notices to About
 
 BUILD AND CI
