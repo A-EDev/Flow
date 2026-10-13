@@ -82,6 +82,30 @@ class NeuroLearningDynamicsTest {
     }
 
     @Test
+    fun `a blocked phrase never takes a picked interest with it`() {
+        val brain =
+            UserBrain(
+                schemaVersion = 16,
+                globalVector =
+                    ContentVector(
+                        topics =
+                            (0 until 8).associate { "topic$it" to 0.3 } + mapOf("code" to 0.35, "technology" to 0.1),
+                    ),
+                preferredTopics = setOf("Code"),
+                blockedTopics = setOf("code technology"),
+                channelTopicProfiles = mapOf("ch" to mapOf("kotlin" to 0.6)),
+            )
+
+        val topics =
+            NeuroMaintenance
+                .runIfNeeded(brain, tokenizer)
+                .globalVector.topics.keys
+
+        assertThat(topics).contains("code")
+        assertThat(topics).doesNotContain("technology")
+    }
+
+    @Test
     fun `v17 leaves a healthy vector to what it learned`() {
         val healthy = (0 until 8).associate { "topic$it" to 0.3 }
         val brain =

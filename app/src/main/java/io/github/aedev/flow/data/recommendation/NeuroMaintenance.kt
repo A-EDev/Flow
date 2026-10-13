@@ -120,7 +120,11 @@ internal object NeuroMaintenance {
         withPhraseWords: Boolean = false,
     ): Set<String> {
         val lemmas = brain.blockedTopics.mapTo(HashSet()) { tokenizer.normalizeLemma(NeuroText.fold(it).trim()) }
-        if (withPhraseWords) lemmas.filter { ' ' in it }.forEach { lemmas += tokenizer.tokenize(it) }
+        if (withPhraseWords) {
+            // Blocking "code technology" hides that phrase, never the viewer's own pick "Coding".
+            val picked = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+            lemmas.filter { ' ' in it }.forEach { phrase -> lemmas += tokenizer.tokenize(phrase).filterNot { it in picked } }
+        }
         return lemmas
     }
 
