@@ -30,7 +30,7 @@ internal object NeuroLanguages {
 
     // Frequent function words, less those English titles use as words ("pro", "plus", "son"). A word
     // only one language uses counts twice.
-    private val FunctionWords =
+    internal val FunctionWords =
         mapOf(
             "en" to "the and of to in is for on with my you your how what why this that are from was it at an be we i it's don't i'm",
             "es" to "el la los las de del que y en un una por con para como es se su al lo más mi cómo qué pero muy este esta yo tu",
@@ -52,8 +52,8 @@ internal object NeuroLanguages {
 
     private val Languages = FunctionWords.keys.toList()
 
-    // Letters only one of these languages writes; a word holding one is a function word's worth.
-    private val OwnLetters =
+    /** Letters only one of these languages writes; a word holding one is a function word's worth. */
+    internal val OwnLetterSets =
         mapOf(
             "es" to "ñ",
             "pt" to "ãõ",
@@ -62,10 +62,21 @@ internal object NeuroLanguages {
             "tr" to "ığ",
             "pl" to "ąęłńśźż",
             "cs" to "ěřů",
-        ).entries.flatMap { (language, letters) -> letters.map { it to Languages.indexOf(language) } }.toMap()
+        )
+
+    private val OwnLetters =
+        OwnLetterSets.entries
+            .flatMap { (language, letters) ->
+                letters.map {
+                    it to
+                        Languages.indexOf(
+                            language,
+                        )
+                }
+            }.toMap()
 
     // Without і, ї, є or ґ, these words still tell Ukrainian from Russian.
-    private val UkrainianWords = setOf("чи", "чому", "від", "та", "це", "як", "що", "який", "яка", "яке", "цей", "ця", "ці", "також", "й")
+    internal val UkrainianWords = setOf("чи", "чому", "від", "та", "це", "як", "що", "який", "яка", "яке", "цей", "ця", "ці", "також", "й")
 
     private val WordLanguages: Map<String, List<Int>> by lazy {
         val index = HashMap<String, MutableList<Int>>()
@@ -75,9 +86,9 @@ internal object NeuroLanguages {
         index
     }
 
-    private val FrenchElisions = setOf("j", "qu", "n", "s", "m", "t")
-    private val SharedElisions = setOf("l", "d", "c")
-    private val ItalianElisions = setOf("un", "dell", "all", "nell", "sull", "dall")
+    internal val FrenchElisions = setOf("j", "qu", "n", "s", "m", "t")
+    internal val SharedElisions = setOf("l", "d", "c")
+    internal val ItalianElisions = setOf("un", "dell", "all", "nell", "sull", "dall")
 
     private val stopLists = ConcurrentHashMap<String, Set<String>>()
 
@@ -289,11 +300,11 @@ internal object NeuroLanguages {
         fun vietnameseWords(pieces: List<String>): Int = pieces.count { piece -> piece.any { it in 'Ạ'..'ỹ' || it in VIETNAMESE_LETTERS } }
     }
 
-    private val PERSIAN_LETTERS = setOf('پ', 'چ', 'ژ', 'گ', 'ک', 'ی')
-    private val URDU_LETTERS = setOf('ٹ', 'ڈ', 'ڑ', 'ں', 'ے', 'ھ')
-    private val UKRAINIAN_LETTERS = setOf('і', 'ї', 'є', 'ґ')
+    internal val PERSIAN_LETTERS = setOf('پ', 'چ', 'ژ', 'گ', 'ک', 'ی')
+    internal val URDU_LETTERS = setOf('ٹ', 'ڈ', 'ڑ', 'ں', 'ے', 'ھ')
+    internal val UKRAINIAN_LETTERS = setOf('і', 'ї', 'є', 'ґ')
 
     // Serbian, Macedonian, Kazakh and Belarusian letters: no list fits, so no list is chosen.
-    private val OTHER_CYRILLIC_LETTERS = setOf('ђ', 'ј', 'љ', 'њ', 'ћ', 'џ', 'ѓ', 'ќ', 'ѕ', 'ә', 'ғ', 'қ', 'ң', 'ө', 'ұ', 'ү', 'һ', 'ў')
-    private val VIETNAMESE_LETTERS = setOf('ă', 'ơ', 'ư', 'đ')
+    internal val OTHER_CYRILLIC_LETTERS = setOf('ђ', 'ј', 'љ', 'њ', 'ћ', 'џ', 'ѓ', 'ќ', 'ѕ', 'ә', 'ғ', 'қ', 'ң', 'ө', 'ұ', 'ү', 'һ', 'ў')
+    internal val VIETNAMESE_LETTERS = setOf('ă', 'ơ', 'ư', 'đ')
 }

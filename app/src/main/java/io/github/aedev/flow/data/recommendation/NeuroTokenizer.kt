@@ -847,8 +847,8 @@ internal class NeuroTokenizer {
             it.keyLanguage = keyLanguage
         }
 
-    // Words no language's stop list may remove: they are topics here, whatever they mean elsewhere.
-    private val protectedWords: Set<String> by lazy {
+    /** Words no language's stop list may remove: they are topics here, whatever they mean elsewhere. */
+    internal val protectedWords: Set<String> by lazy {
         buildSet {
             addAll(NeuroText.SHORT_TOPICS)
             addAll(lemmaMap.values)
@@ -863,6 +863,10 @@ internal class NeuroTokenizer {
             }
         }
     }
+
+    /** The lemma map and the stop words every title gets, for the tables Flow Desktop reads ([NeuroKeySpec]). */
+    internal val lemmas: Map<String, String> get() = lemmaMap
+    internal val baseStopWords: Set<String> get() = stopWords
 
     /** Words the tokenizer's own lists compare keys with; key spec 2 never stems them ([NeuroStemmer]). */
     internal val curatedWords: Set<String> by lazy {

@@ -12,7 +12,7 @@ package io.github.aedev.flow.data.recommendation
  */
 internal object NeuroFormats {
     /** Format id to the folded words that announce it, in the languages Flow can vouch for. */
-    private val SURFACES: Map<String, List<String>> =
+    internal val SURFACES: Map<String, List<String>> =
         mapOf(
             "review" to listOf("review", "reviews", "reseña", "análisis", "análise", "обзор", "inceleme"),
             "unboxing" to listOf("unboxing", "déballage", "распаковка"),

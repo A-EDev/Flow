@@ -27,14 +27,14 @@ import org.tartarus.snowball.ext.spanishStemmer
  * always its own key.
  */
 internal object NeuroStemmer {
-    private const val MIN_STEM = 3
+    const val MIN_STEM = 3
 
     /** Profiles with a stemmer for words in Latin script. */
-    private val LatinStemmers = setOf("en", "es", "pt", "fr", "de", "it")
+    internal val LatinStemmers = setOf("en", "es", "pt", "fr", "de", "it")
 
     // Latin-script languages without a stemmer: their words stay as written. Viewers whose language
     // is written in another script read Latin words mostly in English.
-    private val OtherLatinLanguages =
+    internal val OtherLatinLanguages =
         setOf(
             "tr",
             "id",
@@ -76,7 +76,7 @@ internal object NeuroStemmer {
         )
 
     // Cyrillic languages other than Russian: their words stay as written.
-    private val OtherCyrillicLanguages = setOf("uk", "be", "bg", "sr", "mk", "kk", "ky", "mn", "tg")
+    internal val OtherCyrillicLanguages = setOf("uk", "be", "bg", "sr", "mk", "kk", "ky", "mn", "tg")
 
     private val unstemmed: Set<String> by lazy {
         NeuroStemmer::class.java
