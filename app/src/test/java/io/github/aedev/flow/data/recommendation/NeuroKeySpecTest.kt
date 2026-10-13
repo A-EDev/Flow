@@ -48,6 +48,11 @@ class NeuroKeySpecTest {
     }
 
     @Test
+    fun `the platform and its bait words never become interests`() {
+        assertThat(tokenizer.tokenize("YouTube's most hilarious coding fails")).containsExactly("code", "fails")
+    }
+
+    @Test
     fun `every spelling of an apostrophe reads the same`() {
         val spellings = listOf("Tech's", "Tech’s", "Tech‘s", "Techʼs", "Tech`s", "Tech´s").map { tokenizer.tokenize(it) }
 

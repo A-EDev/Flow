@@ -363,6 +363,9 @@ internal class NeuroTokenizer {
             "unbelievable",
             "shocking",
             "exposed",
+            "hilarious",
+            // The platform itself, in nearly every title about anything (#907)
+            "youtube",
             "revealed",
             "secret",
             "secrets",
