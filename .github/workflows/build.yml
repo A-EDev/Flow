@@ -52,6 +52,12 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Check generated Snowball stemmers
+        run: |
+          sh scripts/neuro/gen_snowball.sh
+          git status --porcelain -- app/src/main/java/org/tartarus/snowball
+          test -z "$(git status --porcelain -- app/src/main/java/org/tartarus/snowball)"
+
       - name: Check Kotlin formatting
         run: >
           ./gradlew spotlessCheck
