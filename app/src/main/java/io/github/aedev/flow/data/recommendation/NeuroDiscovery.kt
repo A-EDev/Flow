@@ -89,7 +89,7 @@ internal class NeuroDiscovery(
 
                 val categorySupport =
                     topicCategories.count { cat ->
-                        val catTopics = cat.topics.map { tokenizer.normalizeLemma(it) }
+                        val catTopics = cat.topics.map { tokenizer.keyOf(it) }
                         catTopics.contains(name) &&
                             catTopics.count { it in allTopics } >= 2
                     }
@@ -187,7 +187,7 @@ internal class NeuroDiscovery(
                 affinities = brain.topicAffinities,
                 channelTopicProfiles = brain.channelTopicProfiles,
                 categories = topicCategories,
-                normalizeLemma = tokenizer::normalizeLemma,
+                normalizeLemma = tokenizer::keyOf,
                 tagAffinities = brain.tagAffinities,
             )
         if (clusters.isEmpty()) return emptySelection()
@@ -268,7 +268,7 @@ internal class NeuroDiscovery(
         val base = NeuroScoring.stripDomainTag(topicName)
         return topicCategories
             .find { cat ->
-                cat.topics.any { tokenizer.normalizeLemma(it) == base }
+                cat.topics.any { tokenizer.keyOf(it) == base }
             }?.name
     }
 
@@ -289,7 +289,7 @@ internal class NeuroDiscovery(
         val base = NeuroScoring.stripDomainTag(topic)
         val preferred =
             brain.preferredTopics.any {
-                tokenizer.normalizeLemma(it).equals(base, ignoreCase = true)
+                tokenizer.keyOf(it).equals(base, ignoreCase = true)
             }
         if (preferred) return true
 
@@ -333,6 +333,9 @@ internal class NeuroDiscovery(
     // ═══════════════════════════════════════════════
     // QUERY ENRICHMENT FOR AMBIGUOUS TOPICS
     // ═══════════════════════════════════════════════
+
+    /** Words these lists compare keys with; key spec 2 never stems them ([NeuroStemmer]). */
+    internal val curatedWords: Set<String> get() = ambiguousQueryWords + queryNoiseWords + fillerWords
 
     private val ambiguousQueryWords =
         hashSetOf(
@@ -454,11 +457,11 @@ internal class NeuroDiscovery(
         // 4. Category keyword
         topicCategories
             .find { cat ->
-                cat.topics.any { tokenizer.normalizeLemma(it) == base }
+                cat.topics.any { tokenizer.keyOf(it) == base }
             }?.let { cat ->
                 val catWord =
                     cat.topics
-                        .firstOrNull { tokenizer.normalizeLemma(it) != base && it.length > 3 }
+                        .firstOrNull { tokenizer.keyOf(it) != base && it.length > 3 }
                 if (catWord != null) return "$base $catWord"
             }
 
@@ -1031,8 +1034,8 @@ internal class NeuroDiscovery(
         val picks =
             adjacentWeights.entries
                 .filter { (topic, _) ->
-                    !blocked.any { b -> topic.contains(b) || tokenizer.normalizeLemma(topic).contains(b) } &&
-                        tokenizer.normalizeLemma(topic) !in blockedPhraseWords &&
+                    !blocked.any { b -> topic.contains(b) || tokenizer.keyOf(topic).contains(b) } &&
+                        tokenizer.keyOf(topic) !in blockedPhraseWords &&
                         !tokenizer.isNoiseTopic(topic)
                 }.sortedByDescending { it.value }
                 .take(6)
@@ -1056,7 +1059,7 @@ internal class NeuroDiscovery(
                         .lowercase()
                         .split(NeuroTokenizer.WHITESPACE_REGEX)
                         .filter(NeuroText::isTopicSized)
-                        .map { tokenizer.normalizeLemma(it) }
+                        .map { tokenizer.keyOf(it) }
                 }.toSet()
 
         val blocked = brain.blockedTopics
@@ -1064,7 +1067,7 @@ internal class NeuroDiscovery(
             brain.preferredTopics
                 .map { it.trim() }
                 .filter { pref ->
-                    val lemma = tokenizer.normalizeLemma(pref)
+                    val lemma = tokenizer.keyOf(pref)
                     NeuroText.isTopicSized(lemma) &&
                         lemma !in existingTokens &&
                         !blocked.any { b -> lemma.contains(b) }
@@ -1247,7 +1250,7 @@ internal class NeuroDiscovery(
                     .lowercase()
                     .split(NeuroTokenizer.WHITESPACE_REGEX)
                     .filter(NeuroText::isTopicSized)
-                    .map { tokenizer.normalizeLemma(it) }
+                    .map { tokenizer.keyOf(it) }
                     .toSet()
 
             val isDuplicate =
@@ -1388,7 +1391,7 @@ internal class NeuroDiscovery(
                 .lowercase()
                 .split(NeuroTokenizer.WHITESPACE_REGEX)
                 .filter(NeuroText::isTopicSized)
-                .map { tokenizer.normalizeLemma(it) }
+                .map { tokenizer.keyOf(it) }
                 .filter { it !in fillerWords }
 
         if (words.isEmpty()) return null

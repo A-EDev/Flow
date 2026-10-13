@@ -215,7 +215,7 @@ internal object GraphSeedSelector {
         if (topicScores.isNotEmpty()) {
             val best =
                 tokens
-                    .map { tokenizer.normalizeLemma(it) }
+                    .map { tokenizer.keyOf(it) }
                     .mapNotNull { lemma ->
                         val score =
                             topicScores[lemma] ?: byBase(topicScores)[lemma]
@@ -225,14 +225,14 @@ internal object GraphSeedSelector {
         }
 
         for (token in tokens) {
-            val lemma = tokenizer.normalizeLemma(token)
+            val lemma = tokenizer.keyOf(token)
             val category =
                 NeuroTopicCatalog.TOPIC_CATEGORIES.firstOrNull { c ->
-                    c.topics.any { tokenizer.normalizeLemma(it) == lemma }
+                    c.topics.any { tokenizer.keyOf(it) == lemma }
                 }
             if (category != null) return "cat:${category.name}"
         }
-        return tokens.firstOrNull()?.let { tokenizer.normalizeLemma(it) } ?: "misc"
+        return tokens.firstOrNull()?.let { tokenizer.keyOf(it) } ?: "misc"
     }
 
     private data class ScoredSeed(

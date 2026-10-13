@@ -203,7 +203,7 @@ internal object Issue907Scenarios {
                     "Cómo cambiar la rueda del coche en la carretera",
                     "La historia de los romanos en el norte",
                     "Por qué los gatos duermen tanto",
-                    "El truco de la batería para el móvil",
+                    "El secreto de la batería para el móvil",
                     "Cómo pintar la casa con los amigos",
                     "La verdad sobre el fútbol de los noventa",
                 ),
@@ -324,6 +324,146 @@ internal object Issue907Scenarios {
                     functionWordKeys = keys.filter { key -> key.split(' ').any { it in stop } },
                     ranked = offFamily(rankOnce(brain, onTopic + unrelated)) { it.id.contains("-off-") },
                 )
+            }
+        }
+
+    // ── Key spec 2: the same subject in other forms of its words ──
+
+    private class Forms(
+        val code: String,
+        val watched: List<String>,
+        val sameSubject: List<String>,
+        val unrelated: List<String>,
+    )
+
+    // Watched titles use one form of each subject word, candidates another; unrelated titles share none.
+    private val forms =
+        listOf(
+            Forms(
+                "en",
+                listOf(
+                    "Restoring a vintage guitar",
+                    "Kayaking down a canyon river",
+                    "Baking sourdough loaf at home",
+                    "Building a treehouse cabin",
+                    "Repairing an old motorcycle engine",
+                ),
+                listOf(
+                    "Five vintage guitars restored",
+                    "Kayak trips through canyons",
+                    "Sourdough loaves for beginners",
+                    "Treehouse cabins in the forest",
+                    "Motorcycle engines repaired",
+                    "Guitars from the seventies",
+                    "Canyon kayaks compared",
+                    "Loaves of sourdough bread",
+                    "Cabins built in trees",
+                    "Old motorcycles brought back",
+                ),
+                listOf(
+                    "Chess openings explained",
+                    "Stock market crash history",
+                    "Volcano eruption footage",
+                    "Classical piano recital",
+                    "Tax filing deadline tips",
+                    "Marathon training plan",
+                    "Space telescope images",
+                    "Desert lizard documentary",
+                    "Football transfer rumours",
+                    "Origami crane folding",
+                ),
+            ),
+            Forms(
+                "es",
+                listOf(
+                    "Restaurando una guitarra antigua",
+                    "Receta de croqueta casera",
+                    "Construyendo una cabaña en el árbol",
+                    "Reparando un motor de moto",
+                    "Viaje en kayak por el cañón",
+                ),
+                listOf(
+                    "Cinco guitarras antiguas restauradas",
+                    "Croquetas caseras de jamón",
+                    "Cabañas en los árboles",
+                    "Motores de motos reparados",
+                    "Kayaks en cañones del norte",
+                    "Guitarras de los setenta",
+                    "Las croquetas de mi abuela",
+                    "Cabañas de madera",
+                    "Motos clásicas restauradas",
+                    "Cañones para recorrer en kayak",
+                ),
+                listOf(
+                    "Aperturas de ajedrez explicadas",
+                    "Historia de la bolsa",
+                    "Erupción de un volcán",
+                    "Recital de piano clásico",
+                    "Plazos para la declaración de impuestos",
+                    "Plan de entrenamiento de maratón",
+                    "Imágenes del telescopio espacial",
+                    "Documental de lagartos del desierto",
+                    "Rumores de fichajes de fútbol",
+                    "Grullas de papel de origami",
+                ),
+            ),
+            Forms(
+                "ru",
+                listOf(
+                    "Реставрация старой гитары",
+                    "Рецепт домашнего хлеба",
+                    "Строим домик на дереве",
+                    "Ремонт двигателя мотоцикла",
+                    "Сплав на байдарке по каньону",
+                ),
+                listOf(
+                    "Пять старых гитар после реставрации",
+                    "Рецепты хлеба на закваске",
+                    "Домики на деревьях в лесу",
+                    "Двигатели мотоциклов после ремонта",
+                    "Байдарки для сплава по каньонам",
+                    "Гитары семидесятых годов",
+                    "Хлеб в духовке рецепты",
+                    "Деревянные домики своими руками",
+                    "Мотоциклы после реставрации",
+                    "Каньоны для сплава на байдарках",
+                ),
+                listOf(
+                    "Шахматные дебюты",
+                    "История биржевого краха",
+                    "Извержение вулкана",
+                    "Концерт классической музыки",
+                    "Сроки подачи налоговой декларации",
+                    "План подготовки к марафону",
+                    "Снимки космического телескопа",
+                    "Фильм о пустынных ящерицах",
+                    "Слухи о трансферах футболистов",
+                    "Журавлик оригами",
+                ),
+            ),
+        )
+
+    data class SameSubject(
+        val language: String,
+        val sameSubjectInTop10: Double,
+    )
+
+    /** Share of the top ten that is the watched subject written in other forms of its words. */
+    fun sameSubjectInOtherForms(): List<SameSubject> =
+        forms.map { language ->
+            runBlocking {
+                val engine =
+                    NeuroLearningBenchmark.engine(
+                        UserBrain(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION, languageProfile = language.code),
+                    )
+                val watched = language.watched.mapIndexed { i, title -> video("${language.code}-fw-$i", title, "Workshop ${i % 2}") }
+                engine.watchAll(watched + watched + watched)
+                val brain = engine.getBrainSnapshot()
+                engine.shutdown()
+                val same = language.sameSubject.mapIndexed { i, title -> video("${language.code}-same-$i", title, "Maker ${i % 5}") }
+                val unrelated = language.unrelated.mapIndexed { i, title -> video("${language.code}-other-$i", title, "Studio ${i % 5}") }
+                val top = rankOnce(brain, same + unrelated).take(10)
+                SameSubject(language.code, top.count { it.id.contains("-same-") } / 10.0)
             }
         }
 

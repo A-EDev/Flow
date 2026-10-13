@@ -9,9 +9,12 @@ package io.github.aedev.flow.data.recommendation
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-/** Schema 18: keys read again by key spec 1, chance pairs out, onboarding links out (#907). */
+/** Schema 18: keys read again by key spec 1, chance pairs out, onboarding links out. Schema 20: stems (#907). */
 class NeuroKeyMigrationTest {
-    private val tokenizer = NeuroTokenizer()
+    private val stemming = NeuroTokenizer()
+
+    // Maintenance reads keys up to schema 18 by key spec 1.
+    private val tokenizer = stemming.atKeySpec(1)
 
     private fun evidence(
         signals: Int,
@@ -104,7 +107,7 @@ class NeuroKeyMigrationTest {
     @Test
     fun `chance pairs leave every vector, profile and record, but document frequency keeps them`() {
         val migrated = NeuroKeyMigration.run(schema17(), tokenizer)
-        val dropped = listOf("big tech", "tech privacy", "privacy promises")
+        val dropped = listOf("big tech", "tech privacy", "privacy promises").map { tokenizer.keysOf(it).single() }
 
         assertThat(migrated.globalVector.topics.keys).containsNoneIn(dropped)
         assertThat(
@@ -181,23 +184,47 @@ class NeuroKeyMigrationTest {
                 topicEvidence = mapOf("tech's" to evidence(2, score = 1.0), "tech" to evidence(3, score = 1.5)),
             )
 
-        val once = NeuroKeyMigration.afterSync(synced, tokenizer)
+        val once = NeuroKeyMigration.afterSync(synced, stemming)
         val twice =
             NeuroKeyMigration.afterSync(
                 once.copy(topicEvidence = once.topicEvidence + ("tech's" to evidence(2, score = 1.0))),
-                tokenizer,
+                stemming,
             )
 
         assertThat(once.topicEvidence.getValue("tech").positiveSignals).isEqualTo(3)
         assertThat(twice.topicEvidence).isEqualTo(once.topicEvidence)
-        assertThat(once.globalVector.topics.keys).containsAtLeastElementsIn(chancePairs.map { it.replace("'s", "") })
+        assertThat(once.globalVector.topics.keys).containsAtLeastElementsIn(chancePairs.map { stemming.keysOf(it).single() })
+    }
+
+    @Test
+    fun `schema 20 stems every key, joins the forms of one word and sums their document frequency`() {
+        val brain =
+            UserBrain(
+                schemaVersion = NeuroMaintenance.STOP_LIST_SCHEMA_VERSION,
+                globalVector = ContentVector(topics = mapOf("guitars" to 0.2, "guitar" to 0.4, "kayaking" to 0.3, "rock:music" to 0.1)),
+                topicEvidence = mapOf("guitars" to evidence(2, videos = 1), "guitar" to evidence(3, videos = 2)),
+                idfWordFrequency = mapOf("guitars" to 4, "guitar" to 6, "kayaking" to 2),
+                displayForms = mapOf("kayaking" to DisplayForm("Kayaking", votes = 3)),
+                rejectionPatterns = mapOf("~guitars" to RejectionSignal(1, 1L)),
+                topicAffinities = mapOf("guitars|kayaking" to 0.4),
+            )
+
+        val migrated = NeuroKeyMigration.toKeySpec2(brain, stemming)
+
+        assertThat(migrated.globalVector.topics).containsExactly("guitar", 0.4, "kayak", 0.3, "rock:music", 0.1)
+        assertThat(migrated.topicEvidence.getValue("guitar").positiveSignals).isEqualTo(5)
+        assertThat(migrated.idfWordFrequency).containsExactly("guitar", 10, "kayak", 2)
+        assertThat(migrated.displayForms.getValue("kayak").form).isEqualTo("Kayaking")
+        assertThat(migrated.rejectionPatterns.keys).containsExactly("~guitar")
+        assertThat(migrated.topicAffinities.keys).containsExactly(NeuroScoring.makeAffinityKey("guitar", "kayak"))
+        assertThat(NeuroKeyMigration.toKeySpec2(migrated, stemming)).isEqualTo(migrated)
     }
 
     @Test
     fun `maintenance brings a schema 17 brain up to date once`() {
-        val migrated = NeuroMaintenance.runIfNeeded(schema17(), tokenizer)
+        val migrated = NeuroMaintenance.runIfNeeded(schema17(), stemming)
 
         assertThat(migrated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
-        assertThat(NeuroMaintenance.runIfNeeded(migrated, tokenizer)).isSameInstanceAs(migrated)
+        assertThat(NeuroMaintenance.runIfNeeded(migrated, stemming)).isSameInstanceAs(migrated)
     }
 }

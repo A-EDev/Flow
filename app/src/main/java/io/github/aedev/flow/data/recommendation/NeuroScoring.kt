@@ -212,6 +212,9 @@ internal object NeuroScoring {
     /** A "~" pattern counts once a second rejection repeats it. */
     private const val REJECTION_REPEATED = 1.5
 
+    /** Words these lists compare keys with; key spec 2 never stems them ([NeuroStemmer]). */
+    internal val CURATED_WORDS: Set<String> get() = REJECTION_BROAD_TOPICS + MUSIC_KEYWORDS
+
     private val REJECTION_BROAD_TOPICS =
         hashSetOf(
             "music",

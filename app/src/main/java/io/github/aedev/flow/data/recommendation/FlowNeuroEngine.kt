@@ -451,8 +451,8 @@ class FlowNeuroEngine internal constructor(
             currentUserBrain = withLanguageProfile(currentUserBrain)
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
-                if (currentUserBrain.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) {
-                    storage.keepCopyBeforeMigration(currentUserBrain, NeuroKeyMigration.SCHEMA_VERSION)
+                if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
+                    storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
                 }
                 currentUserBrain = maintained
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
@@ -523,7 +523,7 @@ class FlowNeuroEngine internal constructor(
             affinities = brain.topicAffinities,
             channelTopicProfiles = brain.channelTopicProfiles,
             categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
-            normalizeLemma = tokenizer::normalizeLemma,
+            normalizeLemma = tokenizer::keyOf,
             tagAffinities = brain.tagAffinities,
         )
 
@@ -714,7 +714,7 @@ class FlowNeuroEngine internal constructor(
         val normalized = NeuroText.fold(topic).trim()
         if (normalized.isBlank()) return
         withBrainLock {
-            val lemma = tokenizer.normalizeLemma(normalized)
+            val lemma = tokenizer.keyOf(normalized)
 
             val scrubbed =
                 scrubTopicFromVector(
@@ -818,7 +818,7 @@ class FlowNeuroEngine internal constructor(
         withBrainLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             topics.forEach { topic ->
-                newTopics[tokenizer.normalizeLemma(topic)] = 0.5
+                newTopics[tokenizer.keyOf(topic)] = 0.5
             }
             currentUserBrain =
                 currentUserBrain.copy(
@@ -846,7 +846,7 @@ class FlowNeuroEngine internal constructor(
                     .toSet()
             val normalizedBlocked =
                 blockedTopics
-                    .map { tokenizer.normalizeLemma(it) }
+                    .map { tokenizer.keyOf(it) }
                     .filter { it.isNotBlank() }
                     .toSet()
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
@@ -860,7 +860,7 @@ class FlowNeuroEngine internal constructor(
                     preferredTopics =
                         normalizedPreferred
                             .filterNot {
-                                tokenizer.normalizeLemma(it) in normalizedBlocked
+                                tokenizer.keyOf(it) in normalizedBlocked
                             }.toSet(),
                     blockedTopics = normalizedBlocked,
                     blockedChannels = blockedChannels.filter { it.isNotBlank() }.toSet(),
@@ -1647,11 +1647,11 @@ class FlowNeuroEngine internal constructor(
                 NeuroScoring.buildBlockedMatchers(
                     currentUserBrain.blockedTopics,
                     NeuroTopicCatalog.TOPIC_CATEGORIES,
-                    tokenizer::normalizeLemma,
+                    tokenizer::keyOf,
                 )
             }
         if (matchers.isEmpty()) return { _, _ -> false }
-        return { title, channelName -> NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::normalizeLemma) }
+        return { title, channelName -> NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::keyOf) }
     }
 
     /** The same suppression windows [rank] applies; the topic matchers are built only if a caller asks. */
@@ -1659,7 +1659,7 @@ class FlowNeuroEngine internal constructor(
         val brain = withBrainLock { currentUserBrain }
         val channelCutoff = now - CHANNEL_SUPPRESSION_DAYS * 86_400_000L
         val matchers by lazy {
-            NeuroScoring.buildBlockedMatchers(brain.blockedTopics, NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer::normalizeLemma)
+            NeuroScoring.buildBlockedMatchers(brain.blockedTopics, NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer::keyOf)
         }
         return FeedExclusions(
             suppressedVideoIds = brain.suppressedVideoIds.keys,
@@ -1667,7 +1667,7 @@ class FlowNeuroEngine internal constructor(
             suppressedChannelIds = brain.suppressedChannels.filterValues { it > channelCutoff }.keys,
             blockedText = { title, channelName ->
                 brain.blockedTopics.isNotEmpty() &&
-                    NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::normalizeLemma)
+                    NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::keyOf)
             },
         )
     }
@@ -1863,7 +1863,7 @@ class FlowNeuroEngine internal constructor(
                 NeuroScoring.buildBlockedMatchers(
                     brain.blockedTopics,
                     NeuroTopicCatalog.TOPIC_CATEGORIES,
-                    tokenizer::normalizeLemma,
+                    tokenizer::keyOf,
                 )
 
             // ── Feed overlap ratio (for adaptive jitter + feed history penalty) ──
@@ -1893,7 +1893,7 @@ class FlowNeuroEngine internal constructor(
                         video.title,
                         video.channelName,
                         blockedMatchers,
-                        tokenizer::normalizeLemma,
+                        tokenizer::keyOf,
                     )
                 }
 
@@ -1911,7 +1911,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // Vector-level topic blocking: remove videos whose top topics match blocked topics
-            val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.normalizeLemma(it) }.toSet()
+            val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.keyOf(it) }.toSet()
             val unblocked =
                 if (blockedTopicLemmas.isEmpty()) {
                     videoVectors

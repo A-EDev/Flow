@@ -21,6 +21,8 @@ import java.io.File
 class NeuroKeySpecTest {
     private val tokenizer = NeuroTokenizer()
 
+    private fun key(phrase: String) = tokenizer.keysOf(phrase).single()
+
     private fun JsonArray.strings() = map { it.jsonPrimitive.content }
 
     @Test
@@ -44,7 +46,9 @@ class NeuroKeySpecTest {
     fun `runs stay inside a chunk and hold at most three words`() {
         val runs = tokenizer.chunk("Lo-Fi Hip Hop Radio: chill study beats").runs().map { it.key }
 
-        assertThat(runs).containsExactly("lofi hip hop", "hip hop radio", "chill study", "chill study beats", "study beats")
+        assertThat(
+            runs,
+        ).containsExactlyElementsIn(listOf("lofi hip hop", "hip hop radio", "chill study", "chill study beats", "study beats").map(::key))
     }
 
     @Test
@@ -66,8 +70,10 @@ class NeuroKeySpecTest {
 
         val keys = tokenizer.extractFeatures(video, idf).topics.keys
 
-        assertThat(keys).containsExactly("big", "tech", "privacy", "promises", "lies")
+        assertThat(keys).containsExactlyElementsIn(listOf("big", "tech", "privacy", "promises", "lies").map(::key))
         assertThat(tokenizer.documentTerms(video, tokenizer.extractFeatures(video, idf)))
-            .containsAtLeast("big tech", "tech privacy", "privacy promises", "big tech privacy", "tech privacy promises")
+            .containsAtLeastElementsIn(
+                listOf("big tech", "tech privacy", "privacy promises", "big tech privacy", "tech privacy promises").map(::key),
+            )
     }
 }

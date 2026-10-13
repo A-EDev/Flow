@@ -53,7 +53,7 @@ class NeuroPhraseLearningTest {
             )
 
         val topics = tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).topics
-        assertThat(topics.keys).containsAtLeast("acoustic guitar", "guitar tabs")
+        assertThat(topics.keys).containsAtLeast(key("acoustic guitar"), key("guitar tabs"))
         assertThat(topics.getValue("acoustic guitar")).isGreaterThan(topics.getValue("acoustic"))
         // "playalong" says what kind of video it is, not what it is about.
         assertThat(topics.keys).containsNoneOf("guitar playalong", "playalong")
@@ -61,6 +61,8 @@ class NeuroPhraseLearningTest {
     }
 
     private val tokenizer = NeuroTokenizer()
+
+    private fun key(phrase: String) = tokenizer.keysOf(phrase).single()
 
     private val reviews =
         listOf(
@@ -119,10 +121,11 @@ class NeuroPhraseLearningTest {
     @Test
     fun `a watched review teaches the product phrase over its single words`() {
         val after = learn(reviews, phraseFirst = true)
-        println("PHRASE after : google=${after["google"]} pixel=${after["pixel"]} google pixel=${after["google pixel"]}")
+        val (google, pixel, googlePixel) = listOf("google", "pixel", "google pixel").map(::key)
+        println("PHRASE after : google=${after[google]} pixel=${after[pixel]} google pixel=${after[googlePixel]}")
 
-        assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("google"))
-        assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("pixel"))
+        assertThat(after.getValue(googlePixel)).isGreaterThan(after.getValue(google))
+        assertThat(after.getValue(googlePixel)).isGreaterThan(after.getValue(pixel))
     }
 
     @Test

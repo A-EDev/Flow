@@ -828,6 +828,17 @@ internal class NeuroTokenizer {
     @Volatile
     var languageProfile: String = "en"
 
+    /** The [NeuroKeySpec] keys are made by. Spec 1 keeps lemmas; migrations up to schema 18 read keys by it. */
+    var keySpec: Int = NeuroKeySpec.VERSION
+        private set
+
+    /** A tokenizer that reads keys by [spec] for the same viewer. */
+    fun atKeySpec(spec: Int): NeuroTokenizer =
+        NeuroTokenizer().also {
+            it.keySpec = spec
+            it.languageProfile = languageProfile
+        }
+
     // Words no language's stop list may remove: they are topics here, whatever they mean elsewhere.
     private val protectedWords: Set<String> by lazy {
         buildSet {
@@ -840,6 +851,24 @@ internal class NeuroTokenizer {
             NeuroTopicCatalog.TOPIC_CATEGORIES.forEach { category ->
                 category.topics.forEach { topic ->
                     addAll(NeuroText.words(NeuroText.fold(topic)).map { it.trim { c -> !NeuroText.isWordChar(c) } })
+                }
+            }
+        }
+    }
+
+    /** Words the tokenizer's own lists compare keys with; key spec 2 never stems them ([NeuroStemmer]). */
+    internal val curatedWords: Set<String> by lazy {
+        buildSet {
+            addAll(protectedWords)
+            addAll(NeuroKeySpec.NEVER_ALONE)
+            addAll(channelBranding)
+            addAll(highPacingWords)
+            addAll(lowPacingWords)
+            domainDisambiguation.forEach { (word, contexts) ->
+                add(word)
+                contexts.forEach { context ->
+                    add(context.domain)
+                    addAll(context.contextWords)
                 }
             }
         }
@@ -860,7 +889,18 @@ internal class NeuroTokenizer {
         }
     }
 
-    private val chunker by lazy { NeuroChunker(::stopWordsFor, ::normalizeLemma) }
+    /**
+     * [word]'s key ([NeuroKeySpec] stage 8): its lemma stemmed for [languageProfile] by
+     * [NeuroStemmer], or the lemma when the stem is itself a lemma-map word. A key is its own key.
+     */
+    fun keyOf(word: String): String {
+        val lemma = normalizeLemma(word)
+        if (keySpec < 2) return lemma
+        val stem = NeuroStemmer.key(lemma, languageProfile)
+        return if (normalizeLemma(stem) == stem) stem else lemma
+    }
+
+    private val chunker by lazy { NeuroChunker(::stopWordsFor, ::normalizeLemma, ::keyOf) }
 
     /** Multi-word catalog topics, keyed the way a title spells them. */
     private val catalogPhrases: Set<String> by lazy {
@@ -897,7 +937,7 @@ internal class NeuroTokenizer {
             .chunk(label)
             .chunks
             .map { it.joinToString(" ") }
-            .ifEmpty { listOfNotNull(normalizeLemma(NeuroText.fold(label).trim()).takeIf { it.isNotBlank() }) }
+            .ifEmpty { listOfNotNull(keyOf(NeuroText.fold(label).trim()).takeIf { it.isNotBlank() }) }
 
     fun tokenizeForSimilarity(text: String): Set<String> = tokenize(text).toSet()
 
@@ -2884,7 +2924,7 @@ internal class NeuroTokenizer {
 
         if (rawOriginal.size == 1) {
             val word = rawOriginal[0].lowercase()
-            val lemma = normalizeLemma(word)
+            val lemma = keyOf(word)
             return if (lemma in alwaysTopical || word in alwaysTopical) {
                 listOf(lemma)
             } else {
@@ -2895,7 +2935,7 @@ internal class NeuroTokenizer {
         val topical = mutableListOf<String>()
         rawOriginal.forEach { originalWord ->
             val lower = originalWord.lowercase()
-            val lemma = normalizeLemma(lower)
+            val lemma = keyOf(lower)
 
             when {
                 lemma in alwaysTopical -> topical.add(lemma)

@@ -9,6 +9,7 @@ package io.github.aedev.flow.data.recommendation.eval
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import io.github.aedev.flow.data.recommendation.NeuroDiscovery
+import io.github.aedev.flow.data.recommendation.NeuroTokenizer
 import org.junit.AfterClass
 import org.junit.Test
 import java.io.File
@@ -68,7 +69,7 @@ class Issue907ScenariosTest {
         log("P2 one review: learned ${r.learned.take(10)} | bridges top 10 ${f(r.ranked.top10)}, 5-20 ${f(r.ranked.positions5to20)}")
         // The creator's tag plants "google pixel"; nothing else of the title becomes a pair, and YouTube's
         // category is not a topic.
-        assertThat(r.learned).contains("google pixel")
+        assertThat(r.learned).contains(NeuroTokenizer().keysOf("google pixel").single())
         assertThat(r.learned).containsNoneOf("pixel pro", "science technology", "science", "technology")
         assertThat(r.ranked.top10).isAtLeast(0.1)
     }
@@ -115,6 +116,14 @@ class Issue907ScenariosTest {
     }
 
     @Test
+    fun `key spec 2 - the watched subject in other forms of its words`() {
+        Issue907Scenarios.sameSubjectInOtherForms().forEach { result ->
+            log("Forms ${result.language}: same subject in top 10 ${f(result.sameSubjectInTop10)}")
+            assertWithMessage(result.language).that(result.sameSubjectInTop10).isAtLeast(0.8)
+        }
+    }
+
+    @Test
     fun `problem 9 - onboarding picks as interest groups`() {
         val r = Issue907Scenarios.onboardingGroups()
         log("P9 seven onboarding picks: ${r.groups} group, ${r.groupsWithoutPickLinks} without the pick links | chips ${r.chipLabels}")
@@ -144,12 +153,16 @@ class Issue907ScenariosTest {
         log("P3 chance pairs, ${real.titles} real titles: $real, planted share ${f(real.plantedUnprovenShare)}")
         // A bare title teaches its words at a low weight and plants nothing; no pair is learned by chance.
         assertThat(title.planted).isEmpty()
-        assertThat(title.learned.keys).containsExactly("big", "tech", "privacy", "promises", "lies")
+        assertThat(title.learned.keys).containsExactlyElementsIn(
+            listOf("big", "tech", "privacy", "promises", "lies").map {
+                NeuroTokenizer().keysOf(it).single()
+            },
+        )
         assertThat(curly.learned.keys).isEqualTo(title.learned.keys)
         assertThat(pixel.planted).isEmpty()
-        assertThat(pixel.learned.keys).containsExactly("google", "pixel")
+        assertThat(pixel.learned.keys).containsExactlyElementsIn(listOf("google", "pixel").map { NeuroTokenizer().keysOf(it).single() })
         // A question plants what it asks about.
-        assertThat(search.entries.maxBy { it.value }.key).isEqualTo("encryption")
+        assertThat(search.entries.maxBy { it.value }.key).isEqualTo(NeuroTokenizer().keysOf("encryption").single())
         assertThat(search.keys).doesNotContain("encryption work")
         assertThat(pool.plantedUnprovenShare).isEqualTo(0.0)
         assertThat(real.titles).isAtLeast(100)

@@ -495,7 +495,7 @@ internal object NeuroLearningBenchmark {
             val topics = engine.getBrainSnapshot().globalVector.topics
             val queries = engine.generateDiscoveryQueries(resetDepth = true)
             Phrases(
-                phraseWeight = topics["guitar tabs"] ?: 0.0,
+                phraseWeight = topics[NeuroTokenizer().keysOf("guitar tabs").single()] ?: 0.0,
                 wordWeight = topics["tabs"] ?: 0.0,
                 playalongAffinity = engine.getBrainSnapshot().formatAffinity["playalong"] ?: 0.0,
                 singleWordQueryShare = if (queries.isEmpty()) 0.0 else queries.count { ' ' !in it.trim() }.toDouble() / queries.size,

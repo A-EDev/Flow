@@ -45,11 +45,31 @@ internal object NeuroKeyMigration {
         tokenizer: NeuroTokenizer,
     ): UserBrain = run(brain, tokenizer, { a, b -> if (a.positiveScore >= b.positiveScore) a else b }, dropChancePairs = false)
 
+    /**
+     * Schema 20: every key read again by [NeuroKeySpec] 2, so "guitars" joins "guitar". Document
+     * frequency is re-keyed too, summing what merges; sync re-keys its own per-device counts the same
+     * way ([keyFunction]), so nothing is counted twice.
+     */
+    fun toKeySpec2(
+        brain: UserBrain,
+        tokenizer: NeuroTokenizer,
+    ): UserBrain {
+        val rekey = Rekey(tokenizer, emptyMap())
+        return run(brain, tokenizer, TopicEvidence::mergedWith, dropChancePairs = false, dropOnboardingEdges = false).copy(
+            displayForms = rekey.merged(brain.displayForms) { a, b -> if (a.votes >= b.votes) a else b },
+            idfWordFrequency = rekey.merged(brain.idfWordFrequency, Int::plus),
+        )
+    }
+
+    /** The keys [tokenizer] reads a stored key as: one, several when it splits, none when it goes. */
+    fun keyFunction(tokenizer: NeuroTokenizer): (String) -> List<String> = Rekey(tokenizer, emptyMap())::keysFor
+
     private fun run(
         brain: UserBrain,
         tokenizer: NeuroTokenizer,
         mergeEvidence: (TopicEvidence, TopicEvidence) -> TopicEvidence,
         dropChancePairs: Boolean,
+        dropOnboardingEdges: Boolean = true,
     ): UserBrain {
         // A pick was keyed by its whole label ("machine learning"); titles key it "machine learn".
         val pickForms =
@@ -86,7 +106,7 @@ internal object NeuroKeyMigration {
             topicAffinities =
                 rekeyed.topicAffinities.filter { (key, weight) ->
                     val ends = key.split('|')
-                    ends.none { it in chance } && !(ends.all { it in picks } && abs(weight - ONBOARDING_EDGE) < 1e-9)
+                    ends.none { it in chance } && !(dropOnboardingEdges && ends.all { it in picks } && abs(weight - ONBOARDING_EDGE) < 1e-9)
                 },
         )
     }
@@ -121,7 +141,10 @@ internal object NeuroKeyMigration {
         }
     }
 
-    /** Reads keys again by [NeuroKeySpec], leaving keys of plain words and spaces exactly as they are. */
+    /**
+     * Reads keys again by the tokenizer's [NeuroKeySpec]: a key holding punctuation or an expression is
+     * chunked again, any other key is read word by word, which leaves a key already read unchanged.
+     */
     private class Rekey(
         private val tokenizer: NeuroTokenizer,
         private val pickForms: Map<String, List<String>>,
@@ -135,9 +158,13 @@ internal object NeuroKeyMigration {
                 val tag = key.substringAfter(':', "")
                 val base = if (tag.isEmpty()) key else key.substringBefore(':')
                 pickForms[key]?.let { return@getOrPut it }
-                if (!needsRekey(base)) return@getOrPut listOf(key)
                 // A key left with no word ("m/v") goes.
-                val parts = tokenizer.chunk(base).chunks.map { it.joinToString(" ") }
+                val parts =
+                    if (needsRekey(base)) {
+                        tokenizer.chunk(base).chunks.map { it.joinToString(" ") }
+                    } else {
+                        listOf(base.split(' ').joinToString(" ", transform = tokenizer::keyOf))
+                    }
                 if (tag.isEmpty()) parts else parts.map { "$it:$tag" }
             }
 

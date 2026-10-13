@@ -7,7 +7,7 @@
 package io.github.aedev.flow.data.recommendation
 
 /**
- * Key spec 1: how text becomes the keys the engine learns, ranks and syncs by. Flow Desktop
+ * Key spec 2: how text becomes the keys the engine learns, ranks and syncs by. Flow Desktop
  * implements the same stages, and both pass app/src/test/resources/neuro/key_spec_golden.json.
  *
  * 1. Fold ([NeuroText.fold]): NFKC, small capitals, lowercase. ’ ‘ ʼ ` ´ read as ', Turkish İ as i,
@@ -20,19 +20,24 @@ package io.github.aedev.flow.data.recommendation
  *    ("k-pop" reads "kpop") and splits otherwise ("spider-man" reads "spider", "man").
  * 4. Possessives: 's, s' and a trailing ' come off, and so do French and Italian elisions ([ELISIONS],
  *    "l'amour" reads "amour"). [CONTRACTIONS] are stop words.
- * 5. Boundaries: stop words, years, bare numbers, words under three letters and punctuation end a
- *    chunk. A number right after a word makes a model pair ("pixel 10").
+ * 5. Boundaries: stop words (the viewer's language and the title's own, [NeuroLanguages]), years,
+ *    bare numbers, words under three letters and punctuation end a chunk. A number right after a
+ *    word makes a model pair ("pixel 10").
  * 6. Candidates: every word, and every run of two or three words inside one chunk, never across a
  *    boundary. [NEVER_ALONE] words only count inside a run.
  * 7. Promotion: words and runs count toward document frequency once per video. A run becomes a key
  *    only when [NeuroPhrases] finds it is a phrase, a creator tag holds it, or it is a compound or
  *    catalog topic.
+ * 8. Stems ([NeuroStemmer]): each word's lemma is stemmed once, by its script and the viewer's
+ *    language. The lemma stays when it is in `resources/neuro/keys/unstemmed.txt`, holds anything
+ *    but letters, or would stem to under three letters, to a stem that stems again, or to a word
+ *    the lemma map rewrites. Spec 1 kept the lemma.
  *
  * A key is one to three words joined by a space and at most [MAX_KEY_LENGTH] characters. It never
  * holds "|" or ":", except one trailing domain tag ("metal:music").
  */
 internal object NeuroKeySpec {
-    const val VERSION = 1
+    const val VERSION = 2
     const val MAX_RUN_WORDS = 3
     const val MAX_KEY_LENGTH = 40
 

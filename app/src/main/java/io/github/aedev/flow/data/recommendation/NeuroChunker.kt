@@ -14,6 +14,7 @@ package io.github.aedev.flow.data.recommendation
 internal class NeuroChunker(
     private val stopWordsFor: (pieces: List<String>) -> (String) -> Boolean,
     private val normalizeLemma: (String) -> String,
+    private val keyOf: (String) -> String,
 ) {
     /** A run of [words] inside one chunk, from word [from] up to but not including [to]. */
     data class Run(
@@ -253,7 +254,7 @@ internal class NeuroChunker(
         val lemma = normalizeLemma(text)
         NeuroFormats.formatOf(lemma)?.let { return Item.Format(it) }
         if (isStopWord(text) || isStopWord(lemma)) return Item.Break
-        return Item.Word(lemma)
+        return Item.Word(keyOf(text))
     }
 
     private companion object {
