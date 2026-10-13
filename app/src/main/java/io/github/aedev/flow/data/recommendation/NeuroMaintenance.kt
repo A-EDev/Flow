@@ -86,7 +86,7 @@ internal object NeuroMaintenance {
             topicAffinities = brain.topicAffinities.refold(::maxOf),
             tagAffinities = brain.tagAffinities.refold(::maxOf),
             channelTopicProfiles = brain.channelTopicProfiles.mapValues { it.value.refold(::maxOf) },
-            topicEvidence = brain.topicEvidence.refold { a, b -> if (a.positiveScore >= b.positiveScore) a else b },
+            topicEvidence = brain.topicEvidence.refold(TopicEvidence::mergedWith),
             rejectionPatterns =
                 brain.rejectionPatterns.refold { a, b ->
                     RejectionSignal(maxOf(a.count, b.count), maxOf(a.lastRejectedAt, b.lastRejectedAt))

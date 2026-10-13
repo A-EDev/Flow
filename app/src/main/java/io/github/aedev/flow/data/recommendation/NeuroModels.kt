@@ -131,7 +131,7 @@ data class UserBrain(
     val channelMemory: ChannelMemoryState = ChannelMemoryState(),
     /** The interest chips Home showed last; see [InterestChips]. */
     val interestChips: InterestChipSet = InterestChipSet(),
-    val schemaVersion: Int = 17,
+    val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
 )
 
 // ── Interaction Types ──
@@ -218,7 +218,26 @@ data class TopicEvidence(
     val channelIds: Set<String> = emptySet(),
     val firstSeenAt: Long = 0L,
     val lastSeenAt: Long = 0L,
-)
+) {
+    /** Two records that a re-key made one topic: counts add up and the newest ids are pooled. */
+    fun mergedWith(other: TopicEvidence): TopicEvidence =
+        TopicEvidence(
+            positiveSignals = positiveSignals + other.positiveSignals,
+            negativeSignals = negativeSignals + other.negativeSignals,
+            watchSignals = watchSignals + other.watchSignals,
+            explicitSignals = explicitSignals + other.explicitSignals,
+            positiveScore = (positiveScore + other.positiveScore).coerceAtMost(MAX_SCORE),
+            videoIds = (videoIds + other.videoIds).toList().takeLast(MAX_IDS).toSet(),
+            channelIds = (channelIds + other.channelIds).toList().takeLast(MAX_IDS).toSet(),
+            firstSeenAt = listOf(firstSeenAt, other.firstSeenAt).filter { it > 0L }.minOrNull() ?: 0L,
+            lastSeenAt = maxOf(lastSeenAt, other.lastSeenAt),
+        )
+
+    companion object {
+        const val MAX_IDS = 6
+        const val MAX_SCORE = 50.0
+    }
+}
 
 internal data class ImpressionEntry(
     var count: Int,

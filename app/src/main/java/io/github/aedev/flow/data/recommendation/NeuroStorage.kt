@@ -26,6 +26,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStream
@@ -43,7 +47,21 @@ internal class NeuroStorage(
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
         private const val BRAIN_DATASTORE_FILE = "flow_neuro_brain_v10.json"
         private val PREVIOUS_DATASTORE_FILES = listOf("v9", "v8", "v7").map { "flow_neuro_brain_$it.json" }
-        private const val SCHEMA_VERSION = 17
+        private const val SCHEMA_VERSION = NeuroMaintenance.TARGET_SCHEMA_VERSION
+
+        /** The schema of a brain that predates the field, so every maintenance step runs on it. */
+        const val LEGACY_SCHEMA_VERSION = 0
+
+        private val LEGACY_ONLY_KEYS = listOf("morning", "afternoon", "evening", "night", "longTerm")
+
+        /** The schema [json] declares, or [LEGACY_SCHEMA_VERSION] when it has none. */
+        internal fun declaredSchema(json: JsonObject): Int = json["schemaVersion"]?.jsonPrimitive?.intOrNull ?: LEGACY_SCHEMA_VERSION
+
+        /**
+         * An export from before time buckets, which only the legacy parser reads. Today's format can
+         * hold empty time vectors, so having none says nothing about its age (#907).
+         */
+        internal fun isLegacyFormat(json: JsonObject): Boolean = LEGACY_ONLY_KEYS.any { it in json }
     }
 
     // ── Serializable models ──
@@ -214,7 +232,7 @@ internal class NeuroStorage(
 
     fun UserBrain.toSerializable() =
         SerializableBrain(
-            schemaVersion = SCHEMA_VERSION,
+            schemaVersion = schemaVersion,
             timeVectors =
                 timeVectors
                     .map { (k, v) ->
@@ -366,17 +384,13 @@ internal class NeuroStorage(
                 val imported =
                     jsonParser
                         .decodeFromString<SerializableBrain>(text)
-
-                val hasTimeData =
-                    imported.timeVectors.any { (_, v) ->
-                        v.topics.isNotEmpty()
-                    }
+                val json = jsonParser.parseToJsonElement(text).jsonObject
 
                 val finalBrain =
-                    if (hasTimeData) {
-                        imported.toUserBrain()
-                    } else {
+                    if (isLegacyFormat(json)) {
                         migrateLegacyBackup(text, imported)
+                    } else {
+                        imported.toUserBrain().copy(schemaVersion = declaredSchema(json))
                     }
 
                 Log.i(
@@ -579,10 +593,11 @@ internal class NeuroStorage(
                         partialParse.idfTotalDocuments
                     },
                 watchHistoryMap = partialParse.watchHistoryMap,
+                schemaVersion = LEGACY_SCHEMA_VERSION,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Legacy backup migration failed", e)
-            return partialParse.toUserBrain()
+            return partialParse.toUserBrain().copy(schemaVersion = LEGACY_SCHEMA_VERSION)
         }
     }
 
@@ -604,7 +619,7 @@ internal class NeuroStorage(
                     data.hasCompletedOnboarding ||
                     data.preferredTopics.isNotEmpty()
                 ) {
-                    val brain = data.toUserBrain()
+                    val brain = data.toUserBrain().copy(schemaVersion = declaredSchema(Json.parseToJsonElement(text).jsonObject))
                     Log.i(
                         TAG,
                         "Migrated $fileName " +

@@ -84,7 +84,6 @@ class FlowNeuroEngine internal constructor(
         private const val MAX_SUPPRESSED_CHANNELS = 100
 
         private const val TOPIC_EVIDENCE_MAX_ENTRIES = 500
-        private const val TOPIC_EVIDENCE_MAX_IDS = 6
 
         // ── Import bootstrap constants ──
         private const val SUBSCRIPTION_SEED_WEIGHT = 0.25
@@ -995,7 +994,7 @@ class FlowNeuroEngine internal constructor(
                     positiveSignals = (existing?.positiveSignals ?: 0) + 1,
                     watchSignals = (existing?.watchSignals ?: 0) + if (isWatchSignal) 1 else 0,
                     explicitSignals = (existing?.explicitSignals ?: 0) + if (isExplicitSignal) 1 else 0,
-                    positiveScore = ((existing?.positiveScore ?: 0.0) + signalScore).coerceAtMost(50.0),
+                    positiveScore = ((existing?.positiveScore ?: 0.0) + signalScore).coerceAtMost(TopicEvidence.MAX_SCORE),
                     videoIds = nextVideoIds,
                     channelIds = nextChannelIds,
                     firstSeenAt = existing?.firstSeenAt?.takeIf { it > 0L } ?: now,
@@ -1053,7 +1052,7 @@ class FlowNeuroEngine internal constructor(
     ): Set<String> {
         if (value.isBlank()) return existing
         if (value in existing) return existing
-        return (existing.toList() + value).takeLast(TOPIC_EVIDENCE_MAX_IDS).toSet()
+        return (existing.toList() + value).takeLast(TopicEvidence.MAX_IDS).toSet()
     }
 
     // =================================================
@@ -2718,8 +2717,9 @@ class FlowNeuroEngine internal constructor(
                     // Imported brains may pre-date the current maintenance, so run it.
                     currentUserBrain = runMaintenanceIfNeeded(finalBrain)
                     deepFlowBookkeeping.forget()
-                    idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
-                    idfTotalDocuments = finalBrain.idfTotalDocuments
+                    // From the maintained brain: maintenance re-keys words, and the next event saves this map over it.
+                    idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
+                    idfTotalDocuments = currentUserBrain.idfTotalDocuments
                     watchHistory.clear()
                     finalBrain.watchHistoryMap.forEach { (id, pct) ->
                         watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
