@@ -1790,6 +1790,8 @@
     <string name="newpipe_extractor_title">NewPipe Extractor</string>
     <string name="newpipe_extractor_subtitle">Core extraction library</string>
     <string name="about_license">License</string>
+    <string name="about_notices">Open source notices</string>
+    <string name="about_notices_summary">Word lists and code from other projects</string>
     <string name="about_license_name">GNU GPL v3</string>
     <string name="about_changelog">Changelog</string>
     <string name="whats_new_in_flow">What\'s new in Flow</string>

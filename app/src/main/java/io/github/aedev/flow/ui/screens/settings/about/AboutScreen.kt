@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Public
@@ -44,7 +45,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.screens.settings.index.AboutIndex
 
-private enum class AboutDialog { CHANGELOG, DEVICE }
+private enum class AboutDialog { CHANGELOG, DEVICE, NOTICES }
 
 private const val WEBSITE_URL = "https://flow-tube.org"
 private const val GITHUB_URL = "https://github.com/Flow-Tube/Flow"
@@ -89,6 +90,7 @@ internal fun AboutScreen(
         group(key = "about.legal", header = R.string.section_legal) {
             nav(AboutIndex.license, icon = Icons.Outlined.Description, showChevron = false, onClick = { open(LICENSE_URL) })
             nav(AboutIndex.newPipe, icon = Icons.Outlined.Extension, showChevron = false, onClick = { open(NEWPIPE_URL) })
+            nav(AboutIndex.notices, icon = Icons.Outlined.Gavel, showChevron = false, onClick = { dialog = AboutDialog.NOTICES })
         }
         group(key = "about.device", header = R.string.section_device) {
             nav(
@@ -104,6 +106,7 @@ internal fun AboutScreen(
     when (dialog) {
         AboutDialog.CHANGELOG -> ChangelogSheet(onDismiss = { dialog = null })
         AboutDialog.DEVICE -> DeviceInfoDialog(onDismiss = { dialog = null })
+        AboutDialog.NOTICES -> NoticesDialog(onDismiss = { dialog = null })
         null -> Unit
     }
 }
