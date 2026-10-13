@@ -270,6 +270,8 @@ FIXES AND STABILITY
 - Recommendations read a title in phrases: "Why Big Tech's Privacy Promises Are Lies" no longer becomes interests like "big tech's" or "promises lies", spellings such as lo-fi and lofi count as one, and on update the word pairs already learned by chance are cleared from your profile (#907)
 - Onboarding picks no longer join into one interest, so unrelated picks such as cooking and anime stay separate on Home (#907)
 - A search teaches recommendations what it asks about: "How does encryption work" adds "encryption", not "encryption work", and long searches keep all their words (#907)
+- Interests read as titles write them, such as "MMA" and "Machine Learning", in Your taste, on Home chips and in the searches Home makes, which never include a hidden topic tag (#907)
+- Fix Boost and Stop boosting missing the interests you picked when you started (#907)
 - Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
 - Fix Home handing early places to weak videos only because they came from a channel not yet shown, ahead of better videos from channels you watch (#907)
 
