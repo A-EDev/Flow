@@ -871,6 +871,7 @@ internal class NeuroTokenizer {
         val base = topic.substringBefore(':').lowercase().trim()
         if (base in NeuroKeySpec.EXPRESSION_KEYS) return false
         if (base in NeuroKeySpec.NEVER_ALONE || base.length > NeuroKeySpec.MAX_KEY_LENGTH) return true
+        if (NeuroFormats.formatOf(base) != null) return true
         if (!NeuroText.isTopicSized(base)) return true
         if (base.all { it.isDigit() } || YEAR_TAG_REGEX.matches(base)) return true
         val parts = base.split(' ').filter { it.isNotBlank() }
@@ -918,7 +919,9 @@ internal class NeuroTokenizer {
         // Collect all words for domain disambiguation context BEFORE processing tokens
         val fullContext = buildContextWordList(video)
         val tags = topicTags(video)
-        val tagPhrases = tags.take(TAG_MAX_INGEST).flatMapTo(HashSet()) { tagPhrases(chunker.chunk(it)) }
+        val tagChunks = tags.take(TAG_MAX_INGEST).map { chunker.chunk(it) }
+        val tagPhrases = tagChunks.flatMapTo(HashSet()) { tagPhrases(it) }
+        val formats = title.formats + tagChunks.flatMap { it.formats }
 
         // A run of the title is a key only once it is known to be a phrase; until then it only counts
         // toward document frequency, which is how it can become one (#907). A phrase takes its words.
@@ -1106,6 +1109,7 @@ internal class NeuroTokenizer {
             pacing = pacingScore,
             complexity = complexityScore,
             isLive = if (video.isLive) 1.0 else 0.0,
+            formats = formats,
         )
     }
 

@@ -169,6 +169,8 @@ internal object NeuroKeySpec {
             spell("nfl", "n.f.l")
             spell("ps5", "ps 5", "playstation 5")
             spell("ps4", "ps 4", "playstation 4")
+            spell("playalong", "play-along", "play along")
+            spell("tier list", "tier-list", "tierlist")
             // Names that hold a stop word, which would otherwise split them.
             spell("call of duty")
             spell("league of legends")

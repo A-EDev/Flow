@@ -30,7 +30,7 @@ import kotlin.math.ln
  *    Does comedy survive, and does guitar take over?
  *  - rejection: a few accidental phonk watches, then thumbs-down or "Not interested". How much
  *    phonk does the feed still serve, and how random does the feed become?
- *  - phrases: guitar playalongs tagged "guitar playalong". Does the phrase become the interest?
+ *  - phrases: guitar playalongs tagged "guitar tabs". Does the phrase become the interest, and the format a format?
  *  - thin time bucket: the current time of day has seen only the two guitar videos.
  *
  * Watched videos carry tags (they were opened in the player); feed candidates are bare titles, as
@@ -480,6 +480,7 @@ internal object NeuroLearningBenchmark {
     data class Phrases(
         val phraseWeight: Double,
         val wordWeight: Double,
+        val playalongAffinity: Double,
         val singleWordQueryShare: Double,
         val queries: List<String>,
     )
@@ -494,8 +495,9 @@ internal object NeuroLearningBenchmark {
             val topics = engine.getBrainSnapshot().globalVector.topics
             val queries = engine.generateDiscoveryQueries(resetDepth = true)
             Phrases(
-                phraseWeight = topics["guitar playalong"] ?: 0.0,
-                wordWeight = topics["guitar"] ?: 0.0,
+                phraseWeight = topics["guitar tabs"] ?: 0.0,
+                wordWeight = topics["tabs"] ?: 0.0,
+                playalongAffinity = engine.getBrainSnapshot().formatAffinity["playalong"] ?: 0.0,
                 singleWordQueryShare = if (queries.isEmpty()) 0.0 else queries.count { ' ' !in it.trim() }.toDouble() / queries.size,
                 queries = queries,
             ).also { engine.shutdown() }
@@ -562,8 +564,9 @@ internal object NeuroLearningBenchmark {
             appendLine("  profileShare (top 20)     = %.3f".format(rejection.profileAfterNotInterested))
             appendLine("  novelty weight            = %.2f".format(rejection.noveltyAfterNotInterested))
             appendLine("PHRASES (10 guitar playalongs + 10 comedy)")
-            appendLine("  'guitar playalong' weight = %.3f".format(phrases.phraseWeight))
-            appendLine("  'guitar' weight           = %.3f".format(phrases.wordWeight))
+            appendLine("  'guitar tabs' weight      = %.3f".format(phrases.phraseWeight))
+            appendLine("  'tabs' weight             = %.3f".format(phrases.wordWeight))
+            appendLine("  playalong format          = %.3f".format(phrases.playalongAffinity))
             appendLine("  single-word query share   = %.2f".format(phrases.singleWordQueryShare))
             appendLine("  queries                   = ${phrases.queries}")
             appendLine("THIN TIME BUCKET (current bucket saw only 2 guitar videos)")

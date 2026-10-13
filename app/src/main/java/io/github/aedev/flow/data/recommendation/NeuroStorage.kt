@@ -138,6 +138,7 @@ internal class NeuroStorage(
         val interestChipMasses: Map<String, Double> = emptyMap(),
         val interestChipsComputedAt: Long = 0L,
         val displayForms: Map<String, DisplayForm> = emptyMap(),
+        val formatAffinity: Map<String, Double> = emptyMap(),
     )
 
     @Serializable
@@ -277,6 +278,7 @@ internal class NeuroStorage(
             interestChipMasses = interestChips.masses,
             interestChipsComputedAt = interestChips.computedAt,
             displayForms = displayForms,
+            formatAffinity = formatAffinity,
         )
 
     private fun ChannelMemoryEntry.toSerializable() =
@@ -783,6 +785,7 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
             ),
         interestChips = InterestChipSet(interestChipMasses, interestChipsComputedAt),
         displayForms = displayForms,
+        formatAffinity = formatAffinity,
         schemaVersion = schemaVersion,
     )
 }

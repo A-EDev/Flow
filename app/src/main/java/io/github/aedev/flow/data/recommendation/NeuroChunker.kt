@@ -26,6 +26,7 @@ internal class NeuroChunker(
     data class Chunks(
         val chunks: List<List<String>>,
         val modelPairs: List<String>,
+        val formats: Set<String> = emptySet(),
     ) {
         /** Every word in reading order, [NeuroKeySpec.NEVER_ALONE] words included. */
         val words: List<String> get() = chunks.flatten()
@@ -57,6 +58,10 @@ internal class NeuroChunker(
             val text: String,
         ) : Item
 
+        data class Format(
+            val id: String,
+        ) : Item
+
         data object Break : Item
     }
 
@@ -66,6 +71,7 @@ internal class NeuroChunker(
         val merged = mergeExpressions(items)
         val chunks = ArrayList<List<String>>()
         val modelPairs = ArrayList<String>()
+        val formats = LinkedHashSet<String>()
         var current = ArrayList<String>()
 
         fun close() {
@@ -83,13 +89,18 @@ internal class NeuroChunker(
                     close()
                 }
 
+                is Item.Format -> {
+                    formats += word.id
+                    close()
+                }
+
                 Item.Break -> {
                     close()
                 }
             }
         }
         close()
-        return Chunks(chunks, modelPairs)
+        return Chunks(chunks, modelPairs, formats)
     }
 
     // Stage 2 and 4: one whitespace-separated piece into words and breaks.
@@ -227,12 +238,15 @@ internal class NeuroChunker(
 
     // Stage 5: what ends a chunk.
     private fun classify(item: Item): Item {
-        if (item !is Item.Word || item.whole) return item
+        if (item !is Item.Word) return item
+        NeuroFormats.formatOf(item.text)?.let { return Item.Format(it) }
+        if (item.whole) return item
         val text = item.text
         if (text.isEmpty()) return Item.Break
         if (text.all { it.isDigit() || it == '.' }) return if (YEAR.matches(text)) Item.Break else Item.Number(text)
         if (!NeuroText.isTopicSized(text)) return Item.Break
         val lemma = normalizeLemma(text)
+        NeuroFormats.formatOf(lemma)?.let { return Item.Format(it) }
         if (isStopWord(text) || isStopWord(lemma)) return Item.Break
         return Item.Word(lemma)
     }

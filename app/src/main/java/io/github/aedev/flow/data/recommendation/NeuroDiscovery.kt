@@ -40,6 +40,9 @@ internal class NeuroDiscovery(
         /** What Home searches before anything is learned or picked; never recorded as learned (#907). */
         val STARTER_QUERIES = listOf("Music", "Science", "Technology", "Education", "Nature")
         private const val SPECIFIC_QUERY_MAX_WORDS = 4
+
+        /** How much a viewer must take to a format before searches ask for it. */
+        private const val FORMAT_QUERY_MIN_AFFINITY = 0.2
     }
 
     // ═══════════════════════════════════════════════
@@ -906,8 +909,18 @@ internal class NeuroDiscovery(
         val primary = selection.primary.firstOrNull { isDiscoveryEligible(it, isMatureBrain) } ?: return
         val v = brain.globalVector
 
+        // The format the viewer actually watches, once there is one; until then a guess from length.
+        val favourite =
+            brain.formatAffinity
+                .filterValues { it >= FORMAT_QUERY_MIN_AFFINITY }
+                .maxByOrNull { it.value }
+                ?.key
         val formatWord =
             when {
+                favourite != null -> {
+                    NeuroFormats.searchWord(favourite)
+                }
+
                 v.duration > 0.75 ||
                     persona == FlowPersona.DEEP_DIVER ||
                     persona == FlowPersona.SCHOLAR -> {

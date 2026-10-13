@@ -35,6 +35,7 @@ class NeuroKeySpecTest {
             val chunks = tokenizer.chunk(input)
             assertWithMessage(input).that(chunks.chunks).isEqualTo(case.getValue("chunks").jsonArray.map { it.jsonArray.strings() })
             assertWithMessage(input).that(chunks.modelPairs).isEqualTo(case.getValue("modelPairs").jsonArray.strings())
+            assertWithMessage(input).that(chunks.formats.toList()).isEqualTo(case.getValue("formats").jsonArray.strings())
         }
     }
 

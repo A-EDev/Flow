@@ -38,7 +38,9 @@ class NeuroLearningBenchmarkTest {
         assertThat(rejection.noveltyAfterDislikes).isAtMost(0.21)
         assertThat(rejection.noveltyAfterNotInterested).isAtMost(0.21)
         // Phrases become the interest, and refresh queries are specific.
-        assertThat(phrases.phraseWeight).isGreaterThan(phrases.wordWeight)
+        // A creator's tag phrase becomes an interest of its own; "playalong" is learned as a format.
+        assertThat(phrases.phraseWeight).isAtLeast(0.1)
+        assertThat(phrases.playalongAffinity).isAtLeast(0.3)
         assertThat(phrases.queries).containsNoneOf("guitar", "comedy")
         // A thin time bucket does not outweigh the profile.
         assertThat(thinBucket.guitarShare).isAtMost(0.15)

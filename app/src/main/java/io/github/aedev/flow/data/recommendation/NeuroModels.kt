@@ -31,6 +31,8 @@ data class ContentVector(
     val pacing: Double = 0.5,
     val complexity: Double = 0.5,
     val isLive: Double = 0.0,
+    /** What kind of video it is ([NeuroFormats]); on a video's vector only, never on the viewer's. */
+    val formats: Set<String> = emptySet(),
 )
 
 // ── Time Buckets ──
@@ -133,6 +135,8 @@ data class UserBrain(
     val interestChips: InterestChipSet = InterestChipSet(),
     /** How titles write each key; see [NeuroDisplayForms]. Device-local, never synced. */
     val displayForms: Map<String, DisplayForm> = emptyMap(),
+    /** How much the viewer takes to each format ([NeuroFormats]), 0..1. Device-local, never synced. */
+    val formatAffinity: Map<String, Double> = emptyMap(),
     val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
 )
 

@@ -51,6 +51,8 @@ internal object NeuroDisplayForms {
         val found = HashMap<String, String>()
         for (from in words.indices) {
             for (to in from + 1..minOf(words.size, from + NeuroKeySpec.MAX_RUN_WORDS)) {
+                // Only words that stand next to each other in the title spell a key together.
+                if (to - from > 1 && pieceOf[to - 1] - pieceOf[to - 2] > 1) break
                 val key = words.subList(from, to).joinToString(" ")
                 if (key in wanted && key !in found) {
                     val spelling = pieces.subList(pieceOf[from], pieceOf[to - 1] + 1).joinToString(" ")

@@ -48,13 +48,16 @@ class NeuroPhraseLearningTest {
                 duration = 300,
                 viewCount = 0,
                 uploadDate = "",
-                tags = listOf("guitar playalong", "rock"),
+                tags = listOf("acoustic guitar", "guitar playalong", "rock"),
                 description = "Play along with me #guitar_tabs",
             )
 
         val topics = tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).topics
-        assertThat(topics.keys).containsAtLeast("guitar playalong", "guitar tabs")
-        assertThat(topics.getValue("guitar playalong")).isGreaterThan(topics.getValue("playalong"))
+        assertThat(topics.keys).containsAtLeast("acoustic guitar", "guitar tabs")
+        assertThat(topics.getValue("acoustic guitar")).isGreaterThan(topics.getValue("acoustic"))
+        // "playalong" says what kind of video it is, not what it is about.
+        assertThat(topics.keys).containsNoneOf("guitar playalong", "playalong")
+        assertThat(tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).formats).containsExactly("playalong")
     }
 
     private val tokenizer = NeuroTokenizer()

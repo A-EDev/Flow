@@ -2552,6 +2552,12 @@ class FlowNeuroEngine internal constructor(
                     idfWordFrequency = idfWordFrequency.toMap(),
                     idfTotalDocuments = idfTotalDocuments,
                     watchHistoryMap = watchHistoryMap,
+                    formatAffinity =
+                        if (learningRate > 0 && !video.isShort) {
+                            NeuroFormats.learn(currentUserBrain.formatAffinity, videoVector.formats)
+                        } else {
+                            currentUserBrain.formatAffinity
+                        },
                     displayForms =
                         if (learningRate > 0) {
                             NeuroDisplayForms.record(
