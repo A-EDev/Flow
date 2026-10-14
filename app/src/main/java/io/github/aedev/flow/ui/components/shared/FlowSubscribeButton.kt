@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -13,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PersonRemove
@@ -24,10 +22,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
@@ -40,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 
@@ -78,7 +76,8 @@ enum class FlowSubscribeButtonSize {
  * Tapping while subscribed opens the menu rather than unsubscribing outright, so the destructive
  * action always needs a second, deliberate tap. A control that stands for several channels passes
  * [onSubscribedClick] instead: it then reads "Subscribed" with no bell or menu, since neither can
- * say which channel they act on.
+ * say which channel they act on. A list in which every row is already subscribed passes
+ * [showSubscribedLabel] false to keep only the bell and the menu.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -138,31 +137,6 @@ fun FlowSubscribeButton(
             ) {
                 Text(text = stringResource(R.string.subscribed), maxLines = 1)
             }
-        } else if (isSubscribed && !showSubscribedLabel) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onNotificationChange != null) {
-                    FilledTonalIconToggleButton(
-                        checked = isNotificationsEnabled,
-                        onCheckedChange = onNotificationChange,
-                    ) {
-                        Icon(
-                            imageVector =
-                                if (isNotificationsEnabled) {
-                                    Icons.Rounded.NotificationsActive
-                                } else {
-                                    Icons.Rounded.NotificationsOff
-                                },
-                            contentDescription = stringResource(R.string.notifications),
-                        )
-                    }
-                }
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                    )
-                }
-            }
         } else if (isSubscribed) {
             SplitButtonLayout(
                 leadingButton = {
@@ -175,7 +149,16 @@ fun FlowSubscribeButton(
                             } else {
                                 SplitButtonDefaults.SmallLeadingButtonContentPadding
                             },
-                        modifier = Modifier.heightIn(min = containerHeight),
+                        modifier =
+                            Modifier
+                                .heightIn(min = containerHeight)
+                                .then(
+                                    if (showSubscribedLabel) {
+                                        Modifier
+                                    } else {
+                                        Modifier.semantics { toggleableState = ToggleableState(isNotificationsEnabled) }
+                                    },
+                                ),
                     ) {
                         Icon(
                             imageVector =
@@ -184,11 +167,13 @@ fun FlowSubscribeButton(
                                 } else {
                                     Icons.Rounded.NotificationsOff
                                 },
-                            contentDescription = null,
+                            contentDescription = if (showSubscribedLabel) null else stringResource(R.string.notifications),
                             modifier = Modifier.size(leadingIconSize),
                         )
-                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.subscribed), maxLines = 1)
+                        if (showSubscribedLabel) {
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(text = stringResource(R.string.subscribed), maxLines = 1)
+                        }
                     }
                 },
                 trailingButton = {

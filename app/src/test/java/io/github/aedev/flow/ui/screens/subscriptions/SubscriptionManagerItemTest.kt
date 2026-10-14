@@ -89,7 +89,7 @@ class SubscriptionManagerItemTest {
     ) {
         val title = rule.onNodeWithText(name, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val bellNode = rule.onNodeWithContentDescription(context.getString(R.string.notifications)).fetchSemanticsNode()
-        val menuNode = rule.onNodeWithContentDescription(context.getString(R.string.more_options)).fetchSemanticsNode()
+        val menuNode = rule.onNodeWithContentDescription(context.getString(R.string.subscribed)).fetchSemanticsNode()
         val bell = bellNode.boundsInRoot
         val menu = menuNode.boundsInRoot
 
@@ -142,7 +142,7 @@ class SubscriptionManagerItemTest {
         var excluded: Boolean? = null
         var unsubscribed = false
         show(onUnsubscribe = { unsubscribed = true }, onShortsChange = { excluded = it })
-        val menu = rule.onNodeWithContentDescription(context.getString(R.string.more_options))
+        val menu = rule.onNodeWithContentDescription(context.getString(R.string.subscribed))
 
         menu.performClick()
         assertThat(unsubscribed).isFalse()
