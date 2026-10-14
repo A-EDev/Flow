@@ -95,17 +95,24 @@ private fun JsonElement.playlistItems(): List<JsonElement> {
     return list
 }
 
-private fun JsonElement?.continuationToken(): String? =
-    objectOrNull()
-        ?.get("continuationItemRenderer")
-        .objectOrNull()
-        ?.get("continuationEndpoint")
+/** The next-page token, from the older `continuationItemRenderer` or the `continuationItemViewModel` that replaced it. */
+private fun JsonElement?.continuationToken(): String? {
+    val item = objectOrNull() ?: return null
+    val command =
+        item["continuationItemRenderer"].objectOrNull()?.get("continuationEndpoint")
+            ?: item["continuationItemViewModel"]
+                .objectOrNull()
+                ?.get("continuationCommand")
+                .objectOrNull()
+                ?.get("innertubeCommand")
+    return command
         .objectOrNull()
         ?.get("continuationCommand")
         .objectOrNull()
         ?.get("token")
         .stringOrNull()
         ?.takeIf(String::isNotBlank)
+}
 
 /** "by Name" in the header's avatar stack, linked to the owner's channel. */
 private fun JsonObject.headerOwner(): FeedItemOwner? {

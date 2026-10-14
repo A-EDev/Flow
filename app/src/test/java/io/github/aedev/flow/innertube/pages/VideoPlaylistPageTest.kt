@@ -71,6 +71,31 @@ class VideoPlaylistPageTest {
     }
 
     @Test
+    fun `reads the token from the view model that now closes a page of 100 (#1299)`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {"contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                      "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
+                        ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")},
+                        {"continuationItemViewModel": {
+                          "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+                          "continuationCommand": {"innertubeCommand": {
+                            "commandMetadata": {"webCommandMetadata": {"sendPost": true, "apiUrl": "/youtubei/v1/browse"}},
+                            "continuationCommand": {"token": "PAGE2", "request": "CONTINUATION_REQUEST_TYPE_BROWSE"}
+                          }}
+                        }}
+                      ]}}]}
+                    }}}]}}}
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.videos.map { it.id }).containsExactly("vid1")
+        assertThat(page.continuation).isEqualTo("PAGE2")
+    }
+
+    @Test
     fun `a continuation carries only items and ends without a token`() {
         val page =
             Json
