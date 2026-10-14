@@ -196,6 +196,15 @@ class HomeFeedLogicTest {
     }
 
     @Test
+    fun `a wide gap keeps a channel's two videos ten cards apart when the page allows it`() {
+        val page = listOf(vc("a1", "A"), vc("a2", "A")) + (1..12).map { vc("o$it", "O$it") }
+
+        val spaced = spaceByChannel(page, gap = 10)
+
+        assertThat(spaced.indexOfFirst { it.id == "a2" } - spaced.indexOfFirst { it.id == "a1" }).isAtLeast(11)
+    }
+
+    @Test
     fun `spaceByChannel honours the seeded tail to avoid cross-page repeats`() {
         // Prior page ended on channel A; a page that starts with A must not lead with it.
         val page = listOf(vc("a1", "A"), vc("b1", "B"))
@@ -302,6 +311,30 @@ class HomeFeedLogicTest {
             .containsExactly(FeedSource.RELATED, FeedSource.RELATED, FeedSource.DISCOVERY)
             .inOrder()
         assertThat(result.videos.map { it.id }).containsExactly("r1", "r2", "d1").inOrder()
+    }
+
+    @Test
+    fun `a channel gets one video per page, and a second only at the end when the lanes run short`() {
+        val full =
+            blendFeedSources(
+                lanes =
+                    mapOf(
+                        FeedSource.SUBS to listOf(vc("a1", "A"), vc("a2", "A"), vc("b1", "B"), vc("b2", "B")),
+                        FeedSource.RELATED to listOf(vc("c1", "C"), vc("c2", "C"), vc("e1", "E")),
+                        FeedSource.DISCOVERY to listOf(vc("f1", "F"), vc("g1", "G")),
+                    ),
+                quotas = mapOf(FeedSource.SUBS to 4, FeedSource.RELATED to 3, FeedSource.DISCOVERY to 2),
+                targetSize = 6,
+            )
+        val short =
+            blendFeedSources(
+                lanes = mapOf(FeedSource.SUBS to listOf(vc("a1", "A"), vc("a2", "A"), vc("b1", "B"))),
+                quotas = mapOf(FeedSource.SUBS to 3),
+                targetSize = 3,
+            )
+
+        assertThat(full.videos.map { it.channelId }.distinct()).hasSize(6)
+        assertThat(short.videos.map { it.id }).containsExactly("a1", "b1", "a2").inOrder()
     }
 
     @Test

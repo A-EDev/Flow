@@ -92,6 +92,10 @@ class HomeViewModel
             private const val UI_STATE_SUBSCRIPTION_TIMEOUT_MS = 5_000L
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
+
+            // No channel twice within this many cards, across pages; repeats that remain sit this far apart.
+            private const val RECENT_CHANNEL_WINDOW = 20
+            private const val CHANNEL_GAP = 10
             private const val LOAD_MORE_GRAPH_SEEDS = 3
 
             // Saved rows of each source ranked again on load-more; the best of them fill the page.
@@ -648,7 +652,10 @@ class HomeViewModel
 
                         val spacedMix =
                             repository.enrichLikelyCollabAvatarStacks(
-                                spaceByChannel(spreadSubscriptions(finalMix, { it.channelId in userSubs }, keepTop = mix.freshAdded)),
+                                spaceByChannel(
+                                    spreadSubscriptions(finalMix, { it.channelId in userSubs }, keepTop = mix.freshAdded),
+                                    gap = CHANNEL_GAP,
+                                ),
                                 limit = 8,
                             )
                         val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
@@ -938,7 +945,12 @@ class HomeViewModel
                         .map { it.id }
                         .toHashSet()
                 val page = mutableListOf<Video>()
-                val channelCounts = HashMap<String, Int>()
+                // Channels the viewer just scrolled past count as used, so a new page never repeats them.
+                val channelCounts =
+                    _uiState.value.videos
+                        .takeLast(RECENT_CHANNEL_WINDOW)
+                        .filter { it.channelId.isNotBlank() }
+                        .associateTo(HashMap()) { it.channelId to 1 }
                 val pageIds = HashSet<String>(currentIds)
                 val relatedTo = HashMap<String, String>()
 
@@ -1125,10 +1137,14 @@ class HomeViewModel
                         .filterWatched(watchedVideoIds.value)
                         .filterNot { it.id in existingVideoIds || exclusions.hidesFromRecommendations(it) }
                 if (appendedPage.isEmpty()) return@update state
-                val tailChannels = state.videos.takeLast(2).map { it.channelId }
+                val tailChannels = state.videos.takeLast(CHANNEL_GAP).map { it.channelId }
                 val updated =
                     state.videos +
-                        spaceByChannel(spreadSubscriptions(appendedPage, { it.channelId in followed }), seedRecent = tailChannels)
+                        spaceByChannel(
+                            spreadSubscriptions(appendedPage, { it.channelId in followed }),
+                            gap = CHANNEL_GAP,
+                            seedRecent = tailChannels,
+                        )
                 updatedSnapshot = updated
                 HomeFeedCache.update(updated, state.shorts)
                 val appendedIds = appendedPage.mapTo(HashSet()) { it.id }
@@ -1498,9 +1514,14 @@ class HomeViewModel
                         enriched.mapTo(relatedPickIds) { it.id }
 
                         _uiState.update { state ->
-                            val visibleEnriched = enriched.filterWatched(watchedVideoIds.value)
-                            val tail = state.videos.takeLast(2).map { it.channelId }
-                            val merged = state.videos + spaceByChannel(visibleEnriched, seedRecent = tail)
+                            val recentChannels = state.videos.takeLast(RECENT_CHANNEL_WINDOW).mapTo(HashSet()) { it.channelId }
+                            val visibleEnriched =
+                                enriched
+                                    .filterWatched(watchedVideoIds.value)
+                                    .filter { it.channelId.isBlank() || it.channelId !in recentChannels }
+                                    .distinctBy { it.channelId.ifBlank { it.id } }
+                            val tail = state.videos.takeLast(CHANNEL_GAP).map { it.channelId }
+                            val merged = state.videos + spaceByChannel(visibleEnriched, gap = CHANNEL_GAP, seedRecent = tail)
                             HomeFeedCache.update(merged, state.shorts)
                             val shownIds = visibleEnriched.mapTo(HashSet()) { it.id }
                             state.copy(
