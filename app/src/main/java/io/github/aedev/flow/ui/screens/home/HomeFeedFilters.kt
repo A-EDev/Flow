@@ -33,7 +33,8 @@ internal fun List<Video>.channelsMissingLengths(now: Long): Set<String> =
 /**
  * Adds videos that arrived after first paint without moving anything the viewer has seen: they go
  * below [lastVisibleIndex], one after every [spacing] cards already there. A video never lands
- * within [channelWindow] cards of its own channel; one with no such place is left out.
+ * within [channelWindow] cards of its own channel, nor, when [isGrouped] holds for it, next to a card
+ * it also holds for; one with no such place is left out.
  */
 internal fun insertBelowViewport(
     feed: List<Video>,
@@ -41,6 +42,7 @@ internal fun insertBelowViewport(
     lastVisibleIndex: Int,
     spacing: Int = 2,
     channelWindow: Int = RECENT_CHANNEL_WINDOW,
+    isGrouped: (Video) -> Boolean = { false },
 ): List<Video> {
     val onScreen = feed.mapTo(HashSet()) { it.id }
     val arriving = late.filter { it.id !in onScreen }.distinctBy { it.id }
@@ -53,11 +55,14 @@ internal fun insertBelowViewport(
             fun nearby(
                 video: Video,
                 next: Int,
-            ) = video.channelId.isNotBlank() &&
-                (
-                    takeLast(channelWindow).any { it.channelId == video.channelId } ||
-                        below.subList(next, (next + channelWindow).coerceAtMost(below.size)).any { it.channelId == video.channelId }
-                )
+            ) = (
+                video.channelId.isNotBlank() &&
+                    (
+                        takeLast(channelWindow).any { it.channelId == video.channelId } ||
+                            below.subList(next, (next + channelWindow).coerceAtMost(below.size)).any { it.channelId == video.channelId }
+                    )
+            ) ||
+                (isGrouped(video) && (lastOrNull()?.let(isGrouped) == true || below.getOrNull(next)?.let(isGrouped) == true))
 
             fun placeOne(next: Int) {
                 val index = pending.indexOfFirst { !nearby(it, next) }

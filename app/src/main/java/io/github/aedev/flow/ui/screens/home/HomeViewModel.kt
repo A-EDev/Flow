@@ -646,10 +646,18 @@ class HomeViewModel
                                 "quotas=${mix.quotas}, selected=${mix.sourceMix.sourceCounts}",
                         )
 
+                        val sourceById = mix.sourceMix.items.associate { it.video.id to it.source }
                         val spacedMix =
                             repository.enrichLikelyCollabAvatarStacks(
                                 spaceByChannel(
-                                    spreadSubscriptions(finalMix, { it.channelId in userSubs }, keepTop = mix.freshAdded),
+                                    rhythmBySource(
+                                        finalMix,
+                                        isSubscribed = { it.channelId in userSubs },
+                                        sourceOf = { sourceById[it.id] },
+                                        keepTop = mix.freshAdded,
+                                        deferExtra = true,
+                                        minSize = FIRST_PAGE_MIN_SIZE,
+                                    ),
                                     gap = CHANNEL_GAP,
                                 ),
                                 limit = 8,
@@ -1138,7 +1146,7 @@ class HomeViewModel
                 val updated =
                     state.videos +
                         spaceByChannel(
-                            spreadSubscriptions(appendedPage, { it.channelId in followed }),
+                            rhythmBySource(appendedPage, isSubscribed = { it.channelId in followed }),
                             gap = CHANNEL_GAP,
                             seedRecent = tailChannels,
                         )
@@ -1301,7 +1309,13 @@ class HomeViewModel
             _uiState.update { state ->
                 if (state.isLoading || state.videos.isEmpty()) return@update state
                 val below = lastVisibleVideoIndex.coerceAtLeast(LATE_SUBS_MIN_INDEX)
-                val updated = insertBelowViewport(state.videos, late.filterWatched(watchedVideoIds.value), below)
+                val updated =
+                    insertBelowViewport(
+                        state.videos,
+                        late.filterWatched(watchedVideoIds.value),
+                        below,
+                        isGrouped = { it.channelId in userSubs },
+                    )
                 if (updated.size == state.videos.size) return@update state
                 added = updated.size - state.videos.size
                 merged = updated

@@ -161,23 +161,33 @@ class HomeFeedLogicTest {
         videos.zipWithNext().count { (a, b) -> a.channelId.isNotBlank() && a.channelId == b.channelId }
 
     @Test
-    fun `subscriptions spread through the page instead of bunching at its end, pinned uploads stay first (#907)`() {
-        // Pinned fresh, then the blend's order: other lanes run dry and the subscriptions quota fills the tail.
-        val page =
-            listOf(vc("fresh1", "S1"), vc("fresh2", "S2")) +
-                (1..8).map { vc("o$it", "O$it") } +
-                (1..8).map { vc("s$it", "S$it") }
-        val followed = (1..8).mapTo(HashSet()) { "S$it" }
+    fun `a page runs a couple from the other lanes in turn, then one or two from followed channels (#907)`() {
+        val related = (1..6).map { vc("r$it", "R$it") }
+        val discovery = (1..6).map { vc("d$it", "D$it") }
+        val subs = (1..4).map { vc("s$it", "S$it") }
+        val page = listOf(vc("fresh1", "F1"), vc("fresh2", "F2")) + subs + related + discovery
+        val source = (related.map { it.id to FeedSource.RELATED } + discovery.map { it.id to FeedSource.DISCOVERY }).toMap()
+        val followed = { v: Video -> v.channelId.startsWith("S") || v.channelId.startsWith("F") }
 
-        val spread = spreadSubscriptions(page, { it.channelId in followed }, keepTop = 2)
+        val laid = rhythmBySource(page, followed, { source[it.id] }, keepTop = 2)
+        val kinds = laid.joinToString("") { if (followed(it)) "S" else it.id.take(1) }
 
-        assertThat(spread.take(2).map { it.id }).containsExactly("fresh1", "fresh2").inOrder()
-        assertThat(spread.map { it.id }).containsExactlyElementsIn(page.map { it.id })
-        val rest = spread.drop(2)
-        // At most two of a kind in a row, and every half of the page holds both kinds.
-        assertThat(rest.windowed(3).none { w -> w.all { it.channelId in followed } || w.none { it.channelId in followed } }).isTrue()
-        assertThat(rest.filter { it.channelId in followed }.map { it.id }).isEqualTo((1..8).map { "s$it" })
-        assertThat(rest.filter { it.channelId !in followed }.map { it.id }).isEqualTo((1..8).map { "o$it" })
+        assertThat(kinds).isEqualTo("SSrrSddSrrSddSrrdd")
+        assertThat(laid.filter(followed).map { it.id }).isEqualTo(listOf("fresh1", "fresh2") + (1..4).map { "s$it" })
+        assertThat(laid.filter { it.id.startsWith("r") }.map { it.id }).isEqualTo(related.map { it.id })
+    }
+
+    @Test
+    fun `followed-channel videos the rhythm has no room for wait for later pages, unless the page runs short`() {
+        val page = (1..10).map { vc("s$it", "S$it") } + (1..4).map { vc("o$it", "O$it") }
+        val followed = { v: Video -> v.channelId.startsWith("S") }
+
+        val deferred = rhythmBySource(page, followed, deferExtra = true, minSize = 8)
+        val kept = rhythmBySource(page, followed)
+
+        assertThat(deferred).hasSize(8)
+        assertThat(deferred.joinToString("") { if (followed(it)) "S" else "o" }).isEqualTo("SSooSSoo")
+        assertThat(kept.map { it.id }).containsExactlyElementsIn(page.map { it.id })
     }
 
     @Test

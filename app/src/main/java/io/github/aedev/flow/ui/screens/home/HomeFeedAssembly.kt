@@ -11,6 +11,9 @@ internal const val RECENT_CHANNEL_WINDOW = 20
 // Repeats a short page could not avoid sit at least this far apart.
 internal const val CHANNEL_GAP = 10
 
+// Followed-channel videos past the first page's rhythm wait for later pages while it keeps this many.
+internal const val FIRST_PAGE_MIN_SIZE = 30
+
 // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
 private const val FRESH_SUBS_PIN_TOP = 2
 

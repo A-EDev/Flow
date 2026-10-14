@@ -91,6 +91,16 @@ class HomeSubscriptionStoreTest {
     }
 
     @Test
+    fun `a late upload from a followed channel only goes between two cards that are not`() {
+        val feed = listOf("o0", "s1", "o2", "o3", "s4", "s5", "o6", "o7", "s8").map { video(it) }
+        val followed = { v: Video -> v.id.startsWith("s") }
+
+        val merged = insertBelowViewport(feed, listOf(video("sLate")), lastVisibleIndex = 0, spacing = 1, isGrouped = followed)
+
+        assertThat(merged.map { it.id }).containsExactly("o0", "s1", "o2", "sLate", "o3", "s4", "s5", "o6", "o7", "s8").inOrder()
+    }
+
+    @Test
     fun `nothing new leaves the feed as it is`() {
         val feed = listOf(video("a"), video("b"))
 
