@@ -75,6 +75,40 @@ class NeuroClustersTest {
     }
 
     @Test
+    fun `a new cluster waits its turn instead of jumping a just-served giant`() {
+        val big = NeuroClusters.TopicCluster("gaming", listOf("gaming"), mass = 1.5)
+        val small = NeuroClusters.TopicCluster("guitar", listOf("guitar", "tabs"), mass = 0.2)
+        val justServed = mapOf("gaming" to now - 60_000L)
+        val firstSeen =
+            mapOf("gaming" to now - 90L * 24L * 3_600_000L, "guitar" to now - 24L * 3_600_000L, "tabs" to now - 2L * 3_600_000L)
+
+        val order = NeuroClusters.schedule(listOf(big, small), justServed, now) { firstSeen[it] }
+        assertThat(order.first().representative).isEqualTo("gaming")
+    }
+
+    @Test
+    fun `a brain that is new itself still rotates its clusters`() {
+        val big = NeuroClusters.TopicCluster("gaming", listOf("gaming"), mass = 1.5)
+        val small = NeuroClusters.TopicCluster("guitar", listOf("guitar"), mass = 0.2)
+        val justServed = mapOf("gaming" to now - 60_000L)
+        val firstSeen = mapOf("gaming" to now - 30L * 3_600_000L, "guitar" to now - 3_600_000L)
+
+        val order = NeuroClusters.schedule(listOf(big, small), justServed, now) { firstSeen[it] }
+        assertThat(order.first().representative).isEqualTo("guitar")
+    }
+
+    @Test
+    fun `a cluster seen for weeks keeps the never-served boost`() {
+        val big = NeuroClusters.TopicCluster("gaming", listOf("gaming"), mass = 1.5)
+        val small = NeuroClusters.TopicCluster("chess", listOf("chess", "openings"), mass = 0.2)
+        val justServed = mapOf("gaming" to now - 60_000L)
+        val firstSeen = mapOf("chess" to now - 20L * 24L * 3_600_000L, "openings" to now - 3_600_000L)
+
+        val order = NeuroClusters.schedule(listOf(big, small), justServed, now) { firstSeen[it] }
+        assertThat(order.first().representative).isEqualTo("chess")
+    }
+
+    @Test
     fun `schedule lets a big cluster reclaim priority as staleness accrues`() {
         val big = NeuroClusters.TopicCluster("gaming", listOf("gaming"), mass = 1.5)
         val small = NeuroClusters.TopicCluster("chess", listOf("chess"), mass = 0.2)

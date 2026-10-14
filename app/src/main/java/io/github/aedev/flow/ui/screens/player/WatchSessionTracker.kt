@@ -144,6 +144,8 @@ internal class WatchSessionTracker(
         var watchedMs: Long = 0L,
         var sentMs: Long = 0L,
         var viewSent: Boolean = false,
+        // The screen moves on to the next video before this session is graded, so keep its rich copy.
+        var richVideo: Video? = null,
     ) {
         fun advance(positionMs: Long) {
             val wall = elapsedRealtime()
@@ -280,6 +282,7 @@ internal class WatchSessionTracker(
             current.maxPositionMs = maxOf(current.maxPositionMs, positionMs)
             current.durationMs = maxOf(current.durationMs, durationMs)
             current.advance(positionMs)
+            richVideoOf(videoId)?.let { current.richVideo = it }
             return
         }
         current?.let(::finalize)
@@ -301,12 +304,16 @@ internal class WatchSessionTracker(
                 durationMs = durationMs,
                 format = if (isShort) ViewFormat.SHORT else ViewFormat.LONG,
                 lastPositionMs = positionMs,
+                richVideo = richVideoOf(videoId),
             )
     }
 
+    private fun richVideoOf(videoId: String): Video? = richVideoFor(videoId)?.takeIf { it.id == videoId }
+
     private fun finalize(session: Session) {
-        // Prefer the rich (tags/description) video the screen still holds over the session stub.
-        val video = richVideoFor(session.video.id) ?: session.video
+        // Prefer the rich (tags/description) video over the session stub: the screen's copy while it
+        // still holds this video, else the last one the session saw.
+        val video = richVideoOf(session.video.id) ?: session.richVideo ?: session.video
         val signal = watchSignalFor(session.maxPositionMs, session.durationMs)
         recordView(session, final = true)
 

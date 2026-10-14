@@ -86,7 +86,7 @@ internal fun addUniquePageVideos(
     channelCounts: MutableMap<String, Int>,
     usedVideoIds: MutableSet<String>,
     targetSize: Int,
-    maxPerChannel: Int = 2,
+    maxPerChannel: Int = 1,
 ): Int {
     var added = 0
     for (candidate in candidates) {
@@ -137,13 +137,43 @@ internal fun blendFeedSources(
     val addedBySource = mutableMapOf<FeedSource, Int>()
     val out = mutableListOf<FeedCandidate>()
 
+    // One video per channel first; a second only fills what the lanes could not, so it lands at the end.
+    var perChannel = 1
+    val skipped = FeedSource.entries.associateWith { java.util.ArrayDeque<FeedCandidate>() }
+
     fun take(candidate: FeedCandidate?): Boolean {
-        val cap = if (candidate != null && candidate.video.channelId in singleChannels) 1 else 2
+        val cap = if (candidate != null && candidate.video.channelId in singleChannels) 1 else perChannel
         return addUniqueCandidate(candidate, out, channelCounts, usedVideoIds, cap).also { added ->
-            if (added) addedBySource[candidate!!.source] = (addedBySource[candidate.source] ?: 0) + 1
+            if (added) {
+                addedBySource[candidate!!.source] = (addedBySource[candidate.source] ?: 0) + 1
+            } else if (candidate != null && perChannel == 1 && candidate.video.id !in usedVideoIds) {
+                skipped.getValue(candidate.source).addLast(candidate)
+            }
         }
     }
 
+    fill(target, queues, out, quotaOrder, scarcityOrder, addedBySource, quotas, ::take)
+    if (out.size < target && skipped.values.any { it.isNotEmpty() }) {
+        perChannel = 2
+        fill(target, skipped, out, quotaOrder, scarcityOrder, addedBySource, quotas, ::take)
+    }
+
+    return FeedMixResult(
+        items = out,
+        sourceCounts = FeedSource.entries.associateWith { source -> addedBySource[source] ?: 0 },
+    )
+}
+
+private fun fill(
+    target: Int,
+    queues: Map<FeedSource, java.util.ArrayDeque<FeedCandidate>>,
+    out: List<FeedCandidate>,
+    quotaOrder: List<FeedSource>,
+    scarcityOrder: List<FeedSource>,
+    addedBySource: Map<FeedSource, Int>,
+    quotas: Map<FeedSource, Int>,
+    take: (FeedCandidate?) -> Boolean,
+) {
     while (out.size < target && queues.any { it.value.isNotEmpty() }) {
         var addedThisRound = false
         for (source in quotaOrder) {
@@ -166,9 +196,4 @@ internal fun blendFeedSources(
             if (!forced) break
         }
     }
-
-    return FeedMixResult(
-        items = out,
-        sourceCounts = FeedSource.entries.associateWith { source -> addedBySource[source] ?: 0 },
-    )
 }

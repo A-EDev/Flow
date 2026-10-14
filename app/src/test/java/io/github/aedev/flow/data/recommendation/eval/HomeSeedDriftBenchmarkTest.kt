@@ -19,14 +19,16 @@ class HomeSeedDriftBenchmarkTest {
     @Test
     fun `related lane stays on profile and serves lasting interests`() {
         val legacy = HomeSeedDriftBenchmark.run(HomeSeedDriftBenchmark.legacy)
+        val withoutFloor = HomeSeedDriftBenchmark.run(HomeSeedDriftBenchmark.withoutFloor)
         val current = HomeSeedDriftBenchmark.run(HomeSeedDriftBenchmark.current)
-        val report = HomeSeedDriftBenchmark.report(listOf(legacy, current))
+        val report = HomeSeedDriftBenchmark.report(listOf(legacy, withoutFloor, current))
 
         println(report)
         val out = File("build/reports/neuro-benchmark").apply { mkdirs() }
         File(out, "seed-drift.txt").writeText(report)
 
         assertThat(current.offProfileShare).isLessThan(legacy.offProfileShare)
+        assertThat(current.offProfileLastPages).isAtMost(0.15)
         assertThat(current.longTermCoverage).isAtLeast(0.9)
     }
 }

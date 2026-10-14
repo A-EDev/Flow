@@ -8,9 +8,12 @@
 package io.github.aedev.flow.data.recommendation.eval
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
+import io.github.aedev.flow.data.recommendation.NeuroScoring
+import io.github.aedev.flow.data.recommendation.NeuroVectorMath
 import io.github.aedev.flow.ui.screens.home.feedSeedInputs
 import java.util.Random
 
@@ -23,7 +26,8 @@ import java.util.Random
  * newest watches) and liked some of it. Anonymous `/next` lists mix unrelated "drift" videos into
  * every neighbour list, and a drift video's own neighbours are mostly more drift. Refreshes come 4 h
  * apart, inside the 6 h seed cooldown, so a seed used by one refresh is cooled for the next.
- * The lane's ranking is modelled as a round-robin over seeds. Two numbers answer #907:
+ * The lane's ranking is modelled as a round-robin over seeds, after the real relevance floor
+ * ([NeuroScoring.keepRelevant]) when the policy has one. Two numbers answer #907:
  *  - offProfileShare: how much of what the related lane puts on screen is drift, over 8 pages
  *  - longTermCoverage: how often a refresh's related lane serves the long-term interest (comedy)
  */
@@ -45,14 +49,19 @@ internal object HomeSeedDriftBenchmark {
     private val communityMass = mapOf("guitar" to 0.30, "cooking" to 0.35, "comedy" to 0.50)
     private val communityOf: (String) -> String = { it }
 
+    private val viewer = NeuroVectorMath.PreparedVector(ContentVector(topics = topicScores))
+
     data class Policy(
         val name: String,
         val excludeRelatedPicks: Boolean,
         val longTermSlot: Boolean,
+        val relevanceFloor: Boolean,
     )
 
-    val legacy = Policy("legacy (feed picks re-seed, no long-term slot)", excludeRelatedPicks = false, longTermSlot = false)
-    val current = Policy("current", excludeRelatedPicks = true, longTermSlot = true)
+    val legacy =
+        Policy("legacy (feed picks re-seed, no long-term slot)", excludeRelatedPicks = false, longTermSlot = false, relevanceFloor = false)
+    val withoutFloor = Policy("no relevance floor", excludeRelatedPicks = true, longTermSlot = true, relevanceFloor = false)
+    val current = Policy("current", excludeRelatedPicks = true, longTermSlot = true, relevanceFloor = true)
 
     data class Result(
         val policy: Policy,
@@ -79,7 +88,7 @@ internal object HomeSeedDriftBenchmark {
             val sessionSeeds = HashSet<String>()
 
             val wave1Seeds = pickSeeds(history, WAVE1_SEEDS, longTerm, usedSeeds).also { sessionSeeds += it }
-            val wave1Related = interleave(wave1Seeds.map { related(it, random) }).take(WAVE1_RELATED)
+            val wave1Related = keepRelevant(interleave(wave1Seeds.map { related(it, random) }), policy).take(WAVE1_RELATED)
             if (wave1Related.any { groupOf(it) == "comedy" }) sessionsWithComedy++
 
             val feed = (wave1Related + discovery(random, 20)).toMutableList()
@@ -99,8 +108,7 @@ internal object HomeSeedDriftBenchmark {
                 val seeds = pickSeeds(inputs, PAGE_SEEDS, emptyList(), usedSeeds).also { sessionSeeds += it }
                 val onScreen = feed.mapTo(HashSet()) { it.id }
                 val pageRelated =
-                    interleave(seeds.map { related(it, random) })
-                        .filter { it.id !in onScreen }
+                    keepRelevant(interleave(seeds.map { related(it, random) }).filter { it.id !in onScreen }, policy)
                         .take(PAGE_SIZE - DISCOVERY_PER_PAGE)
                 feed += pageRelated
                 feed += discovery(random, DISCOVERY_PER_PAGE)
@@ -120,6 +128,21 @@ internal object HomeSeedDriftBenchmark {
             offProfileLastPages = lastPagesDrift.toDouble() / lastPagesServed.coerceAtLeast(1),
             longTermCoverage = sessionsWithComedy.toDouble() / sessions,
         )
+    }
+
+    private fun keepRelevant(
+        videos: List<Video>,
+        policy: Policy,
+    ): List<Video> {
+        if (!policy.relevanceFloor) return videos
+        return NeuroScoring
+            .keepRelevant(
+                videos.map { it to ContentVector(topics = mapOf(groupOf(it) to 1.0)) },
+                viewer,
+                NeuroScoring.LANE_RELEVANCE_FLOOR,
+                userSubs = emptySet(),
+                channelScores = emptyMap(),
+            ).map { it.first }
     }
 
     /** The engine's six-hour seed cooldown, collapsed to "not twice in one session". */

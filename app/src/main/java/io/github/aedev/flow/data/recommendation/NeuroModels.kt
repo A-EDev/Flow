@@ -31,6 +31,8 @@ data class ContentVector(
     val pacing: Double = 0.5,
     val complexity: Double = 0.5,
     val isLive: Double = 0.0,
+    /** What kind of video it is ([NeuroFormats]); on a video's vector only, never on the viewer's. */
+    val formats: Set<String> = emptySet(),
 )
 
 // ── Time Buckets ──
@@ -97,6 +99,8 @@ data class UserBrain(
     val seenShortsHistory: Map<String, Long> = emptyMap(),
     val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
     val shortsVector: ContentVector = ContentVector(),
+    /** What the viewer took to lately ([NeuroVectorMath.RECENT]). Device-local, never synced. */
+    val recentVector: ContentVector = ContentVector(),
     /**
      * Hard suppression: video IDs that must NOT appear in ranked results.
      * Maps videoId → timestamp when suppression was applied. Entries never expire;
@@ -131,8 +135,29 @@ data class UserBrain(
     val channelMemory: ChannelMemoryState = ChannelMemoryState(),
     /** The interest chips Home showed last; see [InterestChips]. */
     val interestChips: InterestChipSet = InterestChipSet(),
-    val schemaVersion: Int = 17,
-)
+    /** How titles write each key; see [NeuroDisplayForms]. Device-local, never synced. */
+    val displayForms: Map<String, DisplayForm> = emptyMap(),
+    /** How much the viewer takes to each format ([NeuroFormats]), 0..1. Device-local, never synced. */
+    val formatAffinity: Map<String, Double> = emptyMap(),
+    /** Strong signals per YouTube category ([NeuroCategories]). Device-local, never synced. */
+    val categoryAffinity: Map<String, Double> = emptyMap(),
+    /** The language most titles are in, seeded from the app language ([NeuroLanguages]). Null until seeded. */
+    val languageProfile: String? = null,
+    /** Confident title languages since the profile was last weighed ([NeuroLanguages.vote]). Device-local. */
+    val languageVotes: Map<String, Int> = emptyMap(),
+    /** The language keys are stemmed for ([NeuroStemmer]): the profile when first seeded, fixed after. */
+    val keyLanguage: String? = null,
+    val schemaVersion: Int = NeuroMaintenance.TARGET_SCHEMA_VERSION,
+) {
+    /**
+     * The long-term topics strong enough to be interests. Weaker ones are traces of evidence still
+     * adding up ([NeuroVectorMath.Horizon]); ranking reads them, but nothing searches for, groups or
+     * lists a topic from one half-watched video.
+     */
+    val interests: ContentVector by lazy {
+        globalVector.copy(topics = globalVector.topics.filterValues { it >= NeuroVectorMath.TOPIC_PRUNE_THRESHOLD })
+    }
+}
 
 // ── Interaction Types ──
 
@@ -218,7 +243,26 @@ data class TopicEvidence(
     val channelIds: Set<String> = emptySet(),
     val firstSeenAt: Long = 0L,
     val lastSeenAt: Long = 0L,
-)
+) {
+    /** Two records that a re-key made one topic: counts add up and the newest ids are pooled. */
+    fun mergedWith(other: TopicEvidence): TopicEvidence =
+        TopicEvidence(
+            positiveSignals = positiveSignals + other.positiveSignals,
+            negativeSignals = negativeSignals + other.negativeSignals,
+            watchSignals = watchSignals + other.watchSignals,
+            explicitSignals = explicitSignals + other.explicitSignals,
+            positiveScore = (positiveScore + other.positiveScore).coerceAtMost(MAX_SCORE),
+            videoIds = (videoIds + other.videoIds).toList().takeLast(MAX_IDS).toSet(),
+            channelIds = (channelIds + other.channelIds).toList().takeLast(MAX_IDS).toSet(),
+            firstSeenAt = listOf(firstSeenAt, other.firstSeenAt).filter { it > 0L }.minOrNull() ?: 0L,
+            lastSeenAt = maxOf(lastSeenAt, other.lastSeenAt),
+        )
+
+    companion object {
+        const val MAX_IDS = 6
+        const val MAX_SCORE = 50.0
+    }
+}
 
 internal data class ImpressionEntry(
     var count: Int,
@@ -319,8 +363,11 @@ internal data class ScoringParams(
     val candidatePoolSize: Int,
     val now: Long,
     val exploreWeight: Double = 0.0,
+    val categoryOf: (channelId: String) -> ChannelCategory? = { null },
+    /** Channel to the strength (0..1) of its strongest pair with a channel the viewer watches ([NeuroCoWatchStore]). */
+    val coWatchPrior: Map<String, Double> = emptyMap(),
 ) {
-    val preparedGlobal by lazy { NeuroVectorMath.PreparedVector(brain.globalVector) }
+    val preparedTaste by lazy { NeuroVectorMath.PreparedVector(NeuroVectorMath.blend(brain.globalVector, brain.recentVector)) }
     val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }
     val preparedContext by lazy { NeuroVectorMath.PreparedVector(timeContextVector) }
 

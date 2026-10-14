@@ -45,11 +45,21 @@ internal fun visibleChips(
     }
 }
 
-/** Searches for an interest chip: its own phrases first, a lone word qualified by one of them. */
+/**
+ * Searches for an interest chip: its own phrases first, a lone word qualified by one of them. A theme
+ * chip searches each of its interests in turn.
+ */
 internal fun interestQueries(
     interest: InterestChip,
     max: Int = HomeChipParams.QUERIES_PER_INTEREST,
 ): List<String> {
+    if (interest.parts.isNotEmpty()) {
+        val perPart = interest.parts.map { interestQueries(it, max) }
+        return (0 until max)
+            .flatMap { round -> perPart.mapNotNull { it.getOrNull(round) } }
+            .distinct()
+            .take(max)
+    }
     val rep = NeuroScoring.stripDomainTag(interest.representative)
     val members = interest.topics.map(NeuroScoring::stripDomainTag).filter { it != rep }
 

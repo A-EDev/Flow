@@ -1,0 +1,8 @@
+# Question words and fillers titles open with, which the source list leaves out.
+dlaczego
+gdzie
+kiedy
+kto
+który
+ile
+tutaj

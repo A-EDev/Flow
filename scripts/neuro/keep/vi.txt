@@ -1,0 +1,17 @@
+# Content words stopwords-iso lists as stop words.
+bài
+bản
+cao
+cây
+con
+nhà
+người
+ngày
+năm
+ngọt
+lớn
+chuyện
+cuộc
+bông
+cuốn
+quyển

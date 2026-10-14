@@ -91,6 +91,7 @@ NEW FEATURES
 - Tapping a video opens the player out of the card you tapped, with its thumbnail on screen until the video starts (#1091)
 - A video playing in the background keeps a mini bar in the music bar's place, with play and pause, its queue, and a tap or a swipe up to bring the video back (#980)
 - Choose what swiping a mini bar left or right does in Player appearance: close, next or previous with a peek at that video, save to Watch later, like, download, not interested or remove from queue (#980)
+- Related videos on Home say which of your videos they came from in Details, in the video's menu (#907)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -261,6 +262,29 @@ FIXES AND STABILITY
 - Fix videos only the web player serves being treated as removed from YouTube, which made playlists and autoplay skip them without a word
 - Fix videos whose streams are all signature-protected, mostly label and kids channels, failing to load since YouTube's player update of 6 October: signatures are solved again from the player itself, with a remote fallback, and stream URLs no longer go through NewPipe at all (#1291, analysis by @Chiehx0220)
 - Fix the like count sometimes missing beside the like button: it is now read from the button itself when YouTube leaves the usual count empty, and a count already shown is no longer wiped by later page data (#1282)
+- Fix a reset recommendation profile coming back on the next start, and the starter searches a new profile uses being listed as learned searches (#907)
+- Backups now carry only your settings and a new phone also receives your library, while the recommendation engine and sync identity never leave the device, so a reinstall starts the engine clean (#907)
+- Fix Home favouring less relevant videos after you skip several in a row, and swiping through Shorts no longer counts as skipping (#907)
+- Fix later cards on Home drifting to videos that have nothing to do with what you watch, and a couple of videos on a new subject no longer take over the related videos or jump ahead of interests you have kept for months (#907)
+- Videos played one after another now teach recommendations their tags and description too, not only their title, and a video's YouTube category no longer turns into interests such as "science technology" (#907)
+- Recommendations read a title in phrases: "Why Big Tech's Privacy Promises Are Lies" no longer becomes interests like "big tech's" or "promises lies", spellings such as lo-fi and lofi count as one, and on update the word pairs already learned by chance are cleared from your profile (#907)
+- Onboarding picks no longer join into one interest, so unrelated picks such as cooking and anime stay separate on Home (#907)
+- A search teaches recommendations what it asks about: "How does encryption work" adds "encryption", not "encryption work", and long searches keep all their words (#907)
+- Interests read as titles write them, such as "MMA" and "Machine Learning", in Your taste, on Home chips and in the searches Home makes, which never include a hidden topic tag (#907)
+- Fix Boost and Stop boosting missing the interests you picked when you started (#907)
+- Recommendations learn what kind of videos you watch, such as reviews, tutorials or playalongs, apart from what they are about, and Home searches ask for those kinds (#907)
+- Fix popular videos being ranked as clickbait because search and related results carry no like count (#907)
+- Fix Home handing early places to weak videos only because they came from a channel not yet shown, ahead of better videos from channels you watch (#907)
+- Recommendations skip the small words of your language and of each title's own, so words like "para", "les" or "как" never become interests; the language follows your app language and later what you watch (#907)
+- Recommendations treat the forms of a word as one interest, such as "guitar" and "guitars" or "croqueta" and "croquetas", in English, Spanish, Portuguese, French, German, Italian and Russian (#907)
+- Recommendations remember how often you watch a topic, not just how much of the last video it filled, so months of comedy outweigh two guitar videos, while what you watched lately still gets a quarter of the say (#907)
+- Recommendations learn each channel's YouTube category from the videos you watch, and rank a video a little lower when its category is one you rarely watch; subscriptions and your picked interests are never lowered (#907)
+- Home chips group interests of one kind into a theme such as "Gaming", which searches each of them, so the row has room for more of what you like; interests you picked get a chip before you have watched anything (#907)
+- Recommendations learn which channels go together from the related videos beside what you watch or like, once two videos agree; a channel next to ones you watch gets a small lift and joins the same interest group (#907)
+- Home shares its pages between your interests by how much you watch each, so one strong interest no longer pushes the others out; searches it explores are always a subject, never a word like "build" or "test" (#907)
+- Your taste lists your picks apart from what it learned, each with how much you watch it, and interest chips are named after the topic you watch most (#907)
+- Home mixes its cards: two from related videos, searches or channels you watch, then one or two from channels you follow, and a channel never shows twice within 20 cards (#907)
+- Add Open source notices to About
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
@@ -268,3 +292,4 @@ BUILD AND CI
 - Add learning benchmarks that drive the real recommendation engine through a Shorts binge, rejections and phrase learning, with regression floors
 - Search, channel and player parsing are now covered by tests against real captured API responses
 - Limit concurrent Kotlin compilations so CI stops running out of memory
+- Add #907 scenario tests that measure off-topic drift, junk interests, recency and reset behaviour on the real recommendation engine, and a Home benchmark through the real ranker

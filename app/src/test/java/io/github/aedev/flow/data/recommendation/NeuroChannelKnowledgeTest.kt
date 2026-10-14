@@ -20,10 +20,10 @@ class NeuroChannelKnowledgeTest {
                 description = "Deep dives into claude and coding agents.",
                 tokenizer = tokenizer,
             )
-        assertThat(profile).containsKey("claude")
+        assertThat(profile).containsKey(tokenizer.keysOf("claude").single())
         assertThat(profile.keys.any { it.contains("agent") }).isTrue()
         // Repeated across tags+description → weighted above single mentions.
-        assertThat(profile.getValue("claude")).isAtLeast(profile.values.min())
+        assertThat(profile.getValue(tokenizer.keysOf("claude").single())).isAtLeast(profile.values.min())
         assertThat(profile.values.max()).isAtMost(NeuroChannelKnowledge.TAG_SEED_WEIGHT)
     }
 

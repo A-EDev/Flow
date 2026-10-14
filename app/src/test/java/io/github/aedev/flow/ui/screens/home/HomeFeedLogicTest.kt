@@ -161,6 +161,36 @@ class HomeFeedLogicTest {
         videos.zipWithNext().count { (a, b) -> a.channelId.isNotBlank() && a.channelId == b.channelId }
 
     @Test
+    fun `a page runs a couple from the other lanes in turn, then one or two from followed channels (#907)`() {
+        val related = (1..6).map { vc("r$it", "R$it") }
+        val discovery = (1..6).map { vc("d$it", "D$it") }
+        val subs = (1..4).map { vc("s$it", "S$it") }
+        val page = listOf(vc("fresh1", "F1"), vc("fresh2", "F2")) + subs + related + discovery
+        val source = (related.map { it.id to FeedSource.RELATED } + discovery.map { it.id to FeedSource.DISCOVERY }).toMap()
+        val followed = { v: Video -> v.channelId.startsWith("S") || v.channelId.startsWith("F") }
+
+        val laid = rhythmBySource(page, followed, { source[it.id] }, keepTop = 2)
+        val kinds = laid.joinToString("") { if (followed(it)) "S" else it.id.take(1) }
+
+        assertThat(kinds).isEqualTo("SSrrSddSrrSddSrrdd")
+        assertThat(laid.filter(followed).map { it.id }).isEqualTo(listOf("fresh1", "fresh2") + (1..4).map { "s$it" })
+        assertThat(laid.filter { it.id.startsWith("r") }.map { it.id }).isEqualTo(related.map { it.id })
+    }
+
+    @Test
+    fun `followed-channel videos the rhythm has no room for wait for later pages, unless the page runs short`() {
+        val page = (1..10).map { vc("s$it", "S$it") } + (1..4).map { vc("o$it", "O$it") }
+        val followed = { v: Video -> v.channelId.startsWith("S") }
+
+        val deferred = rhythmBySource(page, followed, deferExtra = true, minSize = 8)
+        val kept = rhythmBySource(page, followed)
+
+        assertThat(deferred).hasSize(8)
+        assertThat(deferred.joinToString("") { if (followed(it)) "S" else "o" }).isEqualTo("SSooSSoo")
+        assertThat(kept.map { it.id }).containsExactlyElementsIn(page.map { it.id })
+    }
+
+    @Test
     fun `spaceByChannel separates clustered same-channel items without dropping any`() {
         val clustered =
             listOf(
@@ -173,6 +203,15 @@ class HomeFeedLogicTest {
         val spaced = spaceByChannel(clustered)
         assertThat(spaced.map { it.id }).containsExactlyElementsIn(clustered.map { it.id })
         assertThat(adjacentSameChannel(spaced)).isEqualTo(0)
+    }
+
+    @Test
+    fun `a wide gap keeps a channel's two videos ten cards apart when the page allows it`() {
+        val page = listOf(vc("a1", "A"), vc("a2", "A")) + (1..12).map { vc("o$it", "O$it") }
+
+        val spaced = spaceByChannel(page, gap = 10)
+
+        assertThat(spaced.indexOfFirst { it.id == "a2" } - spaced.indexOfFirst { it.id == "a1" }).isAtLeast(11)
     }
 
     @Test
@@ -282,6 +321,30 @@ class HomeFeedLogicTest {
             .containsExactly(FeedSource.RELATED, FeedSource.RELATED, FeedSource.DISCOVERY)
             .inOrder()
         assertThat(result.videos.map { it.id }).containsExactly("r1", "r2", "d1").inOrder()
+    }
+
+    @Test
+    fun `a channel gets one video per page, and a second only at the end when the lanes run short`() {
+        val full =
+            blendFeedSources(
+                lanes =
+                    mapOf(
+                        FeedSource.SUBS to listOf(vc("a1", "A"), vc("a2", "A"), vc("b1", "B"), vc("b2", "B")),
+                        FeedSource.RELATED to listOf(vc("c1", "C"), vc("c2", "C"), vc("e1", "E")),
+                        FeedSource.DISCOVERY to listOf(vc("f1", "F"), vc("g1", "G")),
+                    ),
+                quotas = mapOf(FeedSource.SUBS to 4, FeedSource.RELATED to 3, FeedSource.DISCOVERY to 2),
+                targetSize = 6,
+            )
+        val short =
+            blendFeedSources(
+                lanes = mapOf(FeedSource.SUBS to listOf(vc("a1", "A"), vc("a2", "A"), vc("b1", "B"))),
+                quotas = mapOf(FeedSource.SUBS to 3),
+                targetSize = 3,
+            )
+
+        assertThat(full.videos.map { it.channelId }.distinct()).hasSize(6)
+        assertThat(short.videos.map { it.id }).containsExactly("a1", "b1", "a2").inOrder()
     }
 
     @Test

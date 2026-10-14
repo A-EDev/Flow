@@ -28,7 +28,7 @@ class HomeFeedSourcesSeedTest {
                         listOf(entry("kept"), entry("disliked"))
                 }
             val liked: LikedVideosRepository = mockk { coEvery { dislikedVideoIds() } returns setOf("disliked") }
-            val sources = HomeFeedSources(mockk(), mockk(), viewHistory, liked, mockk())
+            val sources = HomeFeedSources(mockk(), mockk(), viewHistory, liked, mockk(), mockk(relaxed = true))
 
             assertThat(sources.historySeedInputs().map { it.id }).containsExactly("kept")
         }

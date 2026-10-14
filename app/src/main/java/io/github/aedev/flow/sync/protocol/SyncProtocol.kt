@@ -270,10 +270,19 @@ class SyncProtocol(
 
     // --- framing helpers ---
 
+    /**
+     * A collection whose topic keys follow a key spec goes only to a peer that writes them the same
+     * way: a reader of another spec would file them as new topics beside its own (#907).
+     */
     private fun canConsume(
         caps: Capabilities,
         collection: String,
-    ): Boolean = caps.collections[collection]?.consume ?: false
+    ): Boolean {
+        val peer = caps.collections[collection] ?: return false
+        val local = localCaps.collections[collection]
+        if (local != null && local.keySpec > 0 && (peer.keySpec != local.keySpec || peer.keyLanguage != local.keyLanguage)) return false
+        return peer.consume
+    }
 
     private fun canProduce(
         caps: Capabilities,

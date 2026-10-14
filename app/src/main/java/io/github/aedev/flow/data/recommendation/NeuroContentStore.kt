@@ -50,6 +50,7 @@ internal class NeuroContentStore(
     @Serializable
     data class ContentIndex(
         val vectors: Map<String, StoredVector> = emptyMap(),
+        val keySpec: Int = 0,
     )
 
     private object ContentSerializer : Serializer<ContentIndex> {
@@ -91,10 +92,14 @@ internal class NeuroContentStore(
     suspend fun load() {
         withContext(Dispatchers.IO) {
             try {
-                vectors =
-                    appContext.contentDataStore.data
-                        .first()
-                        .vectors
+                val index = appContext.contentDataStore.data.first()
+                // Vectors keyed by an older key spec hold chance pairs; videos refill it as they are opened (#907).
+                if (index.keySpec < NeuroKeySpec.VERSION) {
+                    vectors = emptyMap()
+                    dirty = index.vectors.isNotEmpty()
+                } else {
+                    vectors = index.vectors
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load content index", e)
             }
@@ -139,7 +144,7 @@ internal class NeuroContentStore(
         withContext(Dispatchers.IO) {
             try {
                 val snapshot = vectors
-                appContext.contentDataStore.updateData { ContentIndex(snapshot) }
+                appContext.contentDataStore.updateData { ContentIndex(snapshot, NeuroKeySpec.VERSION) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to persist content index", e)
             }

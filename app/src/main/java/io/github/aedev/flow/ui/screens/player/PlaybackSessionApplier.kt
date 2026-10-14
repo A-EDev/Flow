@@ -475,7 +475,7 @@ internal class PlaybackSessionApplier(
         }
     }
 
-    /** Folded into the tags the engine ingests, so the watch signal carries it. */
+    /** Kept on the video, so the watch signal carries it. */
     private fun applyCategory(result: SecondaryMetadata.Category) {
         if (!isLoadCurrent(result.loadToken)) return
         if (PlaybackSpeedPolicy.isMusic(musicVideoType = null, category = result.category, openedAsMusic = false)) {
@@ -484,8 +484,8 @@ internal class PlaybackSessionApplier(
 
         uiState.update { state ->
             val cached = state.cachedVideo?.takeIf { it.id == result.videoId } ?: return@update state
-            if (result.category in cached.tags) return@update state
-            state.copy(cachedVideo = cached.copy(tags = cached.tags + result.category))
+            if (cached.category == result.category) return@update state
+            state.copy(cachedVideo = cached.copy(category = result.category))
         }
 
         uiState.value.cachedVideo
@@ -523,6 +523,21 @@ internal class PlaybackSessionApplier(
                 enabled = autoplay,
             )
             uiState.update { it.applyRelatedVideos(videoId, videos) }
+        }
+        noteRelatedForLearning(videoId, videos)
+    }
+
+    /** Hands the related list to the engine, which keeps it only if this video is then watched or liked. */
+    private fun noteRelatedForLearning(
+        videoId: String,
+        videos: List<Video>,
+    ) {
+        scope.launch(ioDispatcher) {
+            try {
+                FlowNeuroEngine.noteRelated(context, videoId, videos)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to note related videos", e)
+            }
         }
     }
 

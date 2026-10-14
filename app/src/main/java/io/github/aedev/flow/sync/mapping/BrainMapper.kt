@@ -265,7 +265,8 @@ object BrainMapper {
         local: SBrain,
     ): SBrain =
         local.copy(
-            schemaVersion = maxOf(local.schemaVersion, merged.schema),
+            // The schema says which migrations this device's brain has run; a peer's cannot run them.
+            schemaVersion = local.schemaVersion,
             timeVectors =
                 merged.vectors.timeVectors
                     .mapValues { it.value.toS() }

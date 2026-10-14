@@ -25,6 +25,7 @@ internal fun VideoCardRow(
     showChannel: Boolean,
     thumbnailWidth: Dp,
     reason: String?,
+    relatedTo: String?,
     modifier: Modifier = Modifier,
 ) {
     val state = rememberVideoCardState(video)
@@ -108,5 +109,5 @@ internal fun VideoCardRow(
         )
     }
 
-    VideoCardSheets(state = state, showChannel = showChannel)
+    VideoCardSheets(state = state, showChannel = showChannel, relatedTo = relatedTo)
 }

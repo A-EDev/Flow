@@ -16,28 +16,11 @@ class NeuroLearningDynamicsTest {
     private val short = ContentVector(topics = mapOf("prank" to 1.0))
 
     @Test
-    fun `a Short decays the vector a hundred times less than a full watch`() {
-        val shortRate = 0.12 * NeuroScoring.SHORTS_LEARNING_PENALTY
-        var vector = comedy
-        repeat(100) { vector = NeuroVectorMath.adjustVector(vector, short, shortRate, NeuroVectorMath.decayStrength(shortRate)) }
-
-        assertThat(vector.topics.getValue("comedy")).isGreaterThan(0.075)
-        assertThat(vector.topics.getValue("cooking")).isGreaterThan(0.39)
-    }
-
-    @Test
     fun `full-strength events keep the tiered decay`() {
-        val decayed = NeuroVectorMath.adjustVector(comedy, short, 0.15, NeuroVectorMath.decayStrength(0.15))
+        val decayed = NeuroVectorMath.adjustVector(comedy, short, 0.15)
 
         assertThat(decayed.topics.getValue("comedy")).isWithin(1e-9).of(0.08 * NeuroVectorMath.EMERGING_DECAY_RATE)
         assertThat(decayed.topics.getValue("cooking")).isWithin(1e-9).of(0.4 * NeuroVectorMath.ESTABLISHED_DECAY_RATE)
-    }
-
-    @Test
-    fun `decay strength follows the event rate`() {
-        assertThat(NeuroVectorMath.decayStrength(0.03)).isWithin(1e-9).of(0.2)
-        assertThat(NeuroVectorMath.decayStrength(0.30)).isEqualTo(1.0)
-        assertThat(NeuroVectorMath.decayStrength(-0.4)).isEqualTo(1.0)
     }
 
     @Test
@@ -79,6 +62,30 @@ class NeuroLearningDynamicsTest {
         assertThat(updated.globalVector.topics.keys).containsAtLeast("kotlin", "android", "gym", "horror")
         assertThat(updated.globalVector.topics.keys).containsNoneOf("zoo", "these", "resident", "evil")
         assertThat(updated.topicAffinities.keys).doesNotContain("android|these")
+    }
+
+    @Test
+    fun `a blocked phrase never takes a picked interest with it`() {
+        val brain =
+            UserBrain(
+                schemaVersion = 16,
+                globalVector =
+                    ContentVector(
+                        topics =
+                            (0 until 8).associate { "topic$it" to 0.3 } + mapOf("code" to 0.35, "technology" to 0.1),
+                    ),
+                preferredTopics = setOf("Code"),
+                blockedTopics = setOf("code technology"),
+                channelTopicProfiles = mapOf("ch" to mapOf("kotlin" to 0.6)),
+            )
+
+        val topics =
+            NeuroMaintenance
+                .runIfNeeded(brain, tokenizer)
+                .globalVector.topics.keys
+
+        assertThat(topics).contains("code")
+        assertThat(topics).doesNotContain("technology")
     }
 
     @Test

@@ -1790,6 +1790,8 @@
     <string name="newpipe_extractor_title">NewPipe Extractor</string>
     <string name="newpipe_extractor_subtitle">Core extraction library</string>
     <string name="about_license">License</string>
+    <string name="about_notices">Open source notices</string>
+    <string name="about_notices_summary">Word lists and code from other projects</string>
     <string name="about_license_name">GNU GPL v3</string>
     <string name="about_changelog">Changelog</string>
     <string name="whats_new_in_flow">What\'s new in Flow</string>
@@ -3877,6 +3879,11 @@
     <string name="taste_interests_footer">Boost a topic to see more of it, or block it to see none of it.</string>
     <string name="taste_interests_empty">Watch a few videos and your interests show up here</string>
     <string name="taste_topic_boosted">Boosted</string>
+    <string name="taste_picks_header">Your picks</string>
+    <string name="taste_evidence_often">Watched often</string>
+    <string name="taste_evidence_some">Watched a few times</string>
+    <string name="taste_evidence_once">Watched once or twice</string>
+    <string name="taste_evidence_none">Not watched yet</string>
     <string name="taste_topic_boost">Show more like this</string>
     <string name="taste_topic_unboost">Stop boosting</string>
     <string name="taste_topic_block">Block topic</string>
@@ -3906,13 +3913,15 @@
     <string name="taste_export_music">Export music profile</string>
     <string name="taste_import_music">Import music profile</string>
     <string name="taste_reset_music">Reset music profile</string>
-    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap and hidden channels, topics and videos stay.</string>
+    <string name="taste_reset_video_body">Flow forgets what it learned from your videos and searches. History, likes, playlists and hidden items stay, and Home still uses them.</string>
     <string name="taste_reset_music_title">Reset music profile?</string>
     <string name="taste_reset_music_body">This clears what Flow learned from your music and starts again from zero. Your recap stays.</string>
     <string name="taste_trait_now">Now %1$s</string>
     <string name="taste_reset_done">Profile reset</string>
     <string name="diagnostics_engine_header">Engine details</string>
     <string name="diagnostics_engine_queries_none">None yet</string>
+    <string name="taste_starter_searches">Starter searches</string>
+    <string name="taste_starter_searches_detail">%1$s. Used until Flow learns what you watch.</string>
 
     <!-- Flow Recap -->
     <string name="recap_title">Flow Recap</string>
@@ -4136,6 +4145,7 @@
     <string name="save_as_playlist">Save as playlist</string>
     <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
     <string name="home_reason_channel_memory">From a channel you watch</string>
+    <string name="details_related_to">Related to</string>
     <string name="taste_remembered_header">Channels you keep watching</string>
     <string name="taste_remembered_footer">New uploads from these channels show up on Home now and then. Subscribing to a channel or removing it takes it off this list.</string>
     <string name="taste_remembered_empty">Watch a channel a few times without subscribing and it shows up here.</string>
@@ -4148,6 +4158,14 @@
     <string name="home_chip_mixes">Mixes</string>
     <string name="home_chip_live">Live</string>
     <string name="home_chip_watched">Watched</string>
+    <string name="home_theme_science">Science &amp; tech</string>
+    <string name="home_theme_comedy">Comedy</string>
+    <string name="home_theme_film">Film &amp; animation</string>
+    <string name="home_theme_autos">Cars &amp; vehicles</string>
+    <string name="home_theme_pets">Pets &amp; animals</string>
+    <string name="home_theme_travel">Travel</string>
+    <string name="home_theme_howto">How-to &amp; style</string>
+    <string name="home_theme_nonprofits">Nonprofits</string>
     <string name="home_chip_description">Show %1$s on Home</string>
     <string name="home_chip_empty_title">Nothing here right now</string>
     <string name="home_chip_empty_body">Pull down to look again later.</string>

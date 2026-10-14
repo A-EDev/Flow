@@ -202,6 +202,61 @@ class SyncInteropTest {
             assertEquals(listOf(SyncCollection.PLAYLISTS), send.map { it.jsonPrimitive.content })
         }
 
+    private fun brainCaps(
+        keySpec: Int,
+        keyLanguage: String,
+    ) = Capabilities(
+        mapOf(
+            SyncCollection.PLAYLISTS to Capability(1, produce = true, consume = true),
+            SyncCollection.FLOW_NEURO_BRAIN to Capability(13, produce = true, consume = true, keySpec = keySpec, keyLanguage = keyLanguage),
+        ),
+    )
+
+    private fun sentSelection(peer: Capabilities): List<String> =
+        runBlocking {
+            val link = SyncLoopback()
+            val receiver =
+                async {
+                    android(
+                        link.host,
+                        isHost = true,
+                        localCaps = peer,
+                        selection = Selection(accept = listOf(SyncCollection.PLAYLISTS, SyncCollection.FLOW_NEURO_BRAIN)),
+                    ).run(SyncRole.RECEIVER)
+                }
+            android(
+                link.client,
+                isHost = false,
+                localCaps = brainCaps(keySpec = 2, keyLanguage = "en"),
+                selection = Selection(send = listOf(SyncCollection.PLAYLISTS, SyncCollection.FLOW_NEURO_BRAIN)),
+                payload =
+                    mapOf(
+                        SyncCollection.PLAYLISTS to wire("""{"syncId":"p1"}"""),
+                        SyncCollection.FLOW_NEURO_BRAIN to wire("""{"deviceId":"a"}"""),
+                    ),
+            ).run(SyncRole.SENDER)
+            receiver.await()
+            val selection =
+                link.sentByClient
+                    .map { SyncCodec.open(keys.openKey(isHost = true), sid, it) }
+                    .first { it.frameType == FrameType.SELECTION }
+            Json
+                .parseToJsonElement(String(selection.plaintext))
+                .jsonObject["send"]!!
+                .jsonArray
+                .map { it.jsonPrimitive.content }
+        }
+
+    @Test
+    fun the_brain_goes_only_to_a_peer_that_writes_topic_keys_the_same_way() {
+        assertEquals(listOf(SyncCollection.PLAYLISTS), sentSelection(caps(SyncCollection.PLAYLISTS, SyncCollection.FLOW_NEURO_BRAIN)))
+        assertEquals(listOf(SyncCollection.PLAYLISTS), sentSelection(brainCaps(keySpec = 2, keyLanguage = "es")))
+        assertEquals(
+            listOf(SyncCollection.PLAYLISTS, SyncCollection.FLOW_NEURO_BRAIN),
+            sentSelection(brainCaps(keySpec = 2, keyLanguage = "en")),
+        )
+    }
+
     @Test
     fun an_apply_failure_reaches_the_sender_as_an_error() =
         runBlocking {

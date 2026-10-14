@@ -89,6 +89,50 @@ internal fun demoteByFit(
 }
 
 /**
+ * Lays a page out in short runs, so it reads as a mix rather than a subscriptions feed: two videos
+ * from the other lanes, taking turns between related, discovery and remembered channels, then one or
+ * two from followed channels, and again. Each kind keeps its own order and the first [keepTop]
+ * (fresh uploads pinned on purpose) stay put. Followed-channel videos the rhythm has no room for close
+ * the page, or with [deferExtra] are left for later pages once it holds [minSize] cards.
+ */
+internal fun rhythmBySource(
+    videos: List<Video>,
+    isSubscribed: (Video) -> Boolean,
+    sourceOf: (Video) -> FeedSource? = { null },
+    keepTop: Int = 0,
+    deferExtra: Boolean = false,
+    minSize: Int = 0,
+): List<Video> {
+    val rest = videos.drop(keepTop)
+    val (subscribed, others) = rest.partition(isSubscribed)
+    if (subscribed.isEmpty() || others.isEmpty()) return videos
+    val subs = ArrayDeque(subscribed)
+    val lanes = OTHER_LANE_TURNS.map { lane -> ArrayDeque(others.filter { sourceOf(it) == lane }) }
+    val out = ArrayList<Video>(videos.size)
+    out += videos.take(keepTop)
+    var turn = 0
+    var subsNext = keepTop == 0
+    while (lanes.any { it.isNotEmpty() }) {
+        if (subsNext && subs.isNotEmpty()) {
+            val othersLeft = lanes.sumOf { it.size }
+            repeat(if (subs.size * OTHER_RUN > othersLeft) MAX_SUBS_RUN else 1) { subs.removeFirstOrNull()?.let(out::add) }
+        } else {
+            while (lanes[turn % lanes.size].isEmpty()) turn++
+            val lane = lanes[turn++ % lanes.size]
+            repeat(OTHER_RUN) { lane.removeFirstOrNull()?.let(out::add) }
+        }
+        subsNext = !subsNext
+    }
+    while (subs.isNotEmpty() && (!deferExtra || out.size < minSize)) out += subs.removeFirst()
+    return out
+}
+
+// Lanes take turns in this order; null holds videos whose lane is not known.
+private val OTHER_LANE_TURNS = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.SUBS, null)
+private const val OTHER_RUN = 2
+private const val MAX_SUBS_RUN = 2
+
+/**
  * Greedy reorder that keeps same-channel items at least `gap` slots apart when possible; order is
  * otherwise preserved. seedRecent primes the cooldown with the prior page's tail to space appends.
  */

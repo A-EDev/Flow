@@ -16,4 +16,6 @@ data class HomeUiState(
     val lastRefreshTime: Long = 0L,
     /** Videos the channel memory lane brought, which say so under their title. */
     val channelMemoryVideoIds: Set<String> = emptySet(),
+    /** Videos the related lane brought, keyed to the title of the video each was found from. */
+    val relatedTo: Map<String, String> = emptyMap(),
 )

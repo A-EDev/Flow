@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.GraphSeedSelector
 import io.github.aedev.flow.data.recommendation.GraphSeedSource
@@ -47,6 +48,7 @@ class HomeFeedSources
         private val viewHistory: ViewHistory,
         private val likedVideosRepository: LikedVideosRepository,
         private val playlistRepository: PlaylistRepository,
+        private val neuroEngine: FlowNeuroEngine,
     ) {
         private data class CachedRelated(
             val videos: List<Video>,
@@ -192,6 +194,7 @@ class HomeFeedSources
                             async {
                                 val seed = seedMetadata[seedId]
                                 val videos = fetchRelatedVideos(seedId, filters)
+                                if (seed != null && videos.isNotEmpty()) neuroEngine.noteRelatedOfWatched(seed, videos)
                                 val seedScore = seed?.let { GraphSeedSelector.scoreSeed(it, now) } ?: 0.0
                                 val seedCluster = seed?.let { GraphSeedSelector.clusterKey(it) } ?: "misc"
                                 val candidates =

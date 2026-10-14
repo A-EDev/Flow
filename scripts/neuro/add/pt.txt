@@ -1,0 +1,13 @@
+# Question words and fillers titles open with, which the source list leaves out.
+é
+porque
+quê
+porquê
+onde
+quando
+quem
+qual
+quais
+quanto
+assim
+aqui

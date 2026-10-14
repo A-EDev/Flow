@@ -29,9 +29,21 @@ package io.github.aedev.flow.data.recommendation
  * every topic through [NeuroText.fold], so "𝙥𝙝𝙤𝙣𝙠" learned before folding merges into "phonk".
  * Full-strength decay from every Short had hollowed vectors out again after V15, so a hollow
  * vector is rehydrated from channel knowledge once more, and blocked topics leave the vector.
+ *
+ * V18 brings every key to [NeuroKeySpec] 1 and drops word pairs learned by chance ([NeuroKeyMigration]).
+ *
+ * V19 drops keys that are stop words in the viewer's language ([NeuroLanguages]), such as "para" or "les".
+ *
+ * V20 stems every key by [NeuroKeySpec] 2 ([NeuroKeyMigration.toKeySpec2]).
  */
 internal object NeuroMaintenance {
-    const val TARGET_SCHEMA_VERSION = 17
+    /** Stop lists for the viewer's language ([NeuroLanguages]): keys that are now stop words go. */
+    const val STOP_LIST_SCHEMA_VERSION = 19
+
+    /** Keys stemmed by [NeuroKeySpec] 2 ([NeuroKeyMigration.toKeySpec2]). */
+    const val KEY_SPEC_2_SCHEMA_VERSION = 20
+
+    const val TARGET_SCHEMA_VERSION = KEY_SPEC_2_SCHEMA_VERSION
     private const val V15_SCHEMA_VERSION = 15
     private const val V16_SCHEMA_VERSION = 16
 
@@ -49,11 +61,19 @@ internal object NeuroMaintenance {
         tokenizer: NeuroTokenizer,
     ): UserBrain {
         if (brain.schemaVersion >= TARGET_SCHEMA_VERSION) return brain
+        // Earlier steps judge keys against counts stored under spec-1 spellings.
+        val earlier = if (brain.schemaVersion < KEY_SPEC_2_SCHEMA_VERSION) tokenizer.atKeySpec(1) else tokenizer
         var updated = brain
-        if (updated.schemaVersion < V15_SCHEMA_VERSION) updated = runV15(updated, tokenizer)
-        if (updated.schemaVersion < V16_SCHEMA_VERSION) updated = scrubSearchWordPlants(updated, tokenizer)
+        if (updated.schemaVersion < V15_SCHEMA_VERSION) updated = runV15(updated, earlier)
+        if (updated.schemaVersion < V16_SCHEMA_VERSION) updated = scrubSearchWordPlants(updated, earlier)
         updated = estimateTimeBucketCounts(updated)
         updated = refoldKeys(updated)
+        if (updated.schemaVersion < NeuroKeyMigration.SCHEMA_VERSION) updated = NeuroKeyMigration.run(updated, earlier)
+        if (updated.schemaVersion < KEY_SPEC_2_SCHEMA_VERSION) {
+            // Stop words are spelled whole; once stemmed ("youtube" to "youtub") the list no longer finds them.
+            updated = dropNoise(updated, earlier)
+            updated = NeuroKeyMigration.toKeySpec2(updated, tokenizer)
+        }
         updated = dropBlockedTopics(updated, tokenizer)
         updated = dropNoise(updated, tokenizer)
         if (isHollow(updated)) updated = rehydrateFromChannelProfiles(updated, tokenizer)
@@ -86,7 +106,7 @@ internal object NeuroMaintenance {
             topicAffinities = brain.topicAffinities.refold(::maxOf),
             tagAffinities = brain.tagAffinities.refold(::maxOf),
             channelTopicProfiles = brain.channelTopicProfiles.mapValues { it.value.refold(::maxOf) },
-            topicEvidence = brain.topicEvidence.refold { a, b -> if (a.positiveScore >= b.positiveScore) a else b },
+            topicEvidence = brain.topicEvidence.refold(TopicEvidence::mergedWith),
             rejectionPatterns =
                 brain.rejectionPatterns.refold { a, b ->
                     RejectionSignal(maxOf(a.count, b.count), maxOf(a.lastRejectedAt, b.lastRejectedAt))
@@ -107,7 +127,7 @@ internal object NeuroMaintenance {
     ): Boolean {
         if (blockedLemmas.isEmpty()) return false
         val base = NeuroScoring.stripDomainTag(topic)
-        return base in blockedLemmas || base.split(' ').any { tokenizer.normalizeLemma(it) in blockedLemmas }
+        return base in blockedLemmas || base.split(' ').any { tokenizer.keyOf(it) in blockedLemmas }
     }
 
     /** Blocked topics, and with [withPhraseWords] the words of blocked phrases ("resident evil") too. */
@@ -116,8 +136,12 @@ internal object NeuroMaintenance {
         tokenizer: NeuroTokenizer,
         withPhraseWords: Boolean = false,
     ): Set<String> {
-        val lemmas = brain.blockedTopics.mapTo(HashSet()) { tokenizer.normalizeLemma(NeuroText.fold(it).trim()) }
-        if (withPhraseWords) lemmas.filter { ' ' in it }.forEach { lemmas += tokenizer.tokenize(it) }
+        val lemmas = brain.blockedTopics.mapTo(HashSet()) { tokenizer.keyOf(NeuroText.fold(it).trim()) }
+        if (withPhraseWords) {
+            // Blocking "code technology" hides that phrase, never the viewer's own pick "Coding".
+            val picked = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+            lemmas.filter { ' ' in it }.forEach { phrase -> lemmas += tokenizer.tokenize(phrase).filterNot { it in picked } }
+        }
         return lemmas
     }
 
@@ -203,8 +227,8 @@ internal object NeuroMaintenance {
         val sharedFirst = siblingTimes { it.firstSeenAt }
         val sharedLast = siblingTimes { it.lastSeenAt }
         val keep =
-            NeuroSearchLearning.catalogTopics(tokenizer) +
-                brain.preferredTopics.map { tokenizer.normalizeLemma(it) }
+            tokenizer.catalogKeys +
+                brain.preferredTopics.flatMap(tokenizer::keysOf)
         val scrubbed =
             searchOnlyWords
                 .filter { (topic, ev) ->

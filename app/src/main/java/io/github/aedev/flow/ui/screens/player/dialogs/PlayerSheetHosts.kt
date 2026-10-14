@@ -161,7 +161,7 @@ internal fun PlayerDescriptionSheetHost(
     FlowDescriptionBottomSheet(
         video = video,
         descriptionPage = descriptionPage,
-        tags = video.tags,
+        tags = (listOfNotNull(video.category) + video.tags).distinct(),
         chapterCount = uiState.chapters.size,
         onChaptersClick = onChaptersClick,
         onTranscriptClick = onTranscriptClick?.takeIf { hasTranscriptTrack },

@@ -1,0 +1,14 @@
+# Question words and fillers titles open with, which the source list leaves out.
+cómo
+cuándo
+dónde
+quién
+quiénes
+cuál
+cuáles
+cuánto
+cuánta
+cuántos
+así
+porqué
+aquí
