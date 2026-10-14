@@ -192,4 +192,52 @@ class GraphSeedSelectorTest {
 
         assertThat(selected).containsExactly("fresh")
     }
+
+    @Test
+    fun `a long special watched in part weighs as much as a short clip watched in full`() {
+        val special = seed("special", durationSec = 3600, percentWatched = 45.0, engagementWeight = 0.45)
+        val clip = seed("clip", durationSec = 240, percentWatched = 100.0)
+
+        assertThat(GraphSeedSelector.scoreSeed(special, now)).isAtLeast(GraphSeedSelector.scoreSeed(clip, now))
+    }
+
+    @Test
+    fun `a light interest gets one seed however strong its recent watches`() {
+        val guitar = (0 until 3).map { seed("guitar$it", title = "guitar lesson $it", durationSec = 240) }
+        val comedy =
+            (0 until 4).map {
+                seed("comedy$it", title = "comedy special $it", durationSec = 3600, percentWatched = 45.0, engagementWeight = 0.45)
+            }
+
+        val selected =
+            GraphSeedSelector.select(
+                guitar + comedy,
+                maxSeeds = 4,
+                now = now,
+                topicScores = mapOf("guitar" to 0.1, "comedy" to 0.9),
+                communityOf = { it },
+                communityMass = mapOf("guitar" to 0.1, "comedy" to 0.9),
+            )
+
+        assertThat(selected.count { it.startsWith("guitar") }).isEqualTo(1)
+    }
+
+    @Test
+    fun `a heavy interest never takes more than its usual share of seeds`() {
+        val comedy = (0 until 4).map { seed("comedy$it", title = "comedy special $it") }
+        val guitar = (0 until 4).map { seed("guitar$it", title = "guitar lesson $it") }
+
+        val selected =
+            GraphSeedSelector.select(
+                comedy + guitar,
+                maxSeeds = 4,
+                now = now,
+                maxPerCluster = 2,
+                topicScores = mapOf("guitar" to 0.1, "comedy" to 0.9),
+                communityOf = { it },
+                communityMass = mapOf("guitar" to 0.1, "comedy" to 0.9),
+            )
+
+        assertThat(selected.count { it.startsWith("comedy") }).isEqualTo(2)
+    }
 }

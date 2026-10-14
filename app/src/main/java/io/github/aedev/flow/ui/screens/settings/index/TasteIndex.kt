@@ -37,6 +37,7 @@ internal object TasteIndex {
     val engineSuppressed = entry("engine.suppressed", R.string.metric_suppressed, R.string.diagnostics_engine_header)
     val engineShortsSeen = entry("engine.shorts_seen", R.string.discovery_shorts_seen, R.string.diagnostics_engine_header)
     val engineQueries = entry("engine.queries", R.string.discovery_query_memory, R.string.diagnostics_engine_header)
+    val engineStarters = entry("engine.starters", R.string.taste_starter_searches, R.string.diagnostics_engine_header)
     val exportVideo = entry("export_video", R.string.taste_export_video, R.string.taste_data_header)
     val importVideo = entry("import_video", R.string.taste_import_video, R.string.taste_data_header)
     val resetVideo = entry("reset_video", R.string.taste_reset_video, R.string.taste_data_header)
@@ -68,5 +69,6 @@ internal object TasteIndex {
             engineSuppressed,
             engineShortsSeen,
             engineQueries,
+            engineStarters,
         )
 }

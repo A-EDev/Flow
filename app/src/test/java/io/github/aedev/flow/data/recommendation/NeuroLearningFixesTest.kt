@@ -14,6 +14,8 @@ import org.junit.Test
 class NeuroLearningFixesTest {
     private val tokenizer = NeuroTokenizer()
 
+    private fun key(phrase: String) = tokenizer.keysOf(phrase).single()
+
     // ── F2: topic acquisition floor ──
 
     @Test
@@ -86,14 +88,14 @@ class NeuroLearningFixesTest {
         assertThat(updated.globalVector.topics).doesNotContainKey("right")
         assertThat(updated.globalVector.topics).doesNotContainKey("laptops right")
         // Real interests recovered from profiles, capped below established.
-        assertThat(updated.globalVector.topics).containsKey("claude")
+        assertThat(updated.globalVector.topics).containsKey(key("claude"))
         assertThat(updated.globalVector.topics).containsKey("cars")
-        assertThat(updated.globalVector.topics.getValue("claude")).isAtMost(0.30)
+        assertThat(updated.globalVector.topics.getValue(key("claude"))).isAtMost(0.30)
         // Low-quality channels contribute nothing.
         assertThat(updated.globalVector.topics).doesNotContainKey("spam")
         // Affinity structure seeded from co-taught topics.
         assertThat(updated.topicAffinities).isNotEmpty()
-        assertThat(updated.topicAffinities.keys.any { it.contains("claude") }).isTrue()
+        assertThat(updated.topicAffinities.keys.any { it.contains(key("claude")) }).isTrue()
         // Existing scores never lowered.
         assertThat(updated.globalVector.topics.getValue("android")).isEqualTo(0.39)
     }
@@ -109,16 +111,13 @@ class NeuroLearningFixesTest {
     private val floor = NeuroScoring.TOPIC_ACQUISITION_FLOOR
 
     @Test
-    fun `multi-word search plants its bigrams and no word at the floor`() {
+    fun `multi-word search plants its phrase and catalog topics, never stray words`() {
         val learned = NeuroSearchLearning.learn(UserBrain(), "lofi hip hop", tokenizer, now = 1_000L)!!
         val topics = learned.globalVector.topics
 
-        assertThat(topics.getValue("hip hop")).isAtLeast(floor)
-        assertThat(topics.getValue("lofi hip")).isAtLeast(floor)
-        listOf("lofi", "hip", "hop").forEach { word ->
-            assertThat(topics[word] ?: 0.0).isLessThan(floor)
-        }
-        assertThat(learned.topicEvidence.keys).containsExactly("lofi hip", "hip hop")
+        listOf("lofi hip hop", "lofi", "hip hop").forEach { assertThat(topics.getValue(it)).isAtLeast(floor) }
+        assertThat(topics.keys).containsNoneOf("hip", "hop", "lofi hip")
+        assertThat(learned.topicEvidence.keys).containsExactly("lofi hip hop", "lofi", "hip hop")
     }
 
     @Test
@@ -135,10 +134,25 @@ class NeuroLearningFixesTest {
     }
 
     @Test
-    fun `catalog words of a multi-word search are planted beside the phrase`() {
+    fun `a search plants its catalog topic rather than a pair nobody knows`() {
         val topics = NeuroSearchLearning.queryTopics("minecraft hardcore", tokenizer)
-        assertThat(topics.phrases).containsExactly("minecraft hardcore", "minecraft")
-        assertThat(topics.weakWords).containsExactly("hardcore")
+        assertThat(topics.phrases).containsExactly("minecraft")
+        assertThat(topics.weakWords).containsExactly(key("hardcore"))
+    }
+
+    @Test
+    fun `a question plants what it asks about`() {
+        assertThat(NeuroSearchLearning.queryTopics("How does encryption work?", tokenizer).phrases).containsExactly(key("encryption"))
+        assertThat(NeuroSearchLearning.queryTopics("what is a quantum computer", tokenizer).phrases).containsExactly("quantum computer")
+        assertThat(NeuroSearchLearning.queryTopics("black holes explained", tokenizer).phrases).containsExactly(key("black holes"))
+    }
+
+    @Test
+    fun `a long search keeps every word and plants its known phrase`() {
+        val topics = NeuroSearchLearning.queryTopics("best budget gaming laptop for college students 2026", tokenizer)
+
+        assertThat(topics.phrases).contains("game laptop")
+        assertThat(topics.phrases + topics.weakWords).containsAtLeastElementsIn(listOf("budget", "college", "students").map(::key))
     }
 
     @Test
@@ -181,8 +195,11 @@ class NeuroLearningFixesTest {
         val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
 
         assertThat(updated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
-        assertThat(updated.globalVector.topics.keys).containsExactly("woodworking", "minecraft", "claude")
-        assertThat(updated.topicEvidence.keys).containsExactly("woodworking", "minecraft", "claude")
+        // "lofi" is the catalog's "Lo-Fi", which catalog words keep.
+        assertThat(
+            updated.globalVector.topics.keys,
+        ).containsExactlyElementsIn(listOf("lofi", "woodworking", "minecraft", "claude").map(::key))
+        assertThat(updated.topicEvidence.keys).containsExactlyElementsIn(listOf("lofi", "woodworking", "minecraft", "claude").map(::key))
     }
 
     // ── F5: every cluster in every feed + tree-depth descent ──

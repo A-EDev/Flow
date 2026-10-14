@@ -64,7 +64,8 @@ private enum class VideoMenuPage { Actions, Details, Collaborators, Save }
  * A video's menu. [title] and [thumbnailUrl] are what the card shows, so a DeArrow title stays the
  * same in the menu. [showChannel] is false where the screen already is the channel. A playlist that
  * can drop the video passes [onRemoveFromCollection] with its [removeFromCollectionLabel] and icon;
- * it is the last row of the Options group.
+ * it is the last row of the Options group. [relatedTo] names the video a feed found this one next to,
+ * shown on the Details page.
  */
 @Composable
 fun VideoQuickActionsBottomSheet(
@@ -73,6 +74,7 @@ fun VideoQuickActionsBottomSheet(
     title: String = video.title,
     thumbnailUrl: String = video.thumbnailUrl,
     showChannel: Boolean = true,
+    relatedTo: String? = null,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
     removeFromCollectionIcon: ImageVector = Icons.Outlined.PlaylistRemove,
@@ -96,7 +98,7 @@ fun VideoQuickActionsBottomSheet(
         when (page) {
             VideoMenuPage.Details -> {
                 QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = close)
-                MediaDetailsPage(subject = video.toDetailsSubject(title))
+                MediaDetailsPage(subject = video.toDetailsSubject(title, relatedTo))
             }
 
             VideoMenuPage.Collaborators -> {
@@ -384,16 +386,19 @@ internal fun actionRow(
         )
     }
 
-private fun Video.toDetailsSubject(displayTitle: String) =
-    MediaDetailsSubject(
-        videoId = id,
-        title = displayTitle,
-        author = channelName,
-        channelId = channelId,
-        viewCount = viewCount,
-        likeCount = likeCount,
-        uploadDate = uploadDate,
-        timestamp = timestamp,
-        timestampIsExact = timestampIsExact,
-        durationSeconds = duration,
-    )
+private fun Video.toDetailsSubject(
+    displayTitle: String,
+    relatedTo: String?,
+) = MediaDetailsSubject(
+    videoId = id,
+    title = displayTitle,
+    author = channelName,
+    channelId = channelId,
+    viewCount = viewCount,
+    likeCount = likeCount,
+    uploadDate = uploadDate,
+    timestamp = timestamp,
+    timestampIsExact = timestampIsExact,
+    durationSeconds = duration,
+    relatedTo = relatedTo,
+)

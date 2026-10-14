@@ -1,0 +1,7 @@
+# Question words and fillers titles open with, which the source list leaves out.
+neden
+niçin
+nerede
+kim
+hangi
+nasıl

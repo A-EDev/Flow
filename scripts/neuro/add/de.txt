@@ -1,0 +1,11 @@
+# Question words and fillers titles open with, which the source list leaves out.
+warum
+wieso
+weshalb
+wann
+wo
+wer
+welche
+welcher
+welches
+hier

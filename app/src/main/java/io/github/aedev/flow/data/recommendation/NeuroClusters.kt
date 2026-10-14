@@ -38,12 +38,17 @@ internal object NeuroClusters {
     /** Never-served and long-unserved clusters get this max staleness boost. */
     private const val STALENESS_MAX = 4.0
 
+    /** A cluster whose topics were all first seen this recently is new and gets no staleness boost. */
+    private const val NEW_CLUSTER_MS = 3L * 24L * 3_600_000L
+
     /** Weakest link admitted into the topic graph. */
     private const val MIN_EDGE_WEIGHT = 0.02
 
     private const val CHANNEL_PROFILE_TOP_TOPICS = 6
     private const val CHANNEL_EDGE_SCALE = 0.5
     private const val CATALOG_EDGE_WEIGHT = 0.3
+    private const val COWATCH_TOP_TOPICS = 2
+    private const val COWATCH_EDGE_SCALE = 0.3
     private const val PROPAGATION_ITERATIONS = 5
     private const val SELF_WEIGHT_SCALE = 0.5
 
@@ -64,6 +69,7 @@ internal object NeuroClusters {
         categories: List<TopicCategory>,
         normalizeLemma: (String) -> String,
         tagAffinities: Map<String, Double> = emptyMap(),
+        channelEdges: Map<String, Double> = emptyMap(),
     ): List<TopicCluster> {
         // Nodes: strip domain tags, keep the strongest score per base word.
         val scores = HashMap<String, Double>()
@@ -110,6 +116,21 @@ internal object NeuroClusters {
                     addEdge(top[i].first, top[j].first, minOf(top[i].second, top[j].second) * CHANNEL_EDGE_SCALE)
                 }
             }
+        }
+
+        // (b2) Channels watched together ([NeuroCoWatchStore]): their main topics belong together.
+        fun mainTopics(channelId: String) =
+            channelTopicProfiles[channelId]
+                .orEmpty()
+                .entries
+                .sortedByDescending { it.value }
+                .take(COWATCH_TOP_TOPICS)
+                .map { NeuroScoring.stripDomainTag(it.key) }
+        channelEdges.forEach { (key, strength) ->
+            val channels = key.split('|')
+            if (channels.size != 2) return@forEach
+            val second = mainTopics(channels[1])
+            mainTopics(channels[0]).forEach { a -> second.forEach { b -> addEdge(a, b, strength * COWATCH_EDGE_SCALE) } }
         }
 
         // (c) Catalog co-membership — links only topics the user already has.
@@ -169,18 +190,32 @@ internal object NeuroClusters {
      * Orders clusters for serving: weight = mass^0.7 × staleness. Flattened mass
      * stops the top cluster monopolizing; staleness guarantees the tail cycles in.
      * A cluster never served (or long unserved) gets the max boost, so every
-     * saved interest reaches the feed within a bounded number of refreshes.
+     * saved interest reaches the feed within a bounded number of refreshes. A new
+     * cluster, every topic of it first seen (per [firstSeenAt]) within the last
+     * three days, waits its turn instead while the brain holds an older interest:
+     * a short burst of watching must not jump ahead of lasting interests (#907).
      */
     fun schedule(
         clusters: List<TopicCluster>,
         rotation: Map<String, Long>,
         now: Long,
-    ): List<TopicCluster> =
-        clusters
+        firstSeenAt: (String) -> Long? = { null },
+    ): List<TopicCluster> {
+        val ages =
+            clusters.associateWith { cluster ->
+                cluster.topics.map { topic -> firstSeenAt(topic)?.takeIf { it > 0L }?.let { now - it } }
+            }
+        // A brain that is new itself has no lasting interest to protect, so its clusters rotate as before.
+        val hasLastingInterest = ages.values.any { topicAges -> topicAges.any { it != null && it >= NEW_CLUSTER_MS } }
+        return clusters
             .map { cluster ->
                 val lastServed = rotation[cluster.representative]
+                val topicAges = ages.getValue(cluster)
+                val isNew = hasLastingInterest && topicAges.isNotEmpty() && topicAges.all { it != null && it < NEW_CLUSTER_MS }
                 val staleness =
-                    if (lastServed == null || lastServed <= 0L) {
+                    if (isNew) {
+                        1.0
+                    } else if (lastServed == null || lastServed <= 0L) {
                         STALENESS_MAX
                     } else {
                         val hoursSince = (now - lastServed) / 3_600_000.0
@@ -191,4 +226,5 @@ internal object NeuroClusters {
                 compareByDescending<Pair<TopicCluster, Double>> { it.second }
                     .thenBy { it.first.representative },
             ).map { it.first }
+    }
 }

@@ -9,6 +9,8 @@ package io.github.aedev.flow.ui.screens.home
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
+import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -56,6 +58,7 @@ class HomeFeedAssemblyTest {
         shown: Set<String> = emptySet(),
         freshSlots: Int = 3,
         avatars: Map<String, String> = emptyMap(),
+        rankRelevant: suspend (List<Video>) -> List<Video> = { it },
     ) = buildHomeFeedLanes(
         rawSubs = subs,
         rawDiscovery = discovery,
@@ -70,6 +73,7 @@ class HomeFeedAssemblyTest {
         freshSlotTarget = freshSlots,
         subAvatarMap = avatars,
         rank = { it },
+        rankRelevant = rankRelevant,
     )
 
     @Test
@@ -388,4 +392,48 @@ class HomeFeedAssemblyTest {
 
             assertThat(subsLane.indexOf("seen")).isEqualTo(3)
         }
+
+    @Test
+    fun `only discovery and related candidates face the relevance floor`() =
+        runTest {
+            val result =
+                lanes(
+                    subs = listOf(video("sub")),
+                    discovery = listOf(video("found")),
+                    memory = listOf(video("remembered")),
+                    related = listOf(GraphCandidate(video("neighbour"), "seed", 1.0, 0, "misc", 1)),
+                    rankRelevant = { pool -> pool.filterNot { it.id in setOf("sub", "found", "remembered", "neighbour") } },
+                )
+
+            assertThat(result.bestSubs.map { it.id }).containsExactly("sub")
+            assertThat(result.bestMemory.map { it.id }).containsExactly("remembered")
+            assertThat(result.bestDiscovery).isEmpty()
+            assertThat(result.bestRelated).isEmpty()
+        }
+
+    @Test
+    fun `a related card names the video it was found from`() {
+        val seeds =
+            listOf(
+                GraphSeedInput(
+                    id = "seed",
+                    title = "Wonderwall guitar playalong",
+                    channelId = "",
+                    source = GraphSeedSource.WATCH_HISTORY,
+                    engagementWeight = 1.0,
+                    timestamp = now,
+                    durationSec = 240,
+                    percentWatched = 100.0,
+                ),
+            )
+        val candidates =
+            listOf(
+                GraphCandidate(video("shown"), "seed", 1.0, 0, "misc", 1),
+                GraphCandidate(video("hidden"), "seed", 1.0, 1, "misc", 1),
+                GraphCandidate(video("orphan"), "gone", 1.0, 2, "misc", 1),
+            )
+
+        assertThat(relatedSeedTitles(candidates, seeds, setOf("shown", "orphan")))
+            .containsExactly("shown", "Wonderwall guitar playalong")
+    }
 }

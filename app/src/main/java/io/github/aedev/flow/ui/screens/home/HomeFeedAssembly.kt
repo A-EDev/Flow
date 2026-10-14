@@ -5,6 +5,15 @@ import io.github.aedev.flow.data.recommendation.FeedExclusions
 
 internal const val HOME_TARGET_SIZE = 40
 
+// No channel twice within this many cards, across pages and late arrivals.
+internal const val RECENT_CHANNEL_WINDOW = 20
+
+// Repeats a short page could not avoid sit at least this far apart.
+internal const val CHANNEL_GAP = 10
+
+// Followed-channel videos past the first page's rhythm wait for later pages while it keeps this many.
+internal const val FIRST_PAGE_MIN_SIZE = 30
+
 // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
 private const val FRESH_SUBS_PIN_TOP = 2
 
@@ -60,6 +69,9 @@ internal data class HomeFeedLanes(
  * Turns the raw fetch results into the ranked lanes the blend draws from.
  *
  * [rank] is the engine call, passed in so the whole pipeline can be exercised without one.
+ * [rankRelevant] ranks the discovery and related lanes and may drop candidates that share nothing
+ * with the viewer's taste; subscriptions and remembered channels use [rank]. [share] then spreads
+ * those two lanes over the viewer's interests before they are cut to length.
  */
 internal suspend fun buildHomeFeedLanes(
     rawSubs: List<Video>,
@@ -75,6 +87,8 @@ internal suspend fun buildHomeFeedLanes(
     freshSlotTarget: Int,
     subAvatarMap: Map<String, String>,
     rank: suspend (List<Video>) -> List<Video>,
+    rankRelevant: suspend (List<Video>) -> List<Video> = rank,
+    share: suspend (List<Video>) -> List<Video> = { it },
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
@@ -149,16 +163,18 @@ internal suspend fun buildHomeFeedLanes(
         overflowFresh = unshownFresh.drop(FRESH_SUBS_PIN_TOP),
         shownFresh = shownFresh,
         bestSubs = bestSubs,
-        bestDiscovery = demoteByFit(rank(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
+        bestDiscovery = share(demoteByFit(rankRelevant(discoveryPool), taste)).take(BEST_DISCOVERY_LIMIT),
         // One upload per remembered channel: the lane spreads across channels, never floods with one.
         bestMemory =
             demoteByFit(rank(memoryPool), taste)
                 .distinctBy { it.channelId }
                 .take(BEST_MEMORY_LIMIT),
         bestRelated =
-            demoteByFit(
-                applyGraphBoost(rank(relatedPool), relatedMetadata),
-                taste,
+            share(
+                demoteByFit(
+                    applyGraphBoost(rankRelevant(relatedPool), relatedMetadata),
+                    taste,
+                ),
             ).take(BEST_RELATED_LIMIT),
         relatedCandidates = relatedCandidates,
         relatedMetadata = relatedMetadata,

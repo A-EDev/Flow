@@ -32,6 +32,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.Locale
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -55,7 +56,10 @@ class FlowNeuroEngine internal constructor(
     private val appContext: Context,
     private val storage: NeuroStorage,
     private val contentStore: NeuroContentStore,
+    private val categoryStore: NeuroCategoryStore = NeuroCategoryStore(appContext),
+    private val coWatchStore: NeuroCoWatchStore = NeuroCoWatchStore(appContext),
     learningPaused: (suspend () -> Boolean)? = null,
+    private val rankRandom: java.util.Random? = null,
 ) {
     constructor(appContext: Context) : this(appContext, NeuroStorage(appContext), NeuroContentStore(appContext))
 
@@ -63,7 +67,8 @@ class FlowNeuroEngine internal constructor(
         private const val TAG = "FlowNeuroEngine"
 
         // ── Orchestrator-only constants ──
-        private const val FEATURE_CACHE_MAX = 150
+        // A refresh ranks about 600 candidates; a smaller cache missed on every one of them.
+        private const val FEATURE_CACHE_MAX = 700
         private const val SESSION_TOPIC_HISTORY_MAX = 50
         private const val SAVE_DEBOUNCE_MS = 5000L
 
@@ -82,7 +87,20 @@ class FlowNeuroEngine internal constructor(
         private const val MAX_SUPPRESSED_CHANNELS = 100
 
         private const val TOPIC_EVIDENCE_MAX_ENTRIES = 500
-        private const val TOPIC_EVIDENCE_MAX_IDS = 6
+
+        private const val COUNTED_DOCUMENTS_MAX = 500
+
+        /** Opened videos whose related lists wait for a real watch or a like ([NeuroCoWatchStore]). */
+        private const val PENDING_RELATED_MAX = 30
+
+        /** The most a channel watched alongside the viewer's own adds to a score. */
+        internal const val COWATCH_MAX_PRIOR = 0.04
+
+        /** Where a channel's score starts; a watch moves it above, a rejection below. */
+        private const val NEUTRAL_CHANNEL_SCORE = 0.5
+
+        /** A subscription teaches its channel name about half what a full watch teaches. */
+        private const val SUBSCRIPTION_RATE = 0.08
 
         // ── Import bootstrap constants ──
         private const val SUBSCRIPTION_SEED_WEIGHT = 0.25
@@ -121,7 +139,8 @@ class FlowNeuroEngine internal constructor(
         suspend fun rank(
             candidates: List<Video>,
             userSubs: Set<String>,
-        ): List<Video> = requireInstance().rank(candidates, userSubs)
+            minRelevance: Double = 0.0,
+        ): List<Video> = requireInstance().rank(candidates, userSubs, minRelevance)
 
         suspend fun recordFeedImpressions(ids: List<String>) = requireInstance().recordFeedImpressions(ids)
 
@@ -152,6 +171,17 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun interestChips(now: Long = System.currentTimeMillis()): List<InterestChip> = requireInstance().interestChips(now)
 
+        fun outsideCategory(
+            videos: List<Video>,
+            category: String,
+        ): Set<String> = requireInstance().outsideCategory(videos, category)
+
+        suspend fun noteRelated(
+            context: Context,
+            videoId: String,
+            related: List<Video>,
+        ) = getInstance(context).noteRelated(videoId, related)
+
         suspend fun explorationQueries(limit: Int): List<String> = requireInstance().explorationQueries(limit)
 
         suspend fun rejectedByPattern(videos: List<Video>): Set<String> = requireInstance().rejectedByPattern(videos)
@@ -161,6 +191,8 @@ class FlowNeuroEngine internal constructor(
         suspend fun noteSessionTopics(topics: List<String>) = requireInstance().noteSessionTopics(topics)
 
         suspend fun clusterKeys(videos: List<Video>): Map<String, String> = requireInstance().clusterKeys(videos)
+
+        suspend fun shareByInterest(ranked: List<Video>): List<Video> = requireInstance().shareByInterest(ranked)
 
         fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
 
@@ -285,6 +317,10 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun removePreferredTopic(topic: String) = requireInstance().removePreferredTopic(topic)
 
+        fun pickKeys(brain: UserBrain): Set<String> = requireInstance().pickKeys(brain)
+
+        fun pickKeysByLabel(brain: UserBrain): Map<String, List<String>> = requireInstance().pickKeysByLabel(brain)
+
         suspend fun removePreferredTopic(
             context: Context,
             topic: String,
@@ -378,6 +414,13 @@ class FlowNeuroEngine internal constructor(
     private var idfWordFrequency = mutableMapOf<String, Int>()
     private var idfTotalDocuments = 0
 
+    // Videos counted as documents this session. With the persisted watch history, one video is one
+    // document however often it is opened, watched and liked, so it cannot promote its own pairs (#907).
+    private val countedDocuments =
+        object : LinkedHashMap<String, Unit>(COUNTED_DOCUMENTS_MAX + 50, 0.75f, false) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Unit>?): Boolean = size > COUNTED_DOCUMENTS_MAX
+        }
+
     // Impression cache
     private val impressionCache =
         object : LinkedHashMap<String, ImpressionEntry>(
@@ -424,24 +467,22 @@ class FlowNeuroEngine internal constructor(
             val loaded = storage.load()
             if (loaded != null) {
                 currentUserBrain = loaded
-            } else {
-                val legacy = storage.migrateLegacy()
-                if (legacy != null) {
-                    currentUserBrain = legacy
-                    Log.i(TAG, "Migrated legacy brain to DataStore")
-                } else {
-                    val previous = storage.tryMigrateFromPreviousDataStore()
-                    if (previous != null) {
-                        currentUserBrain = previous
-                        Log.i(TAG, "Migrated previous DataStore brain")
-                    }
+            } else if (!storage.hasSavedBrain()) {
+                // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
+                storage.migrateLegacy()?.let { migrated ->
+                    currentUserBrain = migrated
+                    Log.i(TAG, "Migrated an earlier brain")
                 }
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
-                storage.deleteLegacyFile()
             }
+            storage.deleteOldBrainFiles()
 
+            currentUserBrain = withLanguageProfile(currentUserBrain)
             val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
+                if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
+                    storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                }
                 currentUserBrain = maintained
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
@@ -449,11 +490,20 @@ class FlowNeuroEngine internal constructor(
             idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
             idfTotalDocuments = currentUserBrain.idfTotalDocuments
 
+            // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
+            val unspelled =
+                currentUserBrain.preferredTopics.filter { label -> tokenizer.keysOf(label).any { it !in currentUserBrain.displayForms } }
+            if (unspelled.isNotEmpty()) {
+                currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
+            }
+
             currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
                 watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
             }
 
             contentStore.load()
+            categoryStore.load()
+            coWatchStore.load()
             appContext.registerComponentCallbacks(trimCallbacks)
 
             resetSessionInternal()
@@ -465,6 +515,31 @@ class FlowNeuroEngine internal constructor(
         pendingSaveJob?.cancel()
         saveScope.cancel()
         appContext.unregisterComponentCallbacks(trimCallbacks)
+    }
+
+    /** [brain] with a language profile and key language, the app language the first time; the tokenizer follows them. */
+    private fun withLanguageProfile(brain: UserBrain): UserBrain {
+        val profile = brain.languageProfile ?: NeuroLanguages.normalize(Locale.getDefault().language)
+        val keyLanguage = brain.keyLanguage ?: profile
+        tokenizer.languageProfile = profile
+        tokenizer.keyLanguage = keyLanguage
+        return if (brain.languageProfile == profile && brain.keyLanguage == keyLanguage) {
+            brain
+        } else {
+            brain.copy(languageProfile = profile, keyLanguage = keyLanguage)
+        }
+    }
+
+    /** The language this brain's keys are stemmed for ([UserBrain.keyLanguage]). */
+    internal suspend fun keyLanguage(): String {
+        initialize()
+        return tokenizer.keyLanguage
+    }
+
+    /** How this brain reads a stored key, so sync reads a peer's keys the same way ([NeuroKeyMigration.keyFunction]). */
+    internal suspend fun topicKeyFunction(): (String) -> List<String> {
+        initialize()
+        return NeuroKeyMigration.keyFunction(tokenizer)
     }
 
     /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
@@ -493,12 +568,13 @@ class FlowNeuroEngine internal constructor(
 
     private fun clustersOf(brain: UserBrain): List<NeuroClusters.TopicCluster> =
         NeuroClusters.buildClusters(
-            topicScores = brain.globalVector.topics,
+            topicScores = brain.interests.topics,
             affinities = brain.topicAffinities,
             channelTopicProfiles = brain.channelTopicProfiles,
             categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
-            normalizeLemma = tokenizer::normalizeLemma,
+            normalizeLemma = tokenizer::keyOf,
             tagAffinities = brain.tagAffinities,
+            channelEdges = coWatchEdges(brain),
         )
 
     /** Home's interest chips, kept stable across loads by [InterestChips.stable]. */
@@ -506,15 +582,21 @@ class FlowNeuroEngine internal constructor(
         withContext(Dispatchers.Default) {
             val brain = getBrainSnapshot()
             val clusters = clustersOf(brain)
+            val picks = pickKeys(brain)
             val hasEvidence = { cluster: NeuroClusters.TopicCluster ->
                 cluster.topics.size >= 2 ||
+                    cluster.topics.any { it in picks } ||
                     brain.topicEvidence[cluster.representative]?.let {
                         it.watchSignals >= 2 || it.explicitSignals > 0 ||
                             it.positiveScore >= 1.2
                     } ==
                     true
             }
-            val set = InterestChips.stable(brain.interestChips, clusters, hasEvidence, now)
+            val categoryOf = { cluster: NeuroClusters.TopicCluster ->
+                NeuroCategories.clusterCategory(cluster.topics, brain.channelTopicProfiles, categoryStore::categoryOf)
+            }
+            val groups = InterestChips.groups(clusters, hasEvidence, categoryOf)
+            val set = InterestChips.stable(brain.interestChips, groups, now)
             if (set != brain.interestChips) {
                 val deepFlow = isLearningPaused()
                 withBrainLock {
@@ -523,8 +605,56 @@ class FlowNeuroEngine internal constructor(
                     scheduleDebouncedSave(bookkeeping = true)
                 }
             }
-            InterestChips.chips(set, clusters)
+            InterestChips.chips(set, groups, brain.displayForms) { key ->
+                brain.topicEvidence[key]?.let { it.watchSignals + it.explicitSignals } ?: 0
+            }
         }
+
+    private val pendingRelated =
+        object : LinkedHashMap<String, List<String>>(PENDING_RELATED_MAX, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > PENDING_RELATED_MAX
+        }
+
+    /** Keeps [related], the list shown beside [videoId], until the viewer really watches or likes the video. */
+    suspend fun noteRelated(
+        videoId: String,
+        related: List<Video>,
+    ) {
+        if (videoId.isBlank() || related.isEmpty()) return
+        withBrainLock { pendingRelated[videoId] = related.map { it.channelId } }
+    }
+
+    /** Records [related] for a [seed] from the viewer's history or likes; feed seeds teach nothing. */
+    suspend fun noteRelatedOfWatched(
+        seed: GraphSeedInput,
+        related: List<Video>,
+    ) {
+        if (seed.source != GraphSeedSource.WATCH_HISTORY && seed.source != GraphSeedSource.LIKED) return
+        if (isLearningPaused()) return
+        withBrainLock { coWatchStore.record(seed.id, seed.channelId, related.map { it.channelId }) }
+    }
+
+    /** Confirmed pairs of channels watched together, a channel counting as watched once a watch raised its score. */
+    private fun coWatchEdges(
+        brain: UserBrain,
+        now: Long = System.currentTimeMillis(),
+    ): Map<String, Double> = NeuroCoWatchStore.edges(coWatchStore.sources(), { isWatchedChannel(brain, it) }, now)
+
+    private fun isWatchedChannel(
+        brain: UserBrain,
+        channelId: String,
+    ) = (brain.channelScores[channelId] ?: 0.0) > NEUTRAL_CHANNEL_SCORE
+
+    /** Ids of [videos] from channels known to post in a category other than [category]. */
+    fun outsideCategory(
+        videos: List<Video>,
+        category: String,
+    ): Set<String> =
+        videos
+            .filter { video ->
+                val known = NeuroCategories.idOf(video.category) ?: categoryStore.categoryOf(video.channelId)?.id
+                known != null && known != category
+            }.mapTo(HashSet()) { it.id }
 
     suspend fun explorationQueries(limit: Int): List<String> =
         withContext(Dispatchers.Default) { discovery.explorationQueries(getBrainSnapshot(), limit) }
@@ -570,6 +700,25 @@ class FlowNeuroEngine internal constructor(
             }
         }
 
+    /** [ranked] with its places shared between the viewer's lasting interests ([NeuroInterestShare]). */
+    suspend fun shareByInterest(ranked: List<Video>): List<Video> =
+        withContext(Dispatchers.Default) {
+            val clusters = clustersOf(getBrainSnapshot())
+            val weights = NeuroInterestShare.weights(clusters)
+            if (weights.size < 2) return@withContext ranked
+            val groupByTopic =
+                clusters
+                    .filter { it.representative in weights }
+                    .flatMap { c ->
+                        c.topics.map { it to c.representative }
+                    }.toMap()
+            val idf = takeIdfSnapshotSafe()
+            NeuroInterestShare.interleave(
+                ranked,
+                weights,
+            ) { NeuroInterestShare.groupOf(getOrExtractFeatures(it, idf).topics, groupByTopic) }
+        }
+
     /** A short-lived nudge, such as opening an interest chip: session topics only, never long-term taste. */
     suspend fun noteSessionTopics(topics: List<String>) {
         withBrainLock {
@@ -594,16 +743,22 @@ class FlowNeuroEngine internal constructor(
     /** Forgets what was learned; what the viewer chose to hide stays hidden. */
     suspend fun resetBrain() {
         withBrainLock {
-            currentUserBrain = currentUserBrain.keepingHiddenContent()
+            currentUserBrain = withLanguageProfile(currentUserBrain.keepingHiddenContent().copy(languageProfile = null, keyLanguage = null))
             deepFlowBookkeeping.forget()
             featureCache.clear()
             idfWordFrequency.clear()
             idfTotalDocuments = 0
+            countedDocuments.clear()
             impressionCache.clear()
             watchHistory.clear()
             resetSessionInternal()
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
+            storage.deleteOldBrainFiles()
+            storage.deleteCopiesBeforeMigration()
             contentStore.clear()
+            categoryStore.clear()
+            coWatchStore.clear()
+            pendingRelated.clear()
         }
     }
 
@@ -661,6 +816,8 @@ class FlowNeuroEngine internal constructor(
                 storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
             }
             contentStore.persistIfDirty()
+            categoryStore.persistIfDirty()
+            coWatchStore.persistIfDirty()
         }
 
     private val trimCallbacks =
@@ -685,7 +842,7 @@ class FlowNeuroEngine internal constructor(
         val normalized = NeuroText.fold(topic).trim()
         if (normalized.isBlank()) return
         withBrainLock {
-            val lemma = tokenizer.normalizeLemma(normalized)
+            val lemma = tokenizer.keyOf(normalized)
 
             val scrubbed =
                 scrubTopicFromVector(
@@ -708,6 +865,7 @@ class FlowNeuroEngine internal constructor(
                 currentUserBrain.copy(
                     blockedTopics = currentUserBrain.blockedTopics + normalized,
                     globalVector = scrubbed,
+                    recentVector = scrubTopicFromVector(currentUserBrain.recentVector, lemma, normalized),
                     timeVectors = scrubbedTimeVectors,
                     preferredTopics = cleanedPreferred,
                 )
@@ -789,7 +947,7 @@ class FlowNeuroEngine internal constructor(
         withBrainLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             topics.forEach { topic ->
-                newTopics[tokenizer.normalizeLemma(topic)] = 0.5
+                newTopics[tokenizer.keyOf(topic)] = 0.5
             }
             currentUserBrain =
                 currentUserBrain.copy(
@@ -817,16 +975,12 @@ class FlowNeuroEngine internal constructor(
                     .toSet()
             val normalizedBlocked =
                 blockedTopics
-                    .map { tokenizer.normalizeLemma(it) }
+                    .map { tokenizer.keyOf(it) }
                     .filter { it.isNotBlank() }
                     .toSet()
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             normalizedPreferred.forEach { topic ->
-                newTopics[tokenizer.normalizeLemma(topic)] =
-                    maxOf(
-                        newTopics[tokenizer.normalizeLemma(topic)] ?: 0.0,
-                        0.5,
-                    )
+                tokenizer.keysOf(topic).forEach { key -> newTopics[key] = maxOf(newTopics[key] ?: 0.0, 0.5) }
             }
             normalizedBlocked.forEach { topic -> newTopics.remove(topic) }
 
@@ -835,7 +989,7 @@ class FlowNeuroEngine internal constructor(
                     preferredTopics =
                         normalizedPreferred
                             .filterNot {
-                                tokenizer.normalizeLemma(it) in normalizedBlocked
+                                tokenizer.keyOf(it) in normalizedBlocked
                             }.toSet(),
                     blockedTopics = normalizedBlocked,
                     blockedChannels = blockedChannels.filter { it.isNotBlank() }.toSet(),
@@ -853,9 +1007,10 @@ class FlowNeuroEngine internal constructor(
         if (normalized.isBlank()) return
         withBrainLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
-            newTopics[tokenizer.normalizeLemma(normalized)] = 0.5
+            tokenizer.keysOf(normalized).forEach { key -> newTopics[key] = maxOf(newTopics[key] ?: 0.0, 0.5) }
             currentUserBrain =
                 currentUserBrain.copy(
+                    displayForms = withPickSpellings(currentUserBrain.displayForms, listOf(normalized)),
                     preferredTopics = currentUserBrain.preferredTopics + normalized,
                     globalVector =
                         currentUserBrain.globalVector.copy(
@@ -866,11 +1021,32 @@ class FlowNeuroEngine internal constructor(
         }
     }
 
+    /** A pick is written as the viewer chose it ("Cooking"), even before any title writes it. */
+    private fun withPickSpellings(
+        forms: Map<String, DisplayForm>,
+        labels: Collection<String>,
+    ): Map<String, DisplayForm> =
+        labels.fold(forms) { current, label ->
+            val keys = tokenizer.keysOf(label)
+            // A label that is one key is that key's spelling, words like "of" included ("Call of Duty").
+            val spellings =
+                keys.singleOrNull()?.let { key -> mapOf(key to label.trim()) } ?: NeuroDisplayForms.spellingsIn(label, keys, tokenizer)
+            NeuroDisplayForms.record(current, spellings.filter { (key, spelling) -> key != spelling }) { true }
+        }
+
+    /** The keys the viewer's picks stand for, as titles key them. */
+    fun pickKeys(brain: UserBrain): Set<String> = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+
+    /** Each pick as the viewer chose it, with the keys titles give it. */
+    fun pickKeysByLabel(brain: UserBrain): Map<String, List<String>> = brain.preferredTopics.associateWith(tokenizer::keysOf)
+
+    /** [topic] is a pick as the viewer typed it, or the key Your taste lists for it. */
     suspend fun removePreferredTopic(topic: String) {
         withBrainLock {
             currentUserBrain =
                 currentUserBrain.copy(
-                    preferredTopics = currentUserBrain.preferredTopics - topic,
+                    preferredTopics =
+                        currentUserBrain.preferredTopics.filterNot { label -> label == topic || topic in tokenizer.keysOf(label) }.toSet(),
                 )
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
         }
@@ -898,30 +1074,18 @@ class FlowNeuroEngine internal constructor(
                         index < 6 -> 0.40
                         else -> 0.30
                     }
-                newTopics[tokenizer.normalizeLemma(topic)] = weight
+                tokenizer.keysOf(topic).forEach { key -> newTopics.merge(key, weight, ::maxOf) }
             }
 
-            val affinities = mutableMapOf<String, Double>()
-            val normalizedList = topicList.map { tokenizer.normalizeLemma(it) }
-            for (i in normalizedList.indices) {
-                for (j in i + 1 until normalizedList.size) {
-                    val key =
-                        NeuroScoring.makeAffinityKey(
-                            normalizedList[i],
-                            normalizedList[j],
-                        )
-                    affinities[key] = 0.3
-                }
-            }
-
+            // Picks are not linked to each other: unrelated picks must stay separate interests (#907).
             currentUserBrain =
                 currentUserBrain.copy(
+                    displayForms = withPickSpellings(currentUserBrain.displayForms, selectedTopics),
                     preferredTopics = selectedTopics,
                     globalVector =
                         currentUserBrain.globalVector.copy(
                             topics = newTopics,
                         ),
-                    topicAffinities = affinities,
                     hasCompletedOnboarding = true,
                 )
             storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
@@ -997,7 +1161,7 @@ class FlowNeuroEngine internal constructor(
                     positiveSignals = (existing?.positiveSignals ?: 0) + 1,
                     watchSignals = (existing?.watchSignals ?: 0) + if (isWatchSignal) 1 else 0,
                     explicitSignals = (existing?.explicitSignals ?: 0) + if (isExplicitSignal) 1 else 0,
-                    positiveScore = ((existing?.positiveScore ?: 0.0) + signalScore).coerceAtMost(50.0),
+                    positiveScore = ((existing?.positiveScore ?: 0.0) + signalScore).coerceAtMost(TopicEvidence.MAX_SCORE),
                     videoIds = nextVideoIds,
                     channelIds = nextChannelIds,
                     firstSeenAt = existing?.firstSeenAt?.takeIf { it > 0L } ?: now,
@@ -1055,7 +1219,7 @@ class FlowNeuroEngine internal constructor(
     ): Set<String> {
         if (value.isBlank()) return existing
         if (value in existing) return existing
-        return (existing.toList() + value).takeLast(TOPIC_EVIDENCE_MAX_IDS).toSet()
+        return (existing.toList() + value).takeLast(TopicEvidence.MAX_IDS).toSet()
     }
 
     // =================================================
@@ -1175,10 +1339,13 @@ class FlowNeuroEngine internal constructor(
                 val effectiveRate = historyLearningRate * indexDecay.coerceIn(0.6, 1.0)
 
                 val newGlobal =
-                    NeuroVectorMath.adjustVector(
+                    NeuroVectorMath.learn(
                         updatedBrain.globalVector,
                         videoVector,
+                        effectiveRate / NeuroVectorMath.DECAY_REFERENCE_RATE,
+                        NeuroVectorMath.LONG_TERM,
                         effectiveRate,
+                        pickKeys(updatedBrain),
                     )
 
                 val currentChScore = updatedBrain.channelScores[video.channelId] ?: 0.5
@@ -1217,10 +1384,7 @@ class FlowNeuroEngine internal constructor(
                         isExplicitSignal = false,
                     )
 
-                videoVector.topics.keys.forEach { word ->
-                    idfWordFrequency[word] = (idfWordFrequency[word] ?: 0) + 1
-                }
-                idfTotalDocuments++
+                countDocument(video.id) { tokenizer.documentTerms(video, videoVector) }
 
                 updatedBrain =
                     updatedBrain.copy(
@@ -1260,6 +1424,23 @@ class FlowNeuroEngine internal constructor(
     }
 
     // Periodic IDF maintenance: halve aged counts and cap the distinct vocabulary.
+
+    private fun isDocumentCounted(videoId: String): Boolean = videoId in watchHistory || videoId in countedDocuments
+
+    /** Counts [terms] as one more document, unless [videoId] already counted as one. */
+    private inline fun countDocument(
+        videoId: String,
+        terms: () -> Collection<String>,
+    ): Boolean {
+        if (videoId.isNotBlank()) {
+            if (isDocumentCounted(videoId)) return false
+            countedDocuments[videoId] = Unit
+        }
+        terms().forEach { term -> idfWordFrequency[term] = (idfWordFrequency[term] ?: 0) + 1 }
+        idfTotalDocuments++
+        return true
+    }
+
     private fun compactIdfIfNeeded() {
         if (idfTotalDocuments > 10000) {
             idfWordFrequency.replaceAll { _, v -> v / 2 }
@@ -1300,12 +1481,8 @@ class FlowNeuroEngine internal constructor(
                     updatedPatterns,
                     now,
                 )
-            val newGlobal =
-                adjustVectorByRejection(
-                    currentUserBrain.globalVector,
-                    videoVector,
-                    aggressionFactor,
-                )
+            val newGlobal = adjustVectorByRejection(currentUserBrain.globalVector, videoVector, aggressionFactor)
+            val newRecent = adjustVectorByRejection(currentUserBrain.recentVector, videoVector, aggressionFactor)
 
             // 5. Channel score — scales with rejection aggression
             val newChannelScores = currentUserBrain.channelScores.toMutableMap()
@@ -1323,11 +1500,13 @@ class FlowNeuroEngine internal constructor(
                     currentBucketVec,
                     videoVector,
                     NeuroScoring.NOT_INTERESTED_TIME_RATE,
+                    pruneBelow = NeuroVectorMath.EVIDENCE_PRUNE_THRESHOLD,
                 )
 
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
+                    recentVector = newRecent,
                     timeVectors = currentUserBrain.timeVectors + (bucket to newBucketVec),
                     channelScores = newChannelScores,
                     totalInteractions = currentUserBrain.totalInteractions + 1,
@@ -1355,7 +1534,7 @@ class FlowNeuroEngine internal constructor(
                         .coerceAtMost(0.3)
             }
         }
-        newTopics.entries.removeAll { it.value < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
+        newTopics.entries.removeAll { (key, weight) -> key in target.topics && weight < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
         return current.copy(topics = newTopics)
     }
 
@@ -1377,7 +1556,12 @@ class FlowNeuroEngine internal constructor(
                 val depth = discoveryRound
                 discoveryRound++
 
-                val discoveryQueries = discovery.generateQueries(brain, depth = depth) { b -> getPersona(b) }
+                val discoveryQueries =
+                    discovery.generateQueries(
+                        brain,
+                        depth = depth,
+                        channelEdges = coWatchEdges(brain),
+                    ) { b -> getPersona(b) }
 
                 var candidates =
                     if (discoveryQueries.isNotEmpty()) {
@@ -1393,7 +1577,7 @@ class FlowNeuroEngine internal constructor(
                         if (preferred.isNotEmpty()) {
                             preferred.shuffled().take(5)
                         } else {
-                            listOf("Music", "Science", "Technology", "Education", "Nature")
+                            NeuroDiscovery.STARTER_QUERIES
                         }
                     }
 
@@ -1420,11 +1604,14 @@ class FlowNeuroEngine internal constructor(
                     }
                 }
 
-                // ── Track used queries for future rotation ──
-                val newQueryTokens = candidates.map { tokenizer.tokenize(it).toSet() }
+                // ── Track used queries for future rotation; fallback searches were never learned ──
                 val updatedRecentTokens =
-                    (brain.recentQueryTokens + newQueryTokens)
-                        .takeLast(NeuroScoring.RECENT_QUERY_TOKENS_MAX)
+                    if (discoveryQueries.isEmpty()) {
+                        brain.recentQueryTokens
+                    } else {
+                        (brain.recentQueryTokens + candidates.map { tokenizer.tokenize(it).toSet() })
+                            .takeLast(NeuroScoring.RECENT_QUERY_TOKENS_MAX)
+                    }
 
                 // ── Advance cluster rotation for the interest clusters actually served ──
                 val candidateSet = candidates.toHashSet()
@@ -1491,7 +1678,7 @@ class FlowNeuroEngine internal constructor(
                     currentUserBrain.recentRelatedSeeds
                         .filter { (_, ts) -> ts > seedCooldownCutoff }
                         .keys
-                topicScores = currentUserBrain.globalVector.topics
+                topicScores = currentUserBrain.interests.topics
             }
             val hidden = brainSnapshot.suppressedVideoIds.keys
 
@@ -1598,11 +1785,11 @@ class FlowNeuroEngine internal constructor(
                 NeuroScoring.buildBlockedMatchers(
                     currentUserBrain.blockedTopics,
                     NeuroTopicCatalog.TOPIC_CATEGORIES,
-                    tokenizer::normalizeLemma,
+                    tokenizer::keyOf,
                 )
             }
         if (matchers.isEmpty()) return { _, _ -> false }
-        return { title, channelName -> NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::normalizeLemma) }
+        return { title, channelName -> NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::keyOf) }
     }
 
     /** The same suppression windows [rank] applies; the topic matchers are built only if a caller asks. */
@@ -1610,7 +1797,7 @@ class FlowNeuroEngine internal constructor(
         val brain = withBrainLock { currentUserBrain }
         val channelCutoff = now - CHANNEL_SUPPRESSION_DAYS * 86_400_000L
         val matchers by lazy {
-            NeuroScoring.buildBlockedMatchers(brain.blockedTopics, NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer::normalizeLemma)
+            NeuroScoring.buildBlockedMatchers(brain.blockedTopics, NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer::keyOf)
         }
         return FeedExclusions(
             suppressedVideoIds = brain.suppressedVideoIds.keys,
@@ -1618,7 +1805,7 @@ class FlowNeuroEngine internal constructor(
             suppressedChannelIds = brain.suppressedChannels.filterValues { it > channelCutoff }.keys,
             blockedText = { title, channelName ->
                 brain.blockedTopics.isNotEmpty() &&
-                    NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::normalizeLemma)
+                    NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::keyOf)
             },
         )
     }
@@ -1761,9 +1948,11 @@ class FlowNeuroEngine internal constructor(
     // MAIN RANKING FUNCTION
     // =================================================
 
+    /** [minRelevance] above 0 drops candidates that share less topic overlap with the viewer (see [NeuroScoring.keepRelevant]). */
     suspend fun rank(
         candidates: List<Video>,
         userSubs: Set<String>,
+        minRelevance: Double = 0.0,
     ): List<Video> =
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()
@@ -1796,7 +1985,7 @@ class FlowNeuroEngine internal constructor(
                 recentInteractionsSnapshot = recentInteractions.toList()
             }
 
-            val random = java.util.Random()
+            val random = rankRandom ?: java.util.Random()
             val now = System.currentTimeMillis()
 
             // Hard suppression: videos for good, channels for a rolling window
@@ -1812,7 +2001,7 @@ class FlowNeuroEngine internal constructor(
                 NeuroScoring.buildBlockedMatchers(
                     brain.blockedTopics,
                     NeuroTopicCatalog.TOPIC_CATEGORIES,
-                    tokenizer::normalizeLemma,
+                    tokenizer::keyOf,
                 )
 
             // ── Feed overlap ratio (for adaptive jitter + feed history penalty) ──
@@ -1842,7 +2031,7 @@ class FlowNeuroEngine internal constructor(
                         video.title,
                         video.channelName,
                         blockedMatchers,
-                        tokenizer::normalizeLemma,
+                        tokenizer::keyOf,
                     )
                 }
 
@@ -1860,8 +2049,8 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // Vector-level topic blocking: remove videos whose top topics match blocked topics
-            val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.normalizeLemma(it) }.toSet()
-            val vectorFiltered =
+            val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.keyOf(it) }.toSet()
+            val unblocked =
                 if (blockedTopicLemmas.isEmpty()) {
                     videoVectors
                 } else {
@@ -1882,18 +2071,37 @@ class FlowNeuroEngine internal constructor(
                     }
                 }
 
+            val vectorFiltered =
+                if (minRelevance <= 0.0 || brain.totalInteractions < NeuroScoring.COLD_START_THRESHOLD) {
+                    unblocked
+                } else {
+                    NeuroScoring.keepRelevant(
+                        unblocked,
+                        NeuroVectorMath.PreparedVector(brain.interests),
+                        minRelevance,
+                        userSubs,
+                        brain.channelScores,
+                    )
+                }
+
+            // How many candidates carry a category decides whether a category probe is worth adding (D4, #907).
+            val categorized =
+                vectorFiltered.count { (video, _) ->
+                    video.category != null ||
+                        categoryStore.categoryOf(video.channelId) != null
+                }
+            Log.d(TAG, "Category known for $categorized of ${vectorFiltered.size} candidates")
+
             // Time context
             val bucket = TimeBucket.current()
             val timeContextVector = brain.timeVectors[bucket] ?: ContentVector()
 
-            // Dynamic temperature (boredom detection)
-            val boredomFactor =
-                (brain.consecutiveSkips / 20.0)
-                    .coerceIn(0.0, 0.5)
-            val tasteWeight = 0.8 - boredomFactor
+            // Skipping several videos in a row earns an exploration slot (see applySmartDiversity); it
+            // never reweights scoring, where it once made less relevant videos outscore relevant ones (#907).
+            val tasteWeight = 0.8
             val wContext = tasteWeight * 0.5 * NeuroScoring.timeBucketConfidence(brain, bucket)
             val wPersonality = tasteWeight - wContext
-            val wNovelty = 0.2 + boredomFactor
+            val wNovelty = 0.2
 
             // Onboarding warmup factor
             val isColdStart = brain.totalInteractions < NeuroScoring.COLD_START_THRESHOLD
@@ -1909,9 +2117,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // Precompute lemmatized preferred topics once (was per-candidate)
-            val lemmatizedPreferred =
-                brain.preferredTopics
-                    .mapTo(HashSet()) { tokenizer.normalizeLemma(it) }
+            val lemmatizedPreferred = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
 
             // Persona sets exploration appetite: explorers roam, specialists stay focused.
             val exploreWeight =
@@ -1942,6 +2148,8 @@ class FlowNeuroEngine internal constructor(
                     candidatePoolSize = gated.size,
                     now = now,
                     exploreWeight = exploreWeight,
+                    categoryOf = categoryStore::categoryOf,
+                    coWatchPrior = NeuroCoWatchStore.neighbours(coWatchEdges(brain, now)) { isWatchedChannel(brain, it) },
                 )
 
             // Jitter magnitude is invariant across candidates in a single rank() call
@@ -1973,7 +2181,15 @@ class FlowNeuroEngine internal constructor(
                     }.toMutableList()
 
             // Apply diversity reranking
-            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer)
+            val extraExploration = if (brain.consecutiveSkips >= NeuroScoring.BOREDOM_SKIPS) 1 else 0
+            val viewer = NeuroVectorMath.PreparedVector(brain.interests)
+            val isUnrelated = { candidate: ScoredVideo ->
+                brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
+                    candidate.video.channelId !in userSubs &&
+                    (brain.channelScores[candidate.video.channelId] ?: 0.0) < 0.5 &&
+                    NeuroVectorMath.topicSimilarity(viewer, candidate.vector) <= 0.0
+            }
+            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated)
         }
 
     suspend fun recordFeedImpressions(ids: List<String>) {
@@ -2091,10 +2307,10 @@ class FlowNeuroEngine internal constructor(
         if (video.isShort) {
             learningRate *= NeuroScoring.SHORTS_LEARNING_PENALTY
         }
-        val decayStrength = NeuroVectorMath.decayStrength(learningRate)
+        var strength = learningRate / NeuroVectorMath.DECAY_REFERENCE_RATE
 
         withBrainLock {
-            // Maturity-scaled learning: slow down positive learning as brain matures.
+            // Maturity damping slows duration, pacing and complexity; topic evidence needs no brake (see NeuroVectorMath.Horizon).
             if (learningRate > 0) {
                 val maturityDamping =
                     1.0 / (
@@ -2124,22 +2340,27 @@ class FlowNeuroEngine internal constructor(
                             else -> 0.6 // much later
                         }
                     learningRate *= clickVelocity
+                    strength *= clickVelocity
                 }
             }
 
-            // 1. Update global vector
+            // 1. Update the long-term and recent taste
             val learningVector = if (learningRate > 0) NeuroVectorMath.phraseFirst(videoVector) else videoVector
-            var newGlobal =
-                NeuroVectorMath.adjustVector(
-                    currentUserBrain.globalVector,
-                    learningVector,
-                    learningRate,
-                    decayStrength,
-                )
+            val pickKeys = currentUserBrain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
 
-            // 1a. Acquisition floor: a real watch, like, or save is proof of interest —
-            // plant its top topics at a survivable weight so mature brains can still
-            // pick up NEW interests (see NeuroVectorMath.plantTopics).
+            fun learnOn(
+                vector: ContentVector,
+                horizon: NeuroVectorMath.Horizon,
+            ) = if (learningRate > 0) {
+                NeuroVectorMath.learn(vector, learningVector, strength, horizon, learningRate, pickKeys)
+            } else {
+                NeuroVectorMath.adjustVector(vector, videoVector, learningRate, pruneBelow = NeuroVectorMath.EVIDENCE_PRUNE_THRESHOLD)
+            }
+            var newGlobal = learnOn(currentUserBrain.globalVector, NeuroVectorMath.LONG_TERM)
+            val newRecent = learnOn(currentUserBrain.recentVector, NeuroVectorMath.RECENT)
+
+            // 1a. A real watch, like or save counts at least the acquisition floor for its top
+            // topics (see NeuroVectorMath.plantTopics).
             val isStrongSignal =
                 interactionType == InteractionType.LIKED ||
                     interactionType == InteractionType.SAVED ||
@@ -2151,14 +2372,20 @@ class FlowNeuroEngine internal constructor(
                         videoVector,
                         NeuroScoring.TOPIC_ACQUISITION_FLOOR,
                         NeuroScoring.TOPIC_ACQUISITION_TOP_K,
+                        tokenizer.plantFilter(video, idfSnapshot, ownDocuments = if (isDocumentCounted(video.id)) 1 else 0),
                     )
             }
-            newGlobal =
-                NeuroVectorMath.capTopics(
-                    newGlobal,
-                    NeuroVectorMath.MAX_GLOBAL_TOPICS,
-                    currentUserBrain.preferredTopics.mapTo(HashSet()) { tokenizer.normalizeLemma(it) },
-                )
+            newGlobal = NeuroVectorMath.capTopics(newGlobal, NeuroVectorMath.MAX_GLOBAL_TOPICS, pickKeys)
+
+            // A watch session ends in one WATCHED or SKIPPED; either way the channel posted in that category.
+            val categoryId = NeuroCategories.idOf(video.category)
+            val sessionEnded = interactionType == InteractionType.WATCHED || interactionType == InteractionType.SKIPPED
+            if (categoryId != null && sessionEnded) categoryStore.record(video.channelId, categoryId)
+            if (isStrongSignal &&
+                !video.isShort
+            ) {
+                pendingRelated.remove(video.id)?.let { coWatchStore.record(video.id, video.channelId, it) }
+            }
 
             // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
             val newShortsVector =
@@ -2186,13 +2413,7 @@ class FlowNeuroEngine internal constructor(
             val currentBucketVec =
                 currentUserBrain.timeVectors[bucket]
                     ?: ContentVector()
-            val newBucketVec =
-                NeuroVectorMath.adjustVector(
-                    currentBucketVec,
-                    learningVector,
-                    learningRate,
-                    decayStrength,
-                )
+            val newBucketVec = learnOn(currentBucketVec, NeuroVectorMath.TIME_OF_DAY)
             val newBucketCounts =
                 if (learningRate > 0 && !video.isShort) {
                     currentUserBrain.timeBucketCounts + (bucket to (currentUserBrain.timeBucketCounts[bucket] ?: 0) + 1)
@@ -2236,9 +2457,13 @@ class FlowNeuroEngine internal constructor(
                         0
                     }
 
+                    // A swiped-away Short is how Shorts are browsed, not a sign of boredom with the feed (#907).
                     InteractionType.SKIPPED -> {
-                        (currentUserBrain.consecutiveSkips + 1)
-                            .coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
+                        if (video.isShort) {
+                            currentUserBrain.consecutiveSkips
+                        } else {
+                            (currentUserBrain.consecutiveSkips + 1).coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
+                        }
                     }
 
                     InteractionType.DISLIKED -> {
@@ -2357,13 +2582,7 @@ class FlowNeuroEngine internal constructor(
                 }
 
             // 6. Update IDF counters on interaction
-            if (learningRate > 0) {
-                videoVector.topics.keys.forEach { word ->
-                    idfWordFrequency[word] =
-                        (idfWordFrequency[word] ?: 0) + 1
-                }
-                idfTotalDocuments++
-
+            if (learningRate > 0 && countDocument(video.id) { tokenizer.documentTerms(video, videoVector) }) {
                 compactIdfIfNeeded()
 
                 if (idfTotalDocuments % 100 == 0) {
@@ -2485,9 +2704,27 @@ class FlowNeuroEngine internal constructor(
                     entry.percentWatched
                 }
 
+            val profile = currentUserBrain.languageProfile ?: tokenizer.languageProfile
+            val language =
+                if (learningRate > 0 && interactionType == InteractionType.WATCHED) {
+                    val firstLine =
+                        video.description
+                            .lineSequence()
+                            .firstOrNull { it.isNotBlank() }
+                            .orEmpty()
+                    NeuroLanguages.vote(profile, currentUserBrain.languageVotes, NeuroLanguages.detectText("${video.title}\n$firstLine"))
+                } else {
+                    profile to currentUserBrain.languageVotes
+                }
+            if (language.first != profile) {
+                Log.i(TAG, "Language profile $profile → ${language.first}")
+                tokenizer.languageProfile = language.first
+            }
+
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector = newGlobal,
+                    recentVector = newRecent,
                     timeVectors =
                         currentUserBrain.timeVectors +
                             (bucket to newBucketVec),
@@ -2501,6 +2738,37 @@ class FlowNeuroEngine internal constructor(
                     idfWordFrequency = idfWordFrequency.toMap(),
                     idfTotalDocuments = idfTotalDocuments,
                     watchHistoryMap = watchHistoryMap,
+                    categoryAffinity =
+                        if (categoryId != null && isStrongSignal && !video.isShort) {
+                            NeuroCategories.learn(currentUserBrain.categoryAffinity, categoryId)
+                        } else {
+                            currentUserBrain.categoryAffinity
+                        },
+                    formatAffinity =
+                        if (learningRate > 0 && !video.isShort) {
+                            NeuroFormats.learn(currentUserBrain.formatAffinity, videoVector.formats)
+                        } else {
+                            currentUserBrain.formatAffinity
+                        },
+                    languageProfile = language.first,
+                    languageVotes = language.second,
+                    displayForms =
+                        if (learningRate > 0) {
+                            val keys = learningVector.topics.keys
+                            val fromTitle =
+                                NeuroDisplayForms.record(
+                                    currentUserBrain.displayForms,
+                                    NeuroDisplayForms.spellingsIn(video.title, keys, tokenizer),
+                                ) { it in newGlobal.topics }
+                            // Keys stemmed from tags or the channel name still read as written somewhere.
+                            val elsewhere = (video.tags + video.channelName).joinToString(" | ")
+                            NeuroDisplayForms.fillGaps(fromTitle, NeuroDisplayForms.spellingsIn(elsewhere, keys, tokenizer)) {
+                                it in
+                                    newGlobal.topics
+                            }
+                        } else {
+                            currentUserBrain.displayForms
+                        },
                     channelTopicProfiles = newChannelProfiles,
                     shortsVector = newShortsVector,
                     topicEvidence = newTopicEvidence,
@@ -2557,11 +2825,13 @@ class FlowNeuroEngine internal constructor(
                 val nameTokens = tokenizer.tokenizeChannelName(channelName)
                 val newGlobal =
                     if (nameTokens.isNotEmpty()) {
-                        NeuroVectorMath.adjustVector(
+                        NeuroVectorMath.learn(
                             currentUserBrain.globalVector,
                             ContentVector(topics = nameTokens.associateWith { 0.5 }),
-                            0.08,
-                            NeuroVectorMath.decayStrength(0.08),
+                            SUBSCRIPTION_RATE / NeuroVectorMath.DECAY_REFERENCE_RATE,
+                            NeuroVectorMath.LONG_TERM,
+                            SUBSCRIPTION_RATE,
+                            pickKeys(currentUserBrain),
                         )
                     } else {
                         currentUserBrain.globalVector
@@ -2591,7 +2861,12 @@ class FlowNeuroEngine internal constructor(
             val learned =
                 NeuroSearchLearning.learn(currentUserBrain, rawQuery, tokenizer, System.currentTimeMillis())
                     ?: return
-            currentUserBrain = learned.copy(topicEvidence = capEvidence(learned.topicEvidence.toMutableMap()))
+            val spellings = NeuroDisplayForms.spellingsIn(rawQuery, learned.globalVector.topics.keys, tokenizer)
+            currentUserBrain =
+                learned.copy(
+                    topicEvidence = capEvidence(learned.topicEvidence.toMutableMap()),
+                    displayForms = NeuroDisplayForms.fillGaps(learned.displayForms, spellings) { it in learned.globalVector.topics },
+                )
             scheduleDebouncedSave()
         }
     }
@@ -2688,7 +2963,11 @@ class FlowNeuroEngine internal constructor(
         return storage.exportToStream(brainCopy, output)
     }
 
-    suspend fun importBrainFromStream(input: InputStream): Boolean =
+    /** [afterSync] marks a brain merged with peers, whose keys may follow an older key spec. */
+    suspend fun importBrainFromStream(
+        input: InputStream,
+        afterSync: Boolean = false,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             try {
                 val finalBrain =
@@ -2697,10 +2976,13 @@ class FlowNeuroEngine internal constructor(
 
                 withBrainLock {
                     // Imported brains may pre-date the current maintenance, so run it.
-                    currentUserBrain = runMaintenanceIfNeeded(finalBrain)
+                    val maintained = runMaintenanceIfNeeded(withLanguageProfile(finalBrain))
+                    currentUserBrain = if (afterSync) NeuroKeyMigration.afterSync(maintained, tokenizer) else maintained
                     deepFlowBookkeeping.forget()
-                    idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
-                    idfTotalDocuments = finalBrain.idfTotalDocuments
+                    // From the maintained brain: maintenance re-keys words, and the next event saves this map over it.
+                    idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
+                    idfTotalDocuments = currentUserBrain.idfTotalDocuments
+                    countedDocuments.clear()
                     watchHistory.clear()
                     finalBrain.watchHistoryMap.forEach { (id, pct) ->
                         watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())

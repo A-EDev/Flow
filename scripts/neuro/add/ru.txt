@@ -1,0 +1,12 @@
+# Question words and fillers titles open with, which the source list leaves out.
+почему
+это
+зачем
+где
+когда
+кто
+какой
+какая
+какие
+сколько
+здесь

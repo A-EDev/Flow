@@ -1,0 +1,8 @@
+# Content words stopwords-iso lists as stop words.
+design
+email
+clanek
+clanku
+clanky
+chut'
+chuti

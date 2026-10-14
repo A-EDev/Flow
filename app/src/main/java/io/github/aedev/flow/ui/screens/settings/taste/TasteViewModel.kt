@@ -45,9 +45,12 @@ data class TasteTraits(
 @Immutable
 data class TasteTopic(
     val id: String,
-    /** This topic's weight relative to the strongest one, 0..1. */
-    val share: Float,
+    val label: String,
+    /** This topic's weight relative to the strongest learned one, 0..1; none for a pick. */
+    val share: Float?,
     val preferred: Boolean,
+    /** Watches, likes and searches behind it ([evidenceOf]). */
+    val evidence: Int = 0,
 )
 
 @Immutable
@@ -87,6 +90,7 @@ data class TasteState(
     val maturity: Float = 0f,
     val profile: TasteTraits? = null,
     val now: TasteTraits? = null,
+    val picks: List<TasteTopic> = emptyList(),
     val topics: List<TasteTopic> = emptyList(),
     val channels: List<TasteChannel> = emptyList(),
     val music: MusicTaste? = null,
@@ -183,22 +187,14 @@ class TasteViewModel
             val brain = FlowNeuroEngine.getSavedBrainSnapshot()
             val names = channelNames()
             val profile = runCatching { musicBrain.tasteProfile() }.getOrNull()
-            val strongest =
-                brain.globalVector.topics.values
-                    .maxOrNull()
-                    ?.takeIf { it > 0.0 } ?: 1.0
             return TasteState(
                 loading = false,
                 persona = FlowNeuroEngine.getPersona(brain),
                 maturity = (brain.totalInteractions / MATURE_INTERACTIONS).coerceIn(0f, 1f),
                 profile = brain.globalVector.traits(),
                 now = (brain.timeVectors[TimeBucket.current()] ?: ContentVector()).traits(),
-                topics =
-                    brain.globalVector.topics.entries
-                        .filter { it.value > 0.0 && it.key !in brain.blockedTopics }
-                        .sortedByDescending { it.value }
-                        .take(TOPIC_COUNT)
-                        .map { TasteTopic(it.key, (it.value / strongest).toFloat(), it.key in brain.preferredTopics) },
+                picks = tastePicks(brain, FlowNeuroEngine.pickKeysByLabel(brain)),
+                topics = tasteTopics(brain, TOPIC_COUNT, FlowNeuroEngine.pickKeys(brain)),
                 channels =
                     brain.channelScores.entries
                         .filter { it.key !in brain.blockedChannels }

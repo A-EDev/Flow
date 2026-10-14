@@ -60,6 +60,9 @@ class SyncApplier
     ) {
         // --- sender ---
 
+        /** The language this device's topic keys are stemmed for, announced with the brain's capability. */
+        suspend fun neuroKeyLanguage(): String = brains.keyLanguage()
+
         suspend fun exportPayload(
             collections: List<String>,
             node: String,

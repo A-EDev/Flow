@@ -85,7 +85,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
     storyboard: List<StoryboardLevel>,
 ): VideoPlayerUiState =
     copy(
-        cachedVideo = cachedVideo.keepingLikeCountOf(this.cachedVideo),
+        cachedVideo = cachedVideo.keepingLateFieldsOf(this.cachedVideo),
         isArchivedLivestream = isArchivedLivestream,
         relatedVideos = relatedVideos,
         videoStream = videoStream,
@@ -261,14 +261,24 @@ internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata
     )
 
 /** Counts, date and description from the watch page, folded over what the load resolved. */
-internal fun VideoPlayerUiState.applyWatchInfo(video: Video): VideoPlayerUiState = copy(cachedVideo = video.keepingLikeCountOf(cachedVideo))
+internal fun VideoPlayerUiState.applyWatchInfo(video: Video): VideoPlayerUiState =
+    copy(cachedVideo = video.keepingLateFieldsOf(cachedVideo))
 
 /**
- * Both writers above replace the video with a copy taken before Return YouTube Dislike answered,
- * so a like count it already put on screen survives a copy of the same video that has none.
+ * Both writers above replace the video with a copy taken before Return YouTube Dislike or the
+ * category request answered, so a like count or category already known survives a copy of the
+ * same video that has none.
  */
-private fun Video.keepingLikeCountOf(current: Video?): Video =
-    if (likeCount <= 0L && current?.id == id && current.likeCount > 0L) copy(likeCount = current.likeCount) else this
+private fun Video.keepingLateFieldsOf(current: Video?): Video {
+    if (current?.id != id) return this
+    val keptLikes = likeCount <= 0L && current.likeCount > 0L
+    val keptCategory = category == null && current.category != null
+    if (!keptLikes && !keptCategory) return this
+    return copy(
+        likeCount = if (keptLikes) current.likeCount else likeCount,
+        category = category ?: current.category,
+    )
+}
 
 /** The quality the user picked, and the streams that choice resolved to. */
 internal fun VideoPlayerUiState.applySelectedQuality(

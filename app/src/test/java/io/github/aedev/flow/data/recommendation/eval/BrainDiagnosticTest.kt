@@ -7,6 +7,10 @@
 package io.github.aedev.flow.data.recommendation.eval
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.recommendation.NeuroMaintenance
+import io.github.aedev.flow.data.recommendation.NeuroScoring
+import io.github.aedev.flow.data.recommendation.NeuroTokenizer
+import io.github.aedev.flow.data.recommendation.UserBrain
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
@@ -49,6 +53,37 @@ class BrainDiagnosticTest {
         File(out, "brain-diagnostic.json").writeText(BrainDiagnostic.toJson(report))
 
         assertThat(report.topicCount).isGreaterThan(0)
+    }
+
+    @Test
+    fun `the exported brain survives every migration`() {
+        val brainFile = locateBrainFile()
+        assumeTrue("No diagnostics/brain.json present — skipping", brainFile != null)
+        val tokenizer = NeuroTokenizer()
+        val before = BrainDiagnostic.parseBrain(brainFile!!.readText())
+        val after = NeuroMaintenance.runIfNeeded(before, tokenizer)
+
+        fun pairs(brain: UserBrain) =
+            brain.globalVector.topics.keys
+                .count { ' ' in NeuroScoring.stripDomainTag(it) }
+
+        fun signals(brain: UserBrain) = brain.topicEvidence.values.sumOf { it.positiveSignals }
+        val report =
+            "schema ${before.schemaVersion} -> ${after.schemaVersion}\n" +
+                "topics ${before.globalVector.topics.size} -> ${after.globalVector.topics.size}, pairs ${pairs(
+                    before,
+                )} -> ${pairs(after)}\n" +
+                "evidence ${before.topicEvidence.size} -> ${after.topicEvidence.size}, signals ${signals(before)} -> ${signals(after)}\n" +
+                "affinities ${before.topicAffinities.size} -> ${after.topicAffinities.size}\n" +
+                "top: ${after.globalVector.topics.entries.sortedByDescending { it.value }.take(
+                    20,
+                ).joinToString { "${it.key} %.3f".format(it.value) }}\n"
+        println(report)
+        File("build/reports/neuro-benchmark").apply { mkdirs() }.resolve("brain-migration.txt").writeText(report)
+
+        assertThat(after.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
+        assertThat(after.globalVector.topics).isNotEmpty()
+        assertThat(NeuroMaintenance.runIfNeeded(after, tokenizer)).isSameInstanceAs(after)
     }
 
     @Test

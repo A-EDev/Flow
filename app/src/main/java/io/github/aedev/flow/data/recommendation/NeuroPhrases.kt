@@ -18,7 +18,9 @@ import kotlin.math.ln
 internal object NeuroPhrases {
     const val MIN_COUNT = 3
     const val MIN_NPMI = 0.5
-    const val MIN_DOCUMENTS = 20
+
+    // Ten videos: a document is one video, where it used to be every open, watch and like of one.
+    const val MIN_DOCUMENTS = 10
 
     /** NPMI of [bigram] in [idf], from -1 (never together) to 1 (only together); null when unknown. */
     fun npmi(

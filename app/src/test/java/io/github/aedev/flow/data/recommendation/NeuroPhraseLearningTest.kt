@@ -48,16 +48,21 @@ class NeuroPhraseLearningTest {
                 duration = 300,
                 viewCount = 0,
                 uploadDate = "",
-                tags = listOf("guitar playalong", "rock"),
+                tags = listOf("acoustic guitar", "guitar playalong", "rock"),
                 description = "Play along with me #guitar_tabs",
             )
 
         val topics = tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).topics
-        assertThat(topics.keys).containsAtLeast("guitar playalong", "guitar tabs")
-        assertThat(topics.getValue("guitar playalong")).isGreaterThan(topics.getValue("playalong"))
+        assertThat(topics.keys).containsAtLeast(key("acoustic guitar"), key("guitar tabs"))
+        assertThat(topics.getValue("acoustic guitar")).isGreaterThan(topics.getValue("acoustic"))
+        // "playalong" says what kind of video it is, not what it is about.
+        assertThat(topics.keys).containsNoneOf("guitar playalong", "playalong")
+        assertThat(tokenizer.extractFeatures(video, IdfSnapshot(emptyMap(), 0)).formats).containsExactly("playalong")
     }
 
     private val tokenizer = NeuroTokenizer()
+
+    private fun key(phrase: String) = tokenizer.keysOf(phrase).single()
 
     private val reviews =
         listOf(
@@ -107,7 +112,7 @@ class NeuroPhraseLearningTest {
             val features = tokenizer.extractFeatures(video, IdfSnapshot(counts.toMap(), documents))
             val target = if (phraseFirst) NeuroVectorMath.phraseFirst(features) else features
             global = NeuroVectorMath.adjustVector(global, target, 0.15)
-            features.topics.keys.forEach { counts.merge(it, 1, Int::plus) }
+            tokenizer.documentTerms(video, features).forEach { counts.merge(it, 1, Int::plus) }
             documents++
         }
         return global.topics
@@ -116,10 +121,11 @@ class NeuroPhraseLearningTest {
     @Test
     fun `a watched review teaches the product phrase over its single words`() {
         val after = learn(reviews, phraseFirst = true)
-        println("PHRASE after : google=${after["google"]} pixel=${after["pixel"]} google pixel=${after["google pixel"]}")
+        val (google, pixel, googlePixel) = listOf("google", "pixel", "google pixel").map(::key)
+        println("PHRASE after : google=${after[google]} pixel=${after[pixel]} google pixel=${after[googlePixel]}")
 
-        assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("google"))
-        assertThat(after.getValue("google pixel")).isGreaterThan(after.getValue("pixel"))
+        assertThat(after.getValue(googlePixel)).isGreaterThan(after.getValue(google))
+        assertThat(after.getValue(googlePixel)).isGreaterThan(after.getValue(pixel))
     }
 
     @Test
