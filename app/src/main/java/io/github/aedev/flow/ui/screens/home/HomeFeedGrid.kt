@@ -97,12 +97,8 @@ internal fun HomeFeedGrid(
                         onClick = { onVideoClick(row.video) },
                         useInternalPadding = !feedLayout.isCompact,
                         thumbnailWidth = plan.listThumbnailWidth,
-                        reason =
-                            if (row.video.id in uiState.channelMemoryVideoIds) {
-                                channelMemoryReason
-                            } else {
-                                uiState.relatedTo[row.video.id]?.let { stringResource(R.string.home_reason_related_to, it) }
-                            },
+                        reason = channelMemoryReason.takeIf { row.video.id in uiState.channelMemoryVideoIds },
+                        relatedTo = uiState.relatedTo[row.video.id],
                         modifier = Modifier.testTag("home_video_card"),
                     )
                 }

@@ -53,6 +53,7 @@ data class MediaDetailsSubject(
     val timestamp: Long? = null,
     val timestampIsExact: Boolean = false,
     val durationSeconds: Int? = null,
+    val relatedTo: String? = null,
 )
 
 data class MediaDetailsState(
@@ -148,6 +149,7 @@ private fun mediaDetailLines(
     val info = state.info
     val lines = mutableListOf<Pair<String, String?>>()
     lines += stringResource(R.string.title_label) to (info?.title ?: subject.title)
+    lines += stringResource(R.string.details_related_to) to subject.relatedTo
     lines += stringResource(R.string.artist_label) to (info?.author ?: subject.author)
     lines += stringResource(R.string.album_label) to subject.album?.takeIf { it.isNotBlank() }
     lines += stringResource(R.string.views) to (info?.viewCount?.toLong() ?: subject.viewCount?.takeIf { it > 0 })?.let(numbers::format)

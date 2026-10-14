@@ -34,6 +34,7 @@ object VideoCardDefaults {
  * [useInternalPadding] insets a stacked card; container-padded grids pass false. [thumbnailWidth]
  * sizes a row's thumbnail, so a row the grid could not fill still lines up with the cards above it.
  * [reason] is a short line under the details saying why the feed shows this video; null shows none.
+ * [relatedTo] names the video this one was found next to, shown on the menu's Details page.
  */
 @Composable
 fun MediaVideoCard(
@@ -45,6 +46,7 @@ fun MediaVideoCard(
     useInternalPadding: Boolean = true,
     thumbnailWidth: Dp = VideoCardDefaults.RowThumbnailWidth,
     reason: String? = null,
+    relatedTo: String? = null,
 ) {
     when (layout) {
         VideoCardLayout.Stacked -> {
@@ -54,6 +56,7 @@ fun MediaVideoCard(
                 showChannel = showChannel,
                 useInternalPadding = useInternalPadding,
                 reason = reason,
+                relatedTo = relatedTo,
                 modifier = modifier,
             )
         }
@@ -65,6 +68,7 @@ fun MediaVideoCard(
                 showChannel = showChannel,
                 thumbnailWidth = thumbnailWidth,
                 reason = reason,
+                relatedTo = relatedTo,
                 modifier = modifier,
             )
         }
