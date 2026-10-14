@@ -40,6 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 
@@ -73,7 +76,8 @@ enum class FlowSubscribeButtonSize {
  * Tapping while subscribed opens the menu rather than unsubscribing outright, so the destructive
  * action always needs a second, deliberate tap. A control that stands for several channels passes
  * [onSubscribedClick] instead: it then reads "Subscribed" with no bell or menu, since neither can
- * say which channel they act on.
+ * say which channel they act on. A list in which every row is already subscribed passes
+ * [showSubscribedLabel] false to keep only the bell and the menu.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -91,6 +95,7 @@ fun FlowSubscribeButton(
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
     tint: MediaArtworkTint? = null,
     onSubscribedClick: (() -> Unit)? = null,
+    showSubscribedLabel: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
@@ -144,7 +149,16 @@ fun FlowSubscribeButton(
                             } else {
                                 SplitButtonDefaults.SmallLeadingButtonContentPadding
                             },
-                        modifier = Modifier.heightIn(min = containerHeight),
+                        modifier =
+                            Modifier
+                                .heightIn(min = containerHeight)
+                                .then(
+                                    if (showSubscribedLabel) {
+                                        Modifier
+                                    } else {
+                                        Modifier.semantics { toggleableState = ToggleableState(isNotificationsEnabled) }
+                                    },
+                                ),
                     ) {
                         Icon(
                             imageVector =
@@ -153,11 +167,13 @@ fun FlowSubscribeButton(
                                 } else {
                                     Icons.Rounded.NotificationsOff
                                 },
-                            contentDescription = null,
+                            contentDescription = if (showSubscribedLabel) null else stringResource(R.string.notifications),
                             modifier = Modifier.size(leadingIconSize),
                         )
-                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.subscribed), maxLines = 1)
+                        if (showSubscribedLabel) {
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(text = stringResource(R.string.subscribed), maxLines = 1)
+                        }
                     }
                 },
                 trailingButton = {
