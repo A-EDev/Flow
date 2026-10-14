@@ -1732,4 +1732,10 @@
     <string name="check_for_updates">檢查更新</string>
     <string name="check_for_updates_subtitle">輕觸以檢查是否有最新版本</string>
     <string name="checking_for_updates">正在檢查更新…</string>
+    <string name="content_settings_home_subscriptions_title">在首頁顯示訂閱內容</string>
+    <string name="content_settings_home_subscriptions_subtitle">將你追蹤頻道的影片混入首頁推薦內容</string>
+    <string name="settings_section_watch_history">觀看記錄</string>
+    <string name="pause_watch_history_title">暫停觀看記錄</string>
+    <string name="pause_watch_history_subtitle">停止儲存你的觀看記錄。Deep Flow 也會暫停學習</string>
+    <string name="content_settings_channel_shorts_tab_title">頻道頁面的 Shorts 分頁</string>
 </resources>
