@@ -175,9 +175,23 @@ private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
                     ?: this["videoCountShortText"].youtubeText()?.leadingCount()
                     ?: 0,
             isLocal = false,
+            isCourse = marksCourse(),
         ),
     )
 }
+
+/** A channel's Courses tab lists plain playlist rows; only the thumbnail's graduation-cap panel says "course". */
+private fun JsonObject.marksCourse(): Boolean =
+    this["thumbnailOverlays"].arrayOrNull().orEmpty().any { overlay ->
+        overlay
+            .objectOrNull()
+            ?.get("thumbnailOverlayBottomPanelRenderer")
+            .objectOrNull()
+            ?.get("icon")
+            .objectOrNull()
+            ?.get("iconType")
+            .stringOrNull() == "COURSE"
+    }
 
 private fun JsonObject.toChannelRendererItem(): FeedItem? {
     val channelId = this["channelId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null

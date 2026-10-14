@@ -13,6 +13,8 @@ import io.github.aedev.flow.innertube.pages.youtubeText
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.serialization.json.JsonObject
 
+private const val LOCKUP_CONTENT_TYPE_COURSE = "LOCKUP_CONTENT_TYPE_COURSE"
+
 internal fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val contentId = this["contentId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val metadata = this["metadata"].objectOrNull()?.get("lockupMetadataViewModel").objectOrNull()
@@ -26,10 +28,12 @@ internal fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val badges = lockupBadges()
     val membersOnly = metadata.membersOnlyBadge()
 
-    return when (this["contentType"].stringOrNull()) {
+    val contentType = this["contentType"].stringOrNull()
+    return when (contentType) {
         "LOCKUP_CONTENT_TYPE_PLAYLIST",
         "LOCKUP_CONTENT_TYPE_PODCAST",
         "LOCKUP_CONTENT_TYPE_ALBUM",
+        LOCKUP_CONTENT_TYPE_COURSE,
         -> {
             FeedItem.PlaylistItem(
                 Playlist(
@@ -38,6 +42,7 @@ internal fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
                     thumbnailUrl = lockupThumbnailUrl().orEmpty(),
                     videoCount = badges.firstNotNullOfOrNull { it.leadingCount() } ?: 0,
                     isLocal = false,
+                    isCourse = contentType == LOCKUP_CONTENT_TYPE_COURSE,
                 ),
             )
         }
