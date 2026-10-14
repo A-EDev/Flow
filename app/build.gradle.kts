@@ -31,8 +31,8 @@ fun secretValue(
         ?: System.getenv(environment)
         ?: ""
 
-// The in-app picker lists every values folder that carries a strings.xml, so a new Weblate
-// language shows up without another edit.
+// The in-app picker lists the same languages AGP writes into the generated locale config: every
+// values folder that carries a strings.xml, so a new Weblate language shows up in both at once.
 fun translatedLocaleTags(): List<String> =
     file("src/main/res")
         .listFiles()
@@ -110,6 +110,10 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+
+    androidResources {
+        generateLocaleConfig = true
     }
 
     signingConfigs {
