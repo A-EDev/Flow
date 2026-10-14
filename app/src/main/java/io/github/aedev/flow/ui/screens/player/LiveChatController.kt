@@ -37,6 +37,7 @@ internal class LiveChatController(
     val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
 
     private var videoId: String? = null
+    private var enabled = true
     private var panelVisible = false
     private var probeJob: Job? = null
     private var dripJob: Job? = null
@@ -49,9 +50,31 @@ internal class LiveChatController(
         this.videoId = videoId
         seen.clear()
         _messages.value = emptyList()
-        _isLoading.value = true
         _isAvailable.value = false
+        _isLoading.value = enabled
+        if (enabled) probe(videoId)
+    }
 
+    /** The Live chat setting: off, nothing is requested at all, not even whether a stream has chat. */
+    fun setEnabled(value: Boolean) {
+        if (enabled == value) return
+        enabled = value
+        val current = videoId ?: return
+        if (value) {
+            _isLoading.value = true
+            probe(current)
+        } else {
+            probeJob?.cancel()
+            dripJob?.cancel()
+            pendingContinuation = null
+            seen.clear()
+            _messages.value = emptyList()
+            _isAvailable.value = false
+            _isLoading.value = false
+        }
+    }
+
+    private fun probe(videoId: String) {
         probeJob =
             scope.launch(dispatcher) {
                 val seed = repository.initialContinuation(videoId)
