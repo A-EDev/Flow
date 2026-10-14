@@ -27,10 +27,13 @@ data class VideoPlaylistPage(
  */
 internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
     val items = playlistItems()
-    val header = findRenderers("pageHeaderRenderer", "pageHeaderViewModel", "playlistSidebarPrimaryInfoRenderer")
+    val header =
+        findRenderers("pageHeaderRenderer", "pageHeaderViewModel", "playlistHeaderRenderer", "playlistSidebarPrimaryInfoRenderer")
     val pageHeader = header["pageHeaderViewModel"]
+    // Courses still arrive with the older playlistHeaderRenderer.
+    val legacyHeader = header["playlistHeaderRenderer"]
     val sidebar = header["playlistSidebarPrimaryInfoRenderer"]
-    val owner = pageHeader?.headerOwner()
+    val owner = pageHeader?.headerOwner() ?: legacyHeader?.legacyOwner()
     return VideoPlaylistPage(
         title =
             (
@@ -42,6 +45,7 @@ internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
                         .objectOrNull()
                         ?.get("text")
                         .youtubeText()
+                    ?: legacyHeader?.get("title").youtubeText()
             )?.takeIf(String::isNotBlank),
         ownerName = owner?.name,
         ownerId = owner?.id,
@@ -112,6 +116,26 @@ private fun JsonElement?.continuationToken(): String? {
         ?.get("token")
         .stringOrNull()
         ?.takeIf(String::isNotBlank)
+}
+
+private fun JsonObject.legacyOwner(): FeedItemOwner? {
+    val run =
+        this["ownerText"]
+            .objectOrNull()
+            ?.get("runs")
+            .arrayOrNull()
+            ?.firstOrNull()
+            .objectOrNull() ?: return null
+    val name = run["text"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
+    val channelId =
+        run["navigationEndpoint"]
+            .objectOrNull()
+            ?.get("browseEndpoint")
+            .objectOrNull()
+            ?.get("browseId")
+            .stringOrNull()
+            .orEmpty()
+    return FeedItemOwner(id = channelId, name = name)
 }
 
 /** "by Name" in the header's avatar stack, linked to the owner's channel. */

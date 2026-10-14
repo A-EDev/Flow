@@ -96,6 +96,34 @@ class VideoPlaylistPageTest {
     }
 
     @Test
+    fun `a course page reads its title and channel from the older playlist header`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {
+                      "header": {"playlistHeaderRenderer": {
+                        "playlistId": "PLcourse",
+                        "title": {"simpleText": "Python for Beginners (Full Course)"},
+                        "ownerText": {"runs": [{"text": "Telusko",
+                          "navigationEndpoint": {"browseEndpoint": {"browseId": "UCtelusko", "canonicalBaseUrl": "/@Telusko"}}}]},
+                        "playlistBadges": [{"metadataBadgeRenderer": {"label": "Course"}}]
+                      }},
+                      "contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                        "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
+                          ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")}
+                        ]}}]}
+                      }}}]}}
+                    }
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.title).isEqualTo("Python for Beginners (Full Course)")
+        assertThat(page.ownerName).isEqualTo("Telusko")
+        assertThat(page.ownerId).isEqualTo("UCtelusko")
+    }
+
+    @Test
     fun `a continuation carries only items and ends without a token`() {
         val page =
             Json
