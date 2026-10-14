@@ -28,4 +28,11 @@ class GoogleVideoRequestPolicyTest {
         assertThat(GoogleVideoRequestPolicy.headers(null)).containsKey("Sec-Fetch-Mode")
         assertThat(GoogleVideoRequestPolicy.headers("VISIONOS")).containsEntry("Accept-Encoding", "identity")
     }
+
+    @Test
+    fun `playlists and manifests leave the encoding to OkHttp so they arrive gzipped (#1042)`() {
+        assertThat(GoogleVideoRequestPolicy.headers("VISIONOS", allowGzip = true)).doesNotContainKey("Accept-Encoding")
+        assertThat(GoogleVideoRequestPolicy.headers("WEB", allowGzip = true)).containsEntry("Origin", "https://www.youtube.com")
+        assertThat(GoogleVideoRequestPolicy.headers("ANDROID_VR", allowGzip = false)).containsEntry("Accept-Encoding", "identity")
+    }
 }
