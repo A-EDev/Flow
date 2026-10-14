@@ -158,8 +158,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: Context) {
-        val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(newBase)
-        super.attachBaseContext(AppLanguageManager.wrapContext(newBase, selectedLanguage))
+        super.attachBaseContext(AppLanguageManager.wrapContext(newBase, AppLanguageManager.resolveLanguageTag(newBase)))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

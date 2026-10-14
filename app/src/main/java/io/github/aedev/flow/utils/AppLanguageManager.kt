@@ -1,11 +1,16 @@
 package io.github.aedev.flow.utils
 
+import android.app.LocaleManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import androidx.annotation.RequiresApi
 import io.github.aedev.flow.BuildConfig
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
 data class AppLanguageOption(
@@ -18,8 +23,17 @@ object AppLanguageManager {
     const val SYSTEM_DEFAULT = "system"
     private const val PREFS_FILE = "flow_language_prefs"
     private const val PREFS_KEY = "app_language_tag"
+    private const val HANDED_OVER_KEY = "app_language_handed_to_system"
 
     private val supportedLanguageTags = BuildConfig.APP_LANGUAGE_TAGS.split(',')
+
+    private val adoptedFromSystem = MutableStateFlow<String?>(null)
+
+    /** A language chosen in Settings › App languages, for the preferences that mirror the picker. */
+    val languageAdoptedFromSystem: StateFlow<String?> = adoptedFromSystem.asStateFlow()
+
+    /** Android 13+ keeps the per-app language itself, shared with Settings › App languages. */
+    val systemStoresLanguage: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
     fun loadSelectedLanguageTag(context: Context): String =
         context
@@ -35,6 +49,71 @@ object AppLanguageManager {
             .edit()
             .putString(PREFS_KEY, tag)
             .apply()
+    }
+
+    /** Saves [tag] and, on Android 13+, hands it to the system, which then restarts the activities itself. */
+    fun applyLanguageTag(
+        context: Context,
+        tag: String,
+    ) {
+        saveLanguageTag(context, tag)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setSystemLanguageTag(context, tag)
+    }
+
+    /**
+     * The language to start with. On Android 13+ a choice made in Settings › App languages wins and is
+     * saved here; a choice saved before the system kept one is handed over to it once.
+     */
+    fun resolveLanguageTag(context: Context): String {
+        val stored = loadSelectedLanguageTag(context)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return stored
+        val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val resolution =
+            resolveAgainstSystem(
+                stored = normalizeLanguageTag(stored),
+                system = systemLanguageTag(context),
+                handedOver = prefs.getBoolean(HANDED_OVER_KEY, false),
+            )
+        if (resolution.pushToSystem) setSystemLanguageTag(context, resolution.tag)
+        if (!prefs.getBoolean(HANDED_OVER_KEY, false)) prefs.edit().putBoolean(HANDED_OVER_KEY, true).apply()
+        if (resolution.tag != stored) {
+            saveLanguageTag(context, resolution.tag)
+            adoptedFromSystem.value = resolution.tag
+        }
+        return resolution.tag
+    }
+
+    internal data class LanguageResolution(
+        val tag: String,
+        val pushToSystem: Boolean,
+    )
+
+    internal fun resolveAgainstSystem(
+        stored: String,
+        system: String,
+        handedOver: Boolean,
+    ): LanguageResolution =
+        if (handedOver || system != SYSTEM_DEFAULT || stored == SYSTEM_DEFAULT) {
+            LanguageResolution(tag = system, pushToSystem = false)
+        } else {
+            LanguageResolution(tag = stored, pushToSystem = true)
+        }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun systemLanguageTag(context: Context): String {
+        val locales = context.getSystemService(LocaleManager::class.java)?.applicationLocales
+        if (locales == null || locales.isEmpty) return SYSTEM_DEFAULT
+        return normalizeLanguageTag(locales[0].toLanguageTag())
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun setSystemLanguageTag(
+        context: Context,
+        tag: String,
+    ) {
+        val normalized = normalizeLanguageTag(tag)
+        context.getSystemService(LocaleManager::class.java)?.applicationLocales =
+            if (normalized == SYSTEM_DEFAULT) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(normalized)
     }
 
     /**
