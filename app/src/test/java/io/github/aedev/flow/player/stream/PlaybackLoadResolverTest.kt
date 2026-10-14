@@ -1,6 +1,5 @@
 package io.github.aedev.flow.player.stream
 
-import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
@@ -25,7 +24,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -51,13 +49,12 @@ class PlaybackLoadResolverTest {
     val temporaryFolder = TemporaryFolder()
 
     private val testDispatcher = StandardTestDispatcher()
-    private val context: Context = mockk(relaxed = true)
     private val repository: YouTubeRepository = mockk(relaxed = true)
     private val viewHistory: ViewHistory = mockk(relaxed = true)
     private val playerPreferences: PlayerPreferences = mockk(relaxed = true)
     private val videoDownloadManager: VideoDownloadManager = mockk(relaxed = true)
     private val sponsorBlockRepository: SponsorBlockRepository = mockk(relaxed = true)
-    private val downloads = MutableStateFlow<List<DownloadedVideo>>(emptyList())
+    private var localCopy: DownloadedVideo? = null
 
     private lateinit var resolver: PlaybackLoadResolver
 
@@ -72,7 +69,7 @@ class PlaybackLoadResolverTest {
         mockkObject(PlayerDiagnostics)
         every { PlayerDiagnostics.logWarning(any(), any()) } just Runs
 
-        every { videoDownloadManager.downloadedVideos } returns downloads
+        coEvery { videoDownloadManager.findLocalCopy(any()) } answers { localCopy }
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.defaultQualityCellular } returns flowOf(VideoQuality.AUTO)
@@ -84,7 +81,6 @@ class PlaybackLoadResolverTest {
 
         resolver =
             PlaybackLoadResolver(
-                context = context,
                 repository = repository,
                 viewHistory = viewHistory,
                 playerPreferences = playerPreferences,
@@ -131,7 +127,7 @@ class PlaybackLoadResolverTest {
     fun `a downloaded copy is handed over before resolution and ends the load when offline`() =
         runTest(testDispatcher) {
             val file = temporaryFolder.newFile("$VIDEO_ID.mp4")
-            downloads.value = listOf(DownloadedVideo(video = downloadedVideo(), filePath = file.absolutePath))
+            localCopy = DownloadedVideo(video = downloadedVideo(), filePath = file.absolutePath)
             every { NetworkState.isOnline(any()) } returns false
 
             val steps = resolveSteps().second
@@ -139,7 +135,35 @@ class PlaybackLoadResolverTest {
 
             val local = steps.single() as ResolvedPlayback.LocalCopyReady
             assertThat(local.localFilePath).isEqualTo(file.absolutePath)
-            coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = true) }
+            coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+        }
+
+    @Test
+    fun `a downloaded copy online plays the file, carries the row identity and never extracts streams`() =
+        runTest(testDispatcher) {
+            val file = temporaryFolder.newFile("$VIDEO_ID.mp4")
+            localCopy = DownloadedVideo(video = downloadedVideo(), filePath = file.absolutePath)
+            coEvery { videoDownloadManager.getSponsorBlockData(VIDEO_ID) } returns "[]"
+
+            val steps = resolveSteps().second
+            advanceUntilIdle()
+
+            val local = steps.single() as ResolvedPlayback.LocalCopyReady
+            assertThat(local.downloadedVideo?.title).isEqualTo("Downloaded")
+            assertThat(local.needsSponsorBlockBackfill).isFalse()
+            coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+        }
+
+    @Test
+    fun `a failing local copy lookup falls through to stream resolution`() =
+        runTest(testDispatcher) {
+            coEvery { videoDownloadManager.findLocalCopy(any()) } throws IllegalStateException("db")
+            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } returns playableInnerTubeResult()
+
+            val steps = resolveSteps().second
+            advanceUntilIdle()
+
+            assertThat(steps.single()).isInstanceOf(ResolvedPlayback.VodFromInnerTube::class.java)
         }
 
     @Test

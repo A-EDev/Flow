@@ -38,6 +38,7 @@ import io.github.aedev.flow.innertube.models.response.GetTranscriptResponse
 import io.github.aedev.flow.innertube.models.response.ImageUploadResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.models.response.ResolveUrlResponse
 import io.github.aedev.flow.innertube.models.response.SearchResponse
 import io.github.aedev.flow.innertube.models.response.channelVideoCountText
 import io.github.aedev.flow.innertube.pages.AlbumPage
@@ -60,13 +61,11 @@ import io.github.aedev.flow.innertube.pages.PlaylistPage
 import io.github.aedev.flow.innertube.pages.RelatedPage
 import io.github.aedev.flow.innertube.pages.SearchPage
 import io.github.aedev.flow.innertube.pages.SearchResult
-import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
-import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
-import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.VideoPlaylistPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.ChannelPage
@@ -81,16 +80,26 @@ import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
-import io.github.aedev.flow.innertube.pages.explore.CHARTS_BROWSE_ID
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
-import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.MusicVideoChart
 import io.github.aedev.flow.innertube.pages.explore.exploreShelves
+import io.github.aedev.flow.innertube.pages.explore.ranked
 import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
-import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.trendingVideoChart
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
+import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
+import io.github.aedev.flow.innertube.pages.reel.ReelParams
+import io.github.aedev.flow.innertube.pages.reel.ReelSequencePage
+import io.github.aedev.flow.innertube.pages.reel.toReelLockups
+import io.github.aedev.flow.innertube.pages.reel.toReelOverlay
+import io.github.aedev.flow.innertube.pages.reel.toReelSequencePage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.innertube.pages.renderer.collaboratorDialog
+import io.github.aedev.flow.innertube.pages.renderer.lockupDateAndViews
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
@@ -98,13 +107,13 @@ import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.github.aedev.flow.innertube.pages.search.parseSearchSuggestions
 import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
-import io.github.aedev.flow.innertube.pages.toSearchShorts
-import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.toVideoPlaylistPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.avatarImageIdentityKey
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
@@ -127,7 +136,7 @@ import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import java.net.Proxy
 import java.time.Instant
 import java.time.ZoneId
-import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /**
@@ -150,6 +159,11 @@ object YouTube {
         get() = innerTube.visitorData
         set(value) {
             innerTube.visitorData = value
+        }
+    var onVisitorDataChanged: ((String?) -> Unit)?
+        get() = innerTube.onVisitorDataChanged
+        set(value) {
+            innerTube.onVisitorDataChanged = value
         }
     var dataSyncId: String?
         get() = innerTube.dataSyncId
@@ -213,70 +227,7 @@ object YouTube {
 
     suspend fun searchSummary(query: String): Result<SearchSummaryPage> =
         runCatching {
-            val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
-            SearchSummaryPage(
-                summaries =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.mapNotNull { it ->
-                            if (it.musicCardShelfRenderer != null) {
-                                SearchSummary(
-                                    title =
-                                        it.musicCardShelfRenderer.header
-                                            ?.musicCardShelfHeaderBasicRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_TOP_RESULT,
-                                    items =
-                                        listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(it.musicCardShelfRenderer))
-                                            .plus(
-                                                it.musicCardShelfRenderer.contents
-                                                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
-                                                    .orEmpty(),
-                                            ).distinctBy { it.id }
-                                            .ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            } else {
-                                SearchSummary(
-                                    title =
-                                        it.musicShelfRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_OTHER_RESULTS,
-                                    items =
-                                        it.musicShelfRenderer
-                                            ?.contents
-                                            ?.getItems()
-                                            ?.mapNotNull {
-                                                SearchSummaryPage.fromMusicResponsiveListItemRenderer(it)
-                                            }?.distinctBy { it.id }
-                                            ?.ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            }
-                        }!!,
-                continuation =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.lastOrNull()
-                        ?.musicShelfRenderer
-                        ?.continuations
-                        ?.getContinuation(),
-            )
+            SearchSummaryPage.fromSearchResponse(innerTube.search(WEB_REMIX, query).body<SearchResponse>())
         }
 
     suspend fun search(
@@ -318,12 +269,20 @@ object YouTube {
             )
         }
 
-    // Long-form search ignores the Shorts shelf; fetch it from the main site (not music).
-    suspend fun searchShorts(query: String): Result<List<SearchShortItem>> =
+    /** Reels matching [query], through the Shorts filter the search dialog itself sends. */
+    suspend fun searchShorts(query: String): Result<List<ReelLockup>> =
         runCatching {
-            innerTube.webSearch(currentWebClient(), query).body<JsonObject>().toSearchShorts()
-        }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
-            .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
+            ensureVisitorData()
+            innerTube
+                .webSearch(
+                    client = currentWebClient(),
+                    query = query,
+                    params = ReelParams.SEARCH_SHORTS_FILTER,
+                    anonymous = true,
+                    includeVisitorData = true,
+                ).body<JsonObject>()
+                .toReelLockups()
+        }.onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
     /** Typeahead suggestions for the video search bar, in the app's content language. */
     suspend fun videoSearchSuggestions(query: String): Result<List<SearchSuggestion>> =
@@ -387,24 +346,6 @@ object YouTube {
             )
         }
 
-    /**
-     * Main YouTube search exposes collaboration avatars in a modern entity block:
-     * searchVideoResultEntityKey + avatar.avatarStackViewModel. NewPipe only returns
-     * the uploader avatar, so callers can merge this lightweight map by video id.
-     */
-    suspend fun searchVideoAvatarStacks(query: String): Result<Map<String, List<String>>> =
-        runCatching {
-            val rawBody = innerTube.webSearch(WEB, query).bodyAsText()
-            val root =
-                Json {
-                    ignoreUnknownKeys = true
-                    explicitNulls = false
-                }.parseToJsonElement(rawBody)
-            buildMap {
-                collectSearchVideoAvatarStacks(root, this)
-            }
-        }
-
     suspend fun videoAvatarStack(videoId: String): Result<List<String>> =
         runCatching {
             val rawBody = innerTube.next(WEB, videoId, null, null, null, null, null).bodyAsText()
@@ -426,99 +367,6 @@ object YouTube {
                 }.parseToJsonElement(rawBody)
             root.findVideoOwnerCollaborators()
         }
-
-    private fun collectSearchVideoAvatarStacks(
-        element: JsonElement,
-        result: MutableMap<String, List<String>>,
-    ) {
-        when (element) {
-            is JsonArray -> {
-                element.forEach { collectSearchVideoAvatarStacks(it, result) }
-            }
-
-            is JsonObject -> {
-                if (element.containsKey("searchVideoResultEntityKey") && element.containsKey("avatar")) {
-                    val videoId = element.findFirstString("videoId")
-                    val avatarUrls =
-                        element["avatar"]
-                            ?.collectAvatarImageUrls()
-                            .orEmpty()
-
-                    if (!videoId.isNullOrBlank() && avatarUrls.isNotEmpty()) {
-                        result[videoId] = avatarUrls
-                    }
-                }
-                element.values.forEach { collectSearchVideoAvatarStacks(it, result) }
-            }
-
-            else -> {
-                Unit
-            }
-        }
-    }
-
-    private fun JsonElement.findFirstString(key: String): String? =
-        when (this) {
-            is JsonObject -> {
-                (this[key] as? JsonPrimitive)?.contentOrNull
-                    ?: values.firstNotNullOfOrNull { it.findFirstString(key) }
-            }
-
-            is JsonArray -> {
-                firstNotNullOfOrNull { it.findFirstString(key) }
-            }
-
-            else -> {
-                null
-            }
-        }
-
-    private fun JsonElement.findDirectOrNestedString(key: String): String? =
-        when (this) {
-            is JsonObject -> {
-                (this[key] as? JsonPrimitive)?.contentOrNull
-                    ?: values.firstNotNullOfOrNull { it.findDirectOrNestedString(key) }
-            }
-
-            is JsonArray -> {
-                firstNotNullOfOrNull { it.findDirectOrNestedString(key) }
-            }
-
-            else -> {
-                null
-            }
-        }
-
-    private fun JsonElement.collectChannelBrowseIds(): List<String> {
-        val ids = mutableListOf<String>()
-
-        fun collect(element: JsonElement) {
-            when (element) {
-                is JsonArray -> {
-                    element.forEach(::collect)
-                }
-
-                is JsonObject -> {
-                    val browseId = (element["browseId"] as? JsonPrimitive)?.contentOrNull
-                    if (!browseId.isNullOrBlank() && browseId.startsWith("UC")) {
-                        ids += browseId
-                    }
-                    val channelId = (element["channelId"] as? JsonPrimitive)?.contentOrNull
-                    if (!channelId.isNullOrBlank() && channelId.startsWith("UC")) {
-                        ids += channelId
-                    }
-                    element.values.forEach(::collect)
-                }
-
-                else -> {
-                    Unit
-                }
-            }
-        }
-
-        collect(this)
-        return ids.distinct()
-    }
 
     private fun JsonElement.collectAvatarImageUrls(): List<String> {
         val urls = mutableListOf<String>()
@@ -584,7 +432,7 @@ object YouTube {
         when (this) {
             is JsonObject -> {
                 val owner = this["videoOwnerRenderer"] as? JsonObject
-                val collaborators = owner?.extractCollaboratorDialogRows().orEmpty()
+                val collaborators = owner?.get("navigationEndpoint").collaboratorDialog()
                 if (collaborators.size > 1) {
                     collaborators
                 } else {
@@ -606,97 +454,6 @@ object YouTube {
             }
         }
 
-    private fun JsonObject.extractCollaboratorDialogRows(): List<VideoCollaborator> {
-        val listItems =
-            getPath(
-                "navigationEndpoint",
-                "showDialogCommand",
-                "panelLoadingStrategy",
-                "inlineContent",
-                "dialogViewModel",
-                "customContent",
-                "listViewModel",
-                "listItems",
-            ) as? JsonArray ?: return emptyList()
-
-        return listItems
-            .mapNotNull { item ->
-                ((item as? JsonObject)?.get("listItemViewModel") as? JsonObject)
-                    ?.toVideoCollaborator()
-            }.filter { it.name.isNotBlank() }
-            .distinctBy { it.channelId.ifBlank { it.name.lowercase(Locale.US) } }
-            .take(5)
-    }
-
-    private fun JsonObject.toVideoCollaborator(): VideoCollaborator? {
-        val channelId = collectChannelBrowseIds().firstOrNull().orEmpty()
-        val avatarUrl = collectAvatarImageUrls().firstOrNull().orEmpty()
-        val title = (getPath("title", "content") as? JsonPrimitive)?.contentOrNull
-        val subtitle = (getPath("subtitle", "content") as? JsonPrimitive)?.contentOrNull
-        val label =
-            ((getPath("rendererContext", "accessibilityContext", "label") as? JsonPrimitive)?.contentOrNull)
-                ?: findDirectOrNestedString("label")
-        val parsedName =
-            title
-                ?: label
-                    ?.substringBefore(". Go to channel")
-                    ?.substringBefore(" Go to channel")
-                    ?.substringBefore(" - ")
-                    ?.substringBefore(" • ")
-                    ?.substringBefore(" subscribers")
-                    ?.substringBefore(" subscriber")
-                    ?.substringBefore(", ")
-                    ?.takeIf { it.isNotBlank() }
-        val subscriberText =
-            label
-                ?.substringAfter(" - ", missingDelimiterValue = "")
-                ?.substringBefore(". Go to channel")
-                ?.takeIf { it.contains("subscriber", ignoreCase = true) }
-                ?: subtitle
-                    ?.substringAfter("•", missingDelimiterValue = "")
-                    ?.takeIf { it.contains("subscriber", ignoreCase = true) }
-                    .orEmpty()
-                    .cleanYouTubeDecoratedText()
-
-        val content =
-            findDirectOrNestedString("content")
-                ?.takeIf { !it.contains("@") && !it.contains("subscriber", ignoreCase = true) }
-        val name = parsedName ?: content ?: return null
-        if (name.isSubscriptionOptionLabel()) return null
-
-        val hasChannelMetadata = channelId.startsWith("UC") && avatarUrl.isNotBlank()
-        if (!hasChannelMetadata) return null
-
-        return VideoCollaborator(
-            name = name.cleanYouTubeDecoratedText(),
-            channelId = channelId,
-            thumbnailUrl = avatarUrl,
-            subscriberCountText = subscriberText,
-        )
-    }
-
-    private fun JsonObject.getPath(vararg keys: String): JsonElement? =
-        keys.fold(this as JsonElement?) { current, key ->
-            (current as? JsonObject)?.get(key)
-        }
-
-    private fun String.cleanYouTubeDecoratedText(): String =
-        replace("\u200E", "")
-            .replace("\u2068", "")
-            .replace("\u2069", "")
-            .trim()
-
-    private fun String.isSubscriptionOptionLabel(): Boolean =
-        trim().lowercase(Locale.US) in
-            setOf(
-                "personalized",
-                "all",
-                "none",
-                "unsubscribe",
-                "subscribed",
-                "subscribe",
-            )
-
     // ── Channel (native InnerTube) ─────────────────────
 
     /**
@@ -711,17 +468,49 @@ object YouTube {
                 response
                     .channelAboutContinuation()
                     ?.let { token -> runCatching { channelBrowseJson(continuation = token).toChannelAbout() }.getOrNull() }
-            val header = response.toChannelHeader(idOrHandle).mergedWith(about)
-            val tabs = response.toChannelTabs()
-            ChannelPage(
-                header = header,
-                tabs = tabs,
-                initialTab =
-                    tabs
-                        .firstOrNull { it.selected }
-                        ?.let { tab -> response.toChannelTabContent(tab.kind, header.toOwner()) },
-            )
+            response.toChannelPage(response.toChannelHeader(idOrHandle).mergedWith(about))
         }
+
+    private val resolvedChannelIds = ConcurrentHashMap<String, String>()
+
+    /**
+     * The channel id behind an @handle, `/c/` or `/user/` link, which browse cannot open directly.
+     * Kept for the process: a channel page and its Shorts feed both resolve the same link.
+     */
+    suspend fun resolveChannelId(url: String): Result<String> =
+        runCatching {
+            resolvedChannelIds[url]?.let { return@runCatching it }
+            val channelId =
+                innerTube
+                    .resolveUrl(WEB, url)
+                    .body<ResolveUrlResponse>()
+                    .endpoint
+                    ?.browseEndpoint
+                    ?.browseId
+                    ?.takeIf { it.startsWith("UC") }
+                    ?: error("No channel behind $url")
+            resolvedChannelIds[url] = channelId
+            channelId
+        }
+
+    /** [channel] without the About request, for callers that only need the header and the tabs. */
+    suspend fun channelLanding(channelId: String): Result<ChannelPage> =
+        runCatching {
+            val response = channelBrowseJson(browseId = channelId)
+            response.toChannelPage(response.toChannelHeader(channelId))
+        }
+
+    private fun JsonElement.toChannelPage(header: ChannelHeader): ChannelPage {
+        val tabs = toChannelTabs()
+        return ChannelPage(
+            header = header,
+            tabs = tabs,
+            initialTab =
+                tabs
+                    .firstOrNull { it.selected }
+                    ?.let { tab -> toChannelTabContent(tab.kind, header.toOwner()) },
+        )
+    }
 
     suspend fun channelTab(
         browseId: String,
@@ -999,24 +788,18 @@ object YouTube {
             }
         }.flowOn(PerformanceDispatcher.parsing)
 
-    suspend fun videoCharts(
-        chartType: String,
-        country: String,
-    ): Result<VideoChartsPage> =
+    /**
+     * A country's trending music videos: YouTube Music's charts page for [country] names the chart
+     * playlist, and the playlist browse gives its rows. Two requests, both on hosts that serve
+     * anonymous clients.
+     */
+    suspend fun musicVideoChart(country: String): Result<MusicVideoChart> =
         runCatching {
-            val response =
-                innerTube.analyticsChartsBrowse(
-                    browseId = CHARTS_BROWSE_ID,
-                    query =
-                        "perspective=CHART_DETAILS" +
-                            "&chart_params_country_code=$country" +
-                            "&chart_params_chart_type=$chartType",
-                )
-            withContext(PerformanceDispatcher.parsing) {
-                Json
-                    .parseToJsonElement(response.bodyAsText())
-                    .toVideoChartsPage(chartType, country)
-            }
+            val playlist =
+                getChartsPage(country.uppercase()).getOrThrow().trendingVideoChart()
+                    ?: return@runCatching MusicVideoChart(title = "")
+            val page = videoPlaylistPage(playlist.id).getOrThrow()
+            MusicVideoChart(title = playlist.title, entries = page.videos.ranked())
         }
 
     suspend fun communityPosts(
@@ -1056,6 +839,22 @@ object YouTube {
     suspend fun communityPostCommentsContinuation(continuation: String): Result<CommunityCommentsPage> =
         runCatching {
             communityPostCommentsPage(continuation = continuation)
+        }
+
+    /** A YouTube playlist's first page when [continuation] is null, otherwise the page it points to. */
+    suspend fun videoPlaylistPage(
+        playlistId: String,
+        continuation: String? = null,
+    ): Result<VideoPlaylistPage> =
+        runCatching {
+            val response =
+                innerTube.channelBrowse(
+                    client = currentWebClient(),
+                    channelId = "VL$playlistId".takeIf { continuation == null },
+                    params = null,
+                    continuation = continuation,
+                )
+            Json.parseToJsonElement(response.bodyAsText()).toVideoPlaylistPage()
         }
 
     private suspend fun communityPostsPage(
@@ -1234,14 +1033,7 @@ object YouTube {
                 ?.metadataParts
                 ?.mapNotNull { it.text?.content?.takeIf(String::isNotBlank) }
                 .orEmpty()
-        val viewsText =
-            parts.firstOrNull { it.contains("view", ignoreCase = true) || it.contains("watching", ignoreCase = true) }
-                ?: parts.firstOrNull()
-        val uploadText =
-            parts
-                .firstOrNull {
-                    !it.contains("view", ignoreCase = true) && !it.contains("watching", ignoreCase = true)
-                }.orEmpty()
+        val (viewsText, uploadText, uploadTimestamp) = lockupDateAndViews(parts, locale.hl)
 
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
@@ -1250,9 +1042,9 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(durationText),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
+            timestamp = uploadTimestamp ?: 0L,
             channelThumbnailUrl = channelThumbnailUrl,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
         )
@@ -1283,9 +1075,9 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(r.lengthText?.textValue()),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
+            timestamp = RelativeUploadDateParser.parse(uploadText, locale.hl) ?: 0L,
             channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
             channelThumbnailUrls = avatarUrls,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
@@ -1431,7 +1223,7 @@ object YouTube {
                 ?.url
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val duration = parseLengthText(r.lengthText?.simpleText)
-        val viewCount = parseViewCountText(r.viewCountText?.simpleText)
+        val viewCount = parseYouTubeViewCount(r.viewCountText?.simpleText)
         val avatarUrls = r.channelAvatarUrls(channelThumbnailUrl)
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
@@ -1488,70 +1280,6 @@ object YouTube {
             2 -> parts[0] * 60 + parts[1]
             else -> 0
         }
-    }
-
-    private fun parseViewCountText(text: String?): Long {
-        if (text.isNullOrBlank()) return 0L
-        val normalized =
-            text
-                .lowercase(Locale.US)
-                .replace(",", "")
-                .replace("views", "")
-                .replace("view", "")
-                .replace("watching", "")
-                .trim()
-        val number =
-            Regex("""(\d+(?:\.\d+)?)""")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toDoubleOrNull()
-                ?: return 0L
-        val multiplier =
-            when {
-                normalized.contains("b") -> 1_000_000_000.0
-                normalized.contains("m") -> 1_000_000.0
-                normalized.contains("k") -> 1_000.0
-                else -> 1.0
-            }
-        return (number * multiplier).toLong()
-    }
-
-    private fun parseRelativeUploadDate(text: String?): Long? {
-        val normalized =
-            text
-                ?.lowercase(Locale.US)
-                ?.replace("streamed", "")
-                ?.replace("premiered", "")
-                ?.replace("live", "")
-                ?.replace("ago", "")
-                ?.trim()
-                ?: return null
-
-        if (normalized.isBlank()) return null
-        if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
-        if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-
-        val value =
-            Regex("""(\d+)""")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-                ?: return null
-        val unitMillis =
-            when {
-                normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                else -> return null
-            }
-
-        return System.currentTimeMillis() - (value * unitMillis)
     }
 
     suspend fun album(
@@ -2052,6 +1780,7 @@ object YouTube {
                         ?.sectionListRenderer
                         ?.continuations
                         ?.getContinuation(),
+                trackCount = PlaylistPage.trackCountFrom(header.secondSubtitle),
             )
         }
 
@@ -3020,108 +2749,36 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
-    suspend fun shorts(sequenceParams: String? = null): Result<ShortsPage> =
-        runCatching {
-            innerTube
-                .reel(
-                    client = YouTubeClient.ANDROID,
-                    sequenceParams = sequenceParams ?: "CA8%3D",
-                ).toShortsPage()
-        }
-
     /**
-     * Fetch the Shorts reel sequence that *follows* [videoId].
+     * One page of the reel feed: the seedless first page for a null token, else the page a
+     * previous response's continuation names. Entries carry ids and tokens only; see [reelOverlay].
      *
-     * The seed belongs in `sequenceParams` — the field YouTube's own Shorts player sends. Seeding
-     * through `params` instead is rejected outright (HTTP 400), which is what used to send callers
-     * to the unseeded feed and open an unrelated Short (#931).
-     *
-     * The response never contains the seed itself, because the client that asked is already
-     * playing it; whoever opens a queue on [videoId] has to supply it.
+     * IOS first because its page is a few kilobytes per entry; ANDROID's carries a serialized
+     * prefetch of every reel's player response and runs to several megabytes for the same ids.
      */
-    suspend fun shortsFromVideo(videoId: String): Result<ShortsPage> =
+    suspend fun shorts(sequenceParams: String? = null): Result<ReelSequencePage> =
         runCatching {
-            innerTube
-                .reel(
-                    client = YouTubeClient.ANDROID,
-                    sequenceParams = buildShortsSequenceParams(videoId),
-                ).toShortsPage()
+            ensureVisitorData()
+            val params = sequenceParams ?: ReelParams.INITIAL_SEQUENCE
+            runCatching { reelSequence(YouTubeClient.IOS, params) }
+                .getOrNull()
+                ?.takeIf { it.entries.isNotEmpty() }
+                ?: reelSequence(YouTubeClient.ANDROID, params)
         }
 
-    /**
-     * Resolve stream URLs for a Short using the ANDROID client.
-     * The ANDROID client is required for Shorts-compatible stream formats.
-     */
-    suspend fun shortsPlayer(videoId: String): Result<PlayerResponse> =
+    private suspend fun reelSequence(
+        client: YouTubeClient,
+        sequenceParams: String,
+    ): ReelSequencePage = innerTube.reel(client = client, sequenceParams = sequenceParams).body<JsonObject>().toReelSequencePage()
+
+    /** The reels that follow [videoId]. The response never contains the seed itself. */
+    suspend fun shortsFromVideo(videoId: String): Result<ReelSequencePage> = shorts(ReelParams.seedSequenceParams(videoId))
+
+    /** Title, channel, counts and sound for one reel — everything the sequence leaves out. */
+    suspend fun reelOverlay(videoId: String): Result<ReelOverlay?> =
         runCatching {
-            innerTube
-                .player(
-                    client = YouTubeClient.ANDROID,
-                    videoId = videoId,
-                    playlistId = null,
-                    signatureTimestamp = null,
-                ).body<PlayerResponse>()
+            innerTube.reelItemWatch(client = WEB, videoId = videoId).body<JsonObject>().toReelOverlay()
         }
-
-    /** Protobuf `{1: videoId}`, base64url — how the reel sequence names the Short it continues from. */
-    private fun buildShortsSequenceParams(videoId: String): String {
-        val bytes = byteArrayOf(0x0A) + videoId.length.toByte() + videoId.toByteArray(Charsets.UTF_8)
-        return java.util.Base64
-            .getUrlEncoder()
-            .withoutPadding()
-            .encodeToString(bytes)
-    }
-
-    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
-        io.github.aedev.flow.innertube.pages.NewPipeExtractor
-            .newPipePlayer(videoId)
-
-    suspend fun newPipePlayer(
-        videoId: String,
-        tempRes: PlayerResponse,
-    ): PlayerResponse? {
-        val streamsList = getNewPipeStreamUrls(videoId)
-
-        if (streamsList.isEmpty()) return null
-
-        val newFormats =
-            streamsList.map { (itag, url) ->
-                PlayerResponse.StreamingData.Format(
-                    itag = itag,
-                    url = url,
-                    mimeType = if (itag == 140) "audio/mp4" else "audio/webm",
-                    bitrate = if (itag == 140) 128000 else 0,
-                    width = null,
-                    height = null,
-                    contentLength = null,
-                    quality = "medium",
-                    fps = null,
-                    qualityLabel = null,
-                    averageBitrate = null,
-                    audioQuality = "AUDIO_QUALITY_MEDIUM",
-                    approxDurationMs = null,
-                    audioSampleRate = 44100,
-                    audioChannels = 2,
-                    loudnessDb = null,
-                    lastModified = null,
-                    signatureCipher = null,
-                    cipher = null,
-                    audioTrack = null,
-                )
-            }
-
-        return tempRes.copy(
-            playabilityStatus = PlayerResponse.PlayabilityStatus(status = "OK", reason = null),
-            streamingData =
-                tempRes.streamingData?.copy(
-                    adaptiveFormats = (tempRes.streamingData.adaptiveFormats + newFormats).distinctBy { it.itag },
-                ) ?: PlayerResponse.StreamingData(
-                    formats = emptyList(),
-                    adaptiveFormats = newFormats,
-                    expiresInSeconds = 21600,
-                ),
-        )
-    }
 
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }

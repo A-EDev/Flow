@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,11 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -34,15 +32,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.ui.components.ShortsShelf
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoCardHorizontal
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
+import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
+import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
 private val GroupRowHorizontalPadding = 12.dp
 private val GroupRowVerticalPadding = 8.dp
@@ -53,7 +54,7 @@ private val HeaderTopPadding = 8.dp
 private val HeaderBottomPadding = 12.dp
 private val ShelfSpacing = 8.dp
 private val ErrorCardPadding = 4.dp
-private val FeedBottomSpacer = 80.dp
+private val FeedTopPadding = 4.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,12 +63,13 @@ internal fun SubscriptionsFeedContent(
     videos: List<Video>,
     topChannels: List<Channel>,
     gridState: LazyGridState,
+    columnPreference: HomeFeedColumns,
     onRefresh: () -> Unit,
     onVideoClick: (Video) -> Unit,
     onShortClick: (ShortsQueueSource) -> Unit,
     onChannelClick: (Channel) -> Unit,
-    onVideoChannelClick: (String) -> Unit,
     onViewAllClick: () -> Unit,
+    onMusicSubscriptionsClick: () -> Unit,
     onGroupSelected: (String?) -> Unit,
     onManageGroups: () -> Unit,
     onRetryFailedChannels: () -> Unit,
@@ -89,21 +91,24 @@ internal fun SubscriptionsFeedContent(
         modifier = modifier.fillMaxSize(),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val feedLayout = rememberFeedGridLayout(maxWidth)
-            val gridSpacing = if (state.isFullWidthView) feedLayout.cardSpacing else 0.dp
+            val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference)
+            val listMode = !state.isFullWidthView
+            val plan =
+                rememberFeedGridPlan(
+                    layout = feedLayout,
+                    listMode = listMode,
+                    itemCount = videos.size,
+                    spansOwnRow = { false },
+                    includeLastRun = true,
+                    itemsKey = videos,
+                    compactRowSpacing = if (listMode) 0.dp else feedLayout.cardSpacing,
+                )
             LazyVerticalGrid(
-                columns = if (state.isFullWidthView) feedLayout.cells else GridCells.Fixed(1),
+                columns = plan.cells,
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        start = if (state.isFullWidthView) feedLayout.contentPadding else 0.dp,
-                        end = if (state.isFullWidthView) feedLayout.contentPadding else 0.dp,
-                        top = 4.dp,
-                        bottom = FeedBottomSpacer,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                contentPadding = plan.contentPadding(top = FeedTopPadding, bottom = flowBottomContentPadding()),
+                verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column {
@@ -111,6 +116,7 @@ internal fun SubscriptionsFeedContent(
                             channels = topChannels,
                             onChannelClick = onChannelClick,
                             onViewAllClick = onViewAllClick,
+                            onMusicClick = onMusicSubscriptionsClick,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -182,7 +188,7 @@ internal fun SubscriptionsFeedContent(
                 if (state.isShortsShelfEnabled && state.shorts.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column {
-                            ShortsShelf(
+                            MediaShortsShelf(
                                 shorts = state.shorts,
                                 // The shelf shows one reel per channel; the queue behind it is
                                 // every subscription reel in date order (#823).
@@ -196,25 +202,19 @@ internal fun SubscriptionsFeedContent(
                     }
                 }
 
-                items(videos, key = { it.id }) { video ->
-                    if (state.isFullWidthView) {
-                        VideoCardFullWidth(
-                            video = video,
-                            onClick = { onVideoClick(video) },
-                            onChannelClick = onVideoChannelClick,
-                            useInternalPadding = false,
-                        )
-                    } else {
-                        VideoCardHorizontal(
-                            video = video,
-                            onClick = { onVideoClick(video) },
-                            onChannelClick = onVideoChannelClick,
-                        )
-                    }
-                }
-
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Box(modifier = Modifier.height(FeedBottomSpacer))
+                itemsIndexed(
+                    items = videos,
+                    key = { _, video -> video.id },
+                    contentType = { _, _ -> "video" },
+                    span = { index, _ -> plan.span(index, spansOwnRow = false, maxLineSpan = maxLineSpan) },
+                ) { index, video ->
+                    MediaVideoCard(
+                        video = video,
+                        layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
+                        onClick = { onVideoClick(video) },
+                        useInternalPadding = !feedLayout.isCompact,
+                        thumbnailWidth = plan.listThumbnailWidth,
+                    )
                 }
             }
         }

@@ -12,9 +12,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import kotlinx.coroutines.CoroutineScope
 
-private val MinSideEdgeIgnore = 16.dp
+private val MinSideEdgeIgnore = 24.dp
 
 @Composable
 fun Modifier.videoPlayerControls(
@@ -46,9 +47,10 @@ fun Modifier.videoPlayerControls(
     seekSwipeGesturesEnabled: Boolean = true,
     allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
+    seekZoneFraction: Float = DoubleTapSeekZone.NORMAL.sideFraction,
     longPressPlaybackSpeed: Float = 2.0f,
-    onExitFullscreen: (() -> Unit)? = null,
-    onExitFullscreenDrag: (offsetPx: Float, progress: Float) -> Unit = { _, _ -> },
+    onExitFullscreen: ((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)? = null,
+    onExitFullscreenDrag: (offsetPx: Float) -> Unit = {},
     isSeekForwardActive: Boolean = false,
     isSeekBackActive: Boolean = false,
 ): Modifier {
@@ -78,6 +80,7 @@ fun Modifier.videoPlayerControls(
     val seekSwipeGesturesEnabledState = rememberUpdatedState(seekSwipeGesturesEnabled)
     val allowVolumeBoostState = rememberUpdatedState(allowVolumeBoost)
     val doubleTapSeekMsState = rememberUpdatedState(doubleTapSeekMs)
+    val seekZoneFractionState = rememberUpdatedState(seekZoneFraction)
     val longPressPlaybackSpeedState = rememberUpdatedState(longPressPlaybackSpeed)
     val onSeekAccumulateState = rememberUpdatedState(onSeekAccumulate)
     val onExitFullscreenState = rememberUpdatedState(onExitFullscreen)
@@ -120,9 +123,11 @@ fun Modifier.videoPlayerControls(
             onNormalSpeedChange = onNormalSpeedChangeState,
             isFullscreen = isFullscreenState,
             doubleTapSeekMs = doubleTapSeekMsState,
+            seekZoneFraction = seekZoneFractionState,
             longPressPlaybackSpeed = longPressPlaybackSpeedState,
             isSeekForwardActive = isSeekForwardActiveState,
             isSeekBackActive = isSeekBackActiveState,
+            sideEdgeIgnorePx = sideEdgeIgnorePxState,
             haptics = haptics,
         ).playerDragGestures(
             currentPosition = currentPositionState,

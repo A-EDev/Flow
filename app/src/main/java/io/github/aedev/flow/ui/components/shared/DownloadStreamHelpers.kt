@@ -1,16 +1,13 @@
 package io.github.aedev.flow.ui.components.shared
 
-import android.content.Context
 import android.text.format.Formatter
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
-import io.github.aedev.flow.data.video.downloader.FlowDownloadService
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-import org.schabi.newpipe.extractor.stream.AudioStream
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 
 /**
  * Approximate download size for one quality, or null when no estimate is available — the caller
@@ -23,29 +20,25 @@ fun approxDownloadSizeLabel(bytes: Long?): String? {
     return stringResource(R.string.download_size_estimate, Formatter.formatShortFileSize(context, bytes))
 }
 
-/**
- * Starts an audio-only download for [stream], returning false when the stream carries no URL and
- * nothing was started. Both download dialogs go through here so the storage-permission prompt —
- * which [VideoPlayerUtils.startDownload] already does for a video download — is asked for once on
- * the audio path too.
- */
-internal fun startAudioOnlyDownload(
-    context: Context,
-    video: Video,
-    stream: AudioStream,
-    threads: Int? = null,
-): Boolean {
-    val url = stream.getContent().takeIf { it.isNotBlank() } ?: return false
-    VideoPlayerUtils.promptStoragePermissionIfNeeded(context)
-    FlowDownloadService.startDownload(
-        context = context,
-        video = video,
-        url = url,
-        quality = "${DownloadStreamPolicy.audioBitrateKbps(stream)}${context.getString(R.string.kbps)}",
-        audioOnly = true,
-        audioExtension = DownloadStreamPolicy.audioFileExtension(stream),
-        audioMimeType = stream.format?.mimeType,
-        threads = threads,
-    )
-    return true
+// Every video download is written as an MP4, whatever its codec.
+internal fun codecOptionLabel(
+    codecKey: String,
+    separator: String,
+): String = "${VideoCodecUtils.codecLabelFromKey(codecKey)}${separator}MP4"
+
+internal data class AudioLabelStrings(
+    val unknownFormat: String,
+    val kbps: String,
+    val separator: String,
+)
+
+/** The compact dialog's audio option. It is persisted as the last audio choice, so its shape must not drift. */
+internal fun audioOptionLabel(
+    stream: PlayerResponse.StreamingData.Format,
+    strings: AudioLabelStrings,
+): String {
+    val format = DownloadStreamPolicy.audioFormatLabel(stream, strings.unknownFormat)
+    val bitrate = DownloadStreamPolicy.audioBitrateKbps(stream)
+    val lang = DownloadStreamPolicy.audioLanguageLabel(stream)
+    return listOfNotNull("$format${strings.separator}$bitrate${strings.kbps}", lang).joinToString(strings.separator)
 }

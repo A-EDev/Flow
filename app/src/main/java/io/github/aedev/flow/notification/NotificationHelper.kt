@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
@@ -23,7 +24,9 @@ import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.ThumbnailQuality
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.data.update.AppRelease
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -43,6 +46,7 @@ object NotificationHelper {
     const val CHANNEL_GENERAL = "general_channel"
     const val CHANNEL_REMINDERS = "reminders_channel"
     const val CHANNEL_UPDATES = "updates_channel"
+    const val EXTRA_OPEN_UPDATE = "io.github.aedev.flow.extra.OPEN_UPDATE"
     const val CHANNEL_IMPORTS = "imports_channel"
 
     // Notification IDs
@@ -508,7 +512,7 @@ object NotificationHelper {
                     .setCategory(NotificationCompat.CATEGORY_SOCIAL)
                     .setGroup(GROUP_NEW_VIDEOS)
             v.thumbnailUrl?.let { url ->
-                getBitmapFromUrl(context, url)?.let { bm ->
+                getBitmapFromUrl(context, url, followThumbnailSetting = true)?.let { bm ->
                     builder.setLargeIcon(bm)
                     builder.setStyle(
                         NotificationCompat.BigPictureStyle().bigPicture(bm).bigLargeIcon(null as Bitmap?),
@@ -632,7 +636,7 @@ object NotificationHelper {
 
         // Try to load thumbnail
         thumbnailUrl?.let { url ->
-            val bitmap = getBitmapFromUrl(context, url)
+            val bitmap = getBitmapFromUrl(context, url, followThumbnailSetting = true)
             bitmap?.let {
                 builder.setLargeIcon(it)
                 builder.setStyle(
@@ -684,9 +688,7 @@ object NotificationHelper {
      */
     fun showUpdateNotification(
         context: Context,
-        version: String,
-        changelog: String,
-        downloadUrl: String,
+        release: AppRelease,
     ) {
         if (!hasNotificationPermission(context)) return
         if (!runBlocking { PlayerPreferences(context).notifUpdatesEnabled.first() }) return
@@ -694,9 +696,7 @@ object NotificationHelper {
         val intent =
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("EXTRA_UPDATE_VERSION", version)
-                putExtra("EXTRA_UPDATE_CHANGELOG", changelog)
-                putExtra("EXTRA_UPDATE_URL", downloadUrl)
+                putExtra(EXTRA_OPEN_UPDATE, true)
             }
 
         val pendingIntent =
@@ -711,7 +711,7 @@ object NotificationHelper {
             NotificationCompat
                 .Builder(context, CHANNEL_UPDATES)
                 .setSmallIcon(R.drawable.ic_notification_logo)
-                .setContentTitle(context.getString(R.string.notification_update_available, version))
+                .setContentTitle(context.getString(R.string.notification_update_available, release.version))
                 .setContentText(context.getString(R.string.notification_tap_to_update))
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
@@ -896,7 +896,7 @@ object NotificationHelper {
                 .setAutoCancel(true)
 
         runBlocking {
-            val bitmap = thumbnailUrl?.let { getBitmapFromUrl(context, it) }
+            val bitmap = thumbnailUrl?.let { getBitmapFromUrl(context, it, followThumbnailSetting = true) }
             if (bitmap != null) {
                 builder.setLargeIcon(bitmap)
             }
@@ -925,15 +925,19 @@ object NotificationHelper {
      * cache the feed already populated instead of refetching through a second image stack.
      * Hardware bitmaps are disabled because notification bitmaps must be parcelable to
      * SystemUI, and INEXACT precision keeps the "never upscale" behaviour of the previous
-     * centerInside/onlyScaleDown request.
+     * centerInside/onlyScaleDown request. With [followThumbnailSetting], a viewer who turned
+     * thumbnails off gets one only if it is already cached.
      */
     suspend fun getBitmapFromUrl(
         context: Context,
         url: String,
+        followThumbnailSetting: Boolean = false,
     ): Bitmap? =
         withContext(Dispatchers.IO) {
             try {
                 if (url.isEmpty()) return@withContext null
+                val cacheOnly =
+                    followThumbnailSetting && PlayerPreferences(context).currentThumbnailQuality() == ThumbnailQuality.OFF
                 val request =
                     ImageRequest
                         .Builder(context)
@@ -942,6 +946,7 @@ object NotificationHelper {
                         .scale(Scale.FIT)
                         .precision(Precision.INEXACT)
                         .allowHardware(false)
+                        .apply { if (cacheOnly) networkCachePolicy(CachePolicy.DISABLED) }
                         .build()
                 (SingletonImageLoader.get(context).execute(request) as? SuccessResult)
                     ?.image

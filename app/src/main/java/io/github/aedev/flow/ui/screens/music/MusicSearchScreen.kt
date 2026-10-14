@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,24 +31,31 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SearchType
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
+import io.github.aedev.flow.innertube.pages.SearchSummaryKind
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.music.card.TopResultCard
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.search.MusicSearchBar
 import io.github.aedev.flow.ui.components.music.search.SearchFilterChips
 import io.github.aedev.flow.ui.components.music.search.SearchSuggestionRow
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.search.searchSummaryTitle
+import io.github.aedev.flow.ui.components.music.section.MusicMoodsShelf
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.search.searchHistoryItems
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import kotlinx.coroutines.delay
@@ -64,11 +71,15 @@ fun MusicSearchScreen(
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
+    onMoodClick: (MoodAndGenres.Item) -> Unit,
+    onMoodsSeeAll: () -> Unit,
     initialQuery: String? = null,
     viewModel: MusicSearchViewModel = hiltViewModel(),
 ) {
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val history by viewModel.matchingHistory.collectAsStateWithLifecycle()
+    val moods by viewModel.moods.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -87,42 +98,33 @@ fun MusicSearchScreen(
         }
     }
 
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
+    val musicMenus = LocalMusicMenus.current
 
     fun dismissSearchInput() {
         keyboardController?.hide()
         focusManager.clearFocus(force = true)
     }
 
-    fun showTrackActions(track: MusicTrack) {
-        selectedTrack = track
-        showBottomSheet = true
-    }
-
     fun menuActionFor(item: YTItem): (() -> Unit)? =
         when (item) {
-            is SongItem -> ({ showTrackActions(convertSongToMusicTrack(item)) })
-            is AlbumItem, is PlaylistItem -> ({ item.toCollectionActionItem()?.let { selectedCollection = it } })
+            is SongItem -> ({ musicMenus.openSong(convertSongToMusicTrack(item)) })
+            is AlbumItem, is PlaylistItem -> ({ item.toCollectionActionItem()?.let(musicMenus::openCollection) })
             else -> null
         }
 
     fun isDownloaded(item: YTItem): Boolean = (item as? SongItem)?.let { uiState.downloadedTrackIds.contains(it.id) } ?: false
 
+    // A song from search plays alone, as YouTube Music does: the service seeds its radio from it,
+    // so Up Next fills with related songs instead of the other results for the same title.
     fun openItem(
         item: YTItem,
-        queue: List<YTItem>,
         source: String,
     ) {
         dismissSearchInput()
         when (item) {
             is SongItem -> {
-                onTrackClick(
-                    convertSongToMusicTrack(item),
-                    queue.filterIsInstance<SongItem>().map(::convertSongToMusicTrack),
-                    source,
-                )
+                val track = convertSongToMusicTrack(item)
+                onTrackClick(track, listOf(track), source)
             }
 
             is ArtistItem -> {
@@ -154,51 +156,6 @@ fun MusicSearchScreen(
         }
     }
 
-    if (showBottomSheet && selectedTrack != null) {
-        MusicQuickActionsSheet(
-            track = selectedTrack!!,
-            onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
-                }
-            },
-            onViewAlbum = {},
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                selectedTrack!!.title,
-                                selectedTrack!!.artist,
-                                selectedTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-        )
-    }
-
-    selectedCollection?.let { collection ->
-        MusicCollectionQuickActionsSheet(
-            item = collection,
-            onDismiss = { selectedCollection = null },
-            onOpen = {
-                dismissSearchInput()
-                if (collection.isAlbum) {
-                    onAlbumClick(collection.id)
-                } else {
-                    onPlaylistClick(collection.id)
-                }
-            },
-        )
-    }
-
     val voiceSearchLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult(),
@@ -207,7 +164,7 @@ fun MusicSearchScreen(
                 val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
                 if (!spokenText.isNullOrBlank()) {
                     viewModel.onQueryChange(spokenText)
-                    viewModel.performSearch(spokenText)
+                    viewModel.performSearch(spokenText, SearchType.VOICE)
                 }
             }
         }
@@ -235,6 +192,7 @@ fun MusicSearchScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
     ) { padding ->
         Column(
             modifier =
@@ -243,11 +201,24 @@ fun MusicSearchScreen(
                     .padding(padding),
         ) {
             if (!uiState.isSearching) {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
+                ) {
+                    searchHistoryItems(
+                        query = query,
+                        history = history,
+                        onSelect = { item ->
+                            viewModel.performSearch(item.query)
+                            dismissSearchInput()
+                        },
+                        onDeleteHistoryItem = viewModel::deleteHistoryItem,
+                        onClearHistory = viewModel::clearHistory,
+                    )
                     items(uiState.recommendedItems, key = { it.stableLazyKey("recommended") }) { item ->
                         MusicCollectionRow(
                             item = item,
-                            onClick = { openItem(item, listOf(item), RECOMMENDED_SOURCE) },
+                            onClick = { openItem(item, RECOMMENDED_SOURCE) },
                             onMenuClick = menuActionFor(item),
                             onLongClick = menuActionFor(item),
                             isDownloaded = isDownloaded(item),
@@ -262,6 +233,21 @@ fun MusicSearchScreen(
                             },
                         )
                     }
+                    if (query.isBlank()) {
+                        item(key = "moods") {
+                            MusicMoodsShelf(
+                                moods = moods,
+                                onMoodClick = { mood ->
+                                    dismissSearchInput()
+                                    onMoodClick(mood)
+                                },
+                                onSeeAll = {
+                                    dismissSearchInput()
+                                    onMoodsSeeAll()
+                                },
+                            )
+                        }
+                    }
                 }
             } else {
                 SearchFilterChips(
@@ -269,7 +255,6 @@ fun MusicSearchScreen(
                     onFilterClick = viewModel::applyFilter,
                 )
 
-                val topResultTarget = stringResource(R.string.section_top_result)
                 val searchSource = stringResource(R.string.search_source_template).format(query)
                 val artistSourceTemplate = stringResource(R.string.artist_source_template)
 
@@ -281,8 +266,17 @@ fun MusicSearchScreen(
                         uiState.filteredResults.isNotEmpty()
                     }
 
+                val error = uiState.error
                 if (uiState.isLoading) {
                     FlowLoadingIndicator()
+                } else if (!hasResults && error != null) {
+                    FlowErrorState(
+                        error = error,
+                        onRetry = {
+                            val filter = uiState.activeFilter
+                            if (filter == null) viewModel.performSearch(query) else viewModel.applyFilter(filter)
+                        },
+                    )
                 } else if (!hasResults) {
                     FlowEmptyState(
                         title = stringResource(R.string.music_search_no_results, query),
@@ -291,21 +285,21 @@ fun MusicSearchScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         if (uiState.activeFilter == null && summaries != null) {
                             summaries.forEachIndexed { index, summary ->
                                 item(key = "summary_header_$index") {
-                                    MusicSectionHeader(title = summary.title)
+                                    MusicSectionHeader(title = searchSummaryTitle(summary))
                                 }
 
-                                val isTopResult = summary.title == topResultTarget
+                                val isTopResult = summary.kind == SearchSummaryKind.TOP_RESULT
                                 if (isTopResult) {
                                     val topItem = summary.items.first()
                                     item(key = "top_result") {
                                         TopResultCard(
                                             item = topItem,
-                                            onClick = { openItem(topItem, summary.items, searchSource) },
+                                            onClick = { openItem(topItem, searchSource) },
                                             onShuffleClick = {
                                                 if (topItem is ArtistItem) {
                                                     playArtistTracks(topItem, shuffle = true, artistSourceTemplate.format(topItem.title))
@@ -324,12 +318,12 @@ fun MusicSearchScreen(
 
                                 items(
                                     items = if (isTopResult) summary.items.drop(1) else summary.items,
-                                    key = { it.stableLazyKey("summary_${summary.title}") },
+                                    key = { it.stableLazyKey("summary_${summary.kind}_${summary.title}") },
                                 ) { item ->
                                     MusicCollectionRow(
                                         showPlayCount = true,
                                         item = item,
-                                        onClick = { openItem(item, summary.items, searchSource) },
+                                        onClick = { openItem(item, searchSource) },
                                         onMenuClick = menuActionFor(item),
                                         onLongClick = menuActionFor(item),
                                         isDownloaded = isDownloaded(item),
@@ -341,7 +335,7 @@ fun MusicSearchScreen(
                                 MusicCollectionRow(
                                     showPlayCount = true,
                                     item = item,
-                                    onClick = { openItem(item, uiState.filteredResults, searchSource) },
+                                    onClick = { openItem(item, searchSource) },
                                     onMenuClick = menuActionFor(item),
                                     onLongClick = menuActionFor(item),
                                     isDownloaded = isDownloaded(item),

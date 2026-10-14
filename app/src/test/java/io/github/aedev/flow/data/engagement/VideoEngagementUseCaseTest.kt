@@ -43,6 +43,7 @@ class VideoEngagementUseCaseTest {
             subscriptionRepository = subscriptionRepository,
             likedVideosRepository = likedVideosRepository,
             signals = signals,
+            videoStats = mockk(relaxed = true),
         )
 
     private val order = mutableListOf<String>()

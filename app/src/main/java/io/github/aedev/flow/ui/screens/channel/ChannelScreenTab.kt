@@ -24,13 +24,13 @@ internal data class ChannelScreenTab(
 internal fun channelScreenTabs(
     descriptors: List<ChannelTabDescriptor>,
     header: ChannelHeader?,
-    shortsEnabled: Boolean,
+    showShortsTab: Boolean,
     aboutTitle: String,
 ): List<ChannelScreenTab> {
     val tabs =
         descriptors.mapNotNull { descriptor ->
             if (descriptor.kind in HIDDEN_TABS) return@mapNotNull null
-            if (descriptor.kind == ChannelTabKind.Shorts && !shortsEnabled) return@mapNotNull null
+            if (descriptor.kind == ChannelTabKind.Shorts && !showShortsTab) return@mapNotNull null
             val params = descriptor.params ?: descriptor.kind.defaultParams ?: return@mapNotNull null
             val title = descriptor.title.takeIf(String::isNotBlank) ?: return@mapNotNull null
             ChannelScreenTab(kind = descriptor.kind, title = title, params = params)

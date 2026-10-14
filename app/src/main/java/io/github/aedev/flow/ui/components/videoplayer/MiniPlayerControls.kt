@@ -25,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -45,7 +46,6 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
-import io.github.aedev.flow.ui.theme.PlayerMiniProgress
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniButton
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniTopButton
@@ -67,7 +67,9 @@ internal fun BoxScope.MiniPlayerControlsLayer(
     progress: () -> Float,
     miniControls: @Composable (() -> Float) -> Unit,
 ) {
-    val miniControlsVisible by remember(state) { derivedStateOf { state.expandFraction.value > 0.6f } }
+    val miniControlsVisible by remember(state) {
+        derivedStateOf { state.expandFraction.value > 0.6f && state.openOrigin == null }
+    }
     if (!miniControlsVisible) return
     val density = LocalDensity.current
     val controlsScale = expandedVideoWidth / miniWidth.coerceAtLeast(1f)
@@ -101,7 +103,7 @@ internal fun BoxScope.MiniPlayerControlsLayer(
                         alpha = ((state.expandFraction.value - 0.72f) / 0.18f).coerceIn(0f, 1f)
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                     },
-            color = PlayerMiniProgress,
+            color = MaterialTheme.colorScheme.primary,
             trackColor = Color.Transparent,
         )
     }

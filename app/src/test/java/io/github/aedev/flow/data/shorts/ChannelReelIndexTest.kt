@@ -2,12 +2,16 @@ package io.github.aedev.flow.data.shorts
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,7 +44,7 @@ class ChannelReelIndexTest {
 
     private fun page(vararg ids: String) =
         ChannelShortsPage(
-            shorts = ids.map { SearchShortItem(id = it, title = it, viewCount = 0L) },
+            shorts = ids.map { ReelLockup(id = it, title = it, viewCount = 0L) },
             sorts = emptyList(),
             continuation = null,
         )
@@ -57,20 +61,19 @@ class ChannelReelIndexTest {
                     listOf(video("reel1"), video("upload1"), video("reel2")),
                 )
 
-            assertEquals(listOf(true, false, true), marked.map { it.isShort })
+            assertEquals(listOf(true, false, true), marked?.map { it.isShort })
         }
 
-    // A failed lookup must leave the list alone: guessing "not a reel" is the bug being fixed.
+    // A failed lookup must not read as "no reels": the caller would store that guess as a verdict.
     @Test
-    fun `a failed lookup changes nothing`() =
+    fun `a failed lookup is reported, not guessed`() =
         runTest {
             mockkObject(YouTube)
             coEvery { YouTube.channelShorts(channelId) } returns Result.failure(IllegalStateException("offline"))
 
-            val input = listOf(video("reel1"), video("upload1", isShort = true))
-            val marked = ChannelReelIndex().markReels(channelId, input)
+            val marked = ChannelReelIndex().markReels(channelId, listOf(video("reel1"), video("upload1", isShort = true)))
 
-            assertEquals(input, marked)
+            assertEquals(null, marked)
         }
 
     @Test
@@ -111,5 +114,37 @@ class ChannelReelIndexTest {
 
             assertEquals(input, marked)
             coVerify(exactly = 0) { YouTube.channelShorts(any()) }
+        }
+
+    @Test
+    fun `at most two Shorts tab lookups run at once, so the sweep leaves room for everything else`() =
+        runTest {
+            mockkObject(YouTube)
+            var running = 0
+            var peak = 0
+            coEvery { YouTube.channelShorts(any()) } coAnswers {
+                running++
+                peak = maxOf(peak, running)
+                delay(1_000)
+                running--
+                Result.success(page("reel"))
+            }
+            val index = ChannelReelIndex()
+
+            coroutineScope { (1..6).map { n -> async { index.reelIds("UC$n") } }.awaitAll() }
+
+            assertEquals(2, peak)
+        }
+
+    @Test
+    fun `a lookup that hangs gives up instead of holding its slot`() =
+        runTest {
+            mockkObject(YouTube)
+            coEvery { YouTube.channelShorts(channelId) } coAnswers {
+                delay(60_000)
+                Result.success(page("reel"))
+            }
+
+            assertEquals(null, ChannelReelIndex().reelIds(channelId))
         }
 }

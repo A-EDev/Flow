@@ -1,8 +1,10 @@
 package io.github.aedev.flow.data.subscriptions
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 
 /**
  * Upload-time reconciliation for subscription items.
@@ -60,33 +62,11 @@ object SubscriptionFeedTimestamps {
         dateString: String,
         now: Long,
     ): Long? {
-        try {
-            val text = dateString.lowercase().trim()
-            if (text.isBlank() || text == "unknown") return null
-
-            if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
-            if (text.contains("live")) return now + 3600000L // Boost live streams
-
-            val parts = text.split(" ")
-            val valueLine = parts.firstOrNull { it.any { c -> c.isDigit() } }
-            val value = valueLine?.filter { it.isDigit() }?.toLongOrNull() ?: 1L
-
-            val multiplier =
-                when {
-                    text.contains("second") || text.endsWith("s ago") || text.matches(Regex("\\d+s")) -> 1000L
-                    text.contains("minute") || text.endsWith("m ago") || text.matches(Regex("\\d+m")) -> 60000L
-                    text.contains("hour") || text.endsWith("h ago") || text.matches(Regex("\\d+h")) -> 3600000L
-                    text.contains("day") || text.endsWith("d ago") || text.matches(Regex("\\d+d")) -> 86400000L
-                    text.contains("week") || text.endsWith("w ago") || text.matches(Regex("\\d+w")) -> 604800000L
-                    text.contains("month") || text.contains("mo ago") || text.matches(Regex("\\d+mo")) -> 2592000000L
-                    text.contains("year") || text.endsWith("y ago") || text.matches(Regex("\\d+y")) -> 31536000000L
-                    else -> return null
-                }
-
-            return now - (value * multiplier)
-        } catch (e: Exception) {
-            return null
-        }
+        val text = dateString.lowercase().trim()
+        if (text.isBlank() || text == "unknown") return null
+        if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
+        if (text.contains("live")) return now + 3600000L // Boost live streams
+        return RelativeUploadDateParser.parse(text, YouTube.locale.hl, now)
     }
 }
 

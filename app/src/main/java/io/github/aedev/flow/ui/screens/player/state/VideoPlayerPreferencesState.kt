@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -30,7 +31,9 @@ internal class VideoPlayerPreferencesState(
     val gestureOverlayStyle: GestureOverlayStyle,
     val hapticsEnabled: Boolean,
     val sbSubmitEnabled: Boolean,
+    val sponsorBlockEnabled: Boolean,
     val doubleTapSeekSeconds: Int,
+    val doubleTapSeekZone: DoubleTapSeekZone,
     val longPressPlaybackSpeed: Float,
     val disableShortsPlayer: Boolean,
     val showShortsPlayerPrompt: Boolean,
@@ -42,7 +45,6 @@ internal class VideoPlayerPreferencesState(
     val lockModeEnabled: Boolean,
     val commentsEnabled: Boolean,
     val preferredSubtitleLanguage: String,
-    val autoEnableSubtitles: Boolean,
     val commentsPreviewEnabled: Boolean,
     val showRelatedVideos: Boolean,
     val relatedCardStyle: PlayerRelatedCardStyle,
@@ -63,7 +65,9 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
     val hapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+    val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val doubleTapSeekZone by playerPreferences.doubleTapSeekZone.collectAsState(initial = DoubleTapSeekZone.NORMAL)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val disableShortsPlayer by playerPreferences.effectiveDisableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by playerPreferences.showShortsPlayerPrompt.collectAsState(initial = true)
@@ -76,7 +80,6 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
     val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
         .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
-    val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
     val commentsPreviewEnabled by playerPreferences.commentsPreviewEnabled.collectAsState(initial = true)
     val showRelatedVideos by playerPreferences.showRelatedVideos.collectAsState(initial = true)
     val relatedCardStyle by playerPreferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
@@ -94,7 +97,9 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         gestureOverlayStyle = gestureOverlayStyle,
         hapticsEnabled = hapticsEnabled,
         sbSubmitEnabled = sbSubmitEnabled,
+        sponsorBlockEnabled = sponsorBlockEnabled,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
+        doubleTapSeekZone = doubleTapSeekZone,
         longPressPlaybackSpeed = longPressPlaybackSpeed,
         disableShortsPlayer = disableShortsPlayer,
         showShortsPlayerPrompt = showShortsPlayerPrompt,
@@ -106,7 +111,6 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         lockModeEnabled = lockModeEnabled,
         commentsEnabled = commentsEnabled,
         preferredSubtitleLanguage = preferredSubtitleLanguage,
-        autoEnableSubtitles = autoEnableSubtitles,
         commentsPreviewEnabled = commentsPreviewEnabled,
         showRelatedVideos = showRelatedVideos,
         relatedCardStyle = relatedCardStyle,

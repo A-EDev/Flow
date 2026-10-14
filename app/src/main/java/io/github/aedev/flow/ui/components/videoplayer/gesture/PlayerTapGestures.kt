@@ -10,21 +10,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.isOutOfBounds
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
 
-/** How long a further tap in the same zone keeps adding to the running double-tap seek total. */
-private const val SEEK_ACCUMULATION_WINDOW_MS = 1_000L
-
-/** Screen fraction on each side that maps to a seek zone; the middle third is play/pause. */
-private const val SEEK_ZONE_FRACTION = 1f / 3f
-
-private const val ZONE_LEFT = -1
-private const val ZONE_CENTER = 0
-private const val ZONE_RIGHT = 1
+private val LongPressBottomExclusion = 40.dp
+private val LongPressBottomExclusionFullscreen = 28.dp
 
 internal fun Modifier.playerTapGestures(
     isSpeedBoostActive: State<Boolean>,
@@ -39,9 +37,11 @@ internal fun Modifier.playerTapGestures(
     onNormalSpeedChange: State<(Float) -> Unit>,
     isFullscreen: State<Boolean>,
     doubleTapSeekMs: State<Long>,
+    seekZoneFraction: State<Float>,
     longPressPlaybackSpeed: State<Float>,
     isSeekForwardActive: State<Boolean>,
     isSeekBackActive: State<Boolean>,
+    sideEdgeIgnorePx: State<Float>,
     haptics: HapticFeedback,
 ): Modifier {
     val currentIsSpeedBoostActive by isSpeedBoostActive
@@ -56,9 +56,11 @@ internal fun Modifier.playerTapGestures(
     val currentOnNormalSpeedChange by onNormalSpeedChange
     val currentIsFullscreen by isFullscreen
     val currentDoubleTapSeekMs by doubleTapSeekMs
+    val currentSeekZoneFraction by seekZoneFraction
     val currentLongPressPlaybackSpeed by longPressPlaybackSpeed
     val currentIsSeekForwardActive by isSeekForwardActive
     val currentIsSeekBackActive by isSeekBackActive
+    val currentSideEdgeIgnorePx by sideEdgeIgnorePx
 
     return this.pointerInput(Unit) {
         var accumulatedForwardMs = 0L
@@ -72,15 +74,13 @@ internal fun Modifier.playerTapGestures(
         var revealedOnTap = false
         var hidePending = false
 
-        fun zoneOf(x: Float): Int {
-            val width = size.width.toFloat()
-            if (width <= 0f) return ZONE_CENTER
-            return when {
-                x < width * SEEK_ZONE_FRACTION -> ZONE_LEFT
-                x > width * (1f - SEEK_ZONE_FRACTION) -> ZONE_RIGHT
-                else -> ZONE_CENTER
-            }
-        }
+        fun zoneOf(x: Float): TapZone =
+            tapZoneOf(
+                x = x,
+                width = size.width.toFloat(),
+                sideFraction = if (currentDoubleTapSeekMs > 0L) currentSeekZoneFraction else 0f,
+                edgePx = currentSideEdgeIgnorePx,
+            )
 
         fun applyZoneSeek(forward: Boolean) {
             val manager = EnhancedPlayerManager.getInstance()
@@ -97,7 +97,7 @@ internal fun Modifier.playerTapGestures(
                     lastBackTapTime = 0L
                     pendingBackTargetMs = null
 
-                    val continuing = now - lastForwardTapTime < SEEK_ACCUMULATION_WINDOW_MS
+                    val continuing = now - lastForwardTapTime < DOUBLE_TAP_SEEK_WINDOW_MS
                     accumulatedForwardMs = if (continuing) accumulatedForwardMs + step else step
                     lastForwardTapTime = now
                     val base = pendingForwardTargetMs?.takeIf { continuing } ?: playerPosition
@@ -112,7 +112,7 @@ internal fun Modifier.playerTapGestures(
                     lastForwardTapTime = 0L
                     pendingForwardTargetMs = null
 
-                    val continuing = now - lastBackTapTime < SEEK_ACCUMULATION_WINDOW_MS
+                    val continuing = now - lastBackTapTime < DOUBLE_TAP_SEEK_WINDOW_MS
                     accumulatedBackMs = if (continuing) accumulatedBackMs + step else step
                     lastBackTapTime = now
                     val base = pendingBackTargetMs?.takeIf { continuing } ?: playerPosition
@@ -138,15 +138,16 @@ internal fun Modifier.playerTapGestures(
         }
 
         detectPlayerTaps(
+            isEdge = { offset -> zoneOf(offset.x) == TapZone.EDGE },
             onTapUp = { offset ->
                 if (!currentIsSpeedBoostActive) {
                     val zone = zoneOf(offset.x)
                     val continuesActiveSeek =
-                        (zone == ZONE_LEFT && currentIsSeekBackActive) ||
-                            (zone == ZONE_RIGHT && currentIsSeekForwardActive)
+                        (zone == TapZone.BACK && currentIsSeekBackActive) ||
+                            (zone == TapZone.FORWARD && currentIsSeekForwardActive)
                     when {
                         continuesActiveSeek -> {
-                            applyZoneSeek(forward = zone == ZONE_RIGHT)
+                            applyZoneSeek(forward = zone == TapZone.FORWARD)
                         }
 
                         !currentShowControls -> {
@@ -170,22 +171,23 @@ internal fun Modifier.playerTapGestures(
             onDoubleTap = { offset ->
                 hidePending = false
                 val zone = zoneOf(offset.x)
-                if (zone != ZONE_CENTER && revealedOnTap) {
+                if (zone != TapZone.CENTER && revealedOnTap) {
                     currentOnShowControlsChange(false)
                 }
                 revealedOnTap = false
 
                 when (zone) {
-                    ZONE_LEFT -> applyZoneSeek(forward = false)
-                    ZONE_RIGHT -> applyZoneSeek(forward = true)
-                    else -> togglePlayPause()
+                    TapZone.BACK -> applyZoneSeek(forward = false)
+                    TapZone.FORWARD -> applyZoneSeek(forward = true)
+                    TapZone.CENTER -> togglePlayPause()
+                    TapZone.EDGE -> Unit
                 }
             },
             onLongPress = { offset ->
                 if (currentLongPressPlaybackSpeed <= 0f) return@detectPlayerTaps
 
-                val bottomExclusionZone = if (currentIsFullscreen) 80f else 120f
-                if (offset.y > size.height - bottomExclusionZone) return@detectPlayerTaps
+                val bottomExclusion = if (currentIsFullscreen) LongPressBottomExclusionFullscreen else LongPressBottomExclusion
+                if (offset.y > size.height - bottomExclusion.toPx()) return@detectPlayerTaps
 
                 val manager = EnhancedPlayerManager.getInstance()
                 val player = manager.getPlayer()
@@ -227,8 +229,13 @@ internal fun Modifier.playerTapGestures(
  * `onDoubleTap` is supplied. The player needs the opposite ordering: [onTapUp] runs the instant the
  * finger lifts, so the controls reveal and a running seek accumulation continues without the wait,
  * while [onSingleTapConfirmed] still fires only once the window closes with no second touch.
+ *
+ * A touch that starts on [isEdge] may belong to the system back gesture, whose down reaches the app
+ * before the system cancels it: such a touch never long-presses, never opens the double-tap window
+ * and never counts as a second tap. The double tap fires on the second up, which a cancel never is.
  */
 private suspend fun PointerInputScope.detectPlayerTaps(
+    isEdge: (Offset) -> Boolean,
     onTapUp: (Offset) -> Unit,
     onSingleTapConfirmed: () -> Unit,
     onDoubleTap: (Offset) -> Unit,
@@ -237,31 +244,48 @@ private suspend fun PointerInputScope.detectPlayerTaps(
 ) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        val startsAtEdge = isEdge(down.position)
 
         val firstUp =
-            try {
-                withTimeout(viewConfiguration.longPressTimeoutMillis) {
+            if (startsAtEdge) {
+                awaitStillUp(down)
+            } else {
+                try {
+                    withTimeout(viewConfiguration.longPressTimeoutMillis) { awaitStillUp(down) }
+                } catch (_: PointerEventTimeoutCancellationException) {
+                    onLongPress(down.position)
                     waitForUpOrCancellation()
+                    onLongPressReleased()
+                    return@awaitEachGesture
                 }
-            } catch (_: PointerEventTimeoutCancellationException) {
-                onLongPress(down.position)
-                waitForUpOrCancellation()
-                onLongPressReleased()
-                return@awaitEachGesture
             } ?: return@awaitEachGesture
 
         onTapUp(firstUp.position)
+        if (startsAtEdge) {
+            onSingleTapConfirmed()
+            return@awaitEachGesture
+        }
 
         val secondDown =
             withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
                 awaitFirstDown(requireUnconsumed = false)
             }
-        if (secondDown == null) {
+        val secondUp = secondDown?.takeUnless { isEdge(it.position) }?.let { awaitStillUp(it) }
+        if (secondUp == null) {
             onSingleTapConfirmed()
             return@awaitEachGesture
         }
 
-        onDoubleTap(secondDown.position)
-        waitForUpOrCancellation()
+        onDoubleTap(secondUp.position)
+    }
+}
+
+/** The up of [down], or null once it moves past touch slop, leaves the bounds or is consumed. */
+private suspend fun AwaitPointerEventScope.awaitStillUp(down: PointerInputChange): PointerInputChange? {
+    while (true) {
+        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: return null
+        if (change.changedToUp()) return change
+        if (change.isConsumed || change.isOutOfBounds(size, extendedTouchPadding)) return null
+        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) return null
     }
 }

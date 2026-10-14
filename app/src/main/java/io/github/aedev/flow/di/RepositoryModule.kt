@@ -8,7 +8,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import javax.inject.Singleton
 
 @Module
@@ -16,10 +15,7 @@ import javax.inject.Singleton
 object RepositoryModule {
     @Provides
     @Singleton
-    fun provideYouTubeRepository(
-        playerPreferences: PlayerPreferences,
-        channelReelIndex: ChannelReelIndex,
-    ): YouTubeRepository = YouTubeRepository.getInstance(playerPreferences, channelReelIndex)
+    fun provideYouTubeRepository(playerPreferences: PlayerPreferences): YouTubeRepository = YouTubeRepository.getInstance(playerPreferences)
 
     @Provides
     @Singleton
@@ -70,11 +66,16 @@ object RepositoryModule {
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
 
+    /**
+     * Transitional: [io.github.aedev.flow.data.local.BackupRepository] still builds its own
+     * collaborators, so it is provided here rather than injected through its constructor. One
+     * instance serves the whole app.
+     */
     @Provides
     @Singleton
-    fun provideShortsRepository(
+    fun provideBackupRepository(
         @ApplicationContext context: Context,
-    ): io.github.aedev.flow.data.shorts.ShortsRepository =
-        io.github.aedev.flow.data.shorts.ShortsRepository
-            .getInstance(context)
+    ): io.github.aedev.flow.data.local.BackupRepository =
+        io.github.aedev.flow.data.local
+            .BackupRepository(context)
 }

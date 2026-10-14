@@ -84,11 +84,8 @@ fun TvNavHost(
         composable(
             route = TvRoutes.MUSIC_COLLECTION,
             arguments = listOf(navArgument(TvRoutes.MUSIC_COLLECTION_ARG) { type = NavType.StringType }),
-        ) { entry ->
-            val collectionId = entry.arguments?.getString(TvRoutes.MUSIC_COLLECTION_ARG).orEmpty()
+        ) {
             TvMusicCollectionScreen(
-                collectionId = collectionId,
-                viewModel = musicViewModel,
                 onTrackClick = musicPlayerViewModel::loadAndPlayTrack,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -137,16 +134,19 @@ fun TvNavHost(
         }
         composable(
             route = TvRoutes.CHANNEL,
-            arguments = listOf(
-                navArgument(TvRoutes.CHANNEL_ARG) {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-            ),
+            arguments =
+                listOf(
+                    navArgument(TvRoutes.CHANNEL_ARG) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
         ) { entry ->
-            val channelRef = entry.arguments?.getString(TvRoutes.CHANNEL_ARG)
-                ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
-                .orEmpty()
+            val channelRef =
+                entry.arguments
+                    ?.getString(TvRoutes.CHANNEL_ARG)
+                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+                    .orEmpty()
             TvChannelScreen(
                 channelUrl = channelRef,
                 onVideoClick = onPlayVideo,

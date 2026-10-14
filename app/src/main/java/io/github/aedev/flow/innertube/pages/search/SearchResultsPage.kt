@@ -1,7 +1,9 @@
 package io.github.aedev.flow.innertube.pages.search
 
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.innertube.pages.renderer.videoOrNull
 
 /**
  * One page of `/youtubei/v1/search`.
@@ -50,3 +52,9 @@ sealed interface SearchSection {
         val shelf: FeedShelf,
     ) : SearchSection
 }
+
+/**
+ * The videos and Shorts YouTube ranked as results, in order. The strips between them are left out:
+ * their Shorts carry no channel and no date, and the rest is YouTube's own suggestions, not a match.
+ */
+fun SearchResultsPage.resultVideos(): List<Video> = sections.mapNotNull { (it as? SearchSection.Result)?.item?.videoOrNull() }

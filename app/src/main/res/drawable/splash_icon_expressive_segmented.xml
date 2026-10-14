@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The segmented F takes its red from the icon background, so the splash draws that square behind it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path
+            android:fillColor="@color/icon_bg_expressive_segmented"
+            android:pathData="M37,18H71A19,19 0 0,1 90,37V71A19,19 0 0,1 71,90H37A19,19 0 0,1 18,71V37A19,19 0 0,1 37,18Z" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="11.5"
+            android:strokeLineCap="round"
+            android:pathData="M42.26 66.25L47.02 41.75" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="11.5"
+            android:strokeLineCap="round"
+            android:pathData="M61.72 41.75L73.66 41.75" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="11.5"
+            android:strokeLineCap="round"
+            android:pathData="M59.05 55.50L64.51 55.50" />
+    </group>
+</vector>

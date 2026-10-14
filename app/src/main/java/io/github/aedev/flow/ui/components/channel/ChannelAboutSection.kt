@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Language
@@ -62,10 +63,12 @@ internal fun ChannelAboutSection(header: ChannelHeader) {
         if (!header.description.isNullOrBlank()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ChannelAboutHeading(stringResource(R.string.about))
-                Text(
-                    text = header.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                SelectionContainer {
+                    Text(
+                        text = header.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         }
 
@@ -120,19 +123,23 @@ internal fun ChannelAboutSection(header: ChannelHeader) {
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 ChannelAboutHeading(stringResource(R.string.channel_about_more_info))
-                moreInfo.forEach { (icon, value) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.extendedColors.textSecondary,
-                        )
-                        Text(text = value, style = MaterialTheme.typography.bodyMedium)
+                SelectionContainer {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        moreInfo.forEach { (icon, value) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.extendedColors.textSecondary,
+                                )
+                                Text(text = value, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
                     }
                 }
             }

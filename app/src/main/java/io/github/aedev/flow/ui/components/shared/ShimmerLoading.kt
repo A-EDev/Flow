@@ -1,79 +1,46 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
 
+/**
+ * A loading placeholder that pulses between two surface tones. The pulse is read only while drawing,
+ * so a skeleton costs one draw pass per frame and never recomposes; [delayMillis] staggers the bones of
+ * one placeholder so they ripple instead of blinking together.
+ */
 @Composable
 fun Modifier.shimmerEffect(
     shape: Shape = MaterialTheme.shapes.small,
     durationMillis: Int = 1200,
     delayMillis: Int = 0,
 ): Modifier {
-    var size by remember { mutableStateOf(IntSize.Zero) }
-
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val progress by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec =
-            infiniteRepeatable(
-                animation =
-                    tween(
-                        durationMillis = durationMillis,
-                        delayMillis = delayMillis,
-                        easing = LinearEasing,
-                    ),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "shimmer_progress",
-    )
-
-    val surfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-    val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.15f)
-
-    val shimmerColors =
-        listOf(
-            surfaceColor,
-            surfaceColor,
-            highlightColor.copy(alpha = 0.9f),
-            highlightColor,
-            highlightColor.copy(alpha = 0.9f),
-            surfaceColor,
-            surfaceColor,
+    val pulse =
+        rememberInfiniteTransition(label = "skeleton").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = durationMillis, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(delayMillis),
+                ),
+            label = "skeleton_pulse",
         )
-
-    val diagonal = max(size.width.toFloat(), size.height.toFloat()) * 1.5f
-    val startOffset = diagonal * progress
-    val endOffset = startOffset + diagonal * 0.6f
-
-    val brush =
-        Brush.linearGradient(
-            colors = shimmerColors,
-            start = Offset(startOffset, startOffset * 0.5f),
-            end = Offset(endOffset, endOffset * 0.5f),
-        )
-
+    val base = MaterialTheme.colorScheme.surfaceContainerHigh
+    val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
     return this
-        .onGloballyPositioned { coordinates ->
-            size = coordinates.size
-        }.clip(shape)
-        .background(brush, shape)
+        .clip(shape)
+        .drawBehind { drawRect(lerp(base, highlight, pulse.value)) }
 }
 
 @Composable
@@ -87,221 +54,6 @@ fun ShimmerBone(
             modifier
                 .shimmerEffect(shape = shape, delayMillis = delayMillis),
     )
-}
-
-@Composable
-fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Thumbnail
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
-            shape = RectangleShape,
-        )
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // Channel avatar
-            ShimmerBone(
-                modifier = Modifier.size(40.dp),
-                shape = CircleShape,
-                delayMillis = 80,
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Title line 1
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.92f)
-                            .height(14.dp),
-                    delayMillis = 120,
-                )
-
-                // Title line 2
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.65f)
-                            .height(14.dp),
-                    delayMillis = 160,
-                )
-
-                Spacer(Modifier.height(2.dp))
-
-                // Channel name + metadata
-                ShimmerBone(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(0.50f)
-                            .height(11.dp),
-                    shape = MaterialTheme.shapes.extraSmall,
-                    delayMillis = 200,
-                )
-            }
-
-            // Overflow menu dot
-            ShimmerBone(
-                modifier = Modifier.size(20.dp),
-                shape = CircleShape,
-                delayMillis = 220,
-            )
-        }
-    }
-}
-
-/**
- * Grid-style shimmer card matching original video card structure.
- */
-@Composable
-fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Thumbnail
-        ShimmerBone(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
-            shape = MaterialTheme.shapes.medium,
-        )
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            // Channel avatar
-            ShimmerBone(
-                modifier = Modifier.size(32.dp),
-                shape = CircleShape,
-                delayMillis = 40,
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                // Title
-                ShimmerBone(
-                    modifier = Modifier.fillMaxWidth(0.95f).height(12.dp),
-                    delayMillis = 80,
-                )
-                ShimmerBone(
-                    modifier = Modifier.fillMaxWidth(0.7f).height(12.dp),
-                    delayMillis = 120,
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Metadata
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ShimmerBone(
-                        modifier = Modifier.width(60.dp).height(10.dp),
-                        delayMillis = 160,
-                    )
-                    ShimmerBone(
-                        modifier = Modifier.width(40.dp).height(10.dp),
-                        delayMillis = 200,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // Thumbnail with duration badge placeholder
-        Box {
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .width(160.dp)
-                        .aspectRatio(16f / 9f),
-                shape = MaterialTheme.shapes.small,
-            )
-
-            // Duration badge skeleton
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .width(36.dp)
-                        .height(16.dp),
-                shape = MaterialTheme.shapes.extraSmall,
-                delayMillis = 150,
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            // Title line 1
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(13.dp),
-                delayMillis = 80,
-            )
-
-            // Title line 2
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.75f)
-                        .height(13.dp),
-                delayMillis = 120,
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            // Channel name
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.55f)
-                        .height(11.dp),
-                shape = MaterialTheme.shapes.extraSmall,
-                delayMillis = 160,
-            )
-
-            // View count + date
-            ShimmerBone(
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.40f)
-                        .height(11.dp),
-                shape = MaterialTheme.shapes.extraSmall,
-                delayMillis = 200,
-            )
-        }
-    }
 }
 
 @Composable

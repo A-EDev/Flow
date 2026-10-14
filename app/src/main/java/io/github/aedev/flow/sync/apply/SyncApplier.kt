@@ -52,6 +52,8 @@ class SyncApplier
         @ApplicationContext private val context: Context,
         private val db: AppDatabase,
         private val dataAccess: SyncDataAccess,
+        private val tracker: SyncChangeTracker,
+        private val brains: BrainSyncAccess,
         private val syncLogDao: SyncLogDao,
         private val syncPeerDao: SyncPeerDao,
         private val deviceIdentity: DeviceIdentity,
@@ -68,19 +70,19 @@ class SyncApplier
                 val wire =
                     when (c) {
                         SyncCollection.WATCH_HISTORY -> {
-                            SyncSerialization.encodeWatchHistory(dataAccess.readWatchHistory(node))
+                            SyncSerialization.encodeWatchHistory(tracker.watchHistory(node))
                         }
 
                         SyncCollection.PLAYLISTS -> {
-                            SyncSerialization.encodePlaylists(dataAccess.readPlaylists(hlc))
+                            SyncSerialization.encodePlaylists(tracker.playlists(node))
                         }
 
                         SyncCollection.LIKES -> {
-                            SyncSerialization.encodeLikes(dataAccess.readLikes(node))
+                            SyncSerialization.encodeLikes(tracker.likes(node))
                         }
 
                         SyncCollection.SETTINGS -> {
-                            SyncSerialization.encodeSettings(dataAccess.readSettings(hlc))
+                            SyncSerialization.encodeSettings(tracker.settings(node))
                         }
 
                         SyncCollection.SUBSCRIBED_CHANNELS -> {
@@ -88,19 +90,19 @@ class SyncApplier
                         }
 
                         SyncCollection.SUBSCRIPTIONS -> {
-                            SyncSerialization.encodeSubscriptions(dataAccess.readSubscriptions(hlc))
+                            SyncSerialization.encodeSubscriptions(tracker.groups(node))
                         }
 
                         SyncCollection.NOTES -> {
-                            SyncSerialization.encodeNotes(dataAccess.readNotes())
+                            SyncSerialization.encodeNotes(tracker.notes())
                         }
 
                         SyncCollection.FLOW_NEURO_BRAIN -> {
-                            SyncSerialization.encodeBrain(dataAccess.readBrain(node, hlc))
+                            SyncSerialization.encodeBrain(brains.exportBrain(node, hlc))
                         }
 
                         SyncCollection.MUSIC_BRAIN -> {
-                            SyncSerialization.encodeMusicBrain(dataAccess.readMusicBrain(node, hlc))
+                            SyncSerialization.encodeMusicBrain(brains.exportMusicBrain(node, hlc))
                         }
 
                         else -> {
@@ -139,39 +141,45 @@ class SyncApplier
 
             takeBackup()
             var failedCollection: String? = null
+            // The ledgers learn what was written only once the whole merge has stuck.
+            val settles = ArrayList<suspend () -> Unit>()
             try {
                 // Room-backed collections: one transaction, all-or-nothing.
                 db.withTransaction {
                     fresh[SyncCollection.WATCH_HISTORY]?.let { rc ->
                         failedCollection = SyncCollection.WATCH_HISTORY
                         val remote = SyncSerialization.decodeWatchHistory(rc.lines)
-                        val local = dataAccess.readWatchHistory(node)
+                        val local = tracker.watchHistory(node)
                         val merged = WatchHistoryMerger.merge(local, remote)
                         dataAccess.writeWatchHistory(merged)
+                        settles += { tracker.settleWatchHistory(merged) }
                         stats[SyncCollection.WATCH_HISTORY] = statsFor(remote.map { it.videoId to it.deleted }, local.map { it.videoId })
                     }
                     fresh[SyncCollection.SUBSCRIPTIONS]?.let { rc ->
                         failedCollection = SyncCollection.SUBSCRIPTIONS
                         val remote = SyncSerialization.decodeSubscriptions(rc.lines)
-                        val local = dataAccess.readSubscriptions(hlc)
+                        val local = tracker.groups(node)
                         val merged = SubscriptionsMerger.merge(local, remote)
                         dataAccess.writeSubscriptions(merged)
+                        settles += { tracker.settleGroups(merged) }
                         stats[SyncCollection.SUBSCRIPTIONS] = statsFor(remote.map { it.name to it.deleted }, local.map { it.name })
                     }
                     fresh[SyncCollection.NOTES]?.let { rc ->
                         failedCollection = SyncCollection.NOTES
                         val remote = SyncSerialization.decodeNotes(rc.lines)
-                        val local = dataAccess.readNotes()
+                        val local = tracker.notes()
                         val merged = NotesMerger.merge(local, remote)
                         dataAccess.writeNotes(merged)
+                        settles += { tracker.settleNotes(merged) }
                         stats[SyncCollection.NOTES] = statsFor(remote.map { it.id to it.deleted }, local.map { it.id })
                     }
                     fresh[SyncCollection.PLAYLISTS]?.let { rc ->
                         failedCollection = SyncCollection.PLAYLISTS
                         val remote = SyncSerialization.decodePlaylists(rc.lines)
-                        val local = dataAccess.readPlaylists(hlc)
+                        val local = tracker.playlists(node)
                         val merged = PlaylistMerger.merge(local, remote)
                         dataAccess.writePlaylists(merged)
+                        settles += { tracker.settlePlaylists(merged) }
                         stats[SyncCollection.PLAYLISTS] = statsFor(remote.map { it.syncId to it.deleted }, local.map { it.syncId })
                     }
                 }
@@ -180,9 +188,10 @@ class SyncApplier
                 fresh[SyncCollection.LIKES]?.let { rc ->
                     failedCollection = SyncCollection.LIKES
                     val remote = SyncSerialization.decodeLikes(rc.lines)
-                    val local = dataAccess.readLikes(node)
+                    val local = tracker.likes(node)
                     val merged = LikesMerger.merge(local, remote)
                     dataAccess.writeLikes(merged)
+                    settles += { tracker.settleLikes(merged) }
                     stats[SyncCollection.LIKES] =
                         statsFor(remote.map { "${it.kind}|${it.id}" to (it.state == "none") }, local.map { "${it.kind}|${it.id}" })
                 }
@@ -203,17 +212,19 @@ class SyncApplier
                 fresh[SyncCollection.SETTINGS]?.let { rc ->
                     failedCollection = SyncCollection.SETTINGS
                     val remote = SyncSerialization.decodeSettings(rc.lines)
-                    val local = dataAccess.readSettings(hlc)
+                    val local = tracker.settings(node)
                     val merged = SettingsMerger.merge(local, remote)
                     dataAccess.writeSettings(merged)
+                    settles += { tracker.settleSettings(merged) }
                     stats[SyncCollection.SETTINGS] = ApplyStats(updated = remote.size)
                 }
 
                 // Brain: stateful CRDT merge + engine reload.
                 fresh[SyncCollection.FLOW_NEURO_BRAIN]?.let { rc ->
                     failedCollection = SyncCollection.FLOW_NEURO_BRAIN
-                    SyncSerialization.decodeBrain(rc.lines)?.let { remote ->
-                        dataAccess.mergeAndWriteBrain(remote, myDeviceId, hlc)
+                    val snapshots = SyncSerialization.decodeBrainSnapshots(rc.lines)
+                    if (snapshots.isNotEmpty()) {
+                        brains.mergeBrain(snapshots, peer.deviceId, node, myDeviceId, hlc)
                         stats[SyncCollection.FLOW_NEURO_BRAIN] = ApplyStats(updated = 1)
                     }
                 }
@@ -222,11 +233,12 @@ class SyncApplier
                 fresh[SyncCollection.MUSIC_BRAIN]?.let { rc ->
                     failedCollection = SyncCollection.MUSIC_BRAIN
                     SyncSerialization.decodeMusicBrain(rc.lines)?.let { remote ->
-                        dataAccess.mergeAndWriteMusicBrain(remote, myDeviceId, hlc)
+                        brains.mergeMusicBrain(remote, peer.deviceId, node, myDeviceId, hlc)
                         stats[SyncCollection.MUSIC_BRAIN] = ApplyStats(updated = 1)
                     }
                 }
                 failedCollection = null
+                for (settle in settles) settle()
 
                 // Ledger: record each applied payload + the peer.
                 val now = System.currentTimeMillis()

@@ -23,11 +23,11 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
-import io.github.aedev.flow.ui.components.ChannelAvatarStack
-import io.github.aedev.flow.ui.components.CollaboratorsBottomSheet
-import io.github.aedev.flow.ui.components.rememberCollaboratorChannelDisplayName
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
+import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
+import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.DateContext
@@ -48,6 +48,7 @@ internal fun VideoInfoSection(
     channelAvatarUrl: String,
     channelAvatarUrls: List<String> = emptyList(),
     collaborators: List<VideoCollaborator> = emptyList(),
+    subscribedCollaboratorIds: Set<String> = emptySet(),
     subscriberCount: Long?,
     isSubscribed: Boolean,
     isNotificationsEnabled: Boolean = false,
@@ -58,7 +59,6 @@ internal fun VideoInfoSection(
     onUnsubscribeClick: () -> Unit = {},
     onNotificationChange: (Boolean) -> Unit = {},
     onChannelClick: () -> Unit,
-    onCollaboratorClick: (String) -> Unit = {},
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -72,6 +72,7 @@ internal fun VideoInfoSection(
     isDownloaded: Boolean = false,
     onNoteClick: (() -> Unit)? = null,
     hasNote: Boolean = false,
+    isDeviceFile: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
@@ -166,7 +167,7 @@ internal fun VideoInfoSection(
                         text =
                             stringResource(
                                 R.string.duration_with_dot_template,
-                                dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
+                                dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp, video.timestampIsExact),
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -196,7 +197,7 @@ internal fun VideoInfoSection(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .clickable { openChannelOrCollaborators() },
+                        .clickable(enabled = !isDeviceFile) { openChannelOrCollaborators() },
             ) {
                 ChannelAvatarStack(
                     urls = avatarUrls,
@@ -233,14 +234,24 @@ internal fun VideoInfoSection(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            FlowSubscribeButton(
-                size = FlowSubscribeButtonSize.Compact,
-                isSubscribed = isSubscribed,
-                isNotificationsEnabled = isNotificationsEnabled,
-                onSubscribeClick = onSubscribeClick,
-                onUnsubscribeClick = onUnsubscribeClick,
-                onNotificationChange = onNotificationChange,
-            )
+            if (!isDeviceFile && collaborators.size > 1) {
+                // One button cannot name which channel it follows, so it opens the list that can (#1160).
+                FlowSubscribeButton(
+                    size = FlowSubscribeButtonSize.Compact,
+                    isSubscribed = collaborators.any { it.channelId in subscribedCollaboratorIds },
+                    onSubscribeClick = { showCollaborators = true },
+                    onSubscribedClick = { showCollaborators = true },
+                )
+            } else if (!isDeviceFile) {
+                FlowSubscribeButton(
+                    size = FlowSubscribeButtonSize.Compact,
+                    isSubscribed = isSubscribed,
+                    isNotificationsEnabled = isNotificationsEnabled,
+                    onSubscribeClick = onSubscribeClick,
+                    onUnsubscribeClick = onUnsubscribeClick,
+                    onNotificationChange = onNotificationChange,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -262,13 +273,13 @@ internal fun VideoInfoSection(
             isDownloaded = isDownloaded,
             onNoteClick = onNoteClick,
             hasNote = hasNote,
+            isDeviceFile = isDeviceFile,
         )
     }
 
     if (showCollaborators) {
         CollaboratorsBottomSheet(
             collaborators = collaborators,
-            onChannelClick = onCollaboratorClick,
             onDismiss = { showCollaborators = false },
         )
     }

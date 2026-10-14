@@ -27,8 +27,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -62,6 +64,7 @@ import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.channel.ChannelTabRow
 import io.github.aedev.flow.ui.components.channel.CommunityPostCard
 import io.github.aedev.flow.ui.components.channel.PostsPaneMaxWidth
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FeedShelfActions
 import io.github.aedev.flow.ui.components.shared.FeedShelfSections
 import io.github.aedev.flow.ui.components.shared.FeedShelfSlots
@@ -75,6 +78,7 @@ internal fun ChannelContent(
     onManageGroups: (() -> Unit)?,
     communityUiState: ChannelCommunityUiState,
     tabStates: Map<ChannelTabKind, ChannelTabState>,
+    showShortsTab: Boolean,
     onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
     subscribedChannelIds: Set<String>,
     channelNote: String?,
@@ -108,14 +112,13 @@ internal fun ChannelContent(
                 .PlayerPreferences(context)
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
-    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val columnPreference by preferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
     val coroutineScope = rememberCoroutineScope()
 
     val aboutTitle = stringResource(R.string.tab_about)
     val visibleTabs =
-        remember(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle) {
-            channelScreenTabs(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle)
+        remember(uiState.tabs, uiState.header, showShortsTab, aboutTitle) {
+            channelScreenTabs(uiState.tabs, uiState.header, showShortsTab, aboutTitle)
         }
     if (visibleTabs.isEmpty()) return
 
@@ -143,7 +146,7 @@ internal fun ChannelContent(
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
-    var headerOffsetPx by remember { mutableFloatStateOf(0f) }
+    var headerOffsetPx by rememberSaveable { mutableFloatStateOf(0f) }
 
     val density = LocalDensity.current
     val collapseTitleThresholdPx = with(density) { 2.dp.toPx() }
@@ -212,7 +215,7 @@ internal fun ChannelContent(
     val playlistsListState = rememberLazyGridState()
     val postsListState = rememberLazyListState()
     val homeListState = rememberLazyGridState()
-    val searchListState = rememberLazyListState()
+    val searchListState = rememberLazyGridState()
     val aboutListState = rememberLazyListState()
     val genericListState = rememberLazyGridState()
 
@@ -230,7 +233,13 @@ internal fun ChannelContent(
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
 
-    LaunchedEffect(activeSelection, settledTab.kind) { listStateFor(settledTab.kind).scrollToItem(0) }
+    // A new tab or filter starts at the top; coming back to the page keeps the list where it was.
+    var scrolledFor by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(activeSelection, settledTab.kind) {
+        val target = "${settledTab.kind}:$activeSelection"
+        if (scrolledFor != null && scrolledFor != target) listStateFor(settledTab.kind).scrollToItem(0)
+        scrolledFor = target
+    }
 
     Box(
         modifier =
@@ -248,7 +257,7 @@ internal fun ChannelContent(
             verticalAlignment = Alignment.Top,
             userScrollEnabled = true,
         ) { page ->
-            val listPadding = PaddingValues(top = visibleHeaderHeightDp)
+            val listPadding = PaddingValues(top = visibleHeaderHeightDp, bottom = flowBottomContentPadding())
             val tab = visibleTabs.getOrElse(page) { visibleTabs.first() }
 
             when {
@@ -291,6 +300,7 @@ internal fun ChannelContent(
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
                         isGridView = isGridView,
+                        columnPreference = columnPreference,
                         onVideoClick = onVideoClick,
                         onRetry = { onSearchQueryChange(uiState.searchQuery) },
                     )
@@ -309,7 +319,6 @@ internal fun ChannelContent(
                                 onVideoClick = onVideoClick,
                                 onShortClick = onShortClick,
                                 onPlaylistClick = onPlaylistClick,
-                                onChannelClick = onChannelClick,
                                 canOpenSection = { section -> sectionTarget(section, visibleTabs) != null },
                                 subscribedChannelIds = subscribedChannelIds,
                                 onSubscribeChannel = onSubscribeChannel,

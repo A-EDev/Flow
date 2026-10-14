@@ -8,12 +8,14 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class LyricsEntry(
-    val time: Long,           
+    val time: Long,
     val text: String,
     val words: List<WordTimestamp>? = null,
     val agent: String? = null,
     val isBackground: Boolean = false,
-    val translation: String? = null
+    val translation: String? = null,
+    /** The line in Latin script when the source provides it, kept apart from [translation]. */
+    val romanization: String? = null,
 ) : Comparable<LyricsEntry> {
     override fun compareTo(other: LyricsEntry): Int = time.compareTo(other.time)
 }
@@ -25,6 +27,6 @@ data class LyricsEntry(
 @Serializable
 data class WordTimestamp(
     val text: String,
-    val startTime: Long,  
-    val endTime: Long     
+    val startTime: Long,
+    val endTime: Long,
 )

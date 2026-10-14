@@ -197,6 +197,7 @@ fun FlowTranscriptBottomSheet(
         header = { dragModifier ->
             Column(modifier = dragModifier) {
                 FlowSheetHeader(
+                    inSidePane = !enableVerticalDismiss,
                     title = stringResource(R.string.transcript),
                     onClose = { sheetState.dismiss() },
                 )

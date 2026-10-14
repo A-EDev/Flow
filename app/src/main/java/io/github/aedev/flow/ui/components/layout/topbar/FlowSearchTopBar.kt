@@ -26,6 +26,7 @@ fun FlowSearchTopBar(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
     autoFocus: Boolean = true,
+    releaseFocusWithKeyboard: Boolean = false,
     windowInsets: WindowInsets = FlowTopBarDefaults.WindowInsets,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -43,6 +44,7 @@ fun FlowSearchTopBar(
                 placeholder = placeholder,
                 modifier = Modifier.fillMaxWidth(),
                 focusRequester = focusRequester,
+                releaseFocusWithKeyboard = releaseFocusWithKeyboard,
             )
         },
         onBack = onClose,

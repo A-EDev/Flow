@@ -6,6 +6,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.comments.CommentsPageResult
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -15,6 +16,7 @@ import io.mockk.Called
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CompletableDeferred
@@ -71,6 +73,33 @@ class VideoPlayerViewModelFetchCountsTest {
     private fun forgetRecordedCalls() {
         clearAllMocks(answers = false, childMocks = false)
     }
+
+    @Test
+    fun `a downloaded video opened by id plays its file, reads the watch page once and never extracts streams`() =
+        runTest {
+            val row = video("vid_dl").copy(title = "Downloaded title", channelId = "")
+            coEvery { harness.videoDownloadManager.findLocalCopy("vid_dl") } returns
+                DownloadedVideo(video = row, filePath = "/tmp/vid_dl.mp4")
+            coEvery { harness.repository.enrichFromWatchMetadata(any()) } answers {
+                firstArg<io.github.aedev.flow.data.model.Video>().copy(title = "Watch title", channelId = "UC_watch")
+            }
+            val viewModel = newViewModel()
+            forgetRecordedCalls()
+
+            viewModel.playVideo(row.copy(title = "", channelName = "", thumbnailUrl = "", duration = 0))
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+            coVerify(exactly = 0) { YouTube.player(any(), any(), any(), any(), any(), any(), any()) }
+            coVerify(exactly = 1) { harness.repository.enrichFromWatchMetadata(any()) }
+            coVerify(exactly = 1) { harness.repository.getRelatedCandidates("vid_dl") }
+            coVerify(exactly = 1) { harness.repository.videoChapters("vid_dl") }
+            coVerify(exactly = 1) { harness.repository.videoHeatmap("vid_dl") }
+            coVerify(exactly = 0) { harness.repository.videoCategory(any()) }
+            val state = viewModel.uiState.value
+            assertThat(state.localFilePath).isEqualTo("/tmp/vid_dl.mp4")
+            assertThat(state.cachedVideo?.title).isEqualTo("Watch title")
+        }
 
     @Test
     fun `playVideo resets state then makes 1 InnerTube extraction 1 RYD gate read and 1 premiere probe`() =
@@ -146,49 +175,14 @@ class VideoPlayerViewModelFetchCountsTest {
         }
 
     @Test
-    fun `stream expiry reload escalates to SABR then retries the direct ladder once`() =
+    fun `the screen leaves refused streams to the player and only shows its give-up`() =
         runTest {
             val viewModel = newViewModel()
             viewModel.playVideo(video("vid_a"))
             advanceUntilIdle()
             forgetRecordedCalls()
 
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-
-            val terminal = viewModel.uiState.value
-            assertThat(terminal.isLoading).isFalse()
-            assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
-            assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_generic_hint}")
-            // NewPipe is still started by the reload and only cancelled after its first attempt.
-            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = true) }
-            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
-            verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
-            coVerify(exactly = 0) { YouTube.player(any(), any(), any(), any(), any(), any(), any()) }
-            coVerify(exactly = 0) { harness.playerManager.clearCacheForCurrentVideo() }
-            coVerify(exactly = 0) { harness.playerPreferences.markVideoUnplayable(any()) }
-        }
-
-    @Test
-    fun `stream expiry gives up after MAX_STREAM_EXPIRY_RETRIES and marks the video unplayable`() =
-        runTest {
-            val viewModel = newViewModel()
-            viewModel.playVideo(video("vid_a"))
-            advanceUntilIdle()
-
-            repeat(2) {
-                assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-                runCurrent()
-            }
-            coVerify(exactly = 1) { harness.playerManager.clearCacheForCurrentVideo() }
-            forgetRecordedCalls()
-
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-            coVerify(exactly = 1) { harness.playerManager.clearCacheForCurrentVideo() }
-            forgetRecordedCalls()
-
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
+            assertThat(harness.playbackAbandonedEvent.tryEmit(Unit)).isTrue()
             runCurrent()
 
             val terminal = viewModel.uiState.value
@@ -196,12 +190,22 @@ class VideoPlayerViewModelFetchCountsTest {
             assertThat(terminal.error).isEqualTo("res:${R.string.error_all_stream_sources_failed}")
             assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_playback_retry_hint}")
             coVerify(exactly = 1) { harness.playerPreferences.markVideoUnplayable("vid_a") }
-            coVerify(exactly = 0) { harness.repository.getVideoStreamInfo(any()) }
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+            coVerify(exactly = 0) { harness.playerManager.clearCacheForCurrentVideo() }
+        }
 
-            assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
-            runCurrent()
-            coVerify(exactly = 0) { harness.repository.getVideoStreamInfo(any()) }
+    @Test
+    fun `retrying a video starts the player's refused-stream budget over`() =
+        runTest {
+            val viewModel = newViewModel()
+            viewModel.playVideo(video("vid_a"))
+            advanceUntilIdle()
+            forgetRecordedCalls()
+
+            viewModel.retryLoadVideo()
+            advanceUntilIdle()
+
+            verify(exactly = 1) { harness.playerManager.resetStreamRecovery() }
         }
 
     @Test

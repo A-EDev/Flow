@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamProcessor
@@ -13,7 +14,6 @@ import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.screens.player.state.blankVideo
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
@@ -44,7 +44,7 @@ internal class PlaybackStreamPreparer {
         val availableQualities: List<VideoQuality>,
         val videoStream: VideoStream?,
         val audioStream: AudioStream?,
-        val subtitles: List<SubtitlesStream>,
+        val subtitles: List<ResolvedCaption>,
         val isAdaptiveMode: Boolean,
         val streamSizes: Map<String, Long>,
     )
@@ -53,7 +53,7 @@ internal class PlaybackStreamPreparer {
         val identity: StreamIdentity,
         val hlsUrl: String?,
         val dashManifestUrl: String?,
-        val subtitles: List<SubtitlesStream>,
+        val subtitles: List<ResolvedCaption>,
     )
 
     fun assembleVod(
@@ -134,10 +134,9 @@ internal class PlaybackStreamPreparer {
                     channelId = channelId,
                     thumbnailUrl = thumbnail,
                     duration = durationSeconds.toInt(),
-                    // Creator-declared keywords, plus the category when the winning client happened
-                    // to return a microformat (WEB/MWEB do, VISIONOS does not). The engine already
-                    // ingests Video.tags; until now nothing on the player path filled them, so a
-                    // watched video taught it nothing beyond its title.
+                    // The category when the winning client happened to return a microformat
+                    // (WEB/MWEB do, VISIONOS does not), then the creator-declared keywords. The
+                    // category leads because the engine reads only the first tags.
                     tags = topicTags(result, cached),
                 ),
             title = title,
@@ -161,15 +160,15 @@ internal class PlaybackStreamPreparer {
                 ?.playerMicroformatRenderer
                 ?.category
                 ?.takeIf { it.isNotBlank() }
-        val tags = (keywords + listOfNotNull(category)).distinct()
+        val tags = (listOfNotNull(category) + keywords).distinct()
         return tags.ifEmpty { cached?.tags.orEmpty() }
     }
 
     private fun captionStreams(
         result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
         translateTo: String,
-    ): List<SubtitlesStream> =
-        StreamProcessor.processSubtitleStreams(
+    ): List<ResolvedCaption> =
+        StreamProcessor.processCaptions(
             CaptionTrackResolver.resolve(result.playerResponse, translateTo = translateTo),
         )
 }

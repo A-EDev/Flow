@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.music
 
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.recommendation.MusicSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -35,27 +34,6 @@ class MusicUiStateDeduplicationTest {
                 .tracks
                 .map(MusicTrack::videoId),
         )
-    }
-
-    @Test
-    fun `playlist track repetitions remain intact because their keys include occurrence`() {
-        val repeatedTracks = listOf(track("song"), track("song"))
-        val state =
-            MusicUiState(
-                playlistDetails =
-                    PlaylistDetails(
-                        id = "playlist",
-                        title = "Playlist",
-                        thumbnailUrl = "thumbnail",
-                        author = "Author",
-                        trackCount = repeatedTracks.size,
-                        tracks = repeatedTracks,
-                    ),
-            )
-
-        val result = state.withUniqueLazyContent()
-
-        assertEquals(2, result.playlistDetails?.tracks?.size)
     }
 
     @Test

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.data.recommendation
@@ -63,5 +63,14 @@ class NeuroSeenGateTest {
         val history = pool.drop(5).associateWith { shownRecently(4) }
         val kept = NeuroScoring.applySeenGate(pool, history, now) { it }
         assertThat(kept).isEqualTo(pool)
+    }
+
+    @Test
+    fun `the single-item rule matches the gate`() {
+        assertThat(NeuroScoring.isRecentlySeen(null, now)).isFalse()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(1, hoursAgo = 1.0), now)).isTrue()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(1, hoursAgo = 7.0), now)).isFalse()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(2, hoursAgo = 30.0), now)).isTrue()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(2, hoursAgo = 61.0), now)).isFalse()
     }
 }

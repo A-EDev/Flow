@@ -21,7 +21,6 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Wifi
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +50,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.utils.readPlainText
 import kotlinx.coroutines.launch
 
@@ -70,17 +70,21 @@ internal fun SyncChooserContent(
         icon = Icons.Outlined.Wifi,
         body = stringResource(R.string.sync_intro),
     )
-    SyncOptionCard(
-        icon = Icons.Outlined.Upload,
-        title = stringResource(R.string.sync_send_to_device),
-        body = stringResource(R.string.sync_send_option_body),
-        onClick = onSend,
-    )
-    SyncOptionCard(
-        icon = Icons.Outlined.Download,
-        title = stringResource(R.string.sync_receive_from_device),
-        body = stringResource(R.string.sync_receive_option_body),
-        onClick = onReceive,
+    SyncOptions(
+        listOf(
+            SyncOption(
+                icon = Icons.Outlined.Upload,
+                title = stringResource(R.string.sync_send_to_device),
+                body = stringResource(R.string.sync_send_option_body),
+                onClick = onSend,
+            ),
+            SyncOption(
+                icon = Icons.Outlined.Download,
+                title = stringResource(R.string.sync_receive_from_device),
+                body = stringResource(R.string.sync_receive_option_body),
+                onClick = onReceive,
+            ),
+        ),
     )
 }
 
@@ -113,35 +117,16 @@ internal fun SyncSelectContent(
         }
     }
 
-    SyncCard {
-        Column(Modifier.fillMaxWidth()) {
-            COLLECTION_KEYS.forEachIndexed { index, key ->
-                val checked = key in selected
-                ListItem(
-                    // One toggle target for the whole row: the checkbox is decorative, the row owns
-                    // the semantics, so a screen reader announces label + state once.
-                    modifier =
-                        Modifier.toggleable(
-                            value = checked,
-                            role = Role.Checkbox,
-                            onValueChange = { isChecked ->
-                                onSelectedChange(if (isChecked) selected + key else selected - key)
-                            },
-                        ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Icon(collectionIcon(key), contentDescription = null) },
-                    headlineContent = { Text(collectionLabel(key)) },
-                    supportingContent = collectionDescription(key)?.let { body -> { Text(body) } },
-                    trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-                )
-                if (index != COLLECTION_KEYS.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                }
-            }
-        }
+    SyncRowGroup(count = COLLECTION_KEYS.size) { index, shape ->
+        val key = COLLECTION_KEYS[index]
+        FlowSwitchRow(
+            title = collectionLabel(key),
+            supportingText = collectionDescription(key),
+            checked = key in selected,
+            onCheckedChange = { isChecked -> onSelectedChange(if (isChecked) selected + key else selected - key) },
+            leadingIcon = collectionIcon(key),
+            shape = shape,
+        )
     }
 
     SyncInfoRow(
@@ -165,23 +150,17 @@ internal fun SyncTransportContent(
     onScan: () -> Unit,
     onManual: () -> Unit,
 ) {
-    SyncOptionCard(
-        icon = Icons.Outlined.QrCode2,
-        title = showQrLabel,
-        body = showQrHint,
-        onClick = onShowQr,
-    )
-    SyncOptionCard(
-        icon = Icons.Outlined.QrCodeScanner,
-        title = scanLabel,
-        body = scanHint,
-        onClick = onScan,
-    )
-    SyncOptionCard(
-        icon = Icons.Outlined.Link,
-        title = stringResource(R.string.sync_enter_connection_data),
-        body = stringResource(R.string.sync_enter_connection_data_hint),
-        onClick = onManual,
+    SyncOptions(
+        listOf(
+            SyncOption(icon = Icons.Outlined.QrCode2, title = showQrLabel, body = showQrHint, onClick = onShowQr),
+            SyncOption(icon = Icons.Outlined.QrCodeScanner, title = scanLabel, body = scanHint, onClick = onScan),
+            SyncOption(
+                icon = Icons.Outlined.Link,
+                title = stringResource(R.string.sync_enter_connection_data),
+                body = stringResource(R.string.sync_enter_connection_data_hint),
+                onClick = onManual,
+            ),
+        ),
     )
 }
 

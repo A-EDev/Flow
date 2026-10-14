@@ -44,20 +44,22 @@ class SyncSerializationTest {
     @Test
     fun gcounter_is_the_bare_device_map_on_the_wire() {
         val brain = CanonicalBrain(counters = BrainCounters(totalInteractions = GCounter(mapOf("dev" to 12L))))
-        val line = SyncSerialization.encodeBrain(brain).lines.single()
+        val line = SyncSerialization.encodeBrain(listOf(brain)).lines.single()
 
         assertTrue("""a G-Counter must serialize as {"dev":12}""", line.contains(""""totalInteractions":{"dev":12}"""))
         assertFalse("the perDevice wrapper is what the desktop rejects", line.contains("perDevice"))
     }
 
     @Test
-    fun every_brain_record_is_folded_not_just_the_first() {
-        // The desktop ships one snapshot per device it knows about so a third device converges too.
+    fun every_brain_snapshot_is_kept_not_just_the_first() {
+        // The desktop ships one snapshot per device it knows about; the learned vectors are a mean
+        // over those devices, so none may be folded away on decode.
         val a = CanonicalBrain(deviceId = "a", counters = BrainCounters(totalInteractions = GCounter(mapOf("a" to 5L))))
         val b = CanonicalBrain(deviceId = "b", counters = BrainCounters(totalInteractions = GCounter(mapOf("b" to 7L))))
-        val lines = SyncSerialization.encodeBrain(a).lines + SyncSerialization.encodeBrain(b).lines
+        val lines = SyncSerialization.encodeBrain(listOf(b, a)).lines
 
-        val folded = SyncSerialization.decodeBrain(lines)
-        assertEquals(12L, folded?.counters?.totalInteractions?.sum())
+        val decoded = SyncSerialization.decodeBrainSnapshots(lines)
+        assertEquals(listOf("a", "b"), decoded.map { it.deviceId })
+        assertEquals(listOf(5L, 7L), decoded.map { it.counters.totalInteractions.sum() })
     }
 }

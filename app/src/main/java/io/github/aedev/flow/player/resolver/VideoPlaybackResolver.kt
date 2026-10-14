@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.playlist.DefaultHlsPlaylistTracker
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -42,6 +43,10 @@ class VideoPlaybackResolver(
         private const val PLAYLIST_STUCK_TARGET_DURATION_COEFFICIENT = 15.0
     }
 
+    /** Whether the last [resolve] handed Media3 a quality ladder to adapt over. */
+    var resolvedAdaptiveLadder = false
+        private set
+
     fun resolve(
         videoStreams: List<VideoStream>,
         audioStream: AudioStream?,
@@ -49,7 +54,9 @@ class VideoPlaybackResolver(
         hlsUrl: String?,
         durationSeconds: Long,
         isLiveStream: Boolean = false,
+        asAdaptiveLadder: Boolean = false,
     ): MediaSource? {
+        resolvedAdaptiveLadder = false
         Log.d(
             TAG,
             "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, " +
@@ -152,9 +159,12 @@ class VideoPlaybackResolver(
 
         // 3. Generate DASH manifests from progressive streams (NewPipe approach)
         // This avoids YouTube's progressive throttling (~50-100 KB/s limit)
+        val ladderSource = if (asAdaptiveLadder) createLadderSource(videoStreams, durationSeconds) else null
+        resolvedAdaptiveLadder = ladderSource != null
+        // A ladder that cannot be built starts on its lowest rung; Auto's own checks step up from there.
         val videoSource =
-            createVideoSource(
-                videoStreams = videoStreams,
+            ladderSource ?: createVideoSource(
+                videoStreams = if (asAdaptiveLadder) videoStreams.take(1) else videoStreams,
                 durationSeconds = durationSeconds,
                 preferMuxed = audioStream == null,
             )
@@ -181,6 +191,23 @@ class VideoPlaybackResolver(
                 null
             }
         }
+    }
+
+    private fun createLadderSource(
+        videoStreams: List<VideoStream>,
+        durationSeconds: Long,
+    ): MediaSource? {
+        val manifest =
+            try {
+                AdaptiveDashManifest.build(videoStreams, durationSeconds)
+            } catch (e: Exception) {
+                Log.w(TAG, "Adaptive ladder manifest failed, using a single stream", e)
+                null
+            } ?: return null
+        Log.d(TAG, "Adaptive ladder: ${videoStreams.map { "${VideoCodecUtils.qualityHeightFromStream(it)}p" }}")
+        return DashMediaSource
+            .Factory(dashDataSourceFactory)
+            .createMediaSource(manifest, playbackItem(videoStreams.first().content).build())
     }
 
     /**

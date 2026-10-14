@@ -3,44 +3,39 @@ package io.github.aedev.flow.ui.screens.music
 import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Player
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.LYRICS_ALIGN_CENTER
-import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalLyricsReader
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
-import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.music.onRepeatShelf
+import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.utils.PerformanceDispatcher
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.Locale
-import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -53,8 +48,9 @@ class MusicPlayerViewModel
         private val downloadManager: DownloadManager,
         private val likedVideosRepository: LikedVideosRepository,
         private val viewHistory: ViewHistory,
-        private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val musicBrain: MusicBrainEngine,
+        private val scrobbler: Scrobbler,
+        localLyrics: LocalLyricsReader,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
         val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
@@ -74,20 +70,39 @@ class MusicPlayerViewModel
         private var loadTrackJob: kotlinx.coroutines.Job? = null
         private var pendingSeekPosition: Long? = null
         private var pendingSeekStartedAtMs: Long = 0L
+        private val radioSwitch = MusicRadioSwitch(viewModelScope, _uiState, playerPreferences)
+        private val lyrics =
+            MusicPlayerLyrics(
+                context,
+                viewModelScope,
+                _uiState,
+                lyricsHelper,
+                playerPreferences,
+                localLyrics,
+                downloadManager::getDownloadedTrackPath,
+            )
+        private val trackActions =
+            MusicPlayerTrackActions(
+                context,
+                viewModelScope,
+                _uiState,
+                playlistRepository,
+                likedVideosRepository,
+                downloadManager,
+                musicBrain,
+                playerPreferences,
+                scrobbler,
+            )
 
         init {
-            EnhancedMusicPlayerManager.initialize(context)
+            EnhancedMusicPlayerManager.initialize(context, downloadManager::isDownloaded)
             initializeObservers()
             viewModelScope.launch {
                 playerPreferences.lyricsTextAlign.collect { align ->
                     _uiState.update { it.copy(lyricsTextAlign = align) }
                 }
             }
-            viewModelScope.launch {
-                playerPreferences.musicEndlessRadioEnabled.collect { enabled ->
-                    _uiState.update { it.copy(endlessRadioEnabled = enabled) }
-                }
-            }
+            radioSwitch.observe()
         }
 
         private fun initializeObservers() {
@@ -145,6 +160,11 @@ class MusicPlayerViewModel
                             checkIfFavorite(it.videoId)
                             fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
                             fetchRelatedContent(it.videoId)
+                        } else {
+                            favoriteJob?.cancel()
+                            _uiState.update { state -> state.copy(isLiked = false) }
+                            EnhancedMusicPlayerManager.setLiked(false)
+                            fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
                         }
                     }
                 }
@@ -189,42 +209,29 @@ class MusicPlayerViewModel
 
             viewModelScope.launch {
                 EnhancedMusicPlayerManager.automixItems.collect { automix ->
-                    _uiState.update {
-                        it.copy(
-                            autoplaySuggestions = automix,
-                            isRelatedLoading = false,
-                        )
-                    }
+                    _uiState.update { it.copy(autoplaySuggestions = automix) }
                 }
             }
 
             viewModelScope.launch {
-                localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
-                    val playlists =
-                        playlistInfos.map { info ->
-                            io.github.aedev.flow.data.music.Playlist(
-                                id = info.id,
-                                name = info.name,
-                                description = info.description,
-                                tracks = emptyList(),
-                                createdAt = info.createdAt,
-                                thumbnailUrl = info.thumbnailUrl,
-                                customTrackCount = info.videoCount,
-                            )
-                        }
-                    _uiState.update { it.copy(playlists = playlists) }
+                EnhancedMusicPlayerManager.radioLoading.collect { loading ->
+                    _uiState.update { it.copy(isRadioLoading = loading) }
                 }
             }
         }
 
+        private var favoriteJob: Job? = null
+
         private fun checkIfFavorite(videoId: String) {
-            viewModelScope.launch {
-                likedVideosRepository.getLikeState(videoId).collect { state ->
-                    val isLiked = state == "LIKED"
-                    _uiState.update { it.copy(isLiked = isLiked) }
-                    EnhancedMusicPlayerManager.setLiked(isLiked)
+            favoriteJob?.cancel()
+            favoriteJob =
+                viewModelScope.launch {
+                    likedVideosRepository.getLikeState(videoId).collect { state ->
+                        val isLiked = state == "LIKED"
+                        _uiState.update { it.copy(isLiked = isLiked) }
+                        EnhancedMusicPlayerManager.setLiked(isLiked)
+                    }
                 }
-            }
         }
 
         fun playLocalMusic(
@@ -269,13 +276,32 @@ class MusicPlayerViewModel
                 }
         }
 
-        private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
+        private fun isLocalMediaId(id: String?): Boolean = LocalMediaIds.isLocal(id)
+
+        private fun isLoadedInPlayer(videoId: String): Boolean {
+            val player = EnhancedMusicPlayerManager.player ?: return false
+            val state = player.playbackState
+            return EnhancedMusicPlayerManager.currentTrack.value?.videoId == videoId &&
+                (state == Player.STATE_READY || state == Player.STATE_BUFFERING)
+        }
 
         fun loadAndPlayTrack(
             track: MusicTrack,
             queue: List<MusicTrack> = emptyList(),
             sourceName: String? = null,
+            asRadio: Boolean = false,
         ) {
+            // Tapping the song that is already loaded, from any list, keeps it going instead of
+            // fetching and restarting it; a paused one resumes. The queue is left as it is.
+            if (!asRadio && isLoadedInPlayer(track.videoId)) {
+                EnhancedMusicPlayerManager.play()
+                return
+            }
+            if (isLocalMediaId(track.videoId)) {
+                val localUris = (queue + track).mapNotNull { t -> LocalMediaIds.audioUri(t.videoId)?.let { t.videoId to it } }.toMap()
+                playLocalMusic(track, queue.filter { isLocalMediaId(it.videoId) }, localUris)
+                return
+            }
             loadTrackJob?.cancel()
             // Genre-scoped surfaces tag their source; the genre becomes listen
             // context for this queue and is stripped from the display label.
@@ -291,7 +317,7 @@ class MusicPlayerViewModel
             val displaySourceName = contextGenre ?: sourceName
             loadTrackJob =
                 viewModelScope.launch {
-                    val finalSourceName = resolveSourceName(displaySourceName, track)
+                    val finalSourceName = musicSourceLabel(context, displaySourceName, track)
                     val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
                     val localUriOverrides =
                         withContext(PerformanceDispatcher.diskIO) {
@@ -317,6 +343,11 @@ class MusicPlayerViewModel
                             playingFrom = finalSourceName,
                         )
                     }
+
+                    // Flagged as late as possible: the service consumes the seed on the next
+                    // playlist change, and an unrelated advance during the lookup above would
+                    // otherwise eat it.
+                    EnhancedMusicPlayerManager.pendingRadioSeedId = track.videoId.takeIf { asRadio }
 
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         EnhancedMusicPlayerManager.playTrack(
@@ -362,63 +393,31 @@ class MusicPlayerViewModel
                 }
         }
 
-        private fun resolveSourceName(
-            sourceName: String?,
-            track: MusicTrack,
-        ): String {
-            val trimmed = sourceName?.trim().orEmpty()
-            if (trimmed.isBlank()) {
-                return context.getString(R.string.radio_source_template, track.artist)
-            }
-
-            val key = trimmed.lowercase(Locale.getDefault())
-            val mapped =
-                when (key) {
-                    "listen_again" -> context.getString(R.string.section_listen_again)
-                    "on_repeat" -> context.getString(R.string.section_on_repeat)
-                    "rotation" -> context.getString(R.string.source_your_rotation)
-                    "rediscover" -> context.getString(R.string.section_rediscover)
-                    "deep_cuts" -> context.getString(R.string.section_deep_cuts)
-                    "daily_discover" -> context.getString(R.string.section_daily_discover)
-                    "quick_picks" -> context.getString(R.string.section_quick_picks)
-                    "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)
-                    "recommended" -> context.getString(R.string.section_recommended)
-                    "recently_played" -> context.getString(R.string.section_recently_played)
-                    "music_videos" -> context.getString(R.string.section_music_videos)
-                    "music_videos_for_you" -> context.getString(R.string.section_music_videos_for_you)
-                    "live_performances" -> context.getString(R.string.section_live_performances)
-                    "new_releases" -> context.getString(R.string.section_new_releases)
-                    "popular_artists" -> context.getString(R.string.section_popular_artists)
-                    "mixed_for_you" -> context.getString(R.string.section_mixed_for_you)
-                    "moods_and_genres" -> context.getString(R.string.section_moods_and_genres)
-                    "mood_and_genres" -> context.getString(R.string.section_mood_and_genres)
-                    "from_the_community" -> context.getString(R.string.section_from_the_community)
-                    "top_albums" -> context.getString(R.string.section_top_albums)
-                    "top_picks" -> context.getString(R.string.top_picks_for_you)
-                    "trending" -> context.getString(R.string.trending)
-                    else -> null
-                }
-
-            if (mapped != null) return mapped
-
-            if (key.startsWith("genre_")) {
-                val genre = trimmed.substringAfter("genre_", "").replace('_', ' ').trim()
-                if (genre.isNotBlank()) return genre
-            }
-
-            return cleanSource(trimmed)
+        /** A YouTube Music link names only the song, so its details are fetched before it plays. */
+        suspend fun playFromLink(videoId: String) {
+            val track =
+                InnertubeMusicService.fetchQueue(videoIds = listOf(videoId)).firstOrNull()
+                    ?: MusicTrack(videoId = videoId, title = "", artist = "", thumbnailUrl = "", duration = 0)
+            loadAndPlayTrack(track)
         }
 
-        private fun cleanSource(value: String): String =
-            value
-                .replace('_', ' ')
-                .split(' ')
-                .filter { it.isNotBlank() }
-                .joinToString(" ") { word ->
-                    word.replaceFirstChar { char ->
-                        if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString()
-                    }
-                }
+        /** Plays the On Repeat shelf in a shuffled order, as the widget's Shuffle asks. */
+        suspend fun shuffleOnRepeat(sourceName: String) {
+            val tracks = musicBrain.onRepeatShelf().shuffled()
+            loadAndPlayTrack(tracks.firstOrNull() ?: return, tracks, sourceName)
+        }
+
+        /**
+         * Starts a station seeded from this track alone. The seed is flagged for the service,
+         * which would otherwise read a track taken from the playing queue as an in-queue skip
+         * and leave the previous station running.
+         */
+        fun startRadio(track: MusicTrack) {
+            loadAndPlayTrack(track, asRadio = true)
+        }
+
+        /** Local files have no InnerTube seed, so no station can be built from one. */
+        fun canStartRadio(track: MusicTrack): Boolean = !isLocalMediaId(track.videoId)
 
         fun togglePlayPause() {
             EnhancedMusicPlayerManager.togglePlayPause()
@@ -461,9 +460,18 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
         }
 
-        fun setEndlessRadioEnabled(enabled: Boolean) {
-            viewModelScope.launch { playerPreferences.setMusicEndlessRadioEnabled(enabled) }
+        /**
+         * Plays a suggestion by taking it into the queue and jumping to it. Loading it as a track
+         * would replace the whole queue with that one song — the sheet is showing what comes next,
+         * not an invitation to throw away what the user lined up.
+         */
+        fun playRadioTrack(track: MusicTrack) {
+            addRadioTrackToQueue(track)
+            val index = EnhancedMusicPlayerManager.queue.value.indexOfFirst { it.videoId == track.videoId }
+            if (index >= 0) EnhancedMusicPlayerManager.playFromQueue(index) else loadAndPlayTrack(track)
         }
+
+        fun setEndlessRadioEnabled(enabled: Boolean) = radioSwitch.set(enabled)
 
         fun seekTo(position: Long) {
             val duration =
@@ -548,151 +556,21 @@ class MusicPlayerViewModel
             EnhancedMusicPlayerManager.toggleRepeat()
         }
 
-        fun toggleLike() {
-            val currentTrack = _uiState.value.currentTrack ?: return
+        fun toggleLike() = trackActions.toggleLike()
 
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
-                _uiState.update { it.copy(isLiked = isNowFavorite) }
+        fun notInterested(track: MusicTrack) = trackActions.notInterested(track)
 
-                if (isNowFavorite) {
-                    likedVideosRepository.likeVideo(
-                        LikedVideoInfo(
-                            videoId = currentTrack.videoId,
-                            title = currentTrack.title,
-                            thumbnail = currentTrack.thumbnailUrl,
-                            channelName = currentTrack.artist,
-                            isMusic = true,
-                        ),
-                    )
-                    musicBrain.onExplicitLike(currentTrack)
-                } else {
-                    likedVideosRepository.removeLikeState(currentTrack.videoId)
-                }
-            }
-        }
+        fun dontRecommendArtist(track: MusicTrack) = trackActions.dontRecommendArtist(track)
 
-        /**
-         * "Not interested": soft-suppresses the track's artist for two weeks. A
-         * second one while still suppressed escalates to a permanent block —
-         * mirrored from the desktop two-layer feedback system.
-         */
-        fun notInterested(track: MusicTrack) {
-            val primary = track.artists.firstOrNull()
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                musicBrain.dislikeArtist(
-                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
-                    primary?.name ?: track.artist,
-                )
-            }
-        }
+        fun playNext(track: MusicTrack) = trackActions.playNext(track)
 
-        /** "Don't recommend {artist}": an immediate permanent hard block, reversible in settings. */
-        fun dontRecommendArtist(track: MusicTrack) {
-            val primary = track.artists.firstOrNull()
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                musicBrain.blockArtist(
-                    primary?.id ?: track.channelId.takeIf { it.isNotBlank() },
-                    primary?.name ?: track.artist,
-                )
-            }
-        }
+        fun addToQueue(track: MusicTrack) = trackActions.addToQueue(track)
 
-        fun addToPlaylist(
-            playlistId: String,
-            track: MusicTrack? = null,
-        ) {
-            val trackToAdd = track ?: _uiState.value.currentTrack ?: return
+        fun playNext(tracks: List<MusicTrack>) = trackActions.playNext(tracks)
 
-            viewModelScope.launch {
-                val video =
-                    Video(
-                        id = trackToAdd.videoId,
-                        title = trackToAdd.title,
-                        channelName = trackToAdd.artist,
-                        channelId = trackToAdd.channelId,
-                        thumbnailUrl = trackToAdd.thumbnailUrl,
-                        duration = trackToAdd.duration,
-                        viewCount = 0,
-                        uploadDate = "",
-                        timestamp = System.currentTimeMillis(),
-                        description = trackToAdd.album,
-                        isMusic = true,
-                    )
-                localPlaylistRepository.addVideoToPlaylist(playlistId, video)
-                Toast.makeText(context, context.getString(R.string.added_to_playlist_toast), Toast.LENGTH_SHORT).show()
-            }
-        }
+        fun addToQueue(tracks: List<MusicTrack>) = trackActions.addToQueue(tracks)
 
-        fun createPlaylist(
-            name: String,
-            description: String = "",
-            track: MusicTrack? = null,
-        ) {
-            viewModelScope.launch {
-                val id = UUID.randomUUID().toString()
-                localPlaylistRepository.createPlaylist(id, name, description, false, isMusic = true)
-                track?.let { addToPlaylist(id, it) }
-            }
-        }
-
-        fun showAddToPlaylistDialog(show: Boolean) {
-            _uiState.update { it.copy(showAddToPlaylistDialog = show) }
-        }
-
-        fun showCreatePlaylistDialog(show: Boolean) {
-            _uiState.update { it.copy(showCreatePlaylistDialog = show) }
-        }
-
-        fun playNext(track: MusicTrack) {
-            EnhancedMusicPlayerManager.playNext(track)
-            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
-            Toast.makeText(context, context.getString(R.string.play_next_toast), Toast.LENGTH_SHORT).show()
-        }
-
-        fun addToQueue(track: MusicTrack) {
-            EnhancedMusicPlayerManager.addToQueue(track)
-            EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
-            Toast.makeText(context, context.getString(R.string.added_to_queue_toast), Toast.LENGTH_SHORT).show()
-        }
-
-        fun downloadTrack(track: MusicTrack? = null) {
-            val trackToDownload = track ?: _uiState.value.currentTrack ?: return
-
-            if (_uiState.value.downloadedTrackIds.contains(trackToDownload.videoId)) {
-                viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.already_downloaded_toast), Toast.LENGTH_SHORT).show()
-                }
-                return
-            }
-
-            viewModelScope.launch {
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.download_started_toast), Toast.LENGTH_SHORT).show()
-                }
-
-                try {
-                    downloadManager.downloadTrack(trackToDownload)
-                } catch (e: Exception) {
-                    android.util.Log.e("MusicDownload", "Download start exception", e)
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        val msg = context.getString(R.string.download_error_toast, e.message ?: "")
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-
-        private var lyricsJob: kotlinx.coroutines.Job? = null
-
-        private fun cleanName(name: String): String =
-            name
-                .replace(Regex("(?i)\\s*-\\s*topic$", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("(?i)\\s*[(\\[]official (audio|video|music video|lyric video)[)\\]]", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("(?i)\\s*[(\\[]lyrics?[)\\]]", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("(?i)\\s*[(]feat\\.? .*?[)]", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("(?i)\\s*[\\[]feat\\.? .*?[\\]]", RegexOption.IGNORE_CASE), "")
-                .trim()
+        fun downloadTrack(track: MusicTrack? = null) = trackActions.downloadTrack(track)
 
         fun fetchLyrics(
             videoId: String,
@@ -700,233 +578,36 @@ class MusicPlayerViewModel
             title: String,
             duration: Int? = null,
             album: String? = null,
-        ) {
-            lyricsJob?.cancel()
-            lyricsJob =
-                viewModelScope.launch {
-                    _uiState.update {
-                        it.copy(
-                            isLyricsLoading = true,
-                            lyrics = null,
-                            syncedLyrics = emptyList(),
-                            lyricsProviderName = "",
-                            lyricsSyncOffsetMs = 0L,
-                            lyricsCandidates = emptyList(),
-                        )
-                    }
+        ) = lyrics.fetch(videoId, artist, title, duration, album)
 
-                    val cleanArtist = cleanName(artist)
-                    val cleanTitle = cleanName(title)
-                    val targetDuration = duration ?: (_uiState.value.duration.toInt() / 1000)
+        fun ensureLyricsLoaded(track: MusicTrack) = lyrics.ensureLoaded(track)
 
-                    try {
-                        val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
+        fun refreshLyrics() = lyrics.refresh()
 
-                        if (result != null) {
-                            val (entries, providerName) = result
-                            val hasWords = entries.any { it.words != null }
-                            val isSynced = lyricsHelper.entriesAreSynced(entries)
-                            android.util.Log.d(
-                                "MusicPlayerViewModel",
-                                "Got ${entries.size} lyrics lines from $providerName (word-sync=$hasWords, synced=$isSynced)",
-                            )
+        fun browseLyricsCandidates() = lyrics.browseCandidates()
 
-                            val plainText = entries.joinToString("\n") { it.text }
-                            _uiState.update {
-                                it.copy(
-                                    isLyricsLoading = false,
-                                    lyrics = plainText.takeIf { it.isNotBlank() },
-                                    syncedLyrics = if (isSynced) entries else emptyList(),
-                                    lyricsProviderName = providerName,
-                                )
-                            }
-                        } else {
-                            _uiState.update { it.copy(isLyricsLoading = false) }
-                        }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        android.util.Log.e("MusicPlayerViewModel", "Lyrics fetch failed", e)
-                        _uiState.update { it.copy(isLyricsLoading = false) }
-                    }
-                }
-        }
+        fun cancelLyricsBrowse() = lyrics.cancelBrowse()
 
-        /**
-         * Called when the player screen opens for a track that is ALREADY playing in
-         * EnhancedMusicPlayerManager (same videoId). In that case, the currentTrack
-         * StateFlow doesn't re-emit, so fetchLyrics is never triggered automatically.
-         *
-         * - If lyrics are already loaded for this track, does nothing (cache hit).
-         * - Otherwise fetches lyrics as normal.
-         */
-        fun ensureLyricsLoaded(track: MusicTrack) {
-            val state = _uiState.value
-            if (state.isLyricsLoading) return
-            if (!state.syncedLyrics.isNullOrEmpty()) return
-            if (!state.lyrics.isNullOrEmpty()) return
-            fetchLyrics(
-                videoId = track.videoId,
-                artist = track.artist,
-                title = track.title,
-                duration = track.duration,
-                album = track.album,
-            )
-        }
+        fun applyLyricsCandidate(candidate: LyricsCandidate) = lyrics.applyCandidate(candidate)
 
-        fun refreshLyrics() {
-            val track = _uiState.value.currentTrack ?: return
-            viewModelScope.launch {
-                try {
-                    lyricsHelper.forceRefresh(track.videoId)
-                } catch (e: Exception) {
-                    android.util.Log.w("MusicPlayerViewModel", "forceRefresh failed: ${e.message}")
-                }
-                fetchLyrics(
-                    videoId = track.videoId,
-                    artist = track.artist,
-                    title = track.title,
-                    duration = track.duration,
-                    album = track.album,
-                )
-            }
-        }
+        fun applyEditedLyrics(text: String) = lyrics.applyEdited(text)
 
-        private var browseLyricsJob: kotlinx.coroutines.Job? = null
+        fun adjustLyricsSyncOffset(deltaMs: Long) = lyrics.adjustSyncOffset(deltaMs)
 
-        fun browseLyricsCandidates() {
-            val track = _uiState.value.currentTrack ?: return
-            browseLyricsJob?.cancel()
-            browseLyricsJob =
-                viewModelScope.launch {
-                    _uiState.update { it.copy(isBrowsingLyrics = true, lyricsCandidates = emptyList()) }
-                    try {
-                        lyricsHelper.getAllLyrics(
-                            videoId = track.videoId,
-                            title = cleanName(track.title),
-                            artist = cleanName(track.artist),
-                            duration = track.duration,
-                            album = track.album,
-                        ) { candidate ->
-                            if (isActive) {
-                                _uiState.update { it.copy(lyricsCandidates = it.lyricsCandidates + candidate) }
-                            }
-                        }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        android.util.Log.w("MusicPlayerViewModel", "Lyrics browse failed: ${e.message}")
-                    } finally {
-                        // cancel() does not wait: a superseded browse's finally can run after the
-                        // replacement already set isBrowsingLyrics = true. Only the job that is
-                        // still current may clear the flag.
-                        if (browseLyricsJob === coroutineContext[kotlinx.coroutines.Job]) {
-                            _uiState.update { it.copy(isBrowsingLyrics = false) }
-                        }
-                    }
-                }
-        }
+        fun resetLyricsSyncOffset() = lyrics.resetSyncOffset()
 
-        fun cancelLyricsBrowse() {
-            browseLyricsJob?.cancel()
-            _uiState.update { it.copy(isBrowsingLyrics = false) }
-        }
+        fun setLyricsTextAlign(align: String) = lyrics.setTextAlign(align)
 
-        fun applyLyricsCandidate(candidate: LyricsCandidate) {
-            val track = _uiState.value.currentTrack ?: return
-            viewModelScope.launch {
-                lyricsHelper.applyManualLyrics(track.videoId, candidate.entries)
-                val plainText = candidate.entries.joinToString("\n") { it.text }
-                _uiState.update {
-                    it.copy(
-                        lyrics = plainText.takeIf { text -> text.isNotBlank() },
-                        syncedLyrics = if (candidate.synced) candidate.entries else emptyList(),
-                        lyricsProviderName = candidate.providerName,
-                        lyricsSyncOffsetMs = 0L,
-                    )
-                }
-            }
-        }
+        fun setLyricsShowTranslation(show: Boolean) = lyrics.setShowTranslation(show)
 
-        fun applyEditedLyrics(text: String) {
-            val track = _uiState.value.currentTrack ?: return
-            viewModelScope.launch {
-                val parsed =
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                        io.github.aedev.flow.data.lyrics.LyricsUtils
-                            .parseLyrics(text)
-                    }
-                val entries =
-                    parsed.ifEmpty {
-                        text
-                            .lines()
-                            .map { line -> line.trim() }
-                            .filter { line -> line.isNotBlank() }
-                            .map { line -> LyricsEntry(0L, line) }
-                    }
-                if (entries.isEmpty()) return@launch
-                val synced = lyricsHelper.entriesAreSynced(entries)
-                lyricsHelper.applyManualLyrics(track.videoId, entries)
-                val plainText = entries.joinToString("\n") { it.text }
-                _uiState.update {
-                    it.copy(
-                        lyrics = plainText.takeIf { t -> t.isNotBlank() },
-                        syncedLyrics = if (synced) entries else emptyList(),
-                        lyricsProviderName = context.getString(io.github.aedev.flow.R.string.lyrics_source_edited),
-                    )
-                }
-            }
-        }
+        fun setLyricsShowRomanization(show: Boolean) = lyrics.setShowRomanization(show)
 
-        fun adjustLyricsSyncOffset(deltaMs: Long) {
-            _uiState.update {
-                it.copy(lyricsSyncOffsetMs = (it.lyricsSyncOffsetMs + deltaMs).coerceIn(-30_000L, 30_000L))
-            }
-        }
-
-        fun resetLyricsSyncOffset() {
-            _uiState.update { it.copy(lyricsSyncOffsetMs = 0L) }
-        }
-
-        fun setLyricsTextAlign(align: String) {
-            viewModelScope.launch { playerPreferences.setLyricsTextAlign(align) }
-        }
+        fun setLyricsAutoRomanize(enabled: Boolean) = lyrics.setAutoRomanize(enabled)
 
         override fun onCleared() {
             super.onCleared()
         }
     }
-
-data class MusicPlayerUiState(
-    val currentTrack: MusicTrack? = null,
-    val isPlaying: Boolean = false,
-    val isBuffering: Boolean = false,
-    val duration: Long = 0,
-    val queue: List<MusicTrack> = emptyList(),
-    val autoplaySuggestions: List<MusicTrack> = emptyList(),
-    val currentQueueIndex: Int = 0,
-    val shuffleEnabled: Boolean = false,
-    val repeatMode: RepeatMode = RepeatMode.OFF,
-    val isLiked: Boolean = false,
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val playlists: List<io.github.aedev.flow.data.music.Playlist> = emptyList(),
-    val showAddToPlaylistDialog: Boolean = false,
-    val showCreatePlaylistDialog: Boolean = false,
-    val lyrics: String? = null,
-    val syncedLyrics: List<LyricsEntry> = emptyList(),
-    val isLyricsLoading: Boolean = false,
-    val playingFrom: String = "",
-    val endlessRadioEnabled: Boolean = true,
-    val relatedContent: List<MusicTrack> = emptyList(),
-    val isRelatedLoading: Boolean = false,
-    val downloadedTrackIds: Set<String> = emptySet(),
-    val lyricsProviderName: String = "",
-    val lyricsSyncOffsetMs: Long = 0L,
-    val lyricsTextAlign: String = LYRICS_ALIGN_CENTER,
-    val lyricsCandidates: List<LyricsCandidate> = emptyList(),
-    val isBrowsingLyrics: Boolean = false,
-)
 
 private const val SEEK_POSITION_CONFIRM_TOLERANCE_MS = 1_000L
 private const val SEEK_POSITION_MIN_HOLD_MS = 250L

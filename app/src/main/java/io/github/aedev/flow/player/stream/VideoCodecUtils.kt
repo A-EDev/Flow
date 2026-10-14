@@ -299,4 +299,10 @@ object VideoCodecUtils {
             rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
             else -> rawHeight
         }
+
+    /** A frame's quality class is its short side: a portrait 720x1280 frame is 720p, not 1280p. */
+    fun qualityClass(
+        width: Int,
+        height: Int,
+    ): Int = if (width > 0 && height > 0) minOf(width, height) else maxOf(width, height, 0)
 }

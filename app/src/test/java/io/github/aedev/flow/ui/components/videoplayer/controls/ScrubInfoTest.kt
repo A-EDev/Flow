@@ -78,6 +78,13 @@ class ScrubInfoTest {
     }
 
     @Test
+    fun `a whole-video label is not reported at the start of the video`() {
+        val segments = listOf(sponsor("exclusive_access", 0f, 0f))
+
+        assertThat(scrubInfoAt(0L, emptyList(), segments, null).sponsorCategory).isNull()
+    }
+
+    @Test
     fun `the most replayed label applies only inside its stretch`() {
         val heatmap =
             VideoHeatmap(

@@ -74,6 +74,23 @@ class ServicePlaybackStreamSelectorTest {
     }
 
     @Test
+    fun `a preference never matches a track whose name merely contains its code`() {
+        val english =
+            audio("en", languageTag = "en", trackName = "English original", trackType = AudioTrackType.ORIGINAL, bitrate = 128_000)
+        val french = audio("fr", languageTag = "fr-FR", trackName = "French (FR)", bitrate = 130_000)
+        val hindi = audio("hi", languageTag = "hi", trackName = "Hindi", bitrate = 128_000)
+        val chinese = audio("zh", languageTag = "zh", trackName = "Chinese", bitrate = 130_000)
+        val spanish = audio("es", languageTag = "es-US", trackName = "Spanish", bitrate = 128_000)
+        val portuguese = audio("pt", languageTag = "pt-BR", trackName = "Portuguese", bitrate = 130_000)
+        val tracks = listOf(english, french, hindi, chinese, spanish, portuguese)
+
+        assertEquals("en", select(audio = tracks, language = "en").second?.id)
+        assertEquals("hi", select(audio = tracks, language = "hi").second?.id)
+        assertEquals("es", select(audio = tracks, language = "es").second?.id)
+        assertEquals("pt", select(audio = tracks, language = "pt").second?.id)
+    }
+
+    @Test
     fun `a plain language preference still matches`() {
         val original = audio("orig", languageTag = "en", trackType = AudioTrackType.ORIGINAL)
         val spanish = audio("es", languageTag = "es")

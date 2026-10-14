@@ -19,6 +19,9 @@ class LyricsHelper(
         private const val PER_PROVIDER_TIMEOUT_MS = 8_000L
         private const val MAX_TOTAL_TIMEOUT_MS = 25_000L
         private const val PROVIDER_COOLDOWN_MS = 10 * 60 * 1000L
+
+        // After a line-synced hit, the providers after it get this long in total to find word sync.
+        private const val WORD_SYNC_GRACE_MS = 4_000L
     }
 
     private val registry = LyricsProviderRegistry.default()
@@ -93,6 +96,8 @@ class LyricsHelper(
         val now = System.currentTimeMillis()
 
         var unsyncedFallback: Pair<List<LyricsEntry>, String>? = null
+        var lineSyncedFallback: Pair<List<LyricsEntry>, String>? = null
+        var wordSyncDeadline = Long.MAX_VALUE
 
         val syncedResult =
             withTimeoutOrNull(MAX_TOTAL_TIMEOUT_MS) {
@@ -103,10 +108,13 @@ class LyricsHelper(
                         continue
                     }
 
+                    val timeout = minOf(PER_PROVIDER_TIMEOUT_MS, wordSyncDeadline - System.currentTimeMillis())
+                    if (timeout <= 0L) break
+
                     Log.d(TAG, "Trying provider: ${provider.name}")
                     val providerResult =
                         try {
-                            withTimeoutOrNull(PER_PROVIDER_TIMEOUT_MS) {
+                            withTimeoutOrNull(timeout) {
                                 provider.getLyrics(videoId, cleanedTitle, cleanedArtist, duration, album)
                             }
                         } catch (e: CancellationException) {
@@ -121,9 +129,18 @@ class LyricsHelper(
                         if (!entries.isNullOrEmpty()) {
                             entries = LyricsUtils.filterCreditLines(normalizeEntries(entries.sorted()))
                             if (entries.isNotEmpty() && hasReasonableTimestamps(entries, duration)) {
-                                if (entriesAreSynced(entries)) {
-                                    Log.d(TAG, "Got ${entries.size} SYNCED lines from ${provider.name} — using these")
+                                if (entriesAreSynced(entries) && hasWordSync(entries)) {
+                                    Log.d(TAG, "Got ${entries.size} WORD-SYNCED lines from ${provider.name} — using these")
                                     return@withTimeoutOrNull entries to provider.name
+                                } else if (entriesAreSynced(entries)) {
+                                    if (lineSyncedFallback == null) {
+                                        Log.d(
+                                            TAG,
+                                            "${provider.name} returned LINE-SYNCED lines — keeping them, looking briefly for word sync",
+                                        )
+                                        lineSyncedFallback = stripWordTimings(entries) to provider.name
+                                        wordSyncDeadline = System.currentTimeMillis() + WORD_SYNC_GRACE_MS
+                                    }
                                 } else if (unsyncedFallback == null) {
                                     Log.d(
                                         TAG,
@@ -148,7 +165,7 @@ class LyricsHelper(
                     }
                 }
                 null
-            }
+            } ?: lineSyncedFallback
 
         if (syncedResult != null) {
             cache[videoId] = syncedResult.first

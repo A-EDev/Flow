@@ -9,25 +9,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 
-// Shared Material 3 building blocks for the sync flow. Every step is a header plus a body plus a
-// bottom action row, so the flow reads as one screen changing rather than eight unrelated ones.
+// The sync flow's building blocks. Every step is a header, a body of the same segmented rows the
+// settings pages use, and a bottom action row, so the flow reads as one screen changing.
 
 /**
  * The heading for a step: an icon in a tonal circle, a title, and one supporting line.
@@ -69,33 +73,58 @@ internal fun SyncStepHeader(
     }
 }
 
-/**
- * A tappable card offering one route through the flow: leading icon, title, and the sentence that
- * explains when to pick it. Replaces the stacked bare buttons, which gave the user no way to tell
- * the two options apart.
- */
+/** A run of [count] rows drawn as one segmented group, each given the shape its position calls for. */
 @Composable
-internal fun SyncOptionCard(
+internal fun SyncRowGroup(
+    count: Int,
+    modifier: Modifier = Modifier,
+    row: @Composable (index: Int, shape: Shape) -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap)) {
+        repeat(count) { index -> row(index, flowSegmentShape(index = index, count = count)) }
+    }
+}
+
+/** One route through the flow: what it does and when to pick it. */
+internal class SyncOption(
+    val icon: ImageVector,
+    val title: String,
+    val body: String,
+    val onClick: () -> Unit,
+)
+
+/** The routes a step offers, as one group of navigation rows. */
+@Composable
+internal fun SyncOptions(options: List<SyncOption>) {
+    SyncRowGroup(count = options.size) { index, shape ->
+        val option = options[index]
+        FlowNavRow(
+            title = option.title,
+            supportingText = option.body,
+            leadingIcon = option.icon,
+            shape = shape,
+            onClick = option.onClick,
+        )
+    }
+}
+
+/** A read-only row in a group: a collection agreed to, or what a finished sync changed in it. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun SyncInfoItem(
     icon: ImageVector,
     title: String,
-    body: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    shape: Shape,
+    supporting: String? = null,
 ) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
+    SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
+        shapes = ListItemDefaults.shapes(shape = shape),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        leadingContent = { Icon(icon, contentDescription = null) },
+        supportingContent = supporting?.let { { Text(it) } },
     ) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            leadingContent = { Icon(icon, contentDescription = null) },
-            headlineContent = { Text(title, style = MaterialTheme.typography.titleMedium) },
-            supportingContent = { Text(body, style = MaterialTheme.typography.bodyMedium) },
-        )
+        Text(title)
     }
 }
 
@@ -107,9 +136,9 @@ internal fun SyncInfoRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             icon,
@@ -129,6 +158,7 @@ internal fun SyncInfoRow(
  * The step's actions. One action fills the width; two share it evenly with the confirming action on
  * the trailing side, so the decisive button always sits where the thumb expects it.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SyncActionRow(
     confirmLabel: String,
@@ -143,26 +173,27 @@ internal fun SyncActionRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (dismissLabel != null && onDismiss != null) {
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+            OutlinedButton(onClick = onDismiss, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
                 Text(dismissLabel)
             }
         }
-        Button(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.weight(1f)) {
+        Button(onClick = onConfirm, enabled = confirmEnabled, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) {
             Text(confirmLabel)
         }
     }
 }
 
-/** Frames arbitrary content in the flow's standard grouping container. */
+/** Frames arbitrary content as a single segmented row, the way a settings page frames one. */
 @Composable
 internal fun SyncCard(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     content: @Composable () -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        shape = flowSegmentShape(index = 0, count = 1),
+        color = containerColor,
     ) {
         Box(Modifier.fillMaxWidth()) { content() }
     }

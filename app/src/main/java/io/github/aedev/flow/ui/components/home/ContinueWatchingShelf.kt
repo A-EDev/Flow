@@ -4,11 +4,11 @@ package io.github.aedev.flow.ui.components.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
@@ -19,29 +19,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
-import io.github.aedev.flow.ui.components.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.WatchProgressBar
+import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.pressScale
+import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 
+object ContinueWatchingShelfDefaults {
+    val CardWidth: Dp = 350.dp
+}
+
+/** [cardWidth] comes from the width the strip scrolls across, so a tablet does not pin phone-sized cards. */
 @Composable
 fun ContinueWatchingShelf(
     entries: List<VideoHistoryEntry>,
@@ -49,13 +59,13 @@ fun ContinueWatchingShelf(
     onRemove: (String) -> Unit = {},
     onSeeAllClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    cardWidth: Dp = ContinueWatchingShelfDefaults.CardWidth,
 ) {
     val uniqueEntries =
         remember(entries) {
             entries.distinctByNonBlankKey(VideoHistoryEntry::videoId)
         }
     if (uniqueEntries.isEmpty()) return
-    val context = LocalContext.current
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier =
@@ -73,7 +83,7 @@ fun ContinueWatchingShelf(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = context.getString(R.string.continue_watching_title),
+                text = stringResource(R.string.continue_watching_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -94,6 +104,7 @@ fun ContinueWatchingShelf(
             items(uniqueEntries, key = { it.videoId }) { entry ->
                 ContinueWatchingCard(
                     entry = entry,
+                    cardWidth = cardWidth,
                     onClick = { onVideoClick(entry.videoId) },
                     onRemove = { onRemove(entry.videoId) },
                 )
@@ -105,6 +116,7 @@ fun ContinueWatchingShelf(
 @Composable
 private fun ContinueWatchingCard(
     entry: VideoHistoryEntry,
+    cardWidth: Dp,
     onClick: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -121,6 +133,8 @@ private fun ContinueWatchingCard(
             }
     }
     val displayChannelName = rememberCollaboratorChannelDisplayName(entry.channelName, resolvedCollaborators)
+    val removeLabel = stringResource(R.string.remove_from_history)
+    var showMenu by remember { mutableStateOf(false) }
 
     ShelfVideoCardContent(
         videoId = entry.videoId,
@@ -132,21 +146,28 @@ private fun ContinueWatchingCard(
                 formatContinueWatchingTime((duration - entry.position).coerceAtLeast(0L))
             },
         progress = (entry.progressPercentage / 100f).coerceIn(0f, 1f),
+        width = cardWidth,
         onClick = onClick,
+        onLongClick = { showMenu = true },
         trailingContent = {
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(28.dp),
-            ) {
+            IconButton(onClick = onRemove) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = null,
+                    contentDescription = removeLabel,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
             }
         },
     )
+    if (showMenu) {
+        VideoQuickActionsBottomSheet(
+            video = remember(entry) { entry.toVideo() },
+            onDismiss = { showMenu = false },
+            onRemoveFromCollection = onRemove,
+            removeFromCollectionLabel = removeLabel,
+        )
+    }
 }
 
 @Composable
@@ -156,7 +177,9 @@ private fun ShelfVideoCardContent(
     title: String,
     channelName: String,
     durationText: String?,
+    width: Dp,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     progress: Float? = null,
     trailingContent: (@Composable () -> Unit)? = null,
@@ -165,11 +188,13 @@ private fun ShelfVideoCardContent(
     Column(
         modifier =
             modifier
-                .width(350.dp)
+                .width(width)
                 .pressScale(interactionSource)
-                .clickable(
+                .combinedClickable(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
+                    onLongClickLabel = stringResource(R.string.more_options),
+                    onLongClick = onLongClick,
                     onClick = onClick,
                 ),
     ) {
@@ -178,7 +203,7 @@ private fun ShelfVideoCardContent(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .thumbnailGradientOverlay(),
         ) {

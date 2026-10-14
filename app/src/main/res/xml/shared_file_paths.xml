@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path
+        name="recap"
+        path="recap/" />
+    <cache-path
+        name="playlists"
+        path="playlists/" />
+</paths>

@@ -29,6 +29,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerChaptersSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDescriptionSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerQueueSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
 import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
@@ -52,6 +53,7 @@ internal class FullscreenSidePanelState(
     val showLiveChat: Boolean,
     val showComments: Boolean,
     val showSleepTimer: Boolean,
+    val showQueue: Boolean,
     val drawerWidth: Dp,
     val drawerOffset: Dp,
     val panelHeight: Dp,
@@ -81,11 +83,12 @@ internal fun rememberFullscreenSidePanelState(
     val showCommentsSidePanel =
         screenState.activeSheet == PlayerSheet.Comments(fullscreen = true) && commentsEnabled
     val showSleepTimerSidePanel = screenState.activeSheet == PlayerSheet.SleepTimer
+    val showQueueSidePanel = screenState.activeSheet == PlayerSheet.Queue
     val fullscreenSidePanelVisible =
         canUseFullscreenSidePanel &&
             (
                 showSettingsSurface || showChaptersSidePanel || showDescriptionSidePanel ||
-                    showLiveChatSidePanel || showCommentsSidePanel || showSleepTimerSidePanel
+                    showLiveChatSidePanel || showCommentsSidePanel || showSleepTimerSidePanel || showQueueSidePanel
             )
     val fullscreenDrawerWidth = minOf(maxWidth * 0.42f, 420.dp)
     val fullscreenDrawerWidthPx = with(density) { fullscreenDrawerWidth.toPx() }
@@ -182,6 +185,7 @@ internal fun rememberFullscreenSidePanelState(
         showLiveChat = showLiveChatSidePanel,
         showComments = showCommentsSidePanel,
         showSleepTimer = showSleepTimerSidePanel,
+        showQueue = showQueueSidePanel,
         drawerWidth = fullscreenDrawerWidth,
         drawerOffset = fullscreenDrawerOffset,
         panelHeight = fullscreenSidePanelHeight,
@@ -263,6 +267,12 @@ internal fun BoxScope.FullscreenSidePanel(
             )
         } else if (panelState.showSleepTimer) {
             PlayerSleepTimerSheetHost(
+                asSidePanel = true,
+                expandedHeight = panelState.panelHeight,
+                onDismiss = closeFullscreenSidePanel,
+            )
+        } else if (panelState.showQueue) {
+            PlayerQueueSheetHost(
                 asSidePanel = true,
                 expandedHeight = panelState.panelHeight,
                 onDismiss = closeFullscreenSidePanel,

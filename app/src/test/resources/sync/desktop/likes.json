@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "video",
+    "id": "dQw4w9WgXcQ",
+    "state": "liked",
+    "updatedAtMs": 1781512000000,
+    "hlc": "1781512000000:0:device-aaa",
+    "meta": { "title": "Never Gonna Give You Up", "channelName": "Rick Astley" }
+  },
+  {
+    "kind": "music",
+    "id": "9bZkp7q19f0",
+    "state": "none",
+    "updatedAtMs": 1781512200000,
+    "hlc": "1781512200000:1:device-aaa",
+    "meta": null
+  }
+]

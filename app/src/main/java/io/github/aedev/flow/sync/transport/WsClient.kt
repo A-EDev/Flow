@@ -9,6 +9,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -18,43 +19,69 @@ import kotlin.coroutines.resumeWithException
  * [OkHttpClient] is rebuilt with no call/read timeout (a long-lived WS would otherwise be killed
  * by the app's 60 s `callTimeout`) plus a keepalive ping.
  */
-class WsClient(private val baseClient: OkHttpClient) {
+class WsClient(
+    private val baseClient: OkHttpClient,
+) {
+    suspend fun connect(url: String): SyncConnection =
+        suspendCancellableCoroutine { cont ->
+            val client =
+                baseClient
+                    .newBuilder()
+                    .callTimeout(0, TimeUnit.MILLISECONDS)
+                    .readTimeout(0, TimeUnit.MILLISECONDS)
+                    .writeTimeout(15, TimeUnit.SECONDS)
+                    .connectTimeout(4, TimeUnit.SECONDS) // AP-isolation / firewall → fail fast
+                    .pingInterval(20, TimeUnit.SECONDS)
+                    .build()
+            val incoming = Channel<ByteArray>(Channel.UNLIMITED)
+            val request = Request.Builder().url(url).build()
 
-    suspend fun connect(url: String): SyncConnection = suspendCancellableCoroutine { cont ->
-        val client = baseClient.newBuilder()
-            .callTimeout(0, TimeUnit.MILLISECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .connectTimeout(4, TimeUnit.SECONDS) // AP-isolation / firewall → fail fast
-            .pingInterval(20, TimeUnit.SECONDS)
-            .build()
-        val incoming = Channel<ByteArray>(Channel.UNLIMITED)
-        val request = Request.Builder().url(url).build()
+            val ws =
+                client.newWebSocket(
+                    request,
+                    object : WebSocketListener() {
+                        override fun onOpen(
+                            webSocket: WebSocket,
+                            response: Response,
+                        ) {
+                            if (cont.isActive) cont.resume(WsConnection(webSocket, incoming))
+                        }
 
-        val ws = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                if (cont.isActive) cont.resume(WsConnection(webSocket, incoming))
-            }
+                        override fun onMessage(
+                            webSocket: WebSocket,
+                            bytes: ByteString,
+                        ) {
+                            incoming.trySend(bytes.toByteArray())
+                        }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                incoming.trySend(bytes.toByteArray())
-            }
+                        override fun onClosing(
+                            webSocket: WebSocket,
+                            code: Int,
+                            reason: String,
+                        ) {
+                            incoming.close()
+                        }
 
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                incoming.close()
-            }
+                        override fun onClosed(
+                            webSocket: WebSocket,
+                            code: Int,
+                            reason: String,
+                        ) {
+                            incoming.close()
+                        }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                incoming.close()
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                incoming.close(t)
-                if (cont.isActive) cont.resumeWithException(t)
-            }
-        })
-        cont.invokeOnCancellation { runCatching { ws.cancel() } }
-    }
+                        override fun onFailure(
+                            webSocket: WebSocket,
+                            t: Throwable,
+                            response: Response?,
+                        ) {
+                            incoming.close(t)
+                            if (cont.isActive) cont.resumeWithException(t)
+                        }
+                    },
+                )
+            cont.invokeOnCancellation { runCatching { ws.cancel() } }
+        }
 }
 
 /** Wraps an open OkHttp [WebSocket] as a [SyncConnection]. */
@@ -63,7 +90,9 @@ class WsConnection(
     private val incoming: Channel<ByteArray>,
 ) : SyncConnection {
     override suspend fun send(bytes: ByteArray) {
-        ws.send(bytes.toByteString())
+        // OkHttp refuses (returns false) once the socket is closing or its 16 MiB outgoing queue is
+        // full; ignoring that dropped the frame silently and the session died later with no cause.
+        if (!ws.send(bytes.toByteString())) throw IOException("WebSocket refused a ${bytes.size}-byte frame")
     }
 
     override suspend fun receive(): ByteArray? = incoming.receiveCatching().getOrNull()

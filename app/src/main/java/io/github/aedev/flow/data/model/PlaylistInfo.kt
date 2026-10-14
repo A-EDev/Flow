@@ -8,4 +8,5 @@ data class PlaylistInfo(
     val thumbnailUrl: String,
     val isPrivate: Boolean,
     val createdAt: Long,
+    val position: Int = 0,
 )

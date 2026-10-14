@@ -20,12 +20,7 @@ import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,17 +49,15 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
+import io.github.aedev.flow.data.video.downloader.request.DownloadSubtitle
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.github.aedev.flow.player.state.SubtitleOption
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 private const val MIN_THREADS = 1
 private const val MAX_THREADS = 8
@@ -72,31 +65,21 @@ private val downloadPrefsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO
 
 private const val UNRANKED_CODEC = 99
 
-private fun containerForCodec(codecKey: String): String =
-    when (codecKey) {
-        "vp9", "vp8" -> "WebM"
-        else -> "MP4"
-    }
-
-private fun codecOptionLabel(
-    codecKey: String,
-    separator: String,
-): String = "${VideoPlayerUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
-
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun MediaDownloadDialogCompact(
-    streamInfo: StreamInfo?,
     streamSizes: Map<String, Long>,
     innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
     currentPlayingHeight: Int = 0,
+    subtitles: List<SubtitleOption> = emptyList(),
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val separatorDot = stringResource(R.string.list_separator_dot)
+    val hdrLabel = stringResource(R.string.download_quality_hdr)
     val audioLabelStrings =
         AudioLabelStrings(
             unknownFormat = stringResource(R.string.audio_format_unknown),
@@ -110,6 +93,11 @@ fun MediaDownloadDialogCompact(
     val lastHeight by prefs.lastDownloadHeight.collectAsState(initial = null)
     val lastCodec by prefs.lastDownloadCodec.collectAsState(initial = null)
     val lastAudioLabel by prefs.lastDownloadAudioLabel.collectAsState(initial = null)
+    val lastSubtitleLanguage by prefs.lastDownloadSubtitleLanguage.collectAsState(initial = null)
+    val subtitleOptions = remember(subtitles) { downloadableSubtitles(subtitles) }
+    var subtitleChoice by remember(subtitleOptions, lastSubtitleLanguage) {
+        mutableStateOf(defaultDownloadSubtitle(subtitleOptions, lastSubtitleLanguage))
+    }
     val defaultDownloadCodec by prefs.defaultDownloadCodec.collectAsState(initial = VideoCodec.AUTO)
     val preferredDownloadCodecKey = defaultDownloadCodec.takeIf { it != VideoCodec.AUTO }?.codecKey
 
@@ -120,27 +108,16 @@ fun MediaDownloadDialogCompact(
                 .getPlayer()
                 ?.videoFormat
                 ?.sampleMimeType
-                ?.let { VideoPlayerUtils.codecKeyFromMimeType(it) }
+                ?.let { VideoCodecUtils.codecKeyFromMimeType(it) }
         }
 
     val videoStreams =
-        remember(innerTubeVideoFormats, streamInfo) {
-            DownloadStreamPolicy.buildDownloadVideoStreams(
-                innerTubeStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats),
-                videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-                muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-            )
-        }
+        remember(innerTubeVideoFormats) { DownloadStreamPolicy.buildDownloadVideoFormats(innerTubeVideoFormats) }
     val audioStreams =
-        remember(innerTubeAudioFormats, streamInfo) {
-            DownloadStreamPolicy.mergeAudioDownloadStreams(
-                InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
-                streamInfo?.audioStreams ?: emptyList(),
-            )
-        }
+        remember(innerTubeAudioFormats) { DownloadStreamPolicy.buildDownloadAudioFormats(innerTubeAudioFormats) }
     val heights =
         remember(videoStreams) {
-            videoStreams.map { VideoPlayerUtils.qualityHeightFromStream(it) }.distinct().sortedDescending()
+            videoStreams.map(DownloadStreamPolicy::videoHeight).distinct().sortedDescending()
         }
 
     val hasVideo = videoStreams.isNotEmpty()
@@ -161,8 +138,8 @@ fun MediaDownloadDialogCompact(
     }
     val codecsForHeight =
         videoStreams
-            .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
-            .map { VideoPlayerUtils.codecKeyFromStream(it) }
+            .filter { DownloadStreamPolicy.videoHeight(it) == selectedHeight }
+            .map(DownloadStreamPolicy::videoCodecKey)
             .distinct()
             .sortedBy { DownloadStreamPolicy.DOWNLOAD_CODEC_PRIORITY[it] ?: UNRANKED_CODEC }
     var selectedCodec by remember(selectedHeight, lastCodec, preferredDownloadCodecKey) {
@@ -181,14 +158,14 @@ fun MediaDownloadDialogCompact(
         )
     }
 
-    val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(selectedHeight, selectedCodec)])
+    val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoCodecUtils.streamSizeKey(selectedHeight, selectedCodec)])
 
     fun confirmDownload() {
         val finalTitle = title.trim().ifBlank { video.title }
         val taggedVideo = video.copy(title = finalTitle)
         if (isAudioMode) {
             val stream = audioStreams.getOrNull(selectedAudioIndex) ?: return
-            if (!startAudioOnlyDownload(context, taggedVideo, stream, threads)) return
+            if (!DownloadLauncher.startAudioOnlyDownload(context, taggedVideo, stream, threads)) return
             Toast
                 .makeText(
                     context,
@@ -205,76 +182,17 @@ fun MediaDownloadDialogCompact(
 
         val stream =
             videoStreams.firstOrNull {
-                VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                    VideoPlayerUtils.codecKeyFromStream(it) == selectedCodec
+                DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
+                    DownloadStreamPolicy.videoCodecKey(it) == selectedCodec
             } ?: return
-        val downloadUrl = stream.getContent().takeIf { it.isNotBlank() } ?: return
-        val codecLabel = VideoPlayerUtils.codecLabelFromKey(selectedCodec)
-        val qualityLabel = "$codecLabel ${selectedHeight}p"
-
-        var audioUrl: String? = null
-        if (stream.isVideoOnly) {
-            val compatible = DownloadStreamPolicy.pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
-            audioUrl = compatible?.getContent()?.takeIf { it.isNotBlank() }
-            if (audioUrl == null) {
-                Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
-                return
-            }
+        val audio = DownloadStreamPolicy.pickAacAudio(audioStreams, preferredLang)
+        if (audio == null) {
+            Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
+            return
         }
-
-        var fallbackUrl: String? = null
-        var fallbackAudioUrl: String? = null
-        var fallbackCodec: String? = null
-        var fallbackQuality: String? = null
-        if (selectedCodec == "av1") {
-            val fb =
-                videoStreams.firstOrNull {
-                    VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                        VideoPlayerUtils.codecKeyFromStream(it) != "av1"
-                }
-            val fbUrl = fb?.getContent()?.takeIf { it.isNotBlank() }
-            if (fb != null && fbUrl != null) {
-                val fbCodecKey = VideoPlayerUtils.codecKeyFromStream(fb)
-                val fbAudio =
-                    if (fb.isVideoOnly) {
-                        DownloadStreamPolicy
-                            .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
-                            ?.getContent()
-                            ?.takeIf { it.isNotBlank() }
-                    } else {
-                        null
-                    }
-                if (!fb.isVideoOnly || fbAudio != null) {
-                    fallbackUrl = fbUrl
-                    fallbackAudioUrl = fbAudio
-                    fallbackCodec =
-                        when (fbCodecKey) {
-                            "vp9", "vp8" -> fbCodecKey
-                            else -> null
-                        }
-                    fallbackQuality = "${VideoPlayerUtils.codecLabelFromKey(fbCodecKey)} ${selectedHeight}p"
-                }
-            }
-        }
-
-        VideoPlayerUtils.startDownload(
-            context = context,
-            video = taggedVideo,
-            url = downloadUrl,
-            qualityLabel = qualityLabel,
-            audioUrl = audioUrl,
-            videoCodec =
-                when (selectedCodec) {
-                    "vp9", "vp8", "av1" -> selectedCodec
-                    else -> null
-                },
-            threads = threads,
-            fallbackUrl = fallbackUrl,
-            fallbackAudioUrl = fallbackAudioUrl,
-            fallbackCodec = fallbackCodec,
-            fallbackQuality = fallbackQuality,
-        )
-        Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
+        val subtitle = subtitleChoice?.toDownloadSubtitle() ?: DownloadSubtitle.OFF.takeIf { subtitleOptions.isNotEmpty() }
+        DownloadLauncher.startVideoDownload(context, taggedVideo, stream, audio, threads, subtitle)
+        if (subtitleOptions.isNotEmpty()) rememberDownloadSubtitleChoice(prefs, subtitleChoice)
         downloadPrefsScope.launch {
             prefs.setLastDownloadVideoChoice(selectedHeight, selectedCodec)
             prefs.setDownloadThreads(threads)
@@ -289,7 +207,15 @@ fun MediaDownloadDialogCompact(
             color = AlertDialogDefaults.containerColor,
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+            Column(
+                modifier =
+                    Modifier.padding(
+                        start = FlowDialogDefaults.ContentPadding,
+                        top = FlowDialogDefaults.ContentPadding,
+                        end = FlowDialogDefaults.ContentPadding,
+                        bottom = FlowDialogDefaults.BottomPadding,
+                    ),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.download_video),
@@ -354,6 +280,14 @@ fun MediaDownloadDialogCompact(
                                 codecOptionLabel(codec, separatorDot) to { selectedCodec = codec }
                             },
                     )
+                    if (subtitleOptions.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        DownloadSubtitleRow(
+                            options = subtitleOptions,
+                            selected = subtitleChoice,
+                            onSelect = { subtitleChoice = it },
+                        )
+                    }
                 } else if (isAudioMode && hasAudio) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_audio),
@@ -411,7 +345,7 @@ fun MediaDownloadDialogCompact(
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(FlowDialogDefaults.ActionsSpacing))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -430,63 +364,6 @@ fun MediaDownloadDialogCompact(
                         enabled = (isAudioMode && hasAudio) || (!isAudioMode && hasVideo && selectedCodec.isNotEmpty()),
                     ) { Text(stringResource(R.string.download)) }
                 }
-            }
-        }
-    }
-}
-
-private data class AudioLabelStrings(
-    val unknownFormat: String,
-    val kbps: String,
-    val separator: String,
-)
-
-private fun audioOptionLabel(
-    stream: AudioStream,
-    strings: AudioLabelStrings,
-): String {
-    val format = DownloadStreamPolicy.audioFormatLabel(stream, strings.unknownFormat)
-    val bitrate = DownloadStreamPolicy.audioBitrateKbps(stream)
-    val lang = DownloadStreamPolicy.audioLanguageLabel(stream)
-    return listOfNotNull("$format${strings.separator}$bitrate${strings.kbps}", lang).joinToString(strings.separator)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DownloadDropdownRow(
-    label: String,
-    value: String,
-    options: List<Pair<String, () -> Unit>>,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            options.forEach { (optLabel, onSelect) ->
-                DropdownMenuItem(
-                    text = { Text(optLabel, style = MaterialTheme.typography.bodyLarge) },
-                    onClick = {
-                        onSelect()
-                        expanded = false
-                    },
-                )
             }
         }
     }

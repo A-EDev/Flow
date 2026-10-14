@@ -19,10 +19,12 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -209,16 +211,9 @@ internal fun SyncConsentContent(
         icon = Icons.Outlined.MergeType,
         title = stringResource(R.string.sync_consent_title),
     )
-    SyncCard {
-        Column(Modifier.fillMaxWidth()) {
-            collections.forEach { key ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Icon(collectionIcon(key), contentDescription = null) },
-                    headlineContent = { Text(collectionLabel(key)) },
-                )
-            }
-        }
+    SyncRowGroup(count = collections.size) { index, shape ->
+        val key = collections[index]
+        SyncInfoItem(icon = collectionIcon(key), title = collectionLabel(key), shape = shape)
     }
     SyncInfoRow(icon = Icons.Outlined.Shield, text = stringResource(R.string.sync_consent_note))
     SyncActionRow(
@@ -270,17 +265,15 @@ internal fun SyncDoneContent(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     )
     if (s.stats.isNotEmpty()) {
-        SyncCard {
-            Column(Modifier.fillMaxWidth()) {
-                s.stats.forEach { (collection, stats) ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        leadingContent = { Icon(collectionIcon(collection), contentDescription = null) },
-                        headlineContent = { Text(collectionLabel(collection)) },
-                        supportingContent = { Text(statsSummary(stats)) },
-                    )
-                }
-            }
+        val stats = s.stats.toList()
+        SyncRowGroup(count = stats.size) { index, shape ->
+            val (collection, applied) = stats[index]
+            SyncInfoItem(
+                icon = collectionIcon(collection),
+                title = collectionLabel(collection),
+                supporting = statsSummary(applied),
+                shape = shape,
+            )
         }
     }
     SyncActionRow(confirmLabel = stringResource(R.string.sync_done_button), onConfirm = onDone)
@@ -312,6 +305,7 @@ internal fun SyncFailedContent(
     SyncActionRow(confirmLabel = stringResource(R.string.sync_try_again), onConfirm = onRetry)
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SyncBusyContent(label: String) {
     Column(
@@ -319,7 +313,7 @@ internal fun SyncBusyContent(label: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        CircularProgressIndicator()
+        LoadingIndicator()
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,

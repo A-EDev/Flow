@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,11 +37,14 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
 import io.github.aedev.flow.ui.components.library.HistoryFilterRow
 import io.github.aedev.flow.ui.components.library.HistoryList
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import kotlinx.coroutines.launch
@@ -118,7 +120,9 @@ fun HistoryScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current))
+        },
         containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         Column(
@@ -200,7 +204,7 @@ fun HistoryScreen(
     }
 
     if (showClearDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text(stringResource(R.string.clear_watch_history_alert_title)) },
             text = { Text(stringResource(R.string.clear_watch_history_alert_body)) },
@@ -223,7 +227,7 @@ fun HistoryScreen(
     }
 
     if (showClearShortsDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showClearShortsDialog = false },
             title = { Text(stringResource(R.string.history_delete_shorts_title)) },
             text = { Text(stringResource(R.string.history_delete_shorts_body)) },

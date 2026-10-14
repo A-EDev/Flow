@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FeedShelfActions
 import io.github.aedev.flow.ui.components.shared.FeedShelfSections
 
@@ -26,17 +27,15 @@ internal fun CategoryShelfPage(
     columnPreference: HomeFeedColumns,
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onShelfOpen: (FeedShelf) -> Unit,
 ) {
     val actions =
-        remember(onVideoClick, onShortClick, onChannelClick, onPlaylistClick, onShelfOpen) {
+        remember(onVideoClick, onShortClick, onPlaylistClick, onShelfOpen) {
             FeedShelfActions(
                 onVideoClick = onVideoClick,
                 onShortClick = onShortClick,
                 onPlaylistClick = onPlaylistClick,
-                onChannelClick = onChannelClick,
                 onSectionMore = onShelfOpen,
                 canOpenSection = { it.moreParams != null },
             )
@@ -47,12 +46,9 @@ internal fun CategoryShelfPage(
         isLoading = isLoading,
         listState = listState,
         columnPreference = columnPreference,
-        contentPadding = PaddingValues(bottom = BottomPadding),
+        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
         topInset = 0.dp,
         actions = actions,
         showChannelInfo = true,
     )
 }
-
-/** Clears the mini player, which floats over the bottom of every feed. */
-private val BottomPadding = 90.dp

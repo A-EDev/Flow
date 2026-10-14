@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.overlay
 
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 
 internal fun findActiveManualSponsorSegment(
@@ -17,6 +18,7 @@ internal fun findActiveManualSponsorSegment(
         positionSeconds >= segment.startTime &&
             positionSeconds < segment.endTime &&
             segment.uuid !in skippedUuids &&
-            (categoryActions[segment.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
+            (categoryActions[segment.category] ?: SponsorBlockCategories.defaultAction(segment.category)) !=
+            SponsorBlockAction.SKIP
     }
 }

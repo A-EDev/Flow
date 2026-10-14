@@ -15,16 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,6 +32,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.SyncRole
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 /** Where the user is in the pre-session setup. Once a session starts, [SyncState] drives the UI. */
@@ -107,9 +101,10 @@ private fun SyncState.title(step: Step): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
-    onNavigateBack: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: SyncViewModel = hiltViewModel(),
 ) {
+    val onNavigateBack = onBack ?: {}
     val state by viewModel.state.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(Step.CHOOSER) }
     var selected by remember { mutableStateOf(COLLECTION_KEYS.toSet()) }
@@ -143,17 +138,21 @@ fun SyncScreen(
         }
     }
 
-    BackHandler(onBack = ::goBack)
+    val atStart = state is SyncState.Idle && step == Step.CHOOSER
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    BackHandler(enabled = !atStart || onBack != null, onBack = ::goBack)
 
     Scaffold(
         // The app shell's Scaffold already pads for WindowInsets.systemBars, so both this Scaffold
         // and the bar itself must consume nothing — otherwise the status-bar inset is applied twice
         // and leaves an empty band above the title.
         contentWindowInsets = WindowInsets(0.dp),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             FlowTopBar(
                 title = state.title(step),
-                onBack = ::goBack,
+                onBack = if (atStart && onBack == null) null else ::goBack,
+                globalActions = FlowGlobalActionsMode.None,
             )
         },
     ) { padding ->
@@ -164,14 +163,15 @@ fun SyncScreen(
                     .padding(padding)
                     .imePadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(bottom = LocalFlowBottomInsets.current.contentBottom),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Keyed on which step is showing, not on the state itself: `Transferring` changes on
             // every progress tick and would otherwise cross-fade the screen a few times a second.
             AnimatedContent(
                 targetState = state.screenKey(step),
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
                 label = "syncStep",
                 contentAlignment = Alignment.TopCenter,
             ) { _ ->

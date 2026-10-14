@@ -4,9 +4,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import org.junit.Test
 
 /**
@@ -101,26 +101,56 @@ class FeedGridPlanTest {
     }
 
     @Test
-    fun `a one-column grid drops its gutters`() {
-        assertThat(plan(360.dp).gutter).isEqualTo(0.dp)
-        assertThat(plan(1200.dp).gutter).isGreaterThan(0.dp)
+    fun `a one-column grid drops its row spacing unless a phone asks for it`() {
+        assertThat(plan(360.dp).rowSpacing).isEqualTo(0.dp)
+        assertThat(plan(1200.dp).rowSpacing).isGreaterThan(0.dp)
+        assertThat(plan(1200.dp, listMode = true).rowSpacing).isEqualTo(0.dp)
+
+        val spaced =
+            feedGridPlanFor(
+                layout = feedGridLayoutFor(360.dp),
+                listMode = false,
+                itemCount = 4,
+                spansOwnRow = { false },
+                includeLastRun = true,
+                compactRowSpacing = 12.dp,
+            )
+        assertThat(spaced.rowSpacing).isEqualTo(12.dp)
+    }
+
+    @Test
+    fun `a surface that is rows on a phone keeps them and its own thumbnail width`() {
+        val rows =
+            feedGridPlanFor(
+                layout = feedGridLayoutFor(360.dp),
+                listMode = false,
+                itemCount = 4,
+                spansOwnRow = { false },
+                includeLastRun = true,
+                compactRows = true,
+                compactRowThumbnailWidth = 152.dp,
+            )
+
+        assertThat(rows.isListCard(0)).isTrue()
+        assertThat(rows.listThumbnailWidth).isEqualTo(152.dp)
     }
 
     @Test
     fun `a compact thumbnail keeps its fixed width, a wide one matches a grid column`() {
-        assertThat(plan(360.dp).listThumbnailWidth).isEqualTo(CompactVideoCardThumbnailWidth)
+        assertThat(plan(360.dp).listThumbnailWidth).isEqualTo(VideoCardDefaults.RowThumbnailWidth)
 
         val wide = plan(1200.dp)
-        assertThat(wide.listThumbnailWidth).isEqualTo(feedGridLayoutFor(1200.dp, maxAutoColumns = FEED_MAX_AUTO_COLUMNS).cardWidth)
+        val layout = feedGridLayoutFor(1200.dp, maxAutoColumns = FEED_MAX_AUTO_COLUMNS)
+        assertThat(wide.listThumbnailWidth).isEqualTo(layout.cardWidth - VideoCardDefaults.Inset * 2)
     }
 
     @Test
     fun `the content padding follows the layout's own horizontal inset`() {
         val layout = feedGridLayoutFor(1200.dp, maxAutoColumns = FEED_MAX_AUTO_COLUMNS)
-        val plan = plan(1200.dp)
+        val padding = plan(1200.dp).contentPadding(top = 8.dp, bottom = 90.dp)
 
-        assertThat(plan.contentPadding.calculateTopPadding()).isEqualTo(8.dp)
-        assertThat(plan.contentPadding.calculateBottomPadding()).isEqualTo(90.dp)
+        assertThat(padding.calculateTopPadding()).isEqualTo(8.dp)
+        assertThat(padding.calculateBottomPadding()).isEqualTo(90.dp)
         assertThat(layout.contentPadding).isGreaterThan(0.dp)
     }
 

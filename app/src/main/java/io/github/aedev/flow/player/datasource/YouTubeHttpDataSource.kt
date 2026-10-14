@@ -9,9 +9,9 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
-import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.player.error.StreamDenialClassifier
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -32,6 +32,7 @@ class YouTubeHttpDataSource private constructor(
     HttpDataSource {
     private var dataSource: DataSource? = null
     private var currentUri: Uri? = null
+    private var opened = false
 
     class Factory : HttpDataSource.Factory {
         private val requestProperties = HashMap<String, String>()
@@ -99,15 +100,21 @@ class YouTubeHttpDataSource private constructor(
         val requestHeaders = LinkedHashMap<String, String>()
         requestHeaders.putAll(defaultRequestProperties)
         if (isYouTubeUri(dataSpec.uri)) {
-            requestHeaders.putAll(youtubeHeaders())
+            requestHeaders.putAll(youtubeHeaders(dataSpec.uri))
         }
         if (requestHeaders.isNotEmpty()) {
             factory.setDefaultRequestProperties(requestHeaders)
         }
 
         dataSource = factory.createDataSource()
+        // The inner source is new on every open and never sees the player's listeners, so the
+        // bandwidth meter only learns about these bytes from here.
+        transferInitializing(dataSpec)
         return try {
-            dataSource!!.open(dataSpec)
+            dataSource!!.open(dataSpec).also {
+                opened = true
+                transferStarted(dataSpec)
+            }
         } catch (e: HttpDataSource.InvalidResponseCodeException) {
             if (e.responseCode == 403) logForbidden(dataSpec)
             throw e
@@ -115,25 +122,20 @@ class YouTubeHttpDataSource private constructor(
     }
 
     private fun logForbidden(dataSpec: DataSpec) {
-        val uri = dataSpec.uri
-        val expire = uri.getQueryParameter("expire")?.toLongOrNull()
-        val nowSec = System.currentTimeMillis() / 1000
-        val expiry =
-            when {
-                expire == null -> "expire=absent"
-                expire < nowSec -> "expire=PASSED ${nowSec - expire}s ago"
-                else -> "expire=valid ${expire - nowSec}s left"
-            }
+        val url = dataSpec.uri.toString()
+        val expiry = StreamDenialClassifier.describeExpiry(url)
+        val kind = StreamDenialClassifier.classify(url)
+        val client = StreamDenialClassifier.clientOf(url)
+        val itag = StreamDenialClassifier.itagOf(url)
+        val pot = StreamDenialClassifier.hasPoToken(url)
         Log.w(
             TAG,
-            "HTTP 403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
-                "mime=${uri.getQueryParameter("mime")} pot=${uri.getQueryParameter("pot") != null} " +
-                "range=${dataSpec.position}+${dataSpec.length} $expiry",
+            "HTTP 403 c=$client itag=$itag mime=${StreamDenialClassifier.queryParam(url, "mime")} " +
+                "pot=$pot range=${dataSpec.position}+${dataSpec.length} $expiry denial=$kind",
         )
         PlayerDiagnostics.logWarning(
             TAG,
-            "403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
-                "pot=${uri.getQueryParameter("pot") != null} range=${dataSpec.position}+${dataSpec.length} $expiry",
+            "403 c=$client itag=$itag pot=$pot range=${dataSpec.position}+${dataSpec.length} $expiry denial=$kind",
         )
     }
 
@@ -141,11 +143,22 @@ class YouTubeHttpDataSource private constructor(
         buffer: ByteArray,
         offset: Int,
         length: Int,
-    ): Int = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+    ): Int {
+        val read = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (read > 0) bytesTransferred(read)
+        return read
+    }
 
     override fun close() {
-        dataSource?.close()
-        dataSource = null
+        try {
+            dataSource?.close()
+        } finally {
+            dataSource = null
+            if (opened) {
+                opened = false
+                transferEnded()
+            }
+        }
     }
 
     override fun getUri(): Uri? = currentUri
@@ -170,34 +183,7 @@ class YouTubeHttpDataSource private constructor(
             host.contains("ytimg.com")
     }
 
-    // The fetching UA must match the client that minted the URL (`c=` param) — a mismatch is a
-    // known cause of mid-stream 403s on googlevideo CDNs.
-    private fun resolveYouTubeUserAgent(uri: Uri): String =
-        when (uri.getQueryParameter("c")?.uppercase()) {
-            "IOS" -> YouTubeClient.IPADOS.userAgent
-            "ANDROID", "ANDROID_CREATOR" -> YouTubeClient.ANDROID.userAgent
-            "ANDROID_VR" -> YouTubeClient.ANDROID_VR_1_61_48.userAgent
-            "VISIONOS" -> YouTubeClient.VISIONOS.userAgent
-            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent
-            "MWEB" -> YouTubeClient.USER_AGENT_MWEB
-            "WEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
-            else -> userAgent
-        }
+    private fun resolveYouTubeUserAgent(uri: Uri): String = GoogleVideoRequestPolicy.userAgent(uri.getQueryParameter("c"), userAgent)
 
-    /**
-     * Add headers that YouTube expects/requires for video streaming.
-     * These help avoid bot detection and ensure proper CDN routing.
-     */
-    private fun youtubeHeaders(): Map<String, String> =
-        mapOf(
-            "Origin" to "https://www.youtube.com",
-            "Referer" to "https://www.youtube.com/",
-            "Sec-Fetch-Dest" to "empty",
-            "Sec-Fetch-Mode" to "cors",
-            "Sec-Fetch-Site" to "cross-site",
-            // Accept-Encoding helps with CDN optimization
-            "Accept-Encoding" to "identity",
-            // Accept header for video content
-            "Accept" to "*/*",
-        )
+    private fun youtubeHeaders(uri: Uri): Map<String, String> = GoogleVideoRequestPolicy.headers(uri.getQueryParameter("c"))
 }

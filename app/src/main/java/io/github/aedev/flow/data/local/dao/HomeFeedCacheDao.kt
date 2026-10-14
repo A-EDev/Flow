@@ -8,6 +8,11 @@ import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 
 @Dao
 interface HomeFeedCacheDao {
+    @Query(
+        "SELECT DISTINCT channelId, channelThumbnailUrl FROM home_feed_cache WHERE channelId IN (:channelIds) AND channelThumbnailUrl != ''",
+    )
+    suspend fun channelAvatars(channelIds: List<String>): List<ChannelAvatarRow>
+
     @Query("SELECT * FROM home_feed_cache WHERE bucket = :bucket AND expiresAt > :now ORDER BY orderIndex ASC")
     suspend fun getFreshBucket(
         bucket: String,
@@ -76,6 +81,23 @@ interface HomeFeedCacheDao {
     """,
     )
     suspend fun trimReserve(maxRows: Int)
+
+    @Query(
+        """
+        DELETE FROM home_feed_cache
+        WHERE bucket = :bucket
+        AND cacheKey NOT IN (
+            SELECT cacheKey FROM home_feed_cache
+            WHERE bucket = :bucket
+            ORDER BY cachedAt DESC
+            LIMIT :maxRows
+        )
+    """,
+    )
+    suspend fun trimBucket(
+        bucket: String,
+        maxRows: Int,
+    )
 
     @Query(
         """

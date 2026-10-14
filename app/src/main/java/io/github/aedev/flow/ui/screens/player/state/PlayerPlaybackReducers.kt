@@ -26,12 +26,17 @@ import org.schabi.newpipe.extractor.stream.VideoStream
  * fields each outcome writes can be asserted without a ViewModel.
  */
 
-/** A downloaded copy is about to play: the local path replaces whatever the load had reached. */
+/**
+ * A downloaded copy is about to play: the local path replaces whatever the load had reached, and a
+ * screen opened with only the id borrows the identity the download row holds until the watch page
+ * answers. Only blank fields are filled, so a card's own title and channel always win.
+ */
 internal fun VideoPlayerUiState.applyLocalCopyReady(
     videoId: String,
     step: ResolvedPlayback.LocalCopyReady,
 ): VideoPlayerUiState =
     copy(
+        cachedVideo = cachedVideo.withDownloadIdentity(videoId, step.downloadedVideo),
         localFilePath = step.localFilePath,
         localFileVideoId = videoId,
         offlineSponsorBlockSegments = step.offlineSegments,
@@ -42,21 +47,20 @@ internal fun VideoPlayerUiState.applyLocalCopyReady(
         upcomingReleaseTimeMs = null,
     )
 
-/** Resolution failed but a downloaded copy exists: the failure never reaches the screen. */
-internal fun VideoPlayerUiState.applyLocalCopyAfterFailure(): VideoPlayerUiState = copy(isLoading = false, error = null, errorHint = null)
-
-/** A local copy is already playing and only the surrounding metadata was still missing. */
-internal fun VideoPlayerUiState.applyOfflineFallback(step: ResolvedPlayback.OfflineFallback): VideoPlayerUiState =
-    copy(
-        isLoading = false,
-        error = null,
-        errorHint = null,
-        relatedVideos = step.relatedVideos,
-        localFilePath = step.localFilePath,
-        offlineSponsorBlockSegments = step.offlineSegments,
-        isUpcoming = false,
-        upcomingReleaseTimeMs = null,
+internal fun Video?.withDownloadIdentity(
+    videoId: String,
+    downloaded: Video?,
+): Video? {
+    if (downloaded == null || downloaded.id != videoId) return this
+    val base = this?.takeIf { it.id == videoId } ?: return this ?: downloaded
+    return base.copy(
+        title = base.title.ifBlank { downloaded.title },
+        channelName = base.channelName.ifBlank { downloaded.channelName },
+        channelId = base.channelId.ifBlank { downloaded.channelId },
+        thumbnailUrl = base.thumbnailUrl.ifBlank { downloaded.thumbnailUrl },
+        duration = base.duration.takeIf { it > 0 } ?: downloaded.duration,
     )
+}
 
 /**
  * The streams a load resolved: what plays, at what qualities, and the formats behind them.
@@ -81,7 +85,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
     storyboard: List<StoryboardLevel>,
 ): VideoPlayerUiState =
     copy(
-        cachedVideo = cachedVideo,
+        cachedVideo = cachedVideo.keepingLikeCountOf(this.cachedVideo),
         isArchivedLivestream = isArchivedLivestream,
         relatedVideos = relatedVideos,
         videoStream = videoStream,
@@ -257,7 +261,14 @@ internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata
     )
 
 /** Counts, date and description from the watch page, folded over what the load resolved. */
-internal fun VideoPlayerUiState.applyWatchInfo(video: Video): VideoPlayerUiState = copy(cachedVideo = video)
+internal fun VideoPlayerUiState.applyWatchInfo(video: Video): VideoPlayerUiState = copy(cachedVideo = video.keepingLikeCountOf(cachedVideo))
+
+/**
+ * Both writers above replace the video with a copy taken before Return YouTube Dislike answered,
+ * so a like count it already put on screen survives a copy of the same video that has none.
+ */
+private fun Video.keepingLikeCountOf(current: Video?): Video =
+    if (likeCount <= 0L && current?.id == id && current.likeCount > 0L) copy(likeCount = current.likeCount) else this
 
 /** The quality the user picked, and the streams that choice resolved to. */
 internal fun VideoPlayerUiState.applySelectedQuality(

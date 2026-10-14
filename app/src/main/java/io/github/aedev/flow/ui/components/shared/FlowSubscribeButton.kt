@@ -21,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +71,9 @@ enum class FlowSubscribeButtonSize {
  * search.
  *
  * Tapping while subscribed opens the menu rather than unsubscribing outright, so the destructive
- * action always needs a second, deliberate tap.
+ * action always needs a second, deliberate tap. A control that stands for several channels passes
+ * [onSubscribedClick] instead: it then reads "Subscribed" with no bell or menu, since neither can
+ * say which channel they act on.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -87,6 +90,7 @@ fun FlowSubscribeButton(
     onAddNote: (() -> Unit)? = null,
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
     tint: MediaArtworkTint? = null,
+    onSubscribedClick: (() -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
@@ -119,7 +123,16 @@ fun FlowSubscribeButton(
         )
 
     Box(modifier = modifier) {
-        if (isSubscribed) {
+        if (isSubscribed && onSubscribedClick != null) {
+            FilledTonalButton(
+                onClick = onSubscribedClick,
+                colors = tonalColors,
+                contentPadding = if (compact) ButtonDefaults.ExtraSmallContentPadding else ButtonDefaults.ContentPadding,
+                modifier = Modifier.heightIn(min = containerHeight),
+            ) {
+                Text(text = stringResource(R.string.subscribed), maxLines = 1)
+            }
+        } else if (isSubscribed) {
             SplitButtonLayout(
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(

@@ -15,12 +15,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
+import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
+import io.github.aedev.flow.ui.components.shared.shareMediaFiles
+import io.github.aedev.flow.ui.components.shared.subscribedCollaboratorIds
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -81,7 +84,7 @@ internal fun VideoInfoContent(
         .collectAsStateWithLifecycle(initialValue = false)
 
     if (showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
+        SaveVideoSheet(
             video = dialogVideo,
             onDismiss = { showAddToPlaylistDialog = false },
         )
@@ -98,6 +101,7 @@ internal fun VideoInfoContent(
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
         channelAvatarUrls = video.channelThumbnailUrls,
         collaborators = resolvedCollaborators,
+        subscribedCollaboratorIds = if (resolvedCollaborators.size > 1) subscribedCollaboratorIds(resolvedCollaborators) else emptySet(),
         subscriberCount = uiState.channelSubscriberCount,
         isSubscribed = uiState.isSubscribed,
         isNotificationsEnabled = uiState.isNotificationsEnabled,
@@ -169,9 +173,16 @@ internal fun VideoInfoContent(
         },
         onNotificationChange = { enabled -> viewModel.setNotificationEnabled(video.channelId, enabled) },
         onChannelClick = { onChannelClick(video.channelId) },
-        onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
-        onShareClick = { shareVideoAction(video.id, resolvedVideoTitle) },
+        onShareClick = {
+            val fileUri = LocalMediaIds.videoUri(video.id)
+            if (fileUri != null) {
+                context.shareMediaFiles(listOf(fileUri), mimeType = "video/*")
+            } else {
+                shareVideoAction(video.id, resolvedVideoTitle, video.isShort)
+            }
+        },
+        isDeviceFile = LocalMediaIds.isLocal(video.id),
         onDownloadClick = { screenState.open(PlayerSheet.Download) },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
@@ -211,11 +222,13 @@ internal fun VideoInfoContent(
     }
 
     if (showNoteEditor && videoNotesEnabled) {
+        val insertPositionMs = remember { EnhancedPlayerManager.getInstance().getCurrentPosition().takeUnless { video.isLive } }
         FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
             onSave = { text -> viewModel.saveVideoNote(video.id, text) },
             onDismiss = { showNoteEditor = false },
+            insertPositionMs = insertPositionMs,
         )
     }
 }

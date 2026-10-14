@@ -1,0 +1,37 @@
+package io.github.aedev.flow.player
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class PipActionsTest {
+    @Test
+    fun `a queue puts the skip buttons either side of pause`() {
+        val specs = pipActionSpecs(isPlaying = true, navigation = PipQueueNavigation(hasPrevious = true, hasNext = true), maxActions = 3)
+
+        assertEquals(listOf(PipControl.PREVIOUS, PipControl.PAUSE, PipControl.NEXT), specs.map { it.control })
+        assertEquals(listOf(true, true, true), specs.map { it.enabled })
+    }
+
+    @Test
+    fun `the first reel greys out previous and the last greys out next`() {
+        val first = pipActionSpecs(isPlaying = false, navigation = PipQueueNavigation(hasPrevious = false, hasNext = true), maxActions = 3)
+        val last = pipActionSpecs(isPlaying = true, navigation = PipQueueNavigation(hasPrevious = true, hasNext = false), maxActions = 3)
+
+        assertEquals(PipControl.PLAY, first[1].control)
+        assertEquals(listOf(false, true, true), first.map { it.enabled })
+        assertEquals(listOf(true, true, false), last.map { it.enabled })
+    }
+
+    @Test
+    fun `without a queue the window keeps its single play or pause button`() {
+        assertEquals(listOf(PipActionSpec(PipControl.PAUSE)), pipActionSpecs(isPlaying = true, navigation = null, maxActions = 3))
+        assertEquals(listOf(PipActionSpec(PipControl.PLAY)), pipActionSpecs(isPlaying = false, navigation = null, maxActions = 3))
+    }
+
+    @Test
+    fun `a window with room for fewer than three buttons drops the skip buttons`() {
+        val specs = pipActionSpecs(isPlaying = true, navigation = PipQueueNavigation(hasPrevious = true, hasNext = true), maxActions = 2)
+
+        assertEquals(listOf(PipActionSpec(PipControl.PAUSE)), specs)
+    }
+}

@@ -3,15 +3,17 @@ package io.github.aedev.flow.innertube.pages.renderer
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.reel.parseReelLockup
 import io.github.aedev.flow.innertube.pages.stringOrNull
-import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.youtubeText
-import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.premiereDateText
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -74,7 +76,12 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val contentId = this["contentId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val metadata = this["metadata"].objectOrNull()?.get("lockupMetadataViewModel").objectOrNull()
     val title = metadata?.get("title").youtubeText()?.takeIf(String::isNotBlank) ?: return null
-    val parts = metadata.metadataParts()
+    // Outside a channel's own tabs (a playlist, for one) each lockup names its channel as the
+    // first metadata part, linked to it; that part is the byline, not an upload date.
+    val collaborators = metadata?.get("image").collaboratorDialog()
+    val byline = metadata.lockupByline() ?: collaborators.bylineOwner(metadata.metadataParts())
+    val itemOwner = byline?.let { owner.copy(id = it.id, name = it.name, avatarUrl = it.avatarUrl) } ?: owner
+    val parts = metadata.metadataParts().filterNot { it == byline?.name }
     val badges = lockupBadges()
     val membersOnly = metadata.membersOnlyBadge()
 
@@ -107,13 +114,13 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
 
         "LOCKUP_CONTENT_TYPE_SHORTS" -> {
             FeedItem.ShortItem(
-                lockupVideo(contentId, title, parts, badges, owner).copy(isShort = true, duration = 0),
+                lockupVideo(contentId, title, parts, badges, itemOwner, collaborators).copy(isShort = true, duration = 0),
             )
         }
 
         else -> {
             FeedItem.VideoItem(
-                lockupVideo(contentId, title, parts, badges, owner).copy(membersOnlyText = membersOnly),
+                lockupVideo(contentId, title, parts, badges, itemOwner, collaborators).copy(membersOnlyText = membersOnly),
             )
         }
     }
@@ -125,9 +132,9 @@ private fun JsonObject.lockupVideo(
     parts: List<String>,
     badges: List<String>,
     owner: FeedItemOwner,
+    collaborators: List<VideoCollaborator>,
 ): Video {
-    val viewsText = parts.firstOrNull { it.mentionsViewers() }
-    val uploadText = parts.firstOrNull { !it.mentionsViewers() && !it.mentionsWaiting() }.orEmpty()
+    val (viewsText, uploadText, uploadTimestamp) = lockupDateAndViews(parts, YouTube.locale.hl)
     val duration = badges.firstNotNullOfOrNull(::parseDurationText) ?: 0
     val isLive = viewsText?.contains("watching", ignoreCase = true) == true || badges.any { it.marksLive() }
     // A stream that has not started carries a badge that is neither a duration nor LIVE ("Upcoming"),
@@ -140,14 +147,25 @@ private fun JsonObject.lockupVideo(
         channelId = owner.id,
         thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, lockupThumbnailUrl()),
         duration = duration,
-        viewCount = parseYouTubeViewCount(viewsText),
+        viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
         uploadDate = uploadText,
-        timestamp = if (isUpcoming) 0L else RelativeUploadDateParser.parse(uploadText) ?: 0L,
+        timestamp = if (isUpcoming) 0L else uploadTimestamp ?: 0L,
         channelThumbnailUrl = owner.avatarUrl,
+        channelThumbnailUrls = collaborators.avatarUrls(),
+        collaborators = collaborators,
         isLive = isLive,
         isUpcoming = isUpcoming,
     )
 }
+
+/** A collaboration's byline links to no channel, so it is found by the lead collaborator's name instead. */
+private fun List<VideoCollaborator>.bylineOwner(parts: List<String>): FeedItemOwner? {
+    val lead = firstOrNull() ?: return null
+    val name = parts.firstOrNull { lead.name in it } ?: return null
+    return FeedItemOwner(id = lead.channelId, name = name, avatarUrl = lead.thumbnailUrl)
+}
+
+private fun List<VideoCollaborator>.avatarUrls(): List<String> = map { it.thumbnailUrl }.filter(String::isNotBlank)
 
 private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val videoId = this["videoId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
@@ -166,7 +184,9 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
     val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
     val isUpcoming = upcomingStartMs != null
-    return FeedItem.VideoItem(
+    val collaborators = videoRendererCollaborators()
+    val isShort = timeStatus == TIME_STATUS_SHORTS || opensReelPlayer()
+    val video =
         Video(
             id = videoId,
             title = title,
@@ -175,23 +195,39 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
                 this["ownerText"].bylineChannelId()
                     ?: this["shortBylineText"].bylineChannelId()
                     ?: this["longBylineText"].bylineChannelId()
-                    ?: owner.id,
+                    ?: owner.id.takeIf(String::isNotBlank)
+                    ?: collaborators.firstOrNull()?.channelId.orEmpty(),
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
             // A live row's count is its concurrent viewers, which the card renders in place of the
             // date it has none of. An upcoming row's "1 waiting" is nobody's view count, so it goes.
             viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
-            timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
+            timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText, YouTube.locale.hl) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
+            channelThumbnailUrls = collaborators.avatarUrls(),
+            collaborators = collaborators,
             isLive = isLive,
             isUpcoming = isUpcoming,
+            isShort = isShort,
             isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
             badges = badges,
             snippet = snippet,
             snippetHighlights = highlights,
-        ),
-    )
+        )
+    return if (isShort) FeedItem.ShortItem(video) else FeedItem.VideoItem(video)
+}
+
+/** A Short can arrive as a plain video row, and then tapping it opens the reel player, not the watch page. */
+private fun JsonObject.opensReelPlayer(): Boolean {
+    val endpoint = this["navigationEndpoint"].objectOrNull() ?: return false
+    return endpoint["reelWatchEndpoint"] != null ||
+        endpoint["commandMetadata"]
+            .objectOrNull()
+            ?.get("webCommandMetadata")
+            .objectOrNull()
+            ?.get("webPageType")
+            .stringOrNull() == "WEB_PAGE_TYPE_SHORTS"
 }
 
 /**
@@ -207,12 +243,18 @@ private fun JsonElement?.timeStatusStyle(): String? =
 
 private fun String?.mentionsWatching(): Boolean = this?.contains("watching", ignoreCase = true) == true
 
+private fun JsonObject.videoRendererCollaborators(): List<VideoCollaborator> =
+    listOf("ownerText", "shortBylineText", "longBylineText", "avatar")
+        .firstNotNullOfOrNull { key -> this[key].collaboratorDialog().takeIf { it.isNotEmpty() } }
+        .orEmpty()
+
 /** `ownerText` is the watch-page byline; a grid row only ever carries the short or long one. */
 private fun JsonObject.bylineName(): String? =
     listOf("ownerText", "shortBylineText", "longBylineText")
         .firstNotNullOfOrNull { this[it].youtubeText()?.takeIf(String::isNotBlank) }
 
 private const val TIME_STATUS_LIVE = "LIVE"
+private const val TIME_STATUS_SHORTS = "SHORTS"
 
 private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
@@ -374,7 +416,7 @@ private fun JsonObject.toShortItem(
     key: String,
     owner: FeedItemOwner,
 ): FeedItem? {
-    val item = JsonObject(mapOf(key to this)).toSearchShorts().firstOrNull() ?: return null
+    val item = JsonObject(mapOf(key to this)).parseReelLockup() ?: return null
     return FeedItem.ShortItem(
         Video(
             id = item.id,
@@ -454,6 +496,43 @@ private fun JsonObject?.membersOnlyBadge(): String? {
     }
     return label
 }
+
+/** The first metadata part that links to a channel, as the owner it names. */
+private fun JsonObject?.lockupByline(): FeedItemOwner? =
+    this
+        ?.get("metadata")
+        .objectOrNull()
+        ?.get("contentMetadataViewModel")
+        .objectOrNull()
+        ?.get("metadataRows")
+        .arrayOrNull()
+        .orEmpty()
+        .asSequence()
+        .flatMap { row ->
+            row
+                .objectOrNull()
+                ?.get("metadataParts")
+                .arrayOrNull()
+                .orEmpty()
+        }.mapNotNull { part ->
+            val text = part.objectOrNull()?.get("text").objectOrNull() ?: return@mapNotNull null
+            val name = text.youtubeText()?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            val channelId =
+                text["commandRuns"]
+                    .arrayOrNull()
+                    ?.firstOrNull()
+                    .objectOrNull()
+                    ?.get("onTap")
+                    .objectOrNull()
+                    ?.get("innertubeCommand")
+                    .objectOrNull()
+                    ?.get("browseEndpoint")
+                    .objectOrNull()
+                    ?.get("browseId")
+                    .stringOrNull()
+                    ?.takeIf { it.startsWith("UC") } ?: return@mapNotNull null
+            FeedItemOwner(id = channelId, name = name)
+        }.firstOrNull()
 
 private fun JsonObject?.metadataParts(): List<String> =
     this
@@ -539,10 +618,6 @@ private fun String.leadingCount(): Int? =
         ?.replace(",", "")
         ?.replace(".", "")
         ?.toIntOrNull()
-
-private fun String.mentionsViewers(): Boolean = contains("view", ignoreCase = true) || contains("watching", ignoreCase = true)
-
-private fun String.mentionsWaiting(): Boolean = contains("waiting", ignoreCase = true)
 
 private fun String.mentionsSubscribers(): Boolean = contains("subscriber", ignoreCase = true)
 

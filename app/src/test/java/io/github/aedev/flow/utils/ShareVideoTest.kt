@@ -13,8 +13,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
 
 /**
- * Pins the one share path every "share this video" affordance goes through, so the quick-actions
- * sheet cannot drift back to a bare link that ignores the "share without text" preference.
+ * Pins the share paths every video, short and song affordance goes through, so none can drift back
+ * to a payload that ignores the "share without text" preference.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class)
@@ -55,13 +55,44 @@ class ShareVideoTest {
     }
 
     @Test
-    fun `every share carries the title as the subject and plain text as the type`() {
-        listOf(true, false).forEach { linkOnly ->
-            val sent = payload(shareVideoIntent(context, "abc123", "A title", linkOnly = linkOnly))
+    fun `the title rides as the subject only when text is shared`() {
+        val withText = payload(shareVideoIntent(context, "abc123", "A title", linkOnly = false))
+        val linkOnly = payload(shareVideoIntent(context, "abc123", "A title", linkOnly = true))
 
+        listOf(withText, linkOnly).forEach { sent ->
             assertThat(sent.action).isEqualTo(Intent.ACTION_SEND)
             assertThat(sent.type).isEqualTo("text/plain")
-            assertThat(sent.getStringExtra(Intent.EXTRA_SUBJECT)).isEqualTo("A title")
         }
+        assertThat(withText.getStringExtra(Intent.EXTRA_SUBJECT)).isEqualTo("A title")
+        assertThat(linkOnly.hasExtra(Intent.EXTRA_SUBJECT)).isFalse()
+    }
+
+    @Test
+    fun `a short is shared as a shorts link`() {
+        val linkOnly = payload(shareVideoIntent(context, "abc123", "A title", linkOnly = true, isShort = true))
+        val withText = payload(shareVideoIntent(context, "abc123", "A title", linkOnly = false, isShort = true))
+
+        assertThat(linkOnly.getStringExtra(Intent.EXTRA_TEXT)).isEqualTo("https://youtube.com/shorts/abc123")
+        assertThat(withText.getStringExtra(Intent.EXTRA_TEXT))
+            .isEqualTo(context.getString(R.string.check_out_short_template, "A title", "abc123"))
+        assertThat(withText.getStringExtra(Intent.EXTRA_TEXT)).contains("https://youtube.com/shorts/abc123")
+    }
+
+    @Test
+    fun `a song shared without text is the bare youtube music link`() {
+        val sent = payload(shareSongIntent(context, "abc123", "A song", "An artist", linkOnly = true))
+
+        assertThat(sent.getStringExtra(Intent.EXTRA_TEXT)).isEqualTo("https://music.youtube.com/watch?v=abc123")
+        assertThat(sent.hasExtra(Intent.EXTRA_SUBJECT)).isFalse()
+    }
+
+    @Test
+    fun `a song shared with text names the song and artist`() {
+        val sent = payload(shareSongIntent(context, "abc123", "A song", "An artist", linkOnly = false))
+
+        assertThat(sent.getStringExtra(Intent.EXTRA_TEXT))
+            .isEqualTo(context.getString(R.string.share_message_template, "A song", "An artist", "abc123"))
+        assertThat(sent.getStringExtra(Intent.EXTRA_TEXT)).contains("https://music.youtube.com/watch?v=abc123")
+        assertThat(sent.getStringExtra(Intent.EXTRA_SUBJECT)).isEqualTo("A song")
     }
 }

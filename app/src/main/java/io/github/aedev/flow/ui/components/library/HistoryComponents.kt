@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.components.library
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
@@ -40,10 +42,13 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toMusicTrack
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FastScrollbar
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
+import io.github.aedev.flow.ui.components.shared.MediaShortCard
+import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
 import io.github.aedev.flow.ui.components.shared.animateMediaListItem
 import io.github.aedev.flow.ui.screens.history.HistoryContentFilter
 import io.github.aedev.flow.ui.screens.history.HistorySort
@@ -51,7 +56,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-private val ListContentPadding = PaddingValues(bottom = 96.dp)
 private val FilterRowPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
 private val SectionHeaderPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 private val ShortsRowPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
@@ -171,11 +175,12 @@ internal fun HistoryList(
     val today = remember(entries) { startOfDay(System.currentTimeMillis()) }
     val listState = rememberLazyListState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val thumbnailWidth = remember(maxWidth) { libraryListThumbnailWidth(maxWidth) }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
             verticalArrangement = Arrangement.spacedBy(ItemSpacing),
         ) {
             groupedEntries.forEach { (sectionKey, sectionEntries) ->
@@ -213,6 +218,7 @@ internal fun HistoryList(
                                 onVideoClick = onVideoClick,
                                 onMusicClick = onMusicClick,
                                 onRemove = onRemove,
+                                thumbnailWidth = thumbnailWidth,
                                 modifier = animateMediaListItem(),
                             )
                         }
@@ -241,6 +247,7 @@ internal fun HistoryList(
                                 onVideoClick = onVideoClick,
                                 onMusicClick = onMusicClick,
                                 onRemove = onRemove,
+                                thumbnailWidth = thumbnailWidth,
                                 modifier = animateMediaListItem(),
                             )
                         }
@@ -299,20 +306,26 @@ internal fun HistoryEntryRow(
     onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onRemove: (VideoHistoryEntry) -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
 ) {
     val track = remember(entry) { entry.toMusicTrack() }
     val removeLabel = stringResource(R.string.remove_from_history)
 
     LibraryMediaListRow(
         track = track,
+        video = remember(entry) { entry.toVideo() },
         isMusic = entry.isMusic,
         title = entry.title.ifBlank { entry.videoId },
         onVideoClick = { onVideoClick(track) },
         onMusicClick = { onMusicClick(track, musicQueue) },
+        removeLabel = removeLabel,
+        onRemove = { onRemove(entry) },
+        showWatchProgress = true,
         modifier = modifier,
         subtitle = entry.channelName.takeIf { it.isNotBlank() },
         thumbnailUrl = entry.thumbnailUrl,
         durationSeconds = (entry.duration / 1000L).toInt(),
+        thumbnailWidth = thumbnailWidth,
     ) {
         MediaRowAction(
             icon = Icons.Default.Close,
@@ -338,14 +351,14 @@ internal fun ShortsHistoryRow(
 
     LazyRow(
         contentPadding = ShortsRowPadding,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
     ) {
         items(
             items = rowVideos,
             key = Video::id,
             contentType = { "short" },
         ) { video ->
-            ShortsCard(
+            MediaShortCard(
                 video = video,
                 onClick = { onShortClick(rowVideos, video) },
                 trailingContent = {

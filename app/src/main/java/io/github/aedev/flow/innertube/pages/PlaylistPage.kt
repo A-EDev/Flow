@@ -4,8 +4,10 @@ import io.github.aedev.flow.innertube.models.Album
 import io.github.aedev.flow.innertube.models.Artist
 import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
 import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.Runs
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.oddElements
+import io.github.aedev.flow.innertube.models.splitBySeparator
 import io.github.aedev.flow.innertube.utils.parseTime
 
 data class PlaylistPage(
@@ -13,8 +15,23 @@ data class PlaylistPage(
     val songs: List<SongItem>,
     val songsContinuation: String?,
     val continuation: String?,
+    /** The playlist's own song count, which can exceed the rows served when some are unavailable. */
+    val trackCount: Int? = null,
 ) {
     companion object {
+        /**
+         * The song count from the header's second subtitle, read by position because its words are
+         * localized: "[views •] 49 tracks • 5+ hours", so the count is the group before the length.
+         */
+        fun trackCountFrom(secondSubtitle: Runs?): Int? {
+            val groups = secondSubtitle?.runs?.splitBySeparator().orEmpty()
+            if (groups.size < 2) return null
+            return groups[groups.size - 2]
+                .joinToString("") { it.text }
+                .filter(Char::isDigit)
+                .toIntOrNull()
+        }
+
         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
             return SongItem(
                 id = renderer.playlistItemData?.videoId ?: return null,

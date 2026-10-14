@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.section.MoodCategorySection
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
@@ -49,6 +51,7 @@ fun MoodsAndGenresScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
     ) { padding ->
         Box(
             modifier =
@@ -60,7 +63,7 @@ fun MoodsAndGenresScreen(
                 isLoading && moodAndGenresList == null -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         item(key = "shimmer_loading") {
                             ShimmerHost(
@@ -103,7 +106,7 @@ fun MoodsAndGenresScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         moodAndGenresList?.forEachIndexed { index, moodCategory ->
                             item(key = "category_$index") {

@@ -4,6 +4,7 @@ import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.shorts.ChannelShortsFeedPage
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
@@ -104,6 +105,7 @@ class SubscriptionDeepShortsLoaderTest {
         subscriptions: List<String> = emptyList(),
         excluded: Set<String> = emptySet(),
         watched: Set<String> = emptySet(),
+        hidden: FeedExclusions = FeedExclusions.NONE,
     ): SubscriptionDeepShortsLoader {
         val feedRepository: SubscriptionFeedRepository = mockk(relaxed = true)
         every { feedRepository.observeFeed() } returns flowOf(feed)
@@ -112,12 +114,13 @@ class SubscriptionDeepShortsLoaderTest {
         val preferences: PlayerPreferences = mockk(relaxed = true)
         every { preferences.subscriptionShortsExcludedChannels } returns flowOf(excluded)
         val watchedVideos: SubscriptionWatchedVideos = mockk(relaxed = true)
-        every { watchedVideos.ids } returns flowOf(watched)
+        every { watchedVideos.shortIds } returns flowOf(watched)
         return SubscriptionDeepShortsLoader(
             subscriptionFeedRepository = feedRepository,
             subscriptionRepository = subscriptionRepository,
             playerPreferences = preferences,
             watchedVideos = watchedVideos,
+            exclusions = { hidden },
             fetchFirstPage = tabs::first,
             fetchNextPage = tabs::next,
         )
@@ -192,6 +195,36 @@ class SubscriptionDeepShortsLoaderTest {
             assertTrue("nothing is left to fetch", page.exhausted)
         }
 
+    // The complaint this answers: with a handful of channels drained to the bottom, every page of the
+    // deep tier came from the same few channels. Two reels per visit, then on to the channels not yet
+    // seen, and only then back for more.
+    @Test
+    fun `a page takes two reels per channel and the next page moves on to unvisited channels`() =
+        runTest {
+            val channels = listOf("UCa", "UCb", "UCc", "UCd", "UCe", "UCf", "UCg")
+            val tabs =
+                RecordingTabs(
+                    channels.associateWith { channel ->
+                        val prefix = channel.removePrefix("UC")
+                        listOf(tabPage(channel, (1..4).map { "$prefix$it" }))
+                    },
+                )
+            val loader = loader(tabs, subscriptions = channels)
+
+            val first = loader.initial()
+            assertEquals(listOf("a1", "b1", "c1", "d1", "e1", "a2", "b2", "c2", "d2", "e2"), first.items.map { it.id })
+            assertEquals(listOf("UCa", "UCb", "UCc", "UCd", "UCe"), tabs.requested.sorted())
+            assertFalse(first.exhausted)
+
+            val second = loader.more(first.cursor)
+            assertEquals(listOf("f1", "g1", "a3", "b3", "c3", "f2", "g2", "a4", "b4", "c4"), second.items.map { it.id })
+            assertFalse(second.exhausted)
+
+            val third = loader.more(second.cursor)
+            assertEquals(listOf("d3", "e3", "f3", "g3", "d4", "e4", "f4", "g4"), third.items.map { it.id })
+            assertTrue(third.exhausted)
+        }
+
     @Test
     fun `a channel is paged deeper before the queue gives up`() =
         runTest {
@@ -260,6 +293,29 @@ class SubscriptionDeepShortsLoaderTest {
                     tabs,
                     subscriptions = listOf("UCa", "UCmuted"),
                     excluded = setOf("UCmuted"),
+                ).initial()
+
+            assertEquals(listOf("a1"), page.items.map { it.id })
+            assertEquals(listOf("UCa"), tabs.requested)
+        }
+
+    // #1031: "not interested" and "don't recommend channel" must hold in the subscriptions queue too.
+    @Test
+    fun `a blocked channel is never asked and a reel marked not interested is left out`() =
+        runTest {
+            val tabs =
+                RecordingTabs(
+                    mapOf(
+                        "UCa" to listOf(tabPage("UCa", listOf("a1", "hidden"))),
+                        "UCblocked" to listOf(tabPage("UCblocked", listOf("b1"))),
+                    ),
+                )
+
+            val page =
+                loader(
+                    tabs,
+                    subscriptions = listOf("UCa", "UCblocked"),
+                    hidden = FeedExclusions(suppressedVideoIds = setOf("hidden"), blockedChannelIds = setOf("UCblocked")),
                 ).initial()
 
             assertEquals(listOf("a1"), page.items.map { it.id })

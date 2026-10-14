@@ -13,6 +13,8 @@ import io.github.aedev.flow.data.model.RichTextTarget
 const val RICH_TEXT_SEEK = "SEEK_SECONDS"
 const val RICH_TEXT_URL = "URL"
 const val RICH_TEXT_CHANNEL = "CHANNEL"
+
+/** Carries the video's watch link, so a tap on it goes wherever a typed link to that video would. */
 const val RICH_TEXT_VIDEO = "VIDEO"
 const val RICH_TEXT_HASHTAG = "HASHTAG"
 const val RICH_TEXT_HIGHLIGHT = "HIGHLIGHT"
@@ -93,7 +95,7 @@ fun RichText.toAnnotatedString(
 
                 is RichTextTarget.Video -> {
                     addStyle(linkStyle(linkColor, highlighted), start, end)
-                    addStringAnnotation(RICH_TEXT_VIDEO, target.videoId, start, end)
+                    addStringAnnotation(RICH_TEXT_VIDEO, youtubeWatchUrl(target.videoId, target.startSeconds), start, end)
                 }
 
                 is RichTextTarget.Channel -> {

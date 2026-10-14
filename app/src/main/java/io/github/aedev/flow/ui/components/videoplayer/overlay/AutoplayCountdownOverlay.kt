@@ -56,6 +56,7 @@ import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.AutoplayCountdownState
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 
 @Composable
 fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
@@ -171,7 +172,7 @@ private fun CountdownCard(
                     }
                 }
 
-                state.nextVideoThumbnailUrl?.takeIf { it.isNotBlank() }?.let { thumb ->
+                thumbnailUrlOrNull(state.nextVideoThumbnailUrl)?.let { thumb ->
                     Spacer(Modifier.width(12.dp))
                     AsyncImage(
                         model =

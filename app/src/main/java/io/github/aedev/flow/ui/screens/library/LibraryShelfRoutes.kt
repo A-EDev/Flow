@@ -16,10 +16,10 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.library.LibraryAlbumCard
+import io.github.aedev.flow.ui.components.library.LibraryEmptyShelf
 import io.github.aedev.flow.ui.components.library.LibraryMediaItem
 import io.github.aedev.flow.ui.components.library.LibraryMediaShelf
 import io.github.aedev.flow.ui.components.library.LibraryShelf
-import io.github.aedev.flow.ui.components.library.LibraryShelfCardWidth
 import io.github.aedev.flow.ui.components.library.LibraryShelfPlaceholder
 import io.github.aedev.flow.ui.components.library.LibraryShortsShelf
 import io.github.aedev.flow.ui.components.library.LibraryVideoCard
@@ -27,19 +27,24 @@ import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 internal fun LibraryMediaShelfRoute(
-    title: String,
+    section: LibrarySection,
     itemsFlow: StateFlow<List<LibraryMediaItem>?>,
-    sourceName: String,
     onTitleClick: () -> Unit,
     onVideoClick: (Video) -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onDownloadedVideoClick: (List<DownloadedVideo>, Int) -> Unit,
     onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
+    emptyMessage: String? = null,
 ) {
     val items by itemsFlow.collectAsStateWithLifecycle()
+    val title = section.title
     when {
         items == null -> {
-            LibraryShelfPlaceholder(title = title)
+            LibraryShelfPlaceholder(title = title, icon = section.icon)
+        }
+
+        items.isNullOrEmpty() && emptyMessage != null -> {
+            LibraryEmptyShelf(title = title, icon = section.icon, message = emptyMessage, onTitleClick = onTitleClick)
         }
 
         items.isNullOrEmpty() -> {
@@ -49,8 +54,9 @@ internal fun LibraryMediaShelfRoute(
         else -> {
             LibraryMediaShelf(
                 title = title,
+                icon = section.icon,
                 items = items.orEmpty(),
-                sourceName = sourceName,
+                sourceName = title,
                 onTitleClick = onTitleClick,
                 onVideoClick = onVideoClick,
                 onMusicClick = onMusicClick,
@@ -63,23 +69,28 @@ internal fun LibraryMediaShelfRoute(
 
 @Composable
 internal fun LibraryPlaylistsShelf(
-    title: String,
-    videoPlaylistsFlow: StateFlow<List<PlaylistInfo>?>,
-    musicPlaylistsFlow: StateFlow<List<PlaylistInfo>?>,
+    section: LibrarySection,
+    videoPlaylistsFlow: StateFlow<List<PlaylistInfo>?>?,
+    musicPlaylistsFlow: StateFlow<List<PlaylistInfo>?>?,
     onTitleClick: () -> Unit,
     onVideoPlaylistClick: (String) -> Unit,
     onMusicPlaylistClick: (String) -> Unit,
 ) {
-    val videoPlaylists by videoPlaylistsFlow.collectAsStateWithLifecycle()
-    val musicPlaylists by musicPlaylistsFlow.collectAsStateWithLifecycle()
+    val videoPlaylists = videoPlaylistsFlow?.collectAsStateWithLifecycle()?.value
+    val musicPlaylists = musicPlaylistsFlow?.collectAsStateWithLifecycle()?.value
+    val title = section.title
 
     if (videoPlaylists == null && musicPlaylists == null) {
-        LibraryShelfPlaceholder(title = title)
+        LibraryShelfPlaceholder(title = title, icon = section.icon)
         return
     }
     if (videoPlaylists.isNullOrEmpty() && musicPlaylists.isNullOrEmpty()) return
 
-    LibraryShelf(title = title, onTitleClick = onTitleClick) {
+    LibraryShelf(
+        title = title,
+        icon = section.icon,
+        onTitleClick = onTitleClick,
+    ) { cardWidth ->
         items(
             items = videoPlaylists.orEmpty(),
             key = { "video-${it.id}" },
@@ -89,7 +100,7 @@ internal fun LibraryPlaylistsShelf(
                 playlist = playlist,
                 onClick = { onVideoPlaylistClick(playlist.id) },
                 layout = PlaylistCardLayout.SHELF,
-                modifier = Modifier.width(LibraryShelfCardWidth),
+                modifier = Modifier.width(cardWidth),
             )
         }
         items(
@@ -102,6 +113,7 @@ internal fun LibraryPlaylistsShelf(
                 subtitle = stringResource(R.string.tracks_count_template, playlist.videoCount),
                 thumbnailUrl = playlist.thumbnailUrl,
                 onClick = { onMusicPlaylistClick(playlist.id) },
+                artworkSize = cardWidth * 9f / 16f,
             )
         }
     }
@@ -109,15 +121,16 @@ internal fun LibraryPlaylistsShelf(
 
 @Composable
 internal fun LibraryVideoShelf(
-    title: String,
+    section: LibrarySection,
     videosFlow: StateFlow<List<Video>?>,
     onTitleClick: () -> Unit,
     onVideoClick: (Video) -> Unit,
 ) {
     val videos by videosFlow.collectAsStateWithLifecycle()
+    val title = section.title
     when {
         videos == null -> {
-            LibraryShelfPlaceholder(title = title)
+            LibraryShelfPlaceholder(title = title, icon = section.icon)
         }
 
         videos.isNullOrEmpty() -> {
@@ -125,7 +138,11 @@ internal fun LibraryVideoShelf(
         }
 
         else -> {
-            LibraryShelf(title = title, onTitleClick = onTitleClick) {
+            LibraryShelf(
+                title = title,
+                icon = section.icon,
+                onTitleClick = onTitleClick,
+            ) { cardWidth ->
                 items(
                     items = videos.orEmpty(),
                     key = Video::id,
@@ -134,6 +151,7 @@ internal fun LibraryVideoShelf(
                     LibraryVideoCard(
                         video = video,
                         onClick = { onVideoClick(video) },
+                        width = cardWidth,
                     )
                 }
             }
@@ -143,15 +161,16 @@ internal fun LibraryVideoShelf(
 
 @Composable
 internal fun LibraryShortsShelfRoute(
-    title: String,
+    section: LibrarySection,
     shortsFlow: StateFlow<List<Video>?>,
     onTitleClick: () -> Unit,
     onShortClick: (Video) -> Unit,
 ) {
     val shorts by shortsFlow.collectAsStateWithLifecycle()
+    val title = section.title
     when {
         shorts == null -> {
-            LibraryShelfPlaceholder(title = title)
+            LibraryShelfPlaceholder(title = title, icon = section.icon, portrait = true)
         }
 
         shorts.isNullOrEmpty() -> {
@@ -161,6 +180,7 @@ internal fun LibraryShortsShelfRoute(
         else -> {
             LibraryShortsShelf(
                 title = title,
+                icon = section.icon,
                 shorts = shorts.orEmpty(),
                 onTitleClick = onTitleClick,
                 onShortClick = onShortClick,

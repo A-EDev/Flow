@@ -24,8 +24,6 @@ internal sealed interface PlayerSheet {
 
     data object Dlna : PlayerSheet
 
-    data object QuickActions : PlayerSheet
-
     /** [fullscreen] picks the landscape side panel over the bottom sheet. */
     data class Comments(
         val fullscreen: Boolean = false,
@@ -45,4 +43,7 @@ internal sealed interface PlayerSheet {
     ) : PlayerSheet
 
     data object SbSubmit : PlayerSheet
+
+    /** The video note editor, raised from the settings sheet so fullscreen can write one too. */
+    data object Note : PlayerSheet
 }

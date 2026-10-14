@@ -13,14 +13,15 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
-import io.github.aedev.flow.player.stream.MergedPlayback
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModelHarness.Companion.video
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.utils.NetworkState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
@@ -85,6 +86,7 @@ class PlaybackSessionApplierTest {
             sponsorBlockRepository = harness.sponsorBlockRepository,
             videoDownloadManager = harness.videoDownloadManager,
             offlineSubtitleStore = harness.offlineSubtitleStore,
+            localSubtitles = harness.localSubtitles,
             playerManager = harness.playerManager,
             scope = this,
             networkDispatcher = testDispatcher,
@@ -154,7 +156,7 @@ class PlaybackSessionApplierTest {
                 playbackPreparer.applyAutoplayCandidates(VIDEO_ID, related)
                 secondaryMetadata.loadRelatedVideos(VIDEO_ID, related, CURRENT_TOKEN)
                 secondaryMetadata.loadChannelMetadata(VIDEO_ID, null, "UC_innertube", any(), CURRENT_TOKEN)
-                playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any())
+                playbackPreparer.prepareVodStreams(VIDEO_ID, any(), any(), 0L, any(), any())
             }
             verify { GlobalPlayerState.setCurrentVideo(match { it.id == VIDEO_ID && it.title == "InnerTube title" }) }
         }
@@ -162,7 +164,7 @@ class PlaybackSessionApplierTest {
     @Test
     fun `a VOD whose preparation throws asks the premiere check first and then writes the error`() =
         runTest(testDispatcher) {
-            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any()) } throws
+            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any(), any()) } throws
                 RuntimeException("prepare failed")
 
             applier().apply(vodStep(), load())
@@ -177,7 +179,7 @@ class PlaybackSessionApplierTest {
     fun `a VOD failure the premiere check claims leaves the error alone`() =
         runTest(testDispatcher) {
             tryEnterUpcomingResult = true
-            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any()) } throws
+            coEvery { playbackPreparer.prepareVodStreams(any(), any(), any(), any(), any(), any()) } throws
                 RuntimeException("prepare failed")
 
             applier().apply(vodStep(), load())
@@ -263,8 +265,84 @@ class PlaybackSessionApplierTest {
             assertThat(uiState.value.localFilePath).isEqualTo("/tmp/a.mp4")
             assertThat(uiState.value.localFileVideoId).isEqualTo(VIDEO_ID)
             coVerify(exactly = 1) {
-                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, emptyList(), any())
+                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, any(), emptyList(), any(), any(), any())
             }
+        }
+
+    @Test
+    fun `a downloaded copy online reads its watch page once and requests no streams`() =
+        runTest(testDispatcher) {
+            uiState.value = VideoPlayerUiState(cachedVideo = video(VIDEO_ID).copy(title = ""))
+
+            applier().apply(ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null, downloadedVideo = video(VIDEO_ID)), load())
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { secondaryMetadata.loadWatchInfo(VIDEO_ID, any(), CURRENT_TOKEN) }
+            coVerify(exactly = 1) { secondaryMetadata.loadRelatedVideos(VIDEO_ID, emptyList(), CURRENT_TOKEN, true) }
+            coVerify(exactly = 1) { secondaryMetadata.loadChapters(VIDEO_ID, CURRENT_TOKEN) }
+            coVerify(exactly = 1) { secondaryMetadata.loadHeatmap(VIDEO_ID, CURRENT_TOKEN) }
+            coVerify(exactly = 0) { secondaryMetadata.loadCategory(any(), any()) }
+            coVerify(exactly = 1) { playbackPreparer.beginSession(VIDEO_ID, video(VIDEO_ID).title, any(), any()) }
+            assertThat(uiState.value.cachedVideo?.title).isEqualTo(video(VIDEO_ID).title)
+        }
+
+    @Test
+    fun `a downloaded copy offline plays without asking the network`() =
+        runTest(testDispatcher) {
+            every { NetworkState.isOnline(any()) } returns false
+
+            applier().apply(ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null), load())
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { secondaryMetadata.loadWatchInfo(any(), any(), any()) }
+            coVerify(exactly = 0) { secondaryMetadata.loadRelatedVideos(any(), any(), any(), any()) }
+            coVerify(exactly = 1) {
+                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", null, 0L, any(), emptyList(), any(), any(), any())
+            }
+        }
+
+    @Test
+    fun `a stale downloaded-copy step is dropped`() =
+        runTest(testDispatcher) {
+            applier().apply(ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null), load(token = CURRENT_TOKEN - 1))
+            advanceUntilIdle()
+
+            assertThat(uiState.value.localFilePath).isNull()
+            coVerify(exactly = 0) { secondaryMetadata.loadWatchInfo(any(), any(), any()) }
+            coVerify(exactly = 0) { playbackPreparer.prepareLocalMedia(any(), any(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `watch info for a downloaded copy chains the channel row it could not know before`() =
+        runTest(testDispatcher) {
+            val watched = video(VIDEO_ID).copy(channelId = "UC_real", channelThumbnailUrl = "https://example.invalid/a.jpg")
+            uiState.value = VideoPlayerUiState(cachedVideo = video(VIDEO_ID), localFileVideoId = VIDEO_ID)
+
+            applier().applySecondary(SecondaryMetadata.WatchInfo(VIDEO_ID, CURRENT_TOKEN, watched))
+            advanceUntilIdle()
+
+            assertThat(uiState.value.cachedVideo).isEqualTo(watched)
+            coVerify(exactly = 1) {
+                secondaryMetadata.loadChannelMetadata(
+                    VIDEO_ID,
+                    null,
+                    "UC_real",
+                    listOf("https://example.invalid/a.jpg"),
+                    CURRENT_TOKEN,
+                    false,
+                )
+            }
+        }
+
+    @Test
+    fun `watch info for a streamed video leaves the channel row to the stream path`() =
+        runTest(testDispatcher) {
+            uiState.value = VideoPlayerUiState(cachedVideo = video(VIDEO_ID))
+
+            applier().applySecondary(SecondaryMetadata.WatchInfo(VIDEO_ID, CURRENT_TOKEN, video(VIDEO_ID)))
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { secondaryMetadata.loadChannelMetadata(any(), any(), any(), any(), any(), any()) }
         }
 
     @Test

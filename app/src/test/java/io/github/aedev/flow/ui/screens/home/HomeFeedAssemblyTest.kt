@@ -1,13 +1,14 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.ui.screens.home
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -47,21 +48,23 @@ class HomeFeedAssemblyTest {
     private suspend fun lanes(
         subs: List<Video> = emptyList(),
         discovery: List<Video> = emptyList(),
-        viral: List<Video> = emptyList(),
+        memory: List<Video> = emptyList(),
         related: List<GraphCandidate> = emptyList(),
         rss: List<Video> = emptyList(),
         watched: Set<String> = emptySet(),
-        excluded: Set<String> = emptySet(),
+        exclusions: FeedExclusions = FeedExclusions.NONE,
+        shown: Set<String> = emptySet(),
         freshSlots: Int = 3,
         avatars: Map<String, String> = emptyMap(),
     ) = buildHomeFeedLanes(
         rawSubs = subs,
         rawDiscovery = discovery,
-        rawViral = viral,
+        rawMemory = memory,
         rawRelated = related,
         rssFeed = rss,
         watched = watched,
-        excludedChannels = excluded,
+        exclusions = exclusions,
+        isRecentlyShown = { it in shown },
         taste = taste,
         now = now,
         freshSlotTarget = freshSlots,
@@ -95,9 +98,80 @@ class HomeFeedAssemblyTest {
             val blocked = video("blocked", channelId = "bad", ageMs = hour, uploadDate = "1 hour ago")
             val allowed = video("allowed", channelId = "good", ageMs = hour, uploadDate = "1 hour ago")
 
-            val result = lanes(subs = listOf(blocked, allowed), excluded = setOf("bad"))
+            val result = lanes(subs = listOf(blocked, allowed), exclusions = FeedExclusions(blockedChannelIds = setOf("bad")))
 
             assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("allowed")
+        }
+
+    @Test
+    fun `a not interested video leaves the fresh lane and the subs backlog`() =
+        runTest {
+            val hidden = video("hidden", channelId = "sub", ageMs = hour, uploadDate = "1 hour ago")
+            val kept = video("kept", channelId = "sub2", ageMs = hour, uploadDate = "1 hour ago")
+
+            val result =
+                lanes(
+                    subs = listOf(hidden, kept),
+                    rss = listOf(hidden),
+                    exclusions = FeedExclusions(suppressedVideoIds = setOf("hidden")),
+                )
+            val mix = assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 2, totalInteractions = 100)
+
+            assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("kept")
+            assertThat(result.subsByRecency.map { it.id }).doesNotContain("hidden")
+            assertThat(mix.subsBacklog.map { it.id }).doesNotContain("hidden")
+        }
+
+    @Test
+    fun `the next unseen upload is pinned when the newest ones were all seen`() =
+        runTest {
+            val seen = (1..3).map { video("seen$it", channelId = "s$it", ageMs = it * hour, uploadDate = "$it hours ago") }
+            val unseen = video("unseen", channelId = "u", ageMs = 10 * hour, uploadDate = "10 hours ago")
+
+            val result = lanes(rss = seen + unseen, shown = seen.mapTo(HashSet()) { it.id }, freshSlots = 3)
+
+            assertThat(result.pinnedFresh.map { it.id }).containsExactly("unseen")
+            assertThat(result.shownFresh.map { it.id }).containsExactly("seen1", "seen2", "seen3").inOrder()
+        }
+
+    @Test
+    fun `hidden channels are dropped from discovery and related lanes too`() =
+        runTest {
+            val result =
+                lanes(
+                    discovery = listOf(video("d-sub", channelId = "UCsub"), video("d-other")),
+                    related = listOf(GraphCandidate(video("r-sub", channelId = "UCsub"), "seed", 1.0, 0, "misc", 1)),
+                    exclusions = FeedExclusions().hidingChannels(setOf("UCsub")),
+                )
+
+            assertThat(result.bestDiscovery.map { it.id }).containsExactly("d-other")
+            assertThat(result.bestRelated).isEmpty()
+        }
+
+    @Test
+    fun `a blocked topic is dropped from the subscription lanes`() =
+        runTest {
+            val result =
+                lanes(
+                    subs = listOf(video("topic"), video("other")),
+                    exclusions = FeedExclusions(blockedText = { title, _ -> title == "title-topic" }),
+                )
+
+            assertThat(result.bestSubs.map { it.id }).containsExactly("other")
+        }
+
+    @Test
+    fun `an upload shown recently leaves the pinned slots but stays on Home behind the other subs`() =
+        runTest {
+            val seen = video("seen", channelId = "a", ageMs = hour, uploadDate = "1 hour ago")
+            val fresh = video("fresh", channelId = "b", ageMs = 2 * hour, uploadDate = "2 hours ago")
+
+            val result = lanes(rss = listOf(seen, fresh), shown = setOf("seen"))
+            val mix = assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 2, totalInteractions = 100)
+
+            assertThat(result.pinnedFresh.map { it.id }).containsExactly("fresh")
+            assertThat(result.shownFresh.map { it.id }).containsExactly("seen")
+            assertThat(mix.videos.map { it.id }).containsExactly("fresh", "seen").inOrder()
         }
 
     @Test
@@ -191,13 +265,13 @@ class HomeFeedAssemblyTest {
                 lanes(
                     subs = listOf(video("s1"), video("s2")),
                     discovery = listOf(video("d1")),
-                    viral = listOf(video("v1")),
+                    memory = listOf(video("v1")),
                     watched = setOf("s1", "d1", "v1"),
                 )
 
             assertThat(result.bestSubs.map { it.id }).containsExactly("s2")
             assertThat(result.bestDiscovery).isEmpty()
-            assertThat(result.bestViral).isEmpty()
+            assertThat(result.bestMemory).isEmpty()
         }
 
     @Test
@@ -260,7 +334,7 @@ class HomeFeedAssemblyTest {
                 lanes(
                     subs = (1..30).map { video("s$it", channelId = "sc$it") },
                     discovery = (1..30).map { video("d$it", channelId = "dc$it") },
-                    viral = (1..30).map { video("v$it", channelId = "vc$it") },
+                    memory = (1..30).map { video("v$it", channelId = "vc$it") },
                 )
 
             val mix = assembleHomeFeed(built, onScreenIds = emptySet(), subCount = 50, totalInteractions = 100)
@@ -297,5 +371,21 @@ class HomeFeedAssemblyTest {
 
             assertThat(result.relatedMetadata.keys).containsExactly("r1")
             assertThat(result.bestRelated.map { it.id }).containsExactly("r1")
+        }
+
+    @Test
+    fun `seen fresh uploads come after a few ranked subs instead of past the lane quota`() =
+        runTest {
+            val seen = video("seen", channelId = "s", ageMs = hour, uploadDate = "1 hour ago")
+            val ranked = (1..20).map { video("sub$it", channelId = "c$it") }
+
+            val result = lanes(subs = ranked, rss = listOf(seen), shown = setOf("seen"))
+            val subsLane =
+                assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 20, totalInteractions = 100)
+                    .sourceMix.items
+                    .filter { it.source == FeedSource.SUBS }
+                    .map { it.video.id }
+
+            assertThat(subsLane.indexOf("seen")).isEqualTo(3)
         }
 }

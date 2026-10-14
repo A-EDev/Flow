@@ -37,8 +37,6 @@ class PlayerScreenStateTest {
             "showSeekForwardAnimation" to false,
             "seekAccumulation" to 10,
             "showSeekBackAnimation" to false,
-            "subtitlesEnabled" to false,
-            "selectedSubtitleUrl" to null,
             "subtitleStyle" to SubtitleStyle(),
             "resizeMode" to 0,
             "zoomScale" to 1f,
@@ -47,7 +45,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator" to false,
             "zoomIndicatorSequence" to 0,
             "exitDragOffsetY" to 0f,
-            "exitDragProgress" to 0f,
             "isSpeedBoostActive" to false,
             "normalSpeed" to 1.0f,
             "showShortsPrompt" to false,
@@ -66,8 +63,6 @@ class PlayerScreenStateTest {
             "lockOverlayRevealSignal",
             "currentPosition",
             "duration",
-            "subtitlesEnabled",
-            "selectedSubtitleUrl",
             "showBrightnessOverlay",
             "showVolumeOverlay",
             "showSeekBackAnimation",
@@ -82,7 +77,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator",
             "zoomIndicatorSequence",
             "exitDragOffsetY",
-            "exitDragProgress",
         )
 
     // Pins current behaviour: bufferedPosition, isSpeedBoostActive and seekAccumulation
@@ -104,7 +98,7 @@ class PlayerScreenStateTest {
     private val dismissMediaSheetsClears = setOf("activeSheet")
 
     /**
-     * The eighteen-flag state deliberately left the sleep timer, download, cast and quick-action
+     * The eighteen-flag state deliberately left the sleep timer, download and cast
      * dialogs standing through a dismissal. One exclusive [PlayerSheet] cannot express that carve
      * out, so they close with everything else now.
      */
@@ -113,7 +107,6 @@ class PlayerScreenStateTest {
             PlayerSheet.SleepTimer,
             PlayerSheet.Download,
             PlayerSheet.Dlna,
-            PlayerSheet.QuickActions,
         )
 
     /** Every snapshot-backed property except the wall-clock timestamp, keyed by name. */
@@ -141,8 +134,6 @@ class PlayerScreenStateTest {
             "showSeekForwardAnimation" to showSeekForwardAnimation,
             "seekAccumulation" to seekAccumulation,
             "showSeekBackAnimation" to showSeekBackAnimation,
-            "subtitlesEnabled" to subtitlesEnabled,
-            "selectedSubtitleUrl" to selectedSubtitleUrl,
             "subtitleStyle" to subtitleStyle,
             "resizeMode" to resizeMode,
             "zoomScale" to zoomScale,
@@ -151,7 +142,6 @@ class PlayerScreenStateTest {
             "showZoomIndicator" to showZoomIndicator,
             "zoomIndicatorSequence" to zoomIndicatorSequence,
             "exitDragOffsetY" to exitDragOffsetY,
-            "exitDragProgress" to exitDragProgress,
             "isSpeedBoostActive" to isSpeedBoostActive,
             "normalSpeed" to normalSpeed,
             "showShortsPrompt" to showShortsPrompt,
@@ -183,8 +173,6 @@ class PlayerScreenStateTest {
         showSeekForwardAnimation = true
         seekAccumulation = 30
         showSeekBackAnimation = true
-        subtitlesEnabled = true
-        selectedSubtitleUrl = "https://example.invalid/en.vtt"
         subtitleStyle = SubtitleStyle(fontSize = 22f)
         resizeMode = 2
         zoomScale = 2.5f
@@ -193,7 +181,6 @@ class PlayerScreenStateTest {
         showZoomIndicator = true
         zoomIndicatorSequence = 4
         exitDragOffsetY = 300f
-        exitDragProgress = 0.4f
         isSpeedBoostActive = true
         normalSpeed = 1.5f
         showShortsPrompt = true
@@ -320,19 +307,6 @@ class PlayerScreenStateTest {
         state.toggleFullscreen()
         assertThat(state.isFullscreen).isFalse()
         assertThat(state.isFullscreenPortrait).isFalse()
-    }
-
-    @Test
-    fun `enableSubtitles stores the url and disableSubtitles clears it`() {
-        val state = PlayerScreenState()
-
-        state.enableSubtitles("https://example.invalid/en.vtt")
-        assertThat(state.subtitlesEnabled).isTrue()
-        assertThat(state.selectedSubtitleUrl).isEqualTo("https://example.invalid/en.vtt")
-
-        state.disableSubtitles()
-        assertThat(state.subtitlesEnabled).isFalse()
-        assertThat(state.selectedSubtitleUrl).isNull()
     }
 
     @Test

@@ -25,8 +25,8 @@ class ChannelScreenTabTest {
     private fun tabs(
         descriptors: List<ChannelTabDescriptor>,
         header: ChannelHeader? = bareHeader,
-        shortsEnabled: Boolean = true,
-    ) = channelScreenTabs(descriptors, header, shortsEnabled, aboutTitle = "About")
+        showShortsTab: Boolean = true,
+    ) = channelScreenTabs(descriptors, header, showShortsTab, aboutTitle = "About")
 
     @Test
     fun `a large channel keeps every tab it published, in order`() {
@@ -91,12 +91,28 @@ class ChannelScreenTabTest {
     }
 
     @Test
-    fun `the shorts master switch hides only the shorts tab`() {
+    fun `hiding the shorts tab hides only the shorts tab`() {
         val descriptors = listOf(descriptor(ChannelTabKind.Videos), descriptor(ChannelTabKind.Shorts))
 
         assertTrue(tabs(descriptors).any { it.kind == ChannelTabKind.Shorts })
-        assertTrue(tabs(descriptors, shortsEnabled = false).none { it.kind == ChannelTabKind.Shorts })
-        assertTrue(tabs(descriptors, shortsEnabled = false).any { it.kind == ChannelTabKind.Videos })
+        assertTrue(tabs(descriptors, showShortsTab = false).none { it.kind == ChannelTabKind.Shorts })
+        assertTrue(tabs(descriptors, showShortsTab = false).any { it.kind == ChannelTabKind.Videos })
+    }
+
+    @Test
+    fun `a shown shorts tab keeps the place the channel gave it`() {
+        val descriptors =
+            listOf(
+                descriptor(ChannelTabKind.Videos),
+                descriptor(ChannelTabKind.Shorts),
+                descriptor(ChannelTabKind.Live),
+                descriptor(ChannelTabKind.Playlists),
+            )
+
+        assertEquals(
+            listOf(ChannelTabKind.Videos, ChannelTabKind.Shorts, ChannelTabKind.Live, ChannelTabKind.Playlists),
+            tabs(descriptors, showShortsTab = true).map { it.kind },
+        )
     }
 
     @Test

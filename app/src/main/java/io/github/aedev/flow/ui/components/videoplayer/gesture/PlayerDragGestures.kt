@@ -20,6 +20,8 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -33,7 +35,7 @@ private const val SEEK_DRAG_SPAN_MS = 90_000L
 private const val SEEK_DRAG_HAPTIC_STEP_MS = 5_000L
 
 /** Distance from the top and bottom edges where drags are left to the controls beneath them. */
-private const val DRAG_EDGE_IGNORE_PX = 120f
+private val DragEdgeIgnore = 40.dp
 
 /** Downward travel in the centre zone that commits to leaving fullscreen. */
 private const val EXIT_FULLSCREEN_DRAG_PX = 80f
@@ -75,8 +77,8 @@ internal fun Modifier.playerDragGestures(
     seekSwipeGesturesEnabled: State<Boolean>,
     allowVolumeBoost: State<Boolean>,
     sideEdgeIgnorePx: State<Float>,
-    onExitFullscreen: State<(() -> Unit)?>,
-    onExitFullscreenDrag: State<(offsetPx: Float, progress: Float) -> Unit>,
+    onExitFullscreen: State<((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)?>,
+    onExitFullscreenDrag: State<(offsetPx: Float) -> Unit>,
     haptics: HapticFeedback,
     lastBrightnessApplied: FloatArray,
     lastBrightnessAppliedAt: LongArray,
@@ -110,6 +112,7 @@ internal fun Modifier.playerDragGestures(
         var exitDragTravel = 0f
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
+        val exitVelocity = VelocityTracker()
         var lastVolumeStep = -1
         var lastBrightnessEdge = 0
 
@@ -242,21 +245,19 @@ internal fun Modifier.playerDragGestures(
             currentOnShowVolumeChange(true)
         }
 
+        fun exitDragOffset(): Float =
+            if (exitDragTravel > EXIT_FULLSCREEN_DRAG_PX) {
+                EXIT_FULLSCREEN_DRAG_PX +
+                    resistedTravel(
+                        exitDragTravel - EXIT_FULLSCREEN_DRAG_PX,
+                        EXIT_FULLSCREEN_OVERSHOOT_PX,
+                    )
+            } else {
+                exitDragTravel
+            }
+
         fun publishExitDrag() {
-            val offset =
-                if (exitDragTravel > EXIT_FULLSCREEN_DRAG_PX) {
-                    EXIT_FULLSCREEN_DRAG_PX +
-                        resistedTravel(
-                            exitDragTravel - EXIT_FULLSCREEN_DRAG_PX,
-                            EXIT_FULLSCREEN_OVERSHOOT_PX,
-                        )
-                } else {
-                    exitDragTravel
-                }
-            currentOnExitFullscreenDrag(
-                offset,
-                (exitDragTravel / EXIT_FULLSCREEN_DRAG_PX).coerceAtMost(1f),
-            )
+            currentOnExitFullscreenDrag(exitDragOffset())
         }
 
         fun applyExitDrag(dy: Float) {
@@ -276,10 +277,12 @@ internal fun Modifier.playerDragGestures(
             exitDragPastCommit = false
 
             if (exiting) {
+                // The video is handed over where the finger left it, so the exit continues from there.
+                val releaseOffset = exitDragOffset()
+                val releaseVelocity = exitVelocity.calculateVelocity().y
                 exitSettleJob?.cancel()
                 exitDragTravel = 0f
-                publishExitDrag()
-                currentOnExitFullscreen?.invoke()
+                currentOnExitFullscreen?.invoke(releaseOffset, releaseVelocity)
                 return
             }
             if (exitDragTravel == 0f || exitSettleJob?.isActive == true) return
@@ -362,9 +365,10 @@ internal fun Modifier.playerDragGestures(
                     // it is what turned a back swipe into a seek and an edge flick into a
                     // brightness change (#1068).
                     val sideIgnore = currentSideEdgeIgnorePx
+                    val topBottomIgnore = DragEdgeIgnore.toPx()
                     val nearEdge =
-                        offset.y < DRAG_EDGE_IGNORE_PX ||
-                            size.height - offset.y < DRAG_EDGE_IGNORE_PX ||
+                        offset.y < topBottomIgnore ||
+                            size.height - offset.y < topBottomIgnore ||
                             offset.x < sideIgnore ||
                             size.width - offset.x < sideIgnore
                     if (nearEdge) {
@@ -395,6 +399,8 @@ internal fun Modifier.playerDragGestures(
                             val width = size.width
                             when {
                                 isCenterZone -> {
+                                    if (exitDragTravel == 0f) exitVelocity.resetTracking()
+                                    exitVelocity.addPosition(change.uptimeMillis, change.position)
                                     applyExitDrag(delta.y)
                                 }
 
@@ -448,7 +454,7 @@ internal fun Modifier.playerDragGestures(
             // A system takeover (the status bar sliding in over the video) cancels this
             // coroutine outright, so neither onDragEnd nor onDragCancel runs (#906).
             exitSettleJob?.cancel()
-            currentOnExitFullscreenDrag(0f, 0f)
+            currentOnExitFullscreenDrag(0f)
             if (seekDragStarted) currentOnSeekDragChange(false)
         }
     }

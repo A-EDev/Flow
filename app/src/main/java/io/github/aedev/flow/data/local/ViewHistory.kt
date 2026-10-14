@@ -8,14 +8,20 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 
@@ -31,11 +37,13 @@ private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferen
 class ViewHistory private constructor(
     private val context: Context,
 ) {
-    private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
+    private val database = AppDatabase.getDatabase(context)
+    private val dao = database.watchHistoryDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         private const val TAG = "ViewHistory"
+        private const val WATCH_HISTORY_TABLE = "watch_history"
 
         @Volatile
         private var instance: ViewHistory? = null
@@ -81,10 +89,11 @@ class ViewHistory private constructor(
         channelId: String = "",
         isMusic: Boolean = false,
         isShort: Boolean = false,
-        isLocal: Boolean = false,
+        // A device file's row stays local whichever caller writes it, or it would join the online
+        // history, the engine's signals and sync under an id that names no YouTube video.
+        isLocal: Boolean = LocalMediaIds.isLocal(videoId),
     ) {
-        val prefs = PlayerPreferences(context)
-        if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
+        if (PlayerPreferences(context).isWatchHistorySavingBlocked()) return
 
         val thumbnail = if (isLocal) thumbnailUrl else ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
         dao.upsert(
@@ -104,6 +113,24 @@ class ViewHistory private constructor(
         )
     }
 
+    /**
+     * Records that [videoId] played to its end. Its card then shows a full bar until the next
+     * playback of it starts over from the beginning and saves new progress.
+     */
+    suspend fun markCompleted(
+        videoId: String,
+        durationMs: Long,
+    ) {
+        if (durationMs <= 0L) return
+        if (PlayerPreferences(context).isWatchHistorySavingBlocked()) return
+        dao.markCompleted(videoId, durationMs)
+    }
+
+    /** Clears playback progress for [videoId]. The history row stays; the card stops reading as watched. */
+    suspend fun clearProgress(videoId: String) {
+        dao.clearProgress(videoId)
+    }
+
     suspend fun getSavedPosition(videoId: String): Long = dao.getPosition(videoId) ?: 0L
 
     /**
@@ -120,8 +147,7 @@ class ViewHistory private constructor(
         duration: Long = 0L,
         isShort: Boolean = false,
     ) {
-        val prefs = PlayerPreferences(context)
-        if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
+        if (PlayerPreferences(context).isWatchHistorySavingBlocked()) return
 
         val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
         val existingPosition = dao.getPosition(videoId) ?: 0L // preserve saved progress
@@ -129,18 +155,21 @@ class ViewHistory private constructor(
         // erase the length a real playback save had recorded — leaving a row with a position but
         // nothing to measure it against, which is exactly what drops it from the progress map.
         val resolvedDuration = duration.takeIf { it > 0 } ?: dao.getDuration(videoId) ?: 0L
+        // A player opened from only an id knows no title yet; a blank must not erase the one on record.
+        val existing = if (title.isBlank() || channelName.isBlank() || channelId.isBlank()) dao.getEntry(videoId).first() else null
         dao.upsert(
             WatchHistoryEntity(
                 videoId = videoId,
                 position = existingPosition,
                 duration = resolvedDuration,
                 timestamp = System.currentTimeMillis(),
-                title = title,
+                title = title.ifBlank { existing?.title.orEmpty() },
                 thumbnailUrl = thumbnail,
-                channelName = channelName,
-                channelId = channelId,
+                channelName = channelName.ifBlank { existing?.channelName.orEmpty() },
+                channelId = channelId.ifBlank { existing?.channelId.orEmpty() },
                 isMusic = false,
                 isShort = isShort,
+                isLocal = LocalMediaIds.isLocal(videoId),
             ),
         )
     }
@@ -197,24 +226,59 @@ class ViewHistory private constructor(
     fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> = dao.getEntry(videoId).map { it?.toDomain() }
 
     /** All history, newest first. */
-    fun getAllHistory(): Flow<List<VideoHistoryEntry>> = dao.getAllHistory().map { list -> list.map { it.toDomain() } }
+    fun getAllHistory(): Flow<List<VideoHistoryEntry>> = observeHistory()
 
     fun getRecentLibraryHistory(limit: Int): Flow<List<VideoHistoryEntry>> =
         dao.getRecentLibraryHistory(limit).map { list -> list.map { it.toDomain() } }
 
     /** Video (non-music) history, newest first. */
-    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> = dao.getVideoHistory().map { list -> list.map { it.toDomain() } }
+    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 0, isLocal = 0)
 
     /** Music history, newest first. */
-    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> = dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
+    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 1, isLocal = 0)
 
-    suspend fun getWatchedShortIdsAboveThreshold(
-        minPercent: Float = 99f,
-        maxRemainingMs: Long = Long.MAX_VALUE,
-    ): Set<String> = dao.getWatchedShortIdsAboveThreshold(minPercent, maxRemainingMs).toHashSet()
+    /** Plays of files on the device, newest first: their progress and when they were last played. */
+    fun getLocalHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isLocal = 1)
+
+    /** Position and duration of every entry, for progress bars. */
+    fun getAllWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress() }
+
+    /** Position and duration of every video (non-music, non-local) entry, for watched checks. */
+    fun getVideoWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress(isMusic = 0, isLocal = 0) }
+
+    /** The latest [limit] video entries, newest first, without reading the rest of the table. */
+    suspend fun getRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): List<VideoHistoryEntry> = dao.getRecentVideoHistory(limit, includeShorts).map { it.toDomain() }
+
+    /** [getRecentVideoHistory], read again whenever the history table changes. */
+    fun observeRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): Flow<List<VideoHistoryEntry>> = observe { getRecentVideoHistory(limit, includeShorts) }
+
+    private fun observeHistory(
+        isMusic: Int = WatchHistoryDao.ANY,
+        isLocal: Int = WatchHistoryDao.ANY,
+    ): Flow<List<VideoHistoryEntry>> = observe { dao.readHistory(isMusic, isLocal).map { it.toDomain() } }
+
+    /** Re-reads on every change to the table, as a Room Flow query would, dropping a read a newer change supersedes. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> observe(read: suspend () -> T): Flow<T> =
+        database.invalidationTracker
+            .createFlow(WATCH_HISTORY_TABLE)
+            .mapLatest { read() }
+            .flowOn(Dispatchers.IO)
+
+    suspend fun getShortProgress(): List<WatchProgress> = dao.readShortProgress()
+
+    suspend fun getWatchProgress(videoId: String): WatchProgress? = dao.getProgress(videoId)
 
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()
+
+    fun getLibraryHistoryCount(): Flow<Int> = dao.getLibraryHistoryCount()
 
     /**
      * Returns the most recently watched unfinished video (<95% complete).

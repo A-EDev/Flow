@@ -21,6 +21,7 @@ fun PlayerGestureOverlays(
     allowVolumeBoost: Boolean,
     speedBoostSpeed: Float,
     style: GestureOverlayStyle,
+    seekZoneFraction: Float,
     modifier: Modifier = Modifier,
 ) {
     // Force LTR so CenterStart/CenterEnd always map to physical left/right,
@@ -40,6 +41,7 @@ fun PlayerGestureOverlays(
                 showSeekBack = screenState.showSeekBackAnimation,
                 showSeekForward = screenState.showSeekForwardAnimation,
                 seekSeconds = screenState.seekAccumulation,
+                zoneFraction = seekZoneFraction,
                 modifier = Modifier.align(Alignment.Center),
             )
 

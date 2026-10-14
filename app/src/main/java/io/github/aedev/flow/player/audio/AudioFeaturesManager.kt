@@ -163,8 +163,11 @@ class AudioFeaturesManager(
     /**
      * Observe skip silence preference changes.
      */
-    fun observeSkipSilencePreference(context: Context) {
-        scope.launch {
+    fun observeSkipSilencePreference(
+        context: Context,
+        observerScope: CoroutineScope,
+    ) {
+        observerScope.launch {
             PlayerPreferences(context).skipSilenceEnabled.collect { isEnabled ->
                 setSkipSilenceInternal(isEnabled)
             }
@@ -174,8 +177,11 @@ class AudioFeaturesManager(
     /**
      * Observe stable volume preference and apply on startup.
      */
-    fun observeStableVolumePreference(context: Context) {
-        scope.launch {
+    fun observeStableVolumePreference(
+        context: Context,
+        observerScope: CoroutineScope,
+    ) {
+        observerScope.launch {
             PlayerPreferences(context).stableVolumeEnabled.collect { isEnabled ->
                 val player = playerRef
                 if (player != null) {

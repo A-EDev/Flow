@@ -153,4 +153,93 @@ class AutoplayCountdownControllerTest {
             assertThat(advances).isEqualTo(1)
             assertThat(controller.isActive).isFalse()
         }
+
+    @Test
+    fun `holding a running countdown freezes remaining time and does not advance`() =
+        runTest {
+            var advances = 0
+            val controller = AutoplayCountdownController(backgroundScope, onElapsed = { advances++ })
+
+            controller.start(totalSeconds = 5, nextVideo = video())
+            runCurrent()
+            advanceTimeBy(2_000)
+            runCurrent()
+            controller.setHold(true)
+
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertThat(controller.state.value.isActive).isTrue()
+            assertThat(controller.state.value.secondsRemaining).isEqualTo(3)
+            assertThat(advances).isEqualTo(0)
+        }
+
+    @Test
+    fun `releasing a hold continues from the remaining seconds`() =
+        runTest {
+            var advances = 0
+            val controller = AutoplayCountdownController(backgroundScope, onElapsed = { advances++ })
+
+            controller.start(totalSeconds = 5, nextVideo = video())
+            runCurrent()
+            advanceTimeBy(2_000)
+            runCurrent()
+            controller.setHold(true)
+            advanceTimeBy(10_000)
+            runCurrent()
+            controller.setHold(false)
+
+            advanceTimeBy(2_000)
+            runCurrent()
+            assertThat(controller.state.value.secondsRemaining).isEqualTo(1)
+            assertThat(advances).isEqualTo(0)
+
+            advanceTimeBy(1_000)
+            runCurrent()
+            assertThat(advances).isEqualTo(1)
+            assertThat(controller.isActive).isFalse()
+        }
+
+    @Test
+    fun `a countdown that starts while held waits until the hold is released`() =
+        runTest {
+            var advances = 0
+            val controller = AutoplayCountdownController(backgroundScope, onElapsed = { advances++ })
+
+            controller.setHold(true)
+            controller.start(totalSeconds = 3, nextVideo = video())
+            runCurrent()
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertThat(controller.state.value.isActive).isTrue()
+            assertThat(controller.state.value.secondsRemaining).isEqualTo(3)
+            assertThat(advances).isEqualTo(0)
+
+            controller.setHold(false)
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertThat(advances).isEqualTo(1)
+            assertThat(controller.isActive).isFalse()
+        }
+
+    @Test
+    fun `stop during a hold clears it and does not advance after release`() =
+        runTest {
+            var advances = 0
+            val controller = AutoplayCountdownController(backgroundScope, onElapsed = { advances++ })
+
+            controller.start(totalSeconds = 5, nextVideo = video())
+            runCurrent()
+            controller.setHold(true)
+            assertThat(controller.stop()).isTrue()
+
+            controller.setHold(false)
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertThat(advances).isEqualTo(0)
+            assertThat(controller.isActive).isFalse()
+        }
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.data.recommendation.music
@@ -10,6 +10,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicPlaylist
@@ -46,7 +47,6 @@ class MusicBrainEngine
         companion object {
             private const val TAG = "MusicBrainEngine"
             private const val SAVE_DEBOUNCE_MS = 5000L
-            private const val LOCAL_MEDIA_PREFIX = "local_"
         }
 
         private val storage = MusicBrainStorage(appContext)
@@ -112,7 +112,7 @@ class MusicBrainEngine
             genre: String? = null,
             playedMs: Long = 0L,
         ) {
-            if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
+            if (track.videoId.isBlank() || LocalMediaIds.isLocal(track.videoId)) return
             val pct = playedFraction.coerceIn(0.0, 1.0)
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
@@ -154,6 +154,8 @@ class MusicBrainEngine
                     listenedMs = playedMs,
                     counted = counted,
                     newArtist = counted && wasNewArtist,
+                    skipped = crossed.isEmpty(),
+                    artworkUrl = track.thumbnailUrl,
                 )
             }
             scheduleDebouncedSave()
@@ -181,7 +183,7 @@ class MusicBrainEngine
 
         /** An explicit like counts as a full play regardless of progress and floors the score at 0.8. */
         suspend fun onExplicitLike(track: MusicTrack) {
-            if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
+            if (track.videoId.isBlank() || LocalMediaIds.isLocal(track.videoId)) return
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
 
@@ -401,6 +403,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.applyDislike(brain, key, System.currentTimeMillis())
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = false)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -415,6 +418,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.blockArtist(brain, key)
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = true)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -431,6 +435,19 @@ class MusicBrainEngine
             if (key.isEmpty() || artistName.isBlank()) return
             val affinity = brain.artistAffinity.getOrPut(key) { MusicAffinity() }
             if (affinity.display.isBlank()) affinity.display = artistName.trim()
+        }
+
+        suspend fun setFavouriteArtist(
+            artistId: String?,
+            artistName: String,
+            favourite: Boolean,
+        ) {
+            ensureInitialized()
+            mutex.withLock {
+                MusicBrainLearn.setFavouriteArtist(brain, musicArtistKey(artistId, artistName), artistName.trim(), favourite)
+                refreshHiddenArtistsLocked()
+            }
+            scheduleDebouncedSave()
         }
 
         suspend fun unblockArtist(artistKey: String) {
@@ -487,6 +504,31 @@ class MusicBrainEngine
                 isInitialized = true
                 refreshHiddenArtistsLocked()
                 storage.save(brain)
+            }
+        }
+
+        /** Artwork per artist from the tracks the engine remembers, for recap portraits with no network. */
+        internal suspend fun artistArtwork(): Map<String, String> {
+            ensureInitialized()
+            return mutex.withLock {
+                brain.trackMeta.values
+                    .filter { it.artistKey.isNotEmpty() && it.thumbnail.isNotBlank() }
+                    .associate { it.artistKey to it.thumbnail }
+            }
+        }
+
+        /** Counted plays in one month, without copying the ledger. */
+        suspend fun monthPlays(monthKey: String): Int {
+            ensureInitialized()
+            return mutex.withLock { ledger.months[monthKey]?.plays ?: 0 }
+        }
+
+        /** Replaces the listening ledger with a restored one; the brain is untouched. */
+        internal suspend fun restoreListeningStats(stats: MusicStatsStorage.SerializableStats) {
+            ensureInitialized()
+            mutex.withLock {
+                ledger = stats.toLedger()
+                statsStorage.replace(stats)
             }
         }
 

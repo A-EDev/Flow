@@ -27,9 +27,6 @@ internal object ExploreFixture {
     const val SHELF_SEE_ALL = "shelf_see_all"
     const val SHELF_SEE_ALL_CONTINUATION = "shelf_see_all_continuation"
     const val GAMING_TRENDING = "gaming_trending"
-    const val CHARTS_TRENDING_VIDEOS = "charts_trending_videos"
-    const val CHARTS_TRENDING_MOVIES = "charts_trending_movies"
-    const val CHARTS_UNSUPPORTED_COUNTRY = "charts_unsupported_country"
     const val TRENDING_DEAD = "trending_dead"
 
     private val json = Json { ignoreUnknownKeys = true }

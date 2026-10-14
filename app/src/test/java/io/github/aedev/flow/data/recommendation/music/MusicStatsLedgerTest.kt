@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.data.recommendation.music
@@ -23,6 +23,7 @@ class MusicStatsLedgerTest {
         listenedMs: Long = 60_000L,
         counted: Boolean = true,
         newArtist: Boolean = false,
+        skipped: Boolean = false,
     ) = MusicStatsLedgerOps.record(
         ledger,
         at,
@@ -34,6 +35,7 @@ class MusicStatsLedgerTest {
         listenedMs,
         counted,
         newArtist,
+        skipped,
     )
 
     @Test
@@ -107,5 +109,49 @@ class MusicStatsLedgerTest {
         assertThat(restored.months.getValue(key).listenedMs).isEqualTo(70_000L)
         assertThat(restored.months.getValue(key).discoveredArtists).containsExactly("UCa")
         assertThat(restored.schemaVersion).isEqualTo(MusicStatsParams.SCHEMA_VERSION)
+    }
+
+    @Test
+    fun `a deliberate early exit is a named skip`() {
+        val ledger = MusicStatsLedger()
+        record(ledger, listenedMs = 12_000L, counted = false, skipped = true)
+
+        val month = ledger.months.getValue(MusicStatsLedgerOps.monthKey(now))
+        assertThat(month.plays).isEqualTo(0)
+        assertThat(month.trackSkips["t1"]).isEqualTo(1)
+        assertThat(month.artistSkips["UCa"]).isEqualTo(1)
+        assertThat(month.trackTitles["t1"]).isEqualTo("Song One")
+    }
+
+    @Test
+    fun `a mis-tap under five seconds is not a skip`() {
+        val ledger = MusicStatsLedger()
+        record(ledger, listenedMs = 3_000L, counted = false, skipped = true)
+
+        val month = ledger.months.getValue(MusicStatsLedgerOps.monthKey(now))
+        assertThat(month.trackSkips).isEmpty()
+        assertThat(month.listenedMs).isEqualTo(3_000L)
+    }
+
+    @Test
+    fun `listening time is kept per day, partial sessions included`() {
+        val ledger = MusicStatsLedger()
+        record(ledger, listenedMs = 60_000L)
+        record(ledger, listenedMs = 20_000L, counted = false)
+
+        val month = ledger.months.getValue(MusicStatsLedgerOps.monthKey(now))
+        assertThat(month.dayMs.values.sum()).isEqualTo(80_000L)
+    }
+
+    @Test
+    fun `saying no to an artist is recorded with a name and a date`() {
+        val ledger = MusicStatsLedger()
+        MusicStatsLedgerOps.recordSaidNo(ledger, now, "UCz", "Artist Z", blocked = false)
+        MusicStatsLedgerOps.recordSaidNo(ledger, now, "UCy", "Artist Y", blocked = true)
+
+        val month = ledger.months.getValue(MusicStatsLedgerOps.monthKey(now))
+        assertThat(month.dislikedArtists).containsExactly("UCz", now)
+        assertThat(month.blockedArtists).containsExactly("UCy", now)
+        assertThat(month.artistNames).containsEntry("UCz", "Artist Z")
     }
 }

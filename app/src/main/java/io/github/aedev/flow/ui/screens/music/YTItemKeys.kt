@@ -18,23 +18,24 @@ internal fun YTItem.stableIdentityKey(): String {
     }
 }
 
-internal fun YTItem.stableLazyKey(namespace: String): String =
-    "$namespace:${stableIdentityKey()}"
+internal fun YTItem.stableLazyKey(namespace: String): String = "$namespace:${stableIdentityKey()}"
 
-internal fun Iterable<YTItem>.distinctByStableIdentity(): List<YTItem> =
-    distinctByNonBlankKey(YTItem::stableIdentityKey)
+internal fun Iterable<YTItem>.distinctByStableIdentity(): List<YTItem> = distinctByNonBlankKey(YTItem::stableIdentityKey)
 
 internal fun SearchSummaryPage.distinctItemsForLazyKeys(): SearchSummaryPage {
-    val seenByTitle = mutableMapOf<String, MutableSet<String>>()
+    val seenBySection = mutableMapOf<String, MutableSet<String>>()
     return copy(
-        summaries = summaries.mapNotNull { summary ->
-            val seenKeys = seenByTitle.getOrPut(summary.title) { HashSet() }
-            summary.copy(
-                items = summary.items.filter { item ->
-                    val key = item.stableIdentityKey()
-                    item.id.isNotBlank() && seenKeys.add(key)
-                }
-            ).takeIf { it.items.isNotEmpty() }
-        }
+        summaries =
+            summaries.mapNotNull { summary ->
+                val seenKeys = seenBySection.getOrPut("${summary.kind}:${summary.title}") { HashSet() }
+                summary
+                    .copy(
+                        items =
+                            summary.items.filter { item ->
+                                val key = item.stableIdentityKey()
+                                item.id.isNotBlank() && seenKeys.add(key)
+                            },
+                    ).takeIf { it.items.isNotEmpty() }
+            },
     )
 }

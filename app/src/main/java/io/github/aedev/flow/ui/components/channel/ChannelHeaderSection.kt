@@ -1,7 +1,9 @@
 package io.github.aedev.flow.ui.components.channel
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,22 +18,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowNoteCard
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.copyPlainText
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ChannelHeaderSection(
@@ -106,13 +118,7 @@ internal fun ChannelHeaderSection(
                     .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(
-                text = header.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            ChannelName(header.title)
 
             val metadata = remember(header) { listOfNotNull(header.handle, header.subscriberCountText, header.videoCountText) }
             if (metadata.isNotEmpty()) {
@@ -142,3 +148,41 @@ internal fun ChannelHeaderSection(
 }
 
 // Subscribe button
+
+/**
+ * The channel's name, copied on long-press. Not a text selection: the header slides away as the
+ * page scrolls, which would leave selection handles floating.
+ */
+@Composable
+private fun ChannelName(title: String) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val clipLabel = stringResource(R.string.channel_name_clip_label)
+    val copyLabel = stringResource(R.string.copy_channel_name)
+
+    fun copy() {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        scope.launch {
+            clipboard.copyPlainText(clipLabel, title)
+            Toast.makeText(context, context.getString(R.string.channel_name_copied), Toast.LENGTH_SHORT).show()
+        }
+    }
+    Text(
+        text = title,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            Modifier
+                .pointerInput(title) { detectTapGestures(onLongPress = { copy() }) }
+                .semantics {
+                    onLongClick(label = copyLabel) {
+                        copy()
+                        true
+                    }
+                },
+    )
+}

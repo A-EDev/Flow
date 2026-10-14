@@ -37,7 +37,14 @@ object DatabaseModule {
     fun provideCacheDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.CacheDao = database.cacheDao()
 
     @Provides
+    fun provideHomeFeedCacheDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.HomeFeedCacheDao = database.homeFeedCacheDao()
+
+    @Provides
     fun provideDownloadDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.DownloadDao = database.downloadDao()
+
+    @Provides
+    fun provideDownloadCollectionDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.DownloadCollectionDao =
+        database.downloadCollectionDao()
 
     @Provides
     fun provideRecognitionHistoryDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.RecognitionHistoryDao =

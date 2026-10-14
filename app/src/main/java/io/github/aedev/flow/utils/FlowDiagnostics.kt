@@ -1,10 +1,11 @@
 package io.github.aedev.flow.utils
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -16,6 +17,7 @@ import java.util.Locale
  */
 object FlowDiagnostics {
     private const val TAG = "FlowDiagnostics"
+    private const val RECENT_EXITS = 5
 
     // -------------------------------------------------------------------------
     // Public API
@@ -68,7 +70,7 @@ object FlowDiagnostics {
         sessionLogs: String,
     ): String =
         buildString {
-            val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US))
             appendLine("=".repeat(60))
             appendLine("FLOW DIAGNOSTICS REPORT")
             appendLine("Generated: $ts")
@@ -80,8 +82,15 @@ object FlowDiagnostics {
             appendLine("SESSION LOGS  (W/E level, current session)")
             appendLine("=".repeat(60))
             appendLine(sessionLogs)
-            val crashes = getCrashLogs(context)
-            if (crashes != "No crash logs") {
+            recentExitsOrNull(context)?.let { exits ->
+                appendLine()
+                appendLine("=".repeat(60))
+                appendLine("RECENT EXITS  (newest first, Android 11+)")
+                appendLine("=".repeat(60))
+                appendLine(exits)
+            }
+            val crashes = crashLogsOrNull(context)
+            if (crashes != null) {
                 appendLine()
                 appendLine("=".repeat(60))
                 appendLine("CRASH REPORTS  (persisted across sessions)")
@@ -90,18 +99,58 @@ object FlowDiagnostics {
             }
         }
 
+    /** How the app's last processes ended, or null below Android 11 or when the system kept none. */
+    fun recentExitsOrNull(context: Context): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        val exits =
+            runCatching {
+                context
+                    .getSystemService(ActivityManager::class.java)
+                    ?.getHistoricalProcessExitReasons(context.packageName, 0, RECENT_EXITS)
+            }.getOrNull()
+                .orEmpty()
+        if (exits.isEmpty()) return null
+        return exits.joinToString("\n") { ExitReasonText.line(it.reason, it.timestamp, it.importance, it.description) }
+    }
+
+    /** Persisted crash reports, or null when there are none. */
+    fun crashLogsOrNull(context: Context): String? = getCrashLogs(context).takeUnless { it.isBlank() || it.trim() == NO_CRASH_LOGS }
+
+    fun deviceInfo(context: Context): DeviceInfo {
+        val packageInfo = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+        return DeviceInfo(
+            manufacturer = Build.MANUFACTURER,
+            model = Build.MODEL,
+            brand = Build.BRAND,
+            androidRelease = Build.VERSION.RELEASE,
+            sdk = Build.VERSION.SDK_INT,
+            versionName = packageInfo?.versionName,
+            versionCode = packageInfo?.longVersionCode,
+        )
+    }
+
     /** one-liner block of device + app version metadata. */
     fun buildDeviceInfo(context: Context): String =
-        buildString {
-            appendLine("Manufacturer : ${Build.MANUFACTURER}")
-            appendLine("Model        : ${Build.MODEL}")
-            appendLine("Android      : ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-            appendLine("Brand        : ${Build.BRAND}")
-            try {
-                val pi = context.packageManager.getPackageInfo(context.packageName, 0)
-                appendLine("App version  : ${pi.versionName} (${pi.longVersionCode})")
-            } catch (_: Exception) {
-                appendLine("App version  : unknown")
-            }
-        }.trimEnd()
+        deviceInfo(context).let { info ->
+            buildString {
+                appendLine("Manufacturer : ${info.manufacturer}")
+                appendLine("Model        : ${info.model}")
+                appendLine("Android      : ${info.androidRelease} (SDK ${info.sdk})")
+                appendLine("Brand        : ${info.brand}")
+                appendLine("App version  : ${info.versionName?.let { "$it (${info.versionCode})" } ?: "unknown"}")
+            }.trimEnd()
+        }
+
+    private const val NO_CRASH_LOGS = "No crash logs"
 }
+
+/** The device and build a diagnostics report describes. */
+data class DeviceInfo(
+    val manufacturer: String,
+    val model: String,
+    val brand: String,
+    val androidRelease: String,
+    val sdk: Int,
+    val versionName: String?,
+    val versionCode: Long?,
+)

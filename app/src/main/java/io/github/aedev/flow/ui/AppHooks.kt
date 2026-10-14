@@ -16,6 +16,38 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+
+/**
+ * Suspends until the NavHost has set its graph. The NavHost is composed only once the onboarding
+ * check resolves, so a fresh activity has a window where navigate() throws (#1079, #1102).
+ */
+suspend fun NavController.awaitGraph() {
+    currentBackStackEntryFlow.first()
+}
+
+/** Navigates to a route handed in from outside the graph, once the graph has its first entry. */
+@Composable
+fun HandlePendingRoute(
+    pendingRoute: String?,
+    navController: NavController,
+    startRoute: String,
+    onConsumed: () -> Unit,
+    onBeforeNavigate: () -> Unit = {},
+) {
+    LaunchedEffect(pendingRoute) {
+        pendingRoute?.let { route ->
+            navController.awaitGraph()
+            onBeforeNavigate()
+            val tab = flowTabForRoute(route)
+            when {
+                tab != null -> navController.navigateToTab(tab, startRoute)
+                navController.currentBackStackEntry?.destination?.route != route -> navController.navigate(route)
+            }
+            onConsumed()
+        }
+    }
+}
 
 @Composable
 fun HandleDeepLinks(
@@ -25,41 +57,18 @@ fun HandleDeepLinks(
     onDeeplinkConsumed: () -> Unit,
 ) {
     LaunchedEffect(deeplinkVideoId, isShort) {
-        if (deeplinkVideoId != null) {
-            val maxAttempts = 30
-            var navigated = false
-            for (attempt in 1..maxAttempts) {
-                delay(100L)
-                try {
-                    if (navController.currentDestination != null) {
-                        if (isShort) {
-                            val src = Uri.encode(ShortsQueueSource.SeededFeed(deeplinkVideoId).encode())
-                            navController.navigate("shorts?src=$src") {
-                                launchSingleTop = true
-                            }
-                        } else {
-                            navController.navigate("player/$deeplinkVideoId") {
-                                launchSingleTop = true
-                            }
-                        }
-                        navigated = true
-                        break
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "HandleDeepLinks",
-                        "Navigation attempt $attempt failed for $deeplinkVideoId: ${e.message}",
-                    )
-                }
+        val videoId = deeplinkVideoId ?: return@LaunchedEffect
+        navController.awaitGraph()
+        if (isShort) {
+            // Every Shorts queue shares one route, so single-top would reuse whichever Shorts screen
+            // is on top and keep its old queue instead of opening the linked short.
+            navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
+        } else {
+            navController.navigate("player/$videoId") {
+                launchSingleTop = true
             }
-            if (!navigated) {
-                android.util.Log.e(
-                    "HandleDeepLinks",
-                    "Navigation failed after $maxAttempts attempts for: $deeplinkVideoId",
-                )
-            }
-            onDeeplinkConsumed()
         }
+        onDeeplinkConsumed()
     }
 }
 
@@ -84,7 +93,8 @@ fun OfflineMonitor(
             route == "downloads" ||
                 route.startsWith("player") ||
                 route.startsWith("musicPlayer") ||
-                route == "settings"
+                route == "settings" ||
+                route == "notes"
         if (isSafeRoute) return@LaunchedEffect
 
         delay(OFFLINE_NOTICE_DELAY_MS)

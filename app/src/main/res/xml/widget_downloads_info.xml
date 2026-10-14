@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Hourly system refresh; content is re-read from the local database on each update. -->
+<!-- updatePeriodMillis=0: WidgetContentSync re-renders when the data changes, never on a timer. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
     android:minHeight="180dp"
@@ -7,7 +7,7 @@
     android:minResizeHeight="110dp"
     android:targetCellWidth="4"
     android:targetCellHeight="3"
-    android:updatePeriodMillis="3600000"
+    android:updatePeriodMillis="0"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:description="@string/widget_downloads_description"
     android:resizeMode="horizontal|vertical"

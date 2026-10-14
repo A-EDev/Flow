@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
 
 internal const val CHANNEL_BANNER_ASPECT_RATIO = 1060f / 175f
 
@@ -30,14 +31,15 @@ internal fun ChannelBanner(
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant)
 
-    if (imageUrl.isNullOrBlank()) {
+    val bannerUrl = thumbnailUrlOrNull(imageUrl)
+    if (bannerUrl == null) {
         androidx.compose.foundation.layout
             .Box(modifier = bannerModifier)
         return
     }
 
     AsyncImage(
-        model = imageUrl,
+        model = bannerUrl,
         contentDescription = stringResource(R.string.channel_banner),
         modifier = bannerModifier,
         contentScale = ContentScale.Fit,

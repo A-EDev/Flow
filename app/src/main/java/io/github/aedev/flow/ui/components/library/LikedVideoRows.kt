@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.model.toMusicTrack
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.library.LibraryMediaListRow
 import io.github.aedev.flow.ui.components.shared.MediaKind
@@ -32,10 +33,13 @@ internal fun LikedRow(
 
     LibraryMediaListRow(
         track = track,
+        video = remember(like) { like.toVideo() },
         isMusic = like.isMusic,
         title = like.title,
         onVideoClick = { onVideoClick(track) },
         onMusicClick = { onMusicClick(track, musicQueue) },
+        removeLabel = unlikeLabel,
+        onRemove = onUnlike,
         modifier = modifier,
         subtitle = like.channelName.takeIf { it.isNotBlank() },
         thumbnailUrl = like.thumbnail,

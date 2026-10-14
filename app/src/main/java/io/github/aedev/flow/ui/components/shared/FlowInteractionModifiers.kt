@@ -9,7 +9,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -25,7 +27,7 @@ import io.github.aedev.flow.ui.theme.ArtworkScrim
 
 /**
  * Adds a subtle press-scale animation to any composable.
- * When the user presses down, the element shrinks to [pressedScale] with a bouncy spring,
+ * When the user presses down, the element shrinks to [pressedScale] on the theme's fast spatial spring,
  * giving tactile depth feedback without any layout shift.
  *
  * Usage: Modifier.pressScale(interactionSource)
@@ -45,11 +47,7 @@ fun Modifier.pressScale(
     val scale =
         animateFloatAsState(
             targetValue = if (isPressed) pressedScale else 1f,
-            animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow,
-                ),
+            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
             label = "pressScale",
         )
     return this.graphicsLayer {
@@ -116,6 +114,14 @@ fun Modifier.dismissKeyboardOnPress(onPress: () -> Unit): Modifier =
     }
 
 fun LazyItemScope.animateMediaListItem(): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = tween(ITEM_FADE_IN_MILLIS, easing = EaseOutCubic),
+        fadeOutSpec = tween(ITEM_FADE_OUT_MILLIS, easing = EaseInCubic),
+        placementSpec = spring(dampingRatio = ITEM_PLACEMENT_DAMPING, stiffness = Spring.StiffnessLow),
+    )
+
+/** [animateMediaListItem] for an item of a lazy grid. */
+fun LazyGridItemScope.animateMediaGridItem(): Modifier =
     Modifier.animateItem(
         fadeInSpec = tween(ITEM_FADE_IN_MILLIS, easing = EaseOutCubic),
         fadeOutSpec = tween(ITEM_FADE_OUT_MILLIS, easing = EaseInCubic),

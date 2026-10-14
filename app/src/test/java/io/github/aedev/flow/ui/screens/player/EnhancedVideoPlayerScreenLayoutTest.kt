@@ -38,11 +38,8 @@ import org.robolectric.annotation.Config
  * [io.github.aedev.flow.ui.utils.ProvideWindowSizeClass], the same provider MainActivity installs,
  * so the size class under test is the one the app would compute.
  *
- * Related videos are deliberately absent: every related card calls `hiltViewModel()`
- * (VideoCard.kt, `VideoCardFullWidth` / `CompactVideoCard`), which androidx.hilt 1.4.0 resolves
- * through the host activity's Hilt component, so the two-per-row tablet grid cannot be mounted
- * under a plain `ComponentActivity`. The grid-versus-list choice itself is covered by
- * `PlayerLayoutModeTest`; here the observable is the side column, which only the WIDE layout
+ * Related videos are deliberately absent: the grid-versus-list choice is covered by
+ * `PlayerLayoutModeTest`, so here the observable is the side column, which only the WIDE layout
  * mounts.
  */
 @OptIn(UnstableApi::class)
@@ -68,6 +65,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
                         video = video,
                         alpha = { 1f },
                         screenState = screenState,
+                        isFullscreenShown = screenState.isFullscreen,
                         prefs = rememberVideoPlayerPreferences(LocalContext.current),
                         onVideoClick = {},
                         onChannelClick = {},
@@ -170,7 +168,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
         listOf(
             PlayerSheet.Description to R.string.description,
-            PlayerSheet.Chapters to R.string.in_this_video,
+            PlayerSheet.Chapters to R.string.chapters,
             PlayerSheet.Settings() to R.string.player_settings,
             PlayerSheet.Settings(PlayerSettingsPage.SubtitleStyle) to R.string.subtitle_style,
             PlayerSheet.SleepTimer to R.string.sleep_timer,

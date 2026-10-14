@@ -3,24 +3,10 @@ package io.github.aedev.flow.ui.components.library
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 
-private const val MILLIS_PER_SECOND = 1_000L
-private const val MILLIS_PER_MINUTE = 60_000L
-private const val MILLIS_PER_HOUR = 3_600_000L
-private const val MILLIS_PER_DAY = 86_400_000L
-private const val DAYS_PER_WEEK = 7L
-private const val DAYS_PER_MONTH = 30L
-private const val DAYS_PER_YEAR = 365L
 private const val TIMESTAMP_TOLERANCE_MS = 30L * 60L * 1000L
-
-private val DigitsRegex = Regex("""(\d+)""")
-private val SecondsShorthand = Regex(""".*\d+\s*s$""")
-private val MinutesShorthand = Regex(""".*\d+\s*m$""")
-private val HoursShorthand = Regex(""".*\d+\s*h$""")
-private val DaysShorthand = Regex(""".*\d+\s*d$""")
-private val WeeksShorthand = Regex(""".*\d+\s*w$""")
-private val MonthsShorthand = Regex(""".*\d+\s*mo$""")
-private val YearsShorthand = Regex(""".*\d+\s*y$""")
 
 enum class PlaylistSortOrder(
     val storageValue: String,
@@ -34,25 +20,43 @@ enum class PlaylistSortOrder(
     DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest),
     ;
 
+    /** Rows show when each video was added only while the list is ordered by it. */
+    val showsDateAdded: Boolean
+        get() = this == DATE_ADDED_NEWEST || this == DATE_ADDED_OLDEST
+
     companion object {
         fun fromStorageValue(value: String?): PlaylistSortOrder = entries.firstOrNull { it.storageValue == value } ?: MANUAL
+
+        /**
+         * The orders a playlist has data for: a YouTube playlist carries no date a video was added,
+         * and likes have no order of their own besides when each was liked.
+         */
+        fun availableFor(
+            isLocalPlaylist: Boolean,
+            isLikes: Boolean = false,
+        ): List<PlaylistSortOrder> =
+            when {
+                isLikes -> entries.filterNot { it == MANUAL }
+                isLocalPlaylist -> entries
+                else -> entries.filterNot { it == DATE_ADDED_NEWEST || it == DATE_ADDED_OLDEST }
+            }
+
+        fun defaultFor(isLikes: Boolean): PlaylistSortOrder = if (isLikes) DATE_ADDED_NEWEST else MANUAL
     }
 }
 
 internal fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> =
     when (sortOrder) {
-        PlaylistSortOrder.MANUAL,
-        PlaylistSortOrder.DATE_ADDED_NEWEST,
-        -> this
-
-        PlaylistSortOrder.DATE_ADDED_OLDEST -> asReversed()
-
+        PlaylistSortOrder.MANUAL -> this
+        PlaylistSortOrder.DATE_ADDED_NEWEST -> sortedByDateAdded()
+        PlaylistSortOrder.DATE_ADDED_OLDEST -> sortedByDateAdded().asReversed()
         PlaylistSortOrder.MOST_POPULAR -> sortedByDescending { it.viewCount }
-
         PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByPublishDate(descending = true)
-
         PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedByPublishDate(descending = false)
     }
+
+// Rows without an add time predate every timed one; those and any ties go by position, latest first.
+private fun List<Video>.sortedByDateAdded(): List<Video> = asReversed().sortedByDescending { it.addedAtInPlaylist ?: 0L }
 
 private fun List<Video>.sortedByPublishDate(descending: Boolean): List<Video> {
     val now = System.currentTimeMillis()
@@ -62,49 +66,8 @@ private fun List<Video>.sortedByPublishDate(descending: Boolean): List<Video> {
 }
 
 private fun Video.effectivePlaylistUploadTimestamp(now: Long): Long {
-    val relativeDuration = parseRelativeDurationMillis(uploadDate)
-    if (timestamp <= 0L) {
-        return relativeDuration?.let { now - it } ?: 0L
-    }
-    if (relativeDuration == null) return timestamp
-
-    val timestampAge = now - timestamp
-    return if (timestampAge > relativeDuration + TIMESTAMP_TOLERANCE_MS) {
-        timestamp
-    } else {
-        now - relativeDuration
-    }
-}
-
-private fun parseRelativeDurationMillis(text: String): Long? {
-    val normalized =
-        text
-            .lowercase()
-            .replace("streamed", "")
-            .replace("premiered", "")
-            .replace("ago", "")
-            .trim()
-    if (normalized.isBlank() || normalized == "unknown") return null
-    if (normalized.contains("just now") || normalized == "today") return 0L
-    if (normalized.contains("yesterday")) return MILLIS_PER_DAY
-
-    val value =
-        DigitsRegex
-            .find(normalized)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.toLongOrNull()
-            ?: return null
-    val unit =
-        when {
-            normalized.contains("second") || SecondsShorthand.matches(normalized) -> MILLIS_PER_SECOND
-            normalized.contains("minute") || MinutesShorthand.matches(normalized) -> MILLIS_PER_MINUTE
-            normalized.contains("hour") || HoursShorthand.matches(normalized) -> MILLIS_PER_HOUR
-            normalized.contains("day") || DaysShorthand.matches(normalized) -> MILLIS_PER_DAY
-            normalized.contains("week") || WeeksShorthand.matches(normalized) -> DAYS_PER_WEEK * MILLIS_PER_DAY
-            normalized.contains("month") || MonthsShorthand.matches(normalized) -> DAYS_PER_MONTH * MILLIS_PER_DAY
-            normalized.contains("year") || YearsShorthand.matches(normalized) -> DAYS_PER_YEAR * MILLIS_PER_DAY
-            else -> return null
-        }
-    return value * unit
+    val relative = RelativeUploadDateParser.parse(uploadDate, YouTube.locale.hl, now)
+    if (timestamp <= 0L) return relative ?: 0L
+    if (relative == null) return timestamp
+    return if (timestamp < relative - TIMESTAMP_TOLERANCE_MS) timestamp else relative
 }

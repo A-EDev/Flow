@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.utils.formatLikeCount
 
 private val ThreadHorizontalPadding = 16.dp

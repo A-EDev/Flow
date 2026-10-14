@@ -26,6 +26,7 @@ import io.github.aedev.flow.sync.transport.SyncConnection
 import io.github.aedev.flow.sync.transport.SyncForegroundService
 import io.github.aedev.flow.sync.transport.WsClient
 import io.github.aedev.flow.sync.transport.WsServer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -75,6 +78,9 @@ class SyncManager
         private var consentDeferred: CompletableDeferred<Boolean>? = null
         private var hostPairing: HostPairing? = null
 
+        /** When the shown code lapses; the listener closes then, since scanners no longer check `exp`. */
+        @Volatile private var hostExpiresAtEpochSeconds = 0L
+
         private class HostPairing(
             val sessionId: ByteArray,
             val masterKey: ByteArray,
@@ -82,7 +88,6 @@ class SyncManager
             val port: Int,
             val deviceName: String,
             val role: String,
-            val sessionBound: Boolean,
             val sending: Boolean,
         )
 
@@ -94,19 +99,7 @@ class SyncManager
             collections: List<String>,
         ) {
             if (job?.isActive == true) return
-            job = scope.launch { runHost(role, collections, sessionBoundQr = false) }
-        }
-
-        /**
-         * Host a session for a TV QR. TV/emulator wall clocks are not guaranteed to agree with the
-         * phone scanner, so the live, single-use server session is the freshness boundary.
-         */
-        fun hostForTv(
-            role: SyncRole,
-            collections: List<String>,
-        ) {
-            if (job?.isActive == true) return
-            job = scope.launch { runHost(role, collections, sessionBoundQr = true) }
+            job = scope.launch { runHost(role, collections) }
         }
 
         /** Become the client (scan a QR) in the given [role]. [collections] is only used when SENDER. */
@@ -123,6 +116,7 @@ class SyncManager
             val pairing = hostPairing ?: return null
             if (_state.value !is SyncState.ShowingQr) return null
             val exp = System.currentTimeMillis() / 1000 + MANUAL_SHARE_TTL_SECONDS
+            hostExpiresAtEpochSeconds = exp
             val extended = showingQr(pairing, exp, MANUAL_SHARE_TTL_SECONDS)
             _state.value = extended
             return extended.qrText
@@ -163,7 +157,6 @@ class SyncManager
                         deviceName = pairing.deviceName,
                         expEpochSeconds = expEpochSeconds,
                         role = pairing.role,
-                        sessionBound = pairing.sessionBound,
                     ),
                 expiresAtEpochSeconds = expEpochSeconds,
                 ttlSeconds = ttlSeconds,
@@ -174,7 +167,6 @@ class SyncManager
         private suspend fun runHost(
             role: SyncRole,
             collections: List<String>,
-            sessionBoundQr: Boolean,
         ) {
             try {
                 _state.value = SyncState.Preparing
@@ -202,21 +194,32 @@ class SyncManager
                         port = port,
                         deviceName = deviceIdentity.deviceName(),
                         role = if (role == SyncRole.SENDER) QrCodec.ROLE_SENDER else QrCodec.ROLE_RECEIVER,
-                        sessionBound = sessionBoundQr,
                         sending = role == SyncRole.SENDER,
                     )
                 hostPairing = pairing
+                hostExpiresAtEpochSeconds = exp
                 _state.value = showingQr(pairing, exp, QrCodec.DEFAULT_TTL_SECONDS)
 
-                val conn = srv.awaitConnection()
+                val conn = awaitPeer(srv)
                 connection = conn
                 _state.value = SyncState.Connecting
                 val result = runProtocol(conn, isHost = true, role = role, keys, sessionId, sas, collections)
                 _state.value = SyncState.Done(result.peerName, result.stats)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Throwable) {
                 failWith(e)
             } finally {
                 cleanup()
+            }
+        }
+
+        /** Wait for the scanner until the shown code lapses (a manual share can extend it meanwhile). */
+        private suspend fun awaitPeer(srv: WsServer): SyncConnection {
+            while (true) {
+                val remainingMs = hostExpiresAtEpochSeconds * 1000 - System.currentTimeMillis()
+                if (remainingMs <= 0) throw IllegalStateException(context.getString(R.string.sync_error_no_peer))
+                withTimeoutOrNull(remainingMs) { srv.awaitConnection() }?.let { return it }
             }
         }
 
@@ -252,15 +255,32 @@ class SyncManager
 
                 SyncForegroundService.start(context)
                 _state.value = SyncState.Connecting
-                val conn = WsClient(okHttpClient).connect(parsed.wsUrl)
+                val conn = connectAny(parsed.wsUrls)
                 connection = conn
                 val result = runProtocol(conn, isHost = false, role = role, keys, parsed.sessionId, sas, collections)
                 _state.value = SyncState.Done(result.peerName, result.stats)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Throwable) {
                 failWith(e)
             } finally {
                 cleanup()
             }
+        }
+
+        /** Dial each address the code offers, best first, until one answers. */
+        private suspend fun connectAny(urls: List<String>): SyncConnection {
+            var lastError: Throwable = IOException("no address to dial")
+            for (url in urls) {
+                try {
+                    return WsClient(okHttpClient).connect(url)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    lastError = e
+                }
+            }
+            throw lastError
         }
 
         private suspend fun runProtocol(
@@ -342,11 +362,12 @@ class SyncManager
                     SyncCollection.SUBSCRIBED_CHANNELS to Capability(1, produce = true, consume = true),
                     SyncCollection.SUBSCRIPTIONS to Capability(1, produce = true, consume = true),
                     SyncCollection.MUSIC_BRAIN to Capability(1, produce = true, consume = true),
+                    SyncCollection.NOTES to Capability(1, produce = true, consume = true),
                 ),
             )
 
         private fun failWith(e: Throwable) {
-            _state.value = SyncState.Failed(e.message ?: "Sync failed")
+            _state.value = SyncState.Failed(SyncErrorMessages.describe(context, e))
         }
 
         private fun cleanup() {
@@ -381,6 +402,10 @@ class SyncManager
 
                     QrCodec.QrError.BAD_ADDRESS -> {
                         R.string.sync_error_qr_bad_address
+                    }
+
+                    QrCodec.QrError.NOT_LOCAL -> {
+                        R.string.sync_error_qr_not_local
                     }
                 },
             )

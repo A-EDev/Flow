@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.videoplayer
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.animate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -10,20 +11,41 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
+import coil3.memory.MemoryCache
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
-import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_SETTLE_DIP_HOLD_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.playerExpandSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerCollapseSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.playerOpenSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.withSteadyFrames
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 enum class PlayerSheetValue { Expanded, Collapsed }
 
 enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
+
+enum class MiniPlayerTuckSide { Left, Right }
+
+/** Where an open grows from: the thumbnail that was tapped, or below the screen when none is in view. */
+sealed interface SheetOpenOrigin {
+    /**
+     * [coversWindow]: whatever opened the player already fills the window around the thumbnail, as
+     * the background bar does once grown, so the page's ground starts full instead of growing.
+     */
+    data class Thumbnail(
+        val windowBounds: Rect,
+        val cornerRadiusPx: Float,
+        val imageKey: MemoryCache.Key?,
+        val coversWindow: Boolean = false,
+    ) : SheetOpenOrigin
+
+    data object BelowScreen : SheetOpenOrigin
+}
 
 class PlayerDraggableState(
     val offsetX: Animatable<Float, AnimationVector1D>,
@@ -33,13 +55,11 @@ class PlayerDraggableState(
 ) {
     var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
     var isDragging by mutableStateOf(false)
-    val dragScale = Animatable(1f)
 
-    /**
-     * Zoom applied while dragging up to enter fullscreen. Separate from [dragScale] so the
-     * mini-player's press effect and this cannot overwrite each other; they apply at opposite ends
-     * of [expandFraction] and are read in the draw phase only.
-     */
+    /** The edge the mini player is tucked past, with only its handle on screen; null while in view. */
+    var tuckedSide by mutableStateOf<MiniPlayerTuckSide?>(null)
+
+    /** Zoom applied while dragging up to enter fullscreen, read in the draw phase only. */
     val expandDragScale = Animatable(1f)
 
     var cachedTargetX by mutableFloatStateOf(0f)
@@ -48,15 +68,31 @@ class PlayerDraggableState(
     val miniSizeScale = Animatable(1f)
     var isShrinkingToCorner by mutableStateOf(false)
 
+    /** The video box's corner radius in its own pre-scale px, published by the layout for what it draws inside. */
+    internal var morphCornerRadiusPx: () -> Float = { 0f }
+
+    /** Drawn in place of the mini corner while an open grows out of it; cleared once the open ends. */
+    var openOrigin by mutableStateOf<SheetOpenOrigin?>(null)
+        private set
+    private var openGeneration = 0
+
+    /** The cached image of the card the last open grew from, drawn while the poster loads. */
+    var posterPlaceholderKey by mutableStateOf<MemoryCache.Key?>(null)
+        private set
+
     var miniVisualScale by mutableFloatStateOf(1f)
 
     /**
-     * Extra downward travel a collapse settles through before lifting to the resting corner, so
-     * the landing reads as a rubber band rather than a stop. Added to [offsetY] in the draw phase
-     * only; the layout sets [settleDipPx] from the nav bar height.
+     * How far the expanded video has slid from the top of the page to the centre of the window on
+     * its way into portrait fullscreen, read in the layout and draw phases only. Past 1 the video
+     * sits below the centre, where a fullscreen exit drag let it go.
      */
-    val settleDip = Animatable(0f)
-    var settleDipPx = 0f
+    var portraitFsFraction by mutableFloatStateOf(0f)
+        private set
+
+    /** The distance [portraitFsFraction] spans in px, published by the layout as it measures. */
+    internal var portraitFsTravel = 1f
+    private var portraitFsJob: Job? = null
 
     /** True only while no finger is down and nothing on the sheet is still moving. */
     val isSettled: Boolean
@@ -65,9 +101,7 @@ class PlayerDraggableState(
                 !expandFraction.isRunning &&
                 !offsetX.isRunning &&
                 !offsetY.isRunning &&
-                !settleDip.isRunning &&
                 !miniSizeScale.isRunning &&
-                !dragScale.isRunning &&
                 !expandDragScale.isRunning
 
     internal val motion =
@@ -94,19 +128,56 @@ class PlayerDraggableState(
 
     val fraction: Float get() = expandFraction.value
 
-    fun expand() {
+    /**
+     * [velocity] is the release speed in fraction per second; without one the sheet keeps whatever
+     * speed it already has, so a tap mid-collapse turns it around without a stop.
+     */
+    fun expand(velocity: Float? = null) {
+        if (openOrigin != null) return
         corner = MiniPlayerCorner.BottomRight
+        tuckedSide = null
         scope.launch {
             isShrinkingToCorner = false
-            val anim = playerExpandSpringSpec
-            launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
-            launch { motion.animateDip { settleDip.animateTo(0f, anim) } }
-            launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
-            launch {
-                motion.moveOffsets {
-                    launch { offsetX.animateTo(0f, anim) }
-                    launch { offsetY.animateTo(0f, anim) }
+            val anim = playerOpenSpringSpec
+            withSteadyFrames {
+                launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
+                launch {
+                    motion.animateFraction {
+                        expandFraction.animateTo(0f, anim, initialVelocity = velocity ?: expandFraction.velocity)
+                    }
                 }
+                launch {
+                    motion.moveOffsets {
+                        launch { offsetX.animateTo(0f, anim) }
+                        launch { offsetY.animateTo(0f, anim) }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Opens a video that is not on screen yet, growing the player out of [origin]. The origin is set
+     * before the coroutine runs so an [expand] issued in the same frame leaves this open alone.
+     */
+    fun open(origin: SheetOpenOrigin) {
+        corner = MiniPlayerCorner.BottomRight
+        tuckedSide = null
+        openOrigin = origin
+        posterPlaceholderKey = (origin as? SheetOpenOrigin.Thumbnail)?.imageKey
+        snapPortraitFullscreen(0f)
+        val generation = ++openGeneration
+        scope.launch {
+            isShrinkingToCorner = false
+            try {
+                motion.snapSize(1f)
+                motion.snapOffsets(x = cachedTargetX, y = cachedTargetY)
+                motion.animateFraction {
+                    expandFraction.snapTo(1f)
+                    withSteadyFrames { expandFraction.animateTo(0f, playerOpenSpringSpec) }
+                }
+            } finally {
+                if (generation == openGeneration) openOrigin = null
             }
         }
     }
@@ -166,29 +237,27 @@ class PlayerDraggableState(
         }
     }
 
-    fun collapse() {
+    /** [velocity] is the release speed in fraction per second, as for [expand]. */
+    fun collapse(velocity: Float? = null) {
         scope.launch {
             isShrinkingToCorner = false
-            val anim = playerExpandSpringSpec
+            val anim = playerCollapseSpringSpec
             if (cachedTargetX == 0f && cachedTargetY == 0f) {
                 launch { motion.snapFraction(1f) }
             } else {
-                launch { motion.animateFraction { expandFraction.animateTo(1f, anim) } }
                 launch {
-                    motion.moveOffsets {
-                        launch { offsetX.animateTo(cachedTargetX, anim) }
-                        launch { offsetY.animateTo(cachedTargetY, anim) }
-                    }
-                }
-                launch {
-                    motion.animateDip {
-                        // The lift starts on a fixed beat after the landing rather than when the
-                        // spring reports done: its sub-pixel tail would hold the mini down for
-                        // most of a second.
-                        val landing = launch { settleDip.animateTo(settleDipPx, anim) }
-                        delay(MINI_SETTLE_DIP_HOLD_MS)
-                        landing.cancel()
-                        settleDip.animateTo(0f, miniSnapSpringSpec)
+                    withSteadyFrames {
+                        launch {
+                            motion.animateFraction {
+                                expandFraction.animateTo(1f, anim, initialVelocity = velocity ?: expandFraction.velocity)
+                            }
+                        }
+                        launch {
+                            motion.moveOffsets {
+                                launch { offsetX.animateTo(cachedTargetX, anim) }
+                                launch { offsetY.animateTo(cachedTargetY, anim) }
+                            }
+                        }
                     }
                 }
             }
@@ -247,6 +316,50 @@ class PlayerDraggableState(
 
     suspend fun scrubBack(progress: Float) {
         motion.snapFraction(progress.coerceIn(0f, 1f))
+    }
+
+    internal fun snapPortraitFullscreen(value: Float) {
+        portraitFsJob?.cancel()
+        portraitFsFraction = value
+    }
+
+    /** Runs the portrait-fullscreen fraction to [target] from wherever it is, at [velocity] per second. */
+    internal suspend fun animatePortraitFullscreen(
+        target: Float,
+        velocity: Float,
+    ) {
+        portraitFsJob?.cancel()
+        runPortraitFullscreen(target, velocity)
+    }
+
+    private suspend fun runPortraitFullscreen(
+        target: Float,
+        velocity: Float,
+    ) {
+        withSteadyFrames {
+            animate(portraitFsFraction, target, velocity, portraitFullscreenSettleSpec) { value, _ ->
+                portraitFsFraction = value
+            }
+        }
+    }
+
+    /** Slides the video back to the top of the page unless a hand-off already started that slide. */
+    internal fun settlePortraitFullscreen() {
+        if (portraitFsJob?.isActive == true || portraitFsFraction == 0f) return
+        portraitFsJob = scope.launch { runPortraitFullscreen(0f, 0f) }
+    }
+
+    /**
+     * Leaves portrait fullscreen from where an exit drag let the video go, [offsetPx] below the centre
+     * and moving at [velocityPx] per second, so the slide back to the page continues the finger.
+     */
+    fun exitPortraitFullscreenFrom(
+        offsetPx: Float,
+        velocityPx: Float,
+    ) {
+        val travel = portraitFsTravel.coerceAtLeast(1f)
+        snapPortraitFullscreen(1f + offsetPx / travel)
+        portraitFsJob = scope.launch { runPortraitFullscreen(0f, velocityPx / travel) }
     }
 
     fun snapTo(target: PlayerSheetValue) {

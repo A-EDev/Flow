@@ -35,11 +35,12 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.feedStripCardWidth
 import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 import io.github.aedev.flow.utils.formatSubscriberCount
 
@@ -69,7 +70,7 @@ fun SearchChannelHeroCard(
     ) {
         BoxWithConstraints {
             val actionsInline = maxWidth >= InlineActionsWidth
-            val cardWidth = stripCardWidth(maxWidth)
+            val cardWidth = feedStripCardWidth(maxWidth)
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = CardVerticalPadding),
                 verticalArrangement = Arrangement.spacedBy(BlockSpacing),
@@ -242,26 +243,16 @@ private fun LatestStrip(
             horizontalArrangement = Arrangement.spacedBy(StripSpacing),
         ) {
             items(videos, key = { it.id }) { video ->
-                VideoCardFullWidth(
+                MediaVideoCard(
                     video = video,
                     useInternalPadding = false,
-                    showChannelAvatar = false,
-                    showChannelName = false,
+                    showChannel = false,
                     onClick = { onVideoClick(video) },
                     modifier = Modifier.width(cardWidth),
                 )
             }
         }
     }
-}
-
-/**
- * Strip cards are sized from the window rather than pinned, so a phone shows two and a peek of the
- * third while a tablet shows four of the same shape.
- */
-internal fun stripCardWidth(availableWidth: Dp): Dp {
-    val divisor = if (availableWidth < CompactStripWidth) COMPACT_STRIP_DIVISOR else WIDE_STRIP_DIVISOR
-    return (availableWidth / divisor).coerceIn(StripCardMinWidth, StripCardMaxWidth)
 }
 
 @Composable
@@ -278,11 +269,6 @@ private fun Channel.metadataLine(): String? {
 }
 
 private const val SEPARATOR = " • "
-private const val COMPACT_STRIP_DIVISOR = 1.3f
-private const val WIDE_STRIP_DIVISOR = 2.6f
-private val CompactStripWidth = 600.dp
-private val StripCardMinWidth = 260.dp
-private val StripCardMaxWidth = 380.dp
 private val InlineActionsWidth = 640.dp
 private val InlineActionsColumn = 360.dp
 private val CardMargin = 8.dp

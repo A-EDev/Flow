@@ -3,9 +3,12 @@ package io.github.aedev.flow.ui.components.videoplayer.motion
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -18,6 +21,9 @@ import kotlinx.coroutines.launch
  * with the very size the pinch is changing. In local space the fingers then barely move, so the
  * platform detector feeds back into itself and stalls. Tracking screen-space distance through
  * [DraggablePlayerGestureMetrics.liveGestureScale] is what makes the pinch track the fingers.
+ *
+ * The player stays pinned to its corner while it resizes, so letting go only finishes the size
+ * and never sends it across the screen.
  */
 internal class MiniPlayerPinchGestureHandler(
     private val state: PlayerDraggableState,
@@ -25,10 +31,8 @@ internal class MiniPlayerPinchGestureHandler(
 ) {
     suspend fun AwaitPointerEventScope.handlePinch() {
         awaitFirstDown(requireUnconsumed = false)
-        val evt = awaitPointerEvent(PointerEventPass.Main)
-        val pressed = evt.changes.filter { it.pressed }
-        if (pressed.size < 2) return
-        if (state.expandFraction.value < 0.8f) return
+        val pressed = awaitSecondFinger() ?: return
+        if (state.expandFraction.value < 0.8f || state.tuckedSide != null) return
 
         val ptr1Id = pressed[0].id
         val ptr2Id = pressed[1].id
@@ -38,83 +42,121 @@ internal class MiniPlayerPinchGestureHandler(
                     .getDistance() * metrics.liveGestureScale(state)
             ).coerceAtLeast(1f)
         val startScale = state.miniSizeScale.value
-        val wideCapWidth = metrics.maxWideWidth
-        val maxScale = (wideCapWidth / metrics.baseMiniWidth).coerceAtLeast(1f)
+        val maxScale = (metrics.maxWideWidth / metrics.baseMiniWidth.coerceAtLeast(1f)).coerceAtLeast(1f)
+        val pin =
+            MiniPinchPin(
+                corner = state.corner,
+                start = Offset(state.offsetX.value, state.offsetY.value),
+                startScale = startScale,
+                maxScale = maxScale,
+            )
         val snapSignal = Channel<Unit>(Channel.CONFLATED)
         var pScale = startScale
-        var pX = state.offsetX.value
-        var pY = state.offsetY.value
+        var pOffset = pin.start
         val pinchDriver =
             state.scope.launch {
                 for (ignored in snapSignal) {
                     state.miniSizeScale.snapTo(pScale)
-                    state.offsetX.snapTo(pX)
-                    state.offsetY.snapTo(pY)
+                    state.offsetX.snapTo(pOffset.x)
+                    state.offsetY.snapTo(pOffset.y)
                 }
             }
 
+        state.isDragging = true
         try {
             while (true) {
                 val e = awaitPointerEvent(PointerEventPass.Main)
                 val p1 = e.changes.firstOrNull { it.id == ptr1Id } ?: break
                 val p2 = e.changes.firstOrNull { it.id == ptr2Id } ?: break
-                if (!p1.pressed || !p2.pressed) {
-                    snapSignal.close()
-                    pinchDriver.cancel()
-                    settle(maxScale = maxScale, wideCapWidth = wideCapWidth)
-                    break
-                }
+                if (!p1.pressed || !p2.pressed) break
                 p1.consume()
                 p2.consume()
                 val currentDist = (p1.position - p2.position).getDistance() * metrics.liveGestureScale(state)
-                val gestureScale = currentDist / initialDist
-                val newScale = (startScale * gestureScale).coerceIn(1f, maxScale)
-                val newMiniW = (metrics.baseMiniWidth * newScale).coerceAtMost(wideCapWidth)
-                val newMiniH = newMiniW * (9f / 16f)
-                val newMaxX = (metrics.screenWidth - newMiniW - metrics.margin).coerceAtLeast(metrics.margin)
-                val newMaxY =
-                    (metrics.screenHeight - newMiniH - metrics.bottomNavPad - metrics.margin)
-                        .coerceAtLeast(metrics.minY)
-                val clampedX =
-                    when {
-                        metrics.isLargeScreen -> state.offsetX.value.coerceIn(metrics.margin, newMaxX)
-                        newScale > 1.5f -> metrics.stablePhoneCenteredX
-                        else -> state.offsetX.value.coerceIn(metrics.minX, newMaxX)
-                    }
-                val clampedY = state.offsetY.value.coerceIn(metrics.minY, newMaxY)
-                pScale = newScale
-                pX = clampedX
-                pY = clampedY
+                pScale = (startScale * currentDist / initialDist).coerceIn(1f, maxScale)
+                pOffset = metrics.pinchedMiniOffset(pScale, pin)
                 snapSignal.trySend(Unit)
             }
         } finally {
             snapSignal.close()
             pinchDriver.cancel()
+            state.isDragging = false
+            settle(pin)
         }
     }
 
-    private fun settle(
-        maxScale: Float,
-        wideCapWidth: Float,
-    ) {
-        val targetScale = if (state.miniSizeScale.value > 1.5f) maxScale else 1f
+    /** Waits for a second finger, which may land after the first has started to move. */
+    private suspend fun AwaitPointerEventScope.awaitSecondFinger(): List<PointerInputChange>? {
+        while (true) {
+            val pressed = awaitPointerEvent(PointerEventPass.Main).changes.filter { it.pressed }
+            if (pressed.isEmpty()) return null
+            if (pressed.size >= 2) return pressed
+        }
+    }
+
+    private fun settle(pin: MiniPinchPin) {
+        val targetScale = if (state.isInlineMode) pin.maxScale else 1f
+        val target =
+            if (targetScale > 1f && metrics.isLargeScreen) {
+                metrics.pinchedMiniOffset(targetScale, pin)
+            } else {
+                metrics.miniPinchAnchor(targetScale, pin.corner, pin.maxScale)
+            }
         state.scope.launch {
-            state.motion.resize { state.miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) }
-            state.motion.moveOffsets {
-                if (targetScale <= 1f) {
-                    state.offsetX.animateTo(state.cachedTargetX, miniResizeSpringSpec)
-                    state.offsetY.animateTo(state.cachedTargetY, miniResizeSpringSpec)
-                } else if (metrics.isLargeScreen) {
-                    val newMiniW = (metrics.baseMiniWidth * targetScale).coerceAtMost(wideCapWidth)
-                    val newMaxX = (metrics.screenWidth - newMiniW - metrics.margin).coerceAtLeast(metrics.margin)
-                    val clampedX = state.offsetX.value.coerceIn(metrics.margin, newMaxX)
-                    state.offsetX.animateTo(clampedX, miniResizeSpringSpec)
-                } else {
-                    state.offsetX.animateTo(metrics.stablePhoneCenteredX, miniResizeSpringSpec)
+            launch { state.motion.resize { state.miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) } }
+            launch {
+                state.motion.moveOffsets {
+                    launch { state.offsetX.animateTo(target.x, miniResizeSpringSpec) }
+                    launch { state.offsetY.animateTo(target.y, miniResizeSpringSpec) }
                 }
             }
         }
     }
+}
+
+/** What a pinch started from: the corner it is pinned to and where the player was. */
+internal class MiniPinchPin(
+    val corner: MiniPlayerCorner,
+    val start: Offset,
+    val startScale: Float,
+    val maxScale: Float,
+)
+
+/**
+ * Where [corner] holds the mini player at [scale]: its corner edges stay put as it grows, and on a
+ * phone it drifts to the centre as it reaches the wide size, where wide mode rests.
+ */
+internal fun DraggablePlayerGestureMetrics.miniPinchAnchor(
+    scale: Float,
+    corner: MiniPlayerCorner,
+    maxScale: Float,
+): Offset {
+    val width = miniBoxWidth(baseMiniWidth * scale).coerceAtMost(maxWideWidth)
+    val height = width / clampedAspect.coerceAtLeast(0.01f)
+    val maxX = (screenWidth - width - margin).coerceAtLeast(minX)
+    val maxY = (screenHeight - height - bottomNavPad - margin).coerceAtLeast(minY)
+    val cornerX = if (corner.isLeft) minX else maxX
+    val x =
+        if (isLargeScreen || maxScale <= 1f) {
+            cornerX
+        } else {
+            lerpClamped(cornerX, stablePhoneCenteredX, (scale - 1f) / (maxScale - 1f))
+        }
+    return Offset(x, if (corner.isTop) minY else maxY)
+}
+
+/** The player's offset mid-pinch: moved as its corner anchor moves, so it never jumps from where it was. */
+internal fun DraggablePlayerGestureMetrics.pinchedMiniOffset(
+    scale: Float,
+    pin: MiniPinchPin,
+): Offset {
+    val moved =
+        pin.start + miniPinchAnchor(scale, pin.corner, pin.maxScale) -
+            miniPinchAnchor(pin.startScale, pin.corner, pin.maxScale)
+    val width = miniBoxWidth(baseMiniWidth * scale).coerceAtMost(maxWideWidth)
+    val height = width / clampedAspect.coerceAtLeast(0.01f)
+    val maxX = (screenWidth - width - margin).coerceAtLeast(minX)
+    val maxY = (screenHeight - height - bottomNavPad - margin).coerceAtLeast(minY)
+    return Offset(moved.x.coerceIn(minX, maxX), moved.y.coerceIn(minY, maxY))
 }
 
 internal fun Modifier.miniPlayerPinchGesture(handler: MiniPlayerPinchGestureHandler): Modifier =

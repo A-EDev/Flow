@@ -115,7 +115,7 @@ class UpcomingPremierePolicyTest {
     fun `applying the countdown clears the previous video and keeps the queue title`() {
         val previous =
             VideoPlayerUiState(
-                cachedVideo = video(id = "old", isUpcoming = false),
+                cachedVideo = video(id = "old", isUpcoming = false).copy(channelId = "old_channel"),
                 relatedVideos = listOf(video(id = "r1", isUpcoming = false)),
                 hlsUrl = "https://example.invalid/manifest.m3u8",
                 localFilePath = "/sdcard/old.mp4",

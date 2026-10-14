@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.local
 import android.content.Context
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import org.json.JSONArray
 
 data class CachedHomeVideo(
@@ -13,9 +14,7 @@ data class CachedHomeVideo(
 
 data class HomeFeedCacheFilters(
     val watchedVideoIds: Set<String> = emptySet(),
-    val suppressedVideoIds: Set<String> = emptySet(),
-    val blockedChannelIds: Set<String> = emptySet(),
-    val suppressedChannelIds: Set<String> = emptySet(),
+    val exclusions: FeedExclusions = FeedExclusions.NONE,
 )
 
 internal fun filterCachedHomeVideos(
@@ -23,11 +22,7 @@ internal fun filterCachedHomeVideos(
     filters: HomeFeedCacheFilters,
 ): List<CachedHomeVideo> =
     items.filter { item ->
-        val video = item.video
-        video.id !in filters.watchedVideoIds &&
-            video.id !in filters.suppressedVideoIds &&
-            (video.channelId.isBlank() || video.channelId !in filters.blockedChannelIds) &&
-            (video.channelId.isBlank() || video.channelId !in filters.suppressedChannelIds)
+        item.video.id !in filters.watchedVideoIds && !filters.exclusions.hidesFromRecommendations(item.video)
     }
 
 internal fun selectReservePageFromCache(
@@ -151,6 +146,42 @@ class HomeFeedCacheRepository(
         dao.trimRelatedSeeds(RELATED_SEED_CAP)
     }
 
+    /**
+     * Metadata fetched by id for videos known only from history (views, upload date, avatar), so a
+     * card fetched once stays complete for a week without asking again.
+     */
+    suspend fun loadVideoMetadata(
+        ids: Collection<String>,
+        now: Long = System.currentTimeMillis(),
+    ): Map<String, Video> {
+        if (ids.isEmpty()) return emptyMap()
+        val wanted = ids.toHashSet()
+        return dao
+            .getFreshBucket(BUCKET_VIDEO_META, now)
+            .filter { it.videoId in wanted }
+            .associate { it.videoId to it.toCachedHomeVideo().video }
+    }
+
+    suspend fun saveVideoMetadata(
+        videos: List<Video>,
+        now: Long = System.currentTimeMillis(),
+    ) {
+        if (videos.isEmpty()) return
+        dao.insertAll(
+            videos.distinctBy { it.id }.map {
+                it.toEntity(
+                    bucket = BUCKET_VIDEO_META,
+                    source = BUCKET_VIDEO_META,
+                    relatedSeedId = null,
+                    orderIndex = 0,
+                    cachedAt = now,
+                    expiresAt = now + VIDEO_META_TTL_MS,
+                )
+            },
+        )
+        dao.trimBucket(BUCKET_VIDEO_META, VIDEO_META_CAP)
+    }
+
     suspend fun deleteVideo(videoId: String) {
         if (videoId.isNotBlank()) dao.deleteVideo(videoId)
     }
@@ -162,6 +193,38 @@ class HomeFeedCacheRepository(
      */
     suspend fun consumeReserve(videoIds: Collection<String>) {
         if (videoIds.isNotEmpty()) dao.deleteReserveVideos(videoIds.toList())
+    }
+
+    /** The reel feed's unserved lane tails: one bucket, replaced whole on every save. */
+    suspend fun saveShortsReserve(
+        items: List<CachedHomeVideo>,
+        now: Long = System.currentTimeMillis(),
+    ) {
+        dao.clearBucket(BUCKET_SHORTS_RESERVE)
+        if (items.isEmpty()) return
+        dao.insertAll(
+            items
+                .distinctBy { it.video.id }
+                .take(SHORTS_RESERVE_CAP)
+                .mapIndexed { index, item ->
+                    item.video.toEntity(
+                        bucket = BUCKET_SHORTS_RESERVE,
+                        source = item.source,
+                        relatedSeedId = item.relatedSeedId,
+                        orderIndex = index,
+                        cachedAt = now,
+                        expiresAt = now + SHORTS_RESERVE_TTL_MS,
+                    )
+                },
+        )
+    }
+
+    suspend fun loadShortsReserve(
+        filters: HomeFeedCacheFilters,
+        now: Long = System.currentTimeMillis(),
+    ): List<CachedHomeVideo> {
+        dao.deleteExpired(now)
+        return filterCachedHomeVideos(dao.getFreshBucket(BUCKET_SHORTS_RESERVE, now).map { it.toCachedHomeVideo() }, filters)
     }
 
     suspend fun deleteChannel(channelId: String) {
@@ -248,20 +311,25 @@ class HomeFeedCacheRepository(
         const val SOURCE_SUBS = "SUBS"
         const val SOURCE_RELATED = "RELATED"
         const val SOURCE_DISCOVERY = "DISCOVERY"
-        const val SOURCE_VIRAL = "VIRAL"
         const val SOURCE_LAST_FEED = "LAST_FEED"
 
         private const val BUCKET_LAST_FEED = "LAST_FEED"
         private const val BUCKET_RESERVE = "RESERVE"
         private const val BUCKET_RELATED = "RELATED"
+        private const val BUCKET_SHORTS_RESERVE = "SHORTS_RESERVE"
+        private const val BUCKET_VIDEO_META = "VIDEO_META"
+        private const val VIDEO_META_CAP = 600
+        private const val VIDEO_META_TTL_MS = 7L * 24L * 60L * 60L * 1000L
 
         private const val LAST_FEED_CAP = 60
         private const val RESERVE_CAP = 200
         private const val RELATED_PER_SEED_CAP = 20
         private const val RELATED_SEED_CAP = 50
+        private const val SHORTS_RESERVE_CAP = 120
 
         private const val LAST_FEED_TTL_MS = 8L * 60L * 60L * 1000L
         private const val RESERVE_TTL_MS = 12L * 60L * 60L * 1000L
         private const val RELATED_TTL_MS = 90L * 60L * 1000L
+        private const val SHORTS_RESERVE_TTL_MS = 12L * 60L * 60L * 1000L
     }
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.data.recommendation.music
@@ -180,6 +180,29 @@ internal object MusicBrainLearn {
         artistKey: String,
     ) {
         brain.blockedArtists.remove(artistKey)
+    }
+
+    /**
+     * A picked artist starts where a liked song would put them, without inventing plays, so stats
+     * and the recap stay true. Unpicking forgets an artist only if they were never played.
+     */
+    fun setFavouriteArtist(
+        brain: MusicBrain,
+        artistKey: String,
+        display: String,
+        favourite: Boolean,
+    ) {
+        if (artistKey.isEmpty()) return
+        if (!favourite) {
+            if (brain.artistAffinity[artistKey]?.plays == 0) brain.artistAffinity.remove(artistKey)
+            return
+        }
+        brain.blockedArtists.remove(artistKey)
+        brain.dislikedArtists.remove(artistKey)
+        val affinity = brain.artistAffinity.getOrPut(artistKey) { MusicAffinity() }
+        affinity.liked = true
+        affinity.score = maxOf(affinity.score, MusicBrainParams.LIKE_SCORE_FLOOR)
+        if (display.isNotBlank()) affinity.display = display
     }
 
     /**

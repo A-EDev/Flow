@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.motion
 
-import androidx.compose.animation.core.animate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -8,9 +7,9 @@ import androidx.compose.ui.unit.Velocity
 
 /**
  * Lets the body list drive two things while the player is expanded: a tall video shrinking to
- * 16:9 as the list scrolls up, and an overscroll pull at the top that grows the player into
- * portrait fullscreen. Both fractions live in the layout as snapshot state and are only ever read
- * in the layout or draw phase.
+ * 16:9 as the list scrolls up, and an overscroll pull at the top that slides the video to the
+ * centre of the window for portrait fullscreen. Both fractions are snapshot state read only in the
+ * layout or draw phase.
  */
 internal class PlayerBodyNestedScrollConnection(
     private val expandedVideoHeight: Float,
@@ -19,6 +18,7 @@ internal class PlayerBodyNestedScrollConnection(
     private val onPlayerHeightFractionChange: (Float) -> Unit,
     private val portraitFsFraction: () -> Float,
     private val onPortraitFsFractionChange: (Float) -> Unit,
+    private val animatePortraitFs: suspend (target: Float, velocity: Float) -> Unit,
     private val portraitFsTravel: () -> Float,
     private val portraitFsEnabled: () -> Boolean,
     private val portraitFsActivationPx: () -> Float,
@@ -91,14 +91,13 @@ internal class PlayerBodyNestedScrollConnection(
         val frac = portraitFsFraction()
         listScrolledThisGesture = false
         pullAccum = 0f
-        if (frac <= 0f || frac >= 1f) return Velocity.Zero
+        if (frac <= 0f) return Velocity.Zero
+        if (frac >= 1f) {
+            onEnterPortraitFullscreen()?.invoke()
+            return available
+        }
         val shouldEnter = shouldEnterPortraitFullscreen(fraction = frac, velocityY = available.y)
-        animate(
-            initialValue = frac,
-            targetValue = if (shouldEnter) 1f else 0f,
-            initialVelocity = portraitFullscreenSettleVelocity(available.y, portraitFsTravel()),
-            animationSpec = portraitFullscreenSettleSpec,
-        ) { value, _ -> onPortraitFsFractionChange(value) }
+        animatePortraitFs(if (shouldEnter) 1f else 0f, fractionVelocity(available.y, portraitFsTravel()))
         if (shouldEnter) onEnterPortraitFullscreen()?.invoke()
         return available
     }

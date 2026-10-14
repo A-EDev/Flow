@@ -69,6 +69,7 @@ object SyncCollection {
             MUSIC_BRAIN,
             SUBSCRIBED_CHANNELS,
             SUBSCRIPTIONS,
+            NOTES,
         )
 }
 

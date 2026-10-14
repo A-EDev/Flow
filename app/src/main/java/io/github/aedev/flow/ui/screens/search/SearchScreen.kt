@@ -39,26 +39,32 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.availableWith
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.OnTabReselected
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.search.SearchFilterBar
 import io.github.aedev.flow.ui.components.search.SearchFilterDialog
 import io.github.aedev.flow.ui.components.search.SearchResultActions
 import io.github.aedev.flow.ui.components.search.SearchResults
-import io.github.aedev.flow.ui.components.search.SearchResultsShimmer
 import io.github.aedev.flow.ui.components.search.SearchShortsGrid
 import io.github.aedev.flow.ui.components.search.SearchSuggestionsPanel
 import io.github.aedev.flow.ui.components.search.SearchTopBar
 import io.github.aedev.flow.ui.components.search.SearchTopBarActions
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.utils.videoIdFromUrl
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.utils.YouTubeLink
+import io.github.aedev.flow.utils.parseYouTubeLink
 
 /**
  * The route: a bar, then either what the user might be looking for or what they found.
@@ -80,24 +86,29 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val state = rememberSearchState(viewModel)
 
-    val quickActions: QuickActionsViewModel = hiltViewModel()
+    val quickActions: QuickActionsViewModel = sharedQuickActionsViewModel()
     val subscribedIds by quickActions.subscribedChannelIds.collectAsStateWithLifecycle()
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
     val gridState = rememberLazyGridState()
+    OnTabReselected(FlowTab.Search.route) { gridState.animateScrollToItem(0) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
 
-    val submit: (String) -> Unit = { raw ->
+    val mediaNavigator = LocalMediaNavigator.current
+    val search: (String, SearchFilter) -> Unit = { query, filters ->
+        state.onSubmit(query)
+        viewModel.submit(query, filters)
+    }
+    val submitWith: (String, SearchFilter) -> Unit = { raw, filters ->
         val text = raw.trim()
-        if (text.isNotEmpty()) {
-            val videoId = videoIdFromUrl(text)
-            if (videoId != null) {
-                onVideoClick(sharedVideo(videoId, context.getString(R.string.shared_video)))
-            } else {
-                state.onSubmit(text)
-                viewModel.search(text, uiState.filters)
-            }
+        val link = parseYouTubeLink(text)
+        when {
+            text.isEmpty() -> Unit
+            link == null -> search(text, filters)
+            link is YouTubeLink.Search -> search(link.query, filters)
+            !mediaNavigator.openLink(link) -> quickActions.announce(R.string.link_not_supported)
         }
     }
+    val submit: (String) -> Unit = { raw -> submitWith(raw, uiState.filters) }
 
     val voiceSearchLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -127,8 +138,13 @@ fun SearchScreen(
         }
     }
 
+    // A new query starts at the top; coming back from a result keeps the grid where it was.
+    var scrolledForQuery by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(uiState.query) {
-        if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
+        if (uiState.query.isNotBlank() && scrolledForQuery != uiState.query) {
+            if (scrolledForQuery != null) gridState.scrollToItem(0)
+            scrolledForQuery = uiState.query
+        }
     }
 
     LaunchedEffect(pagingItems.itemSnapshotList.items) {
@@ -173,6 +189,10 @@ fun SearchScreen(
                         state.textFieldState.setTextAndPlaceCursorAtEnd(text)
                         submit(text)
                     },
+                    onHistorySelect = { item ->
+                        state.textFieldState.setTextAndPlaceCursorAtEnd(item.query)
+                        submitWith(item.query, item.filters?.availableWith(state.shortsContentEnabled) ?: uiState.filters)
+                    },
                     onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
                     onDeleteHistoryItem = state::deleteHistoryItem,
                     onClearHistory = state::clearHistory,
@@ -189,7 +209,7 @@ fun SearchScreen(
 
             val refreshState = pagingItems.loadState.refresh
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns, FEED_MAX_AUTO_COLUMNS)
+                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns)
                 val actions =
                     remember(feedLayout, subscribedIds) {
                         SearchResultActions(
@@ -209,7 +229,7 @@ fun SearchScreen(
 
                 when {
                     refreshState is LoadState.Loading -> {
-                        SearchResultsShimmer(state.isGridMode, feedLayout)
+                        FeedGridSkeleton(layout = feedLayout, listMode = state.isGridMode)
                     }
 
                     refreshState is LoadState.Error && pagingItems.itemCount == 0 -> {
@@ -227,7 +247,7 @@ fun SearchScreen(
                     }
 
                     uiState.filters.contentType == ContentType.SHORTS -> {
-                        SearchShortsGrid(pagingItems, gridState, actions)
+                        SearchShortsGrid(pagingItems, gridState, feedLayout, actions)
                     }
 
                     else -> {
@@ -265,19 +285,5 @@ private fun launchVoiceSearch(
     } catch (_: ActivityNotFoundException) {
     }
 }
-
-private fun sharedVideo(
-    videoId: String,
-    title: String,
-) = Video(
-    id = videoId,
-    title = title,
-    channelName = title,
-    channelId = "",
-    thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
-    duration = 0,
-    viewCount = 0L,
-    uploadDate = "",
-)
 
 private val FilterBarVerticalPadding = 4.dp

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.shared
 
+import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +16,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
@@ -36,18 +38,20 @@ internal val PaletteInkDark = Color(0xFF161616)
 /**
  * [animated] eases the swatches in over a second, which is right for the player and wrong for a
  * page that re-derives a whole colour scheme from them: a scheme change recomposes everything
- * under the theme, so pages take the settled colours in one step instead.
+ * under the theme, so pages take the settled colours in one step instead. [cacheOnly] reads the
+ * image only if it is already cached, so a tint never downloads a picture the viewer chose not to load.
  */
 @Composable
 fun rememberMediaPalette(
     thumbnailUrl: String?,
     animated: Boolean = true,
+    cacheOnly: Boolean = false,
 ): MediaPalette {
     val context = LocalContext.current
     var baseSwatch by remember { mutableStateOf<Color?>(null) }
     var accentSwatch by remember { mutableStateOf<Color?>(null) }
 
-    LaunchedEffect(thumbnailUrl) {
+    LaunchedEffect(thumbnailUrl, cacheOnly) {
         if (thumbnailUrl.isNullOrEmpty()) return@LaunchedEffect
         val request =
             ImageRequest
@@ -55,20 +59,13 @@ fun rememberMediaPalette(
                 .data(thumbnailUrl)
                 .allowHardware(false)
                 .size(128)
+                .apply { if (cacheOnly) networkCachePolicy(CachePolicy.DISABLED) }
                 .build()
         val result = SingletonImageLoader.get(context).execute(request)
         if (result is SuccessResult) {
-            val palette = withContext(Dispatchers.Default) { Palette.from(result.image.toBitmap()).generate() }
-            val bgSwatch =
-                palette.darkMutedSwatch
-                    ?: palette.darkVibrantSwatch
-                    ?: palette.dominantSwatch
-            val accent =
-                palette.vibrantSwatch
-                    ?: palette.lightVibrantSwatch
-                    ?: palette.lightMutedSwatch
-            baseSwatch = bgSwatch?.let { Color(it.rgb) }
-            accentSwatch = accent?.let { Color(it.rgb) }
+            val (base, accent) = withContext(Dispatchers.Default) { artworkSwatches(result.image.toBitmap()) }
+            baseSwatch = base
+            accentSwatch = accent
         } else {
             baseSwatch = null
             accentSwatch = null
@@ -97,9 +94,27 @@ fun rememberMediaPalette(
         } else {
             accentTarget
         }
-    val onBase =
-        remember(base) {
-            if (base.luminance() < 0.45f) Color.White else PaletteInkDark
-        }
+    val onBase = remember(base) { onBaseFor(base) }
     return MediaPalette(base = base, accent = accent, onBase = onBase)
 }
+
+/** The palette of a decoded cover, off the composition, for surfaces with no composition of their own. */
+fun mediaPaletteOf(
+    bitmap: Bitmap,
+    fallbackBase: Color,
+    fallbackAccent: Color,
+): MediaPalette {
+    val (base, accent) = artworkSwatches(bitmap)
+    val resolvedBase = base ?: fallbackBase
+    return MediaPalette(base = resolvedBase, accent = accent ?: fallbackAccent, onBase = onBaseFor(resolvedBase))
+}
+
+/** A dark swatch to sit under the content and a vivid one to draw with, either possibly missing. */
+private fun artworkSwatches(bitmap: Bitmap): Pair<Color?, Color?> {
+    val palette = Palette.from(bitmap).generate()
+    val base = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
+    val accent = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.lightMutedSwatch
+    return base?.let { Color(it.rgb) } to accent?.let { Color(it.rgb) }
+}
+
+private fun onBaseFor(base: Color): Color = if (base.luminance() < 0.45f) Color.White else PaletteInkDark

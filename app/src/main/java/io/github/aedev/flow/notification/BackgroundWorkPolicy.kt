@@ -1,6 +1,7 @@
 package io.github.aedev.flow.notification
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -38,6 +39,8 @@ object BackgroundWorkPolicy {
         intent: Intent,
     ): Boolean =
         try {
+            // A non-Activity context throws AndroidRuntimeException without NEW_TASK (#1150).
+            if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             true
         } catch (e: ActivityNotFoundException) {

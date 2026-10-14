@@ -36,10 +36,6 @@ internal class PlaybackSettingsController(
             .launchIn(scope)
     }
 
-    fun setSubtitlesEnabled(enabled: Boolean) {
-        uiState.value = uiState.value.copy(subtitlesEnabled = enabled)
-    }
-
     fun toggleAutoplay(enabled: Boolean) {
         scope.launch {
             val resolvedEnabled =

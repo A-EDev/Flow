@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.ui.components.shared
@@ -15,6 +15,9 @@ import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isExpandedWidth
 import io.github.aedev.flow.ui.utils.isMediumWidth
+
+/** Widest a single column of rows grows, so it stays readable on a tablet or an unfolded foldable. */
+val FlowMaxContentWidth: Dp = 720.dp
 
 private val MinLaneItemWidth = 240.dp
 private val MinHeroArtworkSize = 180.dp

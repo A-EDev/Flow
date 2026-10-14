@@ -45,6 +45,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
+import io.github.aedev.flow.ui.components.shared.thumbnailUrlOrNull
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 private val RowHorizontalPadding = 12.dp
 
@@ -127,17 +129,22 @@ private fun PlaylistCardContent(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f),
             )
-            PlaylistCardText(
-                title = title,
-                metadata = metadata,
-                description = "",
-                compact = true,
-            )
+            Row(verticalAlignment = Alignment.Top) {
+                PlaylistCardText(
+                    title = title,
+                    metadata = metadata,
+                    description = "",
+                    compact = true,
+                    modifier = Modifier.weight(1f),
+                )
+                if (onDeleteClick != null) {
+                    PlaylistCardMenu(onOpen = onClick, onDelete = onDeleteClick)
+                }
+            }
         }
         return
     }
 
-    var showMenu by remember { mutableStateOf(false) }
     Row(
         modifier =
             modifier
@@ -172,44 +179,74 @@ private fun PlaylistCardContent(
         )
 
         if (onDeleteClick != null) {
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.open)) },
-                        onClick = {
-                            showMenu = false
-                            onClick()
-                        },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_delete)) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteClick()
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                    )
-                }
-            }
+            PlaylistCardMenu(onOpen = onClick, onDelete = onDeleteClick)
         }
     }
+}
+
+@Composable
+private fun PlaylistCardMenu(
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showMenu = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.open)) },
+                onClick = {
+                    showMenu = false
+                    onOpen()
+                },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_delete)) },
+                onClick = {
+                    showMenu = false
+                    onDelete()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
+            )
+        }
+    }
+}
+
+/**
+ * The artwork as given; a YouTube video thumbnail that fails to load (hq720 is missing on older
+ * videos) falls back to hqdefault, which every video has.
+ */
+@Composable
+private fun PlaylistArtworkImage(
+    url: String,
+    modifier: Modifier,
+    alpha: Float = 1f,
+) {
+    var model by remember(url) { mutableStateOf(url) }
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+        alpha = alpha,
+        onError = { ThumbnailUrlResolver.fallbackVideoThumbnail("", model)?.let { model = it } },
+    )
 }
 
 @Composable
@@ -218,6 +255,7 @@ private fun LayeredPlaylistArtwork(
     videoCount: Int,
     modifier: Modifier = Modifier,
 ) {
+    val artworkUrl = thumbnailUrlOrNull(thumbnailUrl).orEmpty()
     Box(modifier = modifier) {
         Box(
             modifier =
@@ -227,15 +265,13 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
+            if (artworkUrl.isNotBlank()) {
+                PlaylistArtworkImage(
+                    url = artworkUrl,
                     modifier =
                         Modifier
                             .fillMaxSize()
                             .blur(10.dp),
-                    contentScale = ContentScale.Crop,
                     alpha = 0.7f,
                 )
             }
@@ -253,13 +289,8 @@ private fun LayeredPlaylistArtwork(
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
+            if (artworkUrl.isNotBlank()) {
+                PlaylistArtworkImage(url = artworkUrl, modifier = Modifier.fillMaxSize())
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,

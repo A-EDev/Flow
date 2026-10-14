@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  *
  * Flow is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,6 +75,11 @@ data class UserBrain(
     val timeVectors: Map<TimeBucket, ContentVector> =
         TimeBucket.entries
             .associateWith { ContentVector() },
+    /**
+     * Positive long-form events learned per time bucket. Device-local, never synced: a bucket that
+     * has seen a handful of videos must not weigh as much as the whole profile.
+     */
+    val timeBucketCounts: Map<TimeBucket, Int> = emptyMap(),
     val globalVector: ContentVector = ContentVector(),
     val channelScores: Map<String, Double> = emptyMap(),
     val topicAffinities: Map<String, Double> = emptyMap(),
@@ -94,8 +99,8 @@ data class UserBrain(
     val shortsVector: ContentVector = ContentVector(),
     /**
      * Hard suppression: video IDs that must NOT appear in ranked results.
-     * Maps videoId → timestamp when suppression was applied.
-     * Entries expire after VIDEO_SUPPRESSION_DAYS.
+     * Maps videoId → timestamp when suppression was applied. Entries never expire;
+     * only the oldest are dropped past FlowNeuroEngine.MAX_SUPPRESSED_VIDEOS.
      */
     val suppressedVideoIds: Map<String, Long> = emptyMap(),
     /**
@@ -120,7 +125,13 @@ data class UserBrain(
     val clusterRotation: Map<String, Long> = emptyMap(),
     /** Tag co-occurrence edges from opened videos ("a|b" → weight), for clustering. */
     val tagAffinities: Map<String, Double> = emptyMap(),
-    val schemaVersion: Int = 15,
+    /** Reels used as related-chain seeds recently (videoId → lastUsedAt), for rotation. */
+    val recentShortsSeeds: Map<String, Long> = emptyMap(),
+    /** Fetch state and verdicts for channels watched without subscribing; see [ChannelMemory]. */
+    val channelMemory: ChannelMemoryState = ChannelMemoryState(),
+    /** The interest chips Home showed last; see [InterestChips]. */
+    val interestChips: InterestChipSet = InterestChipSet(),
+    val schemaVersion: Int = 17,
 )
 
 // ── Interaction Types ──
@@ -261,6 +272,27 @@ data class GraphSeedInput(
     val isShort: Boolean = false,
 )
 
+/** Where a reel seed comes from; the weights live in [ShortsSeedSelector]. */
+enum class ShortsSeedSource {
+    LIKED,
+    WANT_MORE,
+    SAVED,
+    WATCHED,
+
+    /** A reel the user dwelt on this session — usable, weakest. */
+    FEED,
+}
+
+/** A reel the user engaged with, offered as the seed of a related reel chain. */
+data class ShortsSeedInput(
+    val id: String,
+    val channelId: String,
+    val source: ShortsSeedSource,
+    val timestamp: Long,
+    /** Watched share for [ShortsSeedSource.WATCHED]; ignored elsewhere. */
+    val percentWatched: Double = 100.0,
+)
+
 /** A seed annotated with its interest cluster, for diversified selection. */
 internal data class SeedRank(
     val id: String,
@@ -287,4 +319,22 @@ internal data class ScoringParams(
     val candidatePoolSize: Int,
     val now: Long,
     val exploreWeight: Double = 0.0,
-)
+) {
+    val preparedGlobal by lazy { NeuroVectorMath.PreparedVector(brain.globalVector) }
+    val preparedShorts by lazy { NeuroVectorMath.PreparedVector(brain.shortsVector) }
+    val preparedContext by lazy { NeuroVectorMath.PreparedVector(timeContextVector) }
+
+    /** brain.topicAffinities as topic → (other topic → weight), built once per rank(). */
+    val affinityNeighbours: Map<String, Map<String, Double>> by lazy {
+        val neighbours = HashMap<String, HashMap<String, Double>>()
+        brain.topicAffinities.forEach { (key, weight) ->
+            val bar = key.indexOf('|')
+            if (bar <= 0) return@forEach
+            val a = key.substring(0, bar)
+            val b = key.substring(bar + 1)
+            neighbours.getOrPut(a) { HashMap() }[b] = weight
+            neighbours.getOrPut(b) { HashMap() }[a] = weight
+        }
+        neighbours
+    }
+}

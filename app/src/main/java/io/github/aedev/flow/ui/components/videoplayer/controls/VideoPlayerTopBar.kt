@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ClosedCaption
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.RemoveModerator
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SlowMotionVideo
 import androidx.compose.material.icons.rounded.ZoomIn
@@ -47,6 +49,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -77,6 +80,8 @@ internal fun VideoPlayerTopBar(
     resizeModeLabels: List<String>,
     isPipSupported: Boolean,
     sbSubmitEnabled: Boolean,
+    isSponsorBlockAvailable: Boolean,
+    isSponsorBlockOffForVideo: Boolean,
     isCasting: Boolean,
     isSubtitlesEnabled: Boolean,
     isAutoplayOn: Boolean,
@@ -84,6 +89,7 @@ internal fun VideoPlayerTopBar(
     isSleepTimerActive: Boolean,
     lockModeEnabled: Boolean,
     isLiveChatAvailable: Boolean,
+    hasQueue: Boolean,
     topPadding: Dp,
     horizontalPadding: Dp,
     verticalPadding: Dp,
@@ -195,6 +201,32 @@ internal fun VideoPlayerTopBar(
                                 else -> Icons.Rounded.ZoomIn
                             },
                         contentDescription = stringResource(R.string.resize_to, resizeModeLabels[resizeMode]),
+                    )
+                }
+
+                if (isFullscreen && hasQueue) {
+                    TopBarIconButton(
+                        onClick = actions.onQueueClick,
+                        buttonSize = actionButtonSize,
+                        iconSize = actionIconSize,
+                        icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = stringResource(R.string.playlist_queue),
+                    )
+                }
+
+                if (isSponsorBlockAvailable && preferences.sponsorBlockEnabled) {
+                    TopBarToggleIconButton(
+                        checked = !isSponsorBlockOffForVideo,
+                        onCheckedChange = { on -> actions.onSponsorBlockToggle(!on) },
+                        buttonSize = actionButtonSize,
+                        iconSize = actionIconSize,
+                        icon =
+                            if (isSponsorBlockOffForVideo) {
+                                Icons.Rounded.RemoveModerator
+                            } else {
+                                ImageVector.vectorResource(R.drawable.ic_block)
+                            },
+                        contentDescription = stringResource(R.string.player_settings_sponsorblock_video),
                     )
                 }
 

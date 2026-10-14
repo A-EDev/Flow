@@ -8,22 +8,26 @@ package io.github.aedev.flow.utils.potoken
  */
 object PoTokenAttestationPolicy {
     /**
-     * BgUtils documents full-trust content-bound PoTokens at 110-128 bytes. Short (~88 byte)
-     * tokens are cold attestations that GVS accepts at load time and then rejects partway into
-     * playback, which surfaces as the mid-playback 403 rather than a clean failure up front.
+     * BgUtils documents a healthy content-bound PoToken as 110-128 **characters** of base64url.
+     *
+     * The unit matters: this used to decode the token to bytes first and compare 110-128 against
+     * that, which no real token can reach — measured over 88 mints on two visitor identities, every
+     * token YouTube handed back was 116 or 120 characters (87 or 90 decoded bytes), and playback on
+     * them was healthy. So every token was classed cold, [shouldReattest] never reused a session,
+     * and the caller's retry loop ran a full BotGuard challenge three times for every single mint.
      */
-    const val MIN_TRUSTED_POT_BYTES = 100
+    const val MIN_TRUSTED_POT_LENGTH = 110
 
-    /** Decoded byte length of a base64 token, without allocating the decoded array. */
-    fun tokenByteLength(base64Token: String): Int = base64Token.trimEnd('=').length * 3 / 4
+    /** Length of a base64 token in characters, ignoring padding. */
+    fun tokenLength(base64Token: String): Int = base64Token.trimEnd('=').length
 
-    fun isLowTrust(base64Token: String): Boolean = tokenByteLength(base64Token) < MIN_TRUSTED_POT_BYTES
+    fun isLowTrust(base64Token: String): Boolean = tokenLength(base64Token) < MIN_TRUSTED_POT_LENGTH
 
     /**
      * Whether the cached session must be re-attested before it can be used.
      *
-     * [lastTokenWasLowTrust] deliberately forces a redo: a cold token is never pinned, because
-     * keeping one trades a clean failure now for a 403 several minutes into playback.
+     * [lastTokenWasLowTrust] deliberately forces a redo: a genuinely cold token is never pinned,
+     * because keeping one trades a clean failure now for a 403 several minutes into playback.
      */
     fun shouldReattest(
         forceRecreate: Boolean,

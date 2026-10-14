@@ -8,7 +8,6 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.stream.StoryboardLevel
 import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -19,7 +18,6 @@ data class VideoPlayerUiState(
     val audioStream: AudioStream? = null,
     val availableQualities: List<VideoQuality> = emptyList(),
     val selectedQuality: VideoQuality = VideoQuality.AUTO,
-    val subtitlesEnabled: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     /** Optional secondary hint shown below the primary error in the player's error panel. */
@@ -63,6 +61,10 @@ data class VideoPlayerUiState(
      * The state to show while [video] is being armed: its metadata, and every field that describes
      * the video that was playing before it cleared. Sheet flags, queue title and the live-chat
      * transcript are left alone — a caller that owns one of those re-applies it with `copy`.
+     *
+     * The subscription and like state survive a reload of the same channel or video: their collector
+     * only emits on a change, so a value cleared here under a pair it is already watching never came
+     * back (#1160).
      */
     fun resetForVideo(video: Video): VideoPlayerUiState =
         copy(
@@ -76,12 +78,16 @@ data class VideoPlayerUiState(
             streamSizes = emptyMap(),
             savedPosition = null,
             relatedVideos = emptyList(),
-            isSubscribed = false,
-            likeState = null,
+            isSubscribed = isSubscribed && video.channelId.isNotBlank() && video.channelId == cachedVideo?.channelId,
+            likeState = likeState.takeIf { video.id == cachedVideo?.id },
             hlsUrl = null,
             localFilePath = null,
             localFileVideoId = null,
             isUpcoming = false,
             upcomingReleaseTimeMs = null,
+            // A video without these sends nothing, so they are cleared here or stay from the last one (#1111).
+            chapters = emptyList(),
+            heatmap = null,
+            storyboard = emptyList(),
         )
 }

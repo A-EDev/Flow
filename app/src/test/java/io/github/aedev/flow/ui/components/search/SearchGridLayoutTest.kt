@@ -15,6 +15,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,18 +43,18 @@ class SearchGridLayoutTest {
     }
 
     @Test
-    fun `a medium window uses the shared sixteen dp gutter`() {
+    fun `a medium window puts thumbnails on the shared sixteen dp margin`() {
         val layout = feedGridLayoutFor(700.dp)
 
         assertThat(layout.isCompact).isFalse()
-        assertThat(layout.contentPadding).isEqualTo(16.dp)
+        assertThat(layout.contentPadding + VideoCardDefaults.Inset).isEqualTo(16.dp)
     }
 
     @Test
-    fun `a large window uses the shared twenty four dp gutter`() {
+    fun `a large window puts thumbnails on the shared twenty four dp margin`() {
         val layout = feedGridLayoutFor(1200.dp)
 
-        assertThat(layout.contentPadding).isEqualTo(24.dp)
+        assertThat(layout.contentPadding + VideoCardDefaults.Inset).isEqualTo(24.dp)
         assertThat(layout.columns).isAtLeast(3)
     }
 
@@ -63,13 +65,13 @@ class SearchGridLayoutTest {
     }
 
     @Test
-    fun `the shimmer lays out inside a wide window`() {
+    fun `the skeleton lays out inside a wide window`() {
         val layout = feedGridLayoutFor(1200.dp)
         rule.setContent {
             MaterialTheme {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(1200.dp, 891.dp))) {
                     Box(Modifier.fillMaxSize()) {
-                        SearchResultsShimmer(isGridMode = true, feedLayout = layout)
+                        FeedGridSkeleton(layout = layout, listMode = true)
                     }
                 }
             }

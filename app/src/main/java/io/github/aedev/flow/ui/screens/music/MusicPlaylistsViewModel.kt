@@ -9,14 +9,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.entity.DownloadCollectionKind
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
+import io.github.aedev.flow.data.video.downloader.collection.CollectionSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -41,7 +44,7 @@ class MusicPlaylistsViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val playlistRepository: PlaylistRepository,
-        private val downloadManager: DownloadManager,
+        private val downloadQueuer: BackgroundDownloadQueuer,
         private val youTubeRepository: YouTubeRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlaylistsUiState())
@@ -164,377 +167,34 @@ class MusicPlaylistsViewModel
             }
         }
 
-        private val _playlistDownloadProgress = MutableStateFlow<Float>(0f)
-        val playlistDownloadProgress = _playlistDownloadProgress.asStateFlow()
-
-        private val _isDownloadingPlaylist = MutableStateFlow(false)
-        val isDownloadingPlaylist = _isDownloadingPlaylist.asStateFlow()
-
+        /**
+         * Downloads one of your music playlists as one item in its own folder. The queue keeps
+         * going after this screen closes; a second download picks up only what is new.
+         */
         fun downloadPlaylist(playlist: PlaylistInfo) {
             viewModelScope.launch {
-                if (_isDownloadingPlaylist.value) return@launch
-
-                _isDownloadingPlaylist.value = true
+                val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
+                if (videos.isEmpty()) {
+                    Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
                 Toast
                     .makeText(
                         context,
                         context.getString(R.string.toast_starting_playlist_download, playlist.name),
                         Toast.LENGTH_SHORT,
                     ).show()
-
-                try {
-                    val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
-                    val totalTracks = videos.size
-
-                    if (totalTracks == 0) {
-                        Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
-                        _isDownloadingPlaylist.value = false
-                        return@launch
-                    }
-
-                    var successCount = 0
-                    var processedCount = 0
-
-                    videos.forEach { video ->
-                        try {
-                            val musicTrack =
-                                MusicTrack(
-                                    videoId = video.id,
-                                    title = video.title,
-                                    artist = video.channelName,
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    duration = video.duration,
-                                    sourceUrl = "",
-                                )
-
-                            val result = downloadManager.downloadTrack(musicTrack)
-                            if (result.isSuccess) successCount++
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-
-                        processedCount++
-                        _playlistDownloadProgress.value = processedCount.toFloat() / totalTracks
-                    }
-
-                    if (successCount > 0) {
-                        Toast
-                            .makeText(
-                                context,
-                                context.resources.getQuantityString(
-                                    R.plurals.toast_downloaded_tracks_from_playlist,
-                                    successCount,
-                                    successCount,
-                                    playlist.name,
-                                ),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                    } else {
-                        Toast.makeText(context, context.getString(R.string.toast_failed_to_download_playlist), Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error downloading playlist", e)
-                    Toast.makeText(context, context.getString(R.string.toast_error_downloading_playlist), Toast.LENGTH_SHORT).show()
-                } finally {
-                    _isDownloadingPlaylist.value = false
-                    _playlistDownloadProgress.value = 0f
-                }
-            }
-        }
-
-        fun downloadPlaylistTracks(playlistDetails: PlaylistDetails) {
-            viewModelScope.launch {
-                if (_isDownloadingPlaylist.value) return@launch
-
-                _isDownloadingPlaylist.value = true
-                Toast
-                    .makeText(
-                        context,
-                        context.getString(R.string.toast_starting_playlist_download, playlistDetails.title),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-
-                try {
-                    val tracks = playlistDetails.tracks
-                    val totalTracks = tracks.size
-
-                    if (totalTracks == 0) {
-                        _isDownloadingPlaylist.value = false
-                        return@launch
-                    }
-
-                    var successCount = 0
-                    val processedCount =
-                        java.util.concurrent.atomic
-                            .AtomicInteger(0)
-
-                    val semaphore = Semaphore(3)
-
-                    tracks
-                        .map { track ->
-                            async {
-                                val isSuccess =
-                                    semaphore.withPermit {
-                                        var currentTrack = track
-
-                                        try {
-                                            if (currentTrack.duration == 0) {
-                                                try {
-                                                    val duration = YouTubeMusicService.fetchVideoDuration(track.videoId)
-                                                    if (duration > 0) {
-                                                        currentTrack = currentTrack.copy(duration = duration)
-                                                    }
-                                                } catch (e: Exception) {
-                                                }
-                                            }
-
-                                            val result = downloadManager.downloadTrack(currentTrack)
-                                            return@withPermit result.isSuccess
-                                        } catch (e: Exception) {
-                                            Log.e("MusicViewModel", "Failed to download track ${track.title}", e)
-                                        }
-                                        false
-                                    }
-
-                                val currentProcessed = processedCount.incrementAndGet()
-                                _playlistDownloadProgress.value = currentProcessed.toFloat() / totalTracks
-
-                                isSuccess
-                            }
-                        }.awaitAll()
-                        .count { it }
-
-                    successCount = tracks.size
-
-                    if (successCount > 0) {
-                        Toast
-                            .makeText(
-                                context,
-                                context.resources.getQuantityString(
-                                    R.plurals.toast_downloaded_tracks,
-                                    successCount,
-                                    successCount,
-                                ),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error downloading playlist details", e)
-                    Toast.makeText(context, context.getString(R.string.toast_error_downloading_playlist), Toast.LENGTH_SHORT).show()
-                } finally {
-                    _isDownloadingPlaylist.value = false
-                    _playlistDownloadProgress.value = 0f
-                }
-            }
-        }
-
-        // ── Track search (used on user playlists) ─────────────────────────────────
-
-        private val _trackSearchResults = MutableStateFlow<List<MusicTrack>>(emptyList())
-        val trackSearchResults = _trackSearchResults.asStateFlow()
-
-        private val _isSearchingTracks = MutableStateFlow(false)
-        val isSearchingTracks = _isSearchingTracks.asStateFlow()
-
-        private val _addedTrackIds = MutableStateFlow<Set<String>>(emptySet())
-        val addedTrackIds = _addedTrackIds.asStateFlow()
-
-        private val _locallyAddedTracks = MutableStateFlow<List<MusicTrack>>(emptyList())
-        val locallyAddedTracks = _locallyAddedTracks.asStateFlow()
-
-        fun searchTracks(query: String) {
-            viewModelScope.launch(Dispatchers.IO) {
-                _isSearchingTracks.value = true
-                try {
-                    val results = YouTubeMusicService.searchMusic(query, limit = 30)
-                    _trackSearchResults.value = results
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "searchTracks failed", e)
-                    _trackSearchResults.value = emptyList()
-                } finally {
-                    _isSearchingTracks.value = false
-                }
-            }
-        }
-
-        fun addTrackToPlaylist(
-            playlistId: String,
-            track: MusicTrack,
-        ) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    val video =
-                        Video(
-                            id = track.videoId,
-                            title = track.title,
-                            channelName = track.artist,
-                            channelId = track.channelId,
-                            thumbnailUrl = track.thumbnailUrl,
-                            duration = track.duration,
-                            viewCount = 0L,
-                            uploadDate = "",
-                            timestamp = System.currentTimeMillis(),
-                            description = track.album,
-                            isMusic = true,
-                        )
-                    playlistRepository.addVideoToPlaylist(playlistId, video)
-                    _addedTrackIds.update { it + track.videoId }
-                    _locallyAddedTracks.update { it + track }
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.toast_added_to_playlist), Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "addTrackToPlaylist failed", e)
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.toast_failed_to_add_track), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-
-        fun removeTrackFromPlaylist(
-            playlistId: String,
-            videoId: String,
-        ) {
-            viewModelScope.launch {
-                try {
-                    playlistRepository.removeVideoFromPlaylist(playlistId, videoId)
-
-                    _addedTrackIds.update { it - videoId }
-                    _locallyAddedTracks.update { list -> list.filter { it.videoId != videoId } }
-
-                    Toast.makeText(context, context.getString(R.string.toast_removed_from_playlist), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "removeTrackFromPlaylist failed", e)
-                    Toast.makeText(context, context.getString(R.string.toast_failed_to_remove_track), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        fun reorderTracksInPlaylist(
-            playlistId: String,
-            orderedVideoIds: List<String>,
-        ) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    playlistRepository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "reorderTracksInPlaylist failed", e)
-                }
-            }
-        }
-
-        fun clearTrackSearch() {
-            _trackSearchResults.value = emptyList()
-            _addedTrackIds.value = emptySet()
-            _locallyAddedTracks.value = emptyList()
-        }
-
-        // ── Save/unsave external music playlists to library ───────────────────────
-
-        private val _isSavedPlaylist = MutableStateFlow(false)
-        val isSavedPlaylist = _isSavedPlaylist.asStateFlow()
-
-        fun checkIfPlaylistSaved(playlistId: String) {
-            viewModelScope.launch {
-                _isSavedPlaylist.value = playlistRepository.isExternalPlaylistSaved(playlistId)
-            }
-        }
-
-        fun savePlaylistToLibrary(details: PlaylistDetails) {
-            viewModelScope.launch {
-                try {
-                    playlistRepository.saveExternalMusicPlaylist(
-                        id = details.id,
-                        name = details.title,
-                        description = details.description ?: "",
-                        thumbnailUrl = details.thumbnailUrl,
-                    )
-                    playlistRepository.addVideosToPlaylist(
-                        details.id,
-                        details.tracks.map { track ->
-                            Video(
-                                id = track.videoId,
-                                title = track.title,
-                                channelName = track.artist,
-                                channelId = track.channelId,
-                                thumbnailUrl = track.thumbnailUrl,
-                                duration = track.duration,
-                                viewCount = track.views,
-                                uploadDate = "",
-                                isMusic = true,
-                            )
-                        },
-                    )
-                    _isSavedPlaylist.value = true
-                    Toast.makeText(context, context.getString(R.string.toast_saved_playlist_to_music_library), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "savePlaylistToLibrary failed", e)
-                    Toast.makeText(context, context.getString(R.string.toast_failed_to_save_playlist), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        fun unsavePlaylistFromLibrary(playlistId: String) {
-            viewModelScope.launch {
-                try {
-                    playlistRepository.unsaveExternalPlaylist(playlistId)
-                    _isSavedPlaylist.value = false
-                    Toast.makeText(context, context.getString(R.string.toast_removed_playlist_from_library), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "unsavePlaylistFromLibrary failed", e)
-                }
-            }
-        }
-
-        // ── Merge external playlist into a local user playlist ────────────────────
-
-        val userCreatedMusicPlaylists: StateFlow<List<PlaylistInfo>> =
-            playlistRepository
-                .getUserCreatedMusicPlaylistsFlow()
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-        fun mergeTracksIntoPlaylist(
-            targetPlaylistId: String,
-            tracks: List<MusicTrack>,
-        ) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    val videos =
-                        tracks.map { track ->
-                            Video(
-                                id = track.videoId,
-                                title = track.title,
-                                channelName = track.artist,
-                                channelId = track.channelId,
-                                thumbnailUrl = track.thumbnailUrl,
-                                duration = track.duration,
-                                viewCount = track.views,
-                                uploadDate = "",
-                                isMusic = true,
-                            )
-                        }
-                    playlistRepository.addVideosToPlaylist(targetPlaylistId, videos)
-                    val targetInfo = playlistRepository.getPlaylistInfo(targetPlaylistId)
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
-                        Toast
-                            .makeText(
-                                context,
-                                context.resources.getQuantityString(
-                                    io.github.aedev.flow.R.plurals.merge_playlist_success,
-                                    tracks.size,
-                                    tracks.size,
-                                    targetInfo?.name ?: "",
-                                ),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "mergeTracksIntoPlaylist failed", e)
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
-                    }
-                }
+                downloadQueuer.queueCollectionSongs(
+                    spec =
+                        CollectionSpec(
+                            id = playlist.id,
+                            kind = DownloadCollectionKind.MUSIC_PLAYLIST,
+                            title = playlist.name,
+                            thumbnailUrl = playlist.thumbnailUrl.takeIf { it.isNotBlank() },
+                        ),
+                    tracks = videos.map { it.toMusicTrack() },
+                    complete = true,
+                )
             }
         }
     }

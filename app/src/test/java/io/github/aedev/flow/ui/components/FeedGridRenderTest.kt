@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.ui.components
@@ -53,7 +53,6 @@ class FeedGridRenderTest {
                     columns = layout.cells,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = layout.contentPadding),
-                    horizontalArrangement = Arrangement.spacedBy(layout.cardSpacing),
                     verticalArrangement = Arrangement.spacedBy(layout.cardSpacing),
                 ) {
                     items(items = (0 until 24).toList(), key = { it }) {

@@ -1,9 +1,12 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -17,6 +20,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
@@ -32,7 +36,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 /** The load a step belongs to: the video it resolved for, and the token saying it is still current. */
 internal data class LoadContext(
@@ -67,6 +70,7 @@ internal class PlaybackSessionApplier(
     private val sponsorBlockRepository: SponsorBlockRepository,
     private val videoDownloadManager: VideoDownloadManager,
     private val offlineSubtitleStore: OfflineSubtitleStore,
+    private val localSubtitles: LocalSubtitles,
     private val playerManager: EnhancedPlayerManager,
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
@@ -86,20 +90,12 @@ internal class PlaybackSessionApplier(
     ) {
         when (step) {
             is ResolvedPlayback.LocalCopyReady -> {
+                if (!isLoadCurrent(load.token)) return
                 uiState.update { it.applyLocalCopyReady(load.videoId, step) }
+                announceLocalCopy(load)
                 if (step.needsSponsorBlockBackfill) backfillSponsorBlockSegments(load.videoId)
+                armLocalCopyMetadata(load)
                 prepareLocalMedia(load, step.localFilePath, step.offlineSegments)
-            }
-
-            is ResolvedPlayback.LocalCopyAfterFailure -> {
-                uiState.update { it.applyLocalCopyAfterFailure() }
-                step.localFilePath?.let { prepareLocalMedia(load, it, step.offlineSegments) }
-            }
-
-            is ResolvedPlayback.OfflineFallback -> {
-                if (isLoadCurrent(load.token)) {
-                    uiState.update { it.applyOfflineFallback(step) }
-                }
             }
 
             is ResolvedPlayback.Live -> {
@@ -133,29 +129,9 @@ internal class PlaybackSessionApplier(
         }
     }
 
-    /**
-     * The same request answers both counts.
-     *
-     * Its like count is only adopted when the watch page withheld one, which is what a creator who
-     * hides likes leaves behind: the response carries an `unset_like_count_entity_key` and nothing
-     * else, and the screen was showing that as a flat zero.
-     */
-    fun startDislikeLoad(load: LoadContext) {
-        scope.launch(networkDispatcher) {
-            if (playerPreferences.rytdEnabled.first()) {
-                val counts = withTimeoutOrNull(5000L) { repository.returnYouTubeDislikeCounts(load.videoId) }
-                if (counts == null || !isLoadCurrent(load.token)) return@launch
-                uiState.update { state ->
-                    val cached = state.cachedVideo?.takeIf { it.id == load.videoId } ?: return@update state
-                    val likes = counts.likes?.takeIf { it > 0L && cached.likeCount <= 0L }
-                    state.copy(
-                        dislikeCount = counts.dislikes ?: state.dislikeCount,
-                        cachedVideo = likes?.let { cached.copy(likeCount = it) } ?: cached,
-                    )
-                }
-            }
-        }
-    }
+    private val dislikeCounts = DislikeCountLoader(uiState, isLoadCurrent, repository, playerPreferences, scope, networkDispatcher)
+
+    fun startDislikeLoad(load: LoadContext) = dislikeCounts.start(load)
 
     suspend fun prepareLocalMedia(
         load: LoadContext,
@@ -168,8 +144,29 @@ internal class PlaybackSessionApplier(
             localFilePath = localFilePath,
             offlineSegments = offlineSegments,
             savedPosition = savedPosition ?: viewHistory.getPlaybackPosition(load.videoId).first(),
-            subtitles = offlineSubtitlesFor(load.videoId),
+            durationMs =
+                uiState.value.cachedVideo
+                    ?.takeIf { it.id == load.videoId }
+                    ?.duration
+                    ?.times(1000L) ?: 0L,
+            subtitles = subtitlesFor(load.videoId, localFilePath),
             isCurrent = { isLoadCurrent(load.token) },
+            subtitleOffsetMs = localSubtitles.offsetMs(load.videoId),
+            speedContext = speedContextFor(load.videoId),
+        )
+    }
+
+    private fun speedContextFor(
+        videoId: String,
+        musicVideoType: String? = null,
+        channelId: String? = null,
+    ): PlaybackSpeedContext {
+        val cached = uiState.value.cachedVideo?.takeIf { it.id == videoId }
+        return PlaybackSpeedContext(
+            videoId = videoId,
+            channelId = channelId ?: cached?.channelId,
+            musicVideoType = musicVideoType,
+            knownMusic = cached?.isMusic == true,
         )
     }
 
@@ -247,23 +244,48 @@ internal class PlaybackSessionApplier(
         if (step.failure == PlaybackFailure.UNEXPECTED && !videoError.isRetryable) {
             playerPreferences.markVideoUnplayable(load.videoId)
         }
+        // A removed or unplayable video stays that way, so a playlist carries on instead of stopping on it.
+        if (step.failure == PlaybackFailure.EXTRACTION && InnerTubeVideoStreamExtractor.isGone(load.videoId) && playerManager.hasNext()) {
+            withContext(Dispatchers.Main) { playerManager.playNext(loadStreamsInPlayer = false) }
+            return
+        }
         uiState.update { it.applyPlaybackFailure(step.relatedVideos, videoError) }
+    }
+
+    /** The notification and the mini player show the download's own title until the watch page lands. */
+    private suspend fun announceLocalCopy(load: LoadContext) {
+        val video = uiState.value.cachedVideo?.takeIf { it.id == load.videoId } ?: return
+        GlobalPlayerState.setCurrentVideo(video)
+        if (video.title.isNotBlank()) {
+            playbackPreparer.beginSession(load.videoId, video.title, video.channelName, video.thumbnailUrl)
+        }
+    }
+
+    /**
+     * The watch page a streamed load reads after first frame, for a video that plays from its file.
+     * One cached `/next` answers the title, counts, lane, chapters and heatmap together, and no
+     * `/player` request is made because nothing here needs streams.
+     */
+    private fun armLocalCopyMetadata(load: LoadContext) {
+        if (!shouldLoadOnlineMetadataForLocalCopy(load.videoId, NetworkState.isOnline(context))) return
+        val video = blankVideo(load.videoId, uiState.value.cachedVideo?.takeIf { it.id == load.videoId })
+        secondaryMetadata.loadRelatedVideos(load.videoId, emptyList(), load.token)
+        secondaryMetadata.loadHeatmap(load.videoId, load.token)
+        secondaryMetadata.loadChapters(load.videoId, load.token)
+        secondaryMetadata.loadWatchInfo(load.videoId, video, load.token)
     }
 
     private fun backfillSponsorBlockSegments(videoId: String) {
         scope.launch(networkDispatcher) {
             try {
                 val segments = sponsorBlockRepository.getSegments(videoId)
-                if (segments.isNotEmpty()) {
-                    videoDownloadManager.saveSponsorBlockData(
-                        videoId,
-                        sponsorBlockRepository.serializeSegments(segments),
-                    )
-                    Log.d(TAG, "Backfilled ${segments.size} SB segments for $videoId")
-                    uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
-                } else {
-                    Log.d(TAG, "No SB segments available for $videoId (backfill)")
-                }
+                // An empty list is stored too, so a video with no segments isn't asked about again.
+                videoDownloadManager.saveSponsorBlockData(
+                    videoId,
+                    sponsorBlockRepository.serializeSegments(segments),
+                )
+                Log.d(TAG, "Backfilled ${segments.size} SB segments for $videoId")
+                if (segments.isNotEmpty()) uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
             } catch (e: Exception) {
                 Log.w(TAG, "SB backfill failed for $videoId", e)
             }
@@ -395,6 +417,12 @@ internal class PlaybackSessionApplier(
             streams = streams,
             step = step,
             savedPositionMs = savedPositionMs,
+            speedContext =
+                speedContextFor(
+                    videoId = videoId,
+                    musicVideoType = result.playerResponse.videoDetails?.musicVideoType,
+                    channelId = identity.channelId,
+                ),
             isCurrent = { isLoadCurrent(load.token) },
         )
     }
@@ -434,11 +462,25 @@ internal class PlaybackSessionApplier(
         if (!isLoadCurrent(result.loadToken) || uiState.value.cachedVideo?.id != result.videoId) return
         GlobalPlayerState.setCurrentVideo(result.video)
         uiState.update { it.applyWatchInfo(result.video) }
+        // A downloaded copy learns its channel only here, so the channel row follows the watch page.
+        if (uiState.value.localFileVideoId == result.videoId) {
+            secondaryMetadata.loadChannelMetadata(
+                videoId = result.videoId,
+                uploaderUrl = null,
+                channelId = result.video.channelId,
+                embeddedAvatarUrls = listOf(result.video.channelThumbnailUrl).filter { it.isNotBlank() },
+                loadToken = result.loadToken,
+                awaitPlayback = false,
+            )
+        }
     }
 
     /** Folded into the tags the engine ingests, so the watch signal carries it. */
     private fun applyCategory(result: SecondaryMetadata.Category) {
         if (!isLoadCurrent(result.loadToken)) return
+        if (PlaybackSpeedPolicy.isMusic(musicVideoType = null, category = result.category, openedAsMusic = false)) {
+            scope.launch { playbackPreparer.applyLateMusicSignal(speedContextFor(result.videoId)) }
+        }
 
         uiState.update { state ->
             val cached = state.cachedVideo?.takeIf { it.id == result.videoId } ?: return@update state
@@ -492,9 +534,44 @@ internal class PlaybackSessionApplier(
         publishRelatedVideos(result.videoId, result.relatedVideos, result.loadToken)
     }
 
-    private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
+    /**
+     * Adds the subtitle file at [uri] to the device file or download that is playing and remembers
+     * it for that video; false when it is not a subtitle file Flow can read.
+     */
+    suspend fun addSubtitleFile(uri: Uri): Boolean {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return false
+        val caption = localSubtitles.pick(videoId, uri) ?: return false
+        return withContext(Dispatchers.Main) { playerManager.addLocalCaption(caption) }
+    }
+
+    /** The folder of the device file or download that is playing, for the subtitle file picker. */
+    suspend fun subtitleFolder(): Uri? = uiState.value.localFilePath?.let { localSubtitles.folderDocument(it) }
+
+    /**
+     * Shifts the captions of what is playing; a device file or download remembers it for next time.
+     */
+    suspend fun setSubtitleOffset(offsetMs: Long) {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return
+        withContext(Dispatchers.Main) { playerManager.setSubtitleOffset(offsetMs) }
+        if (uiState.value.localFilePath != null) localSubtitles.setOffsetMs(videoId, offsetMs)
+    }
+
+    /**
+     * A device video's subtitle files beside it, or a download's stored caption tracks, and in
+     * both cases the files picked for it.
+     */
+    private suspend fun subtitlesFor(
+        videoId: String,
+        localFilePath: String,
+    ): List<ResolvedCaption> {
+        val picked = localSubtitles.picked(videoId)
+        if (LocalMediaIds.isLocal(videoId)) return localSubtitles.beside(localFilePath) + picked
+        return offlineSubtitlesFor(videoId) + picked
+    }
+
+    private suspend fun offlineSubtitlesFor(videoId: String): List<ResolvedCaption> {
         val stored = offlineSubtitleStore.load(videoId)
-        if (stored.isEmpty() && NetworkState.isOnline(context)) {
+        if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)
             }

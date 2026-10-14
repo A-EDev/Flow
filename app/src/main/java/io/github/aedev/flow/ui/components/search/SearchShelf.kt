@@ -33,9 +33,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
-import io.github.aedev.flow.ui.components.ShortsShelf
-import io.github.aedev.flow.ui.components.shared.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 /**
  * One of the strips YouTube interleaves between search results: a creator's latest uploads, an
@@ -55,7 +56,7 @@ fun SearchShelf(
     onShortsClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
-    thumbnailWidth: Dp = CompactVideoCardThumbnailWidth,
+    thumbnailWidth: Dp = VideoCardDefaults.RowThumbnailWidth,
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(vertical = SectionSpacing)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -63,11 +64,11 @@ fun SearchShelf(
         if (shelf.kind != SearchShelfKind.SHORTS) shelf.title?.let { ShelfTitle(it) }
         when (shelf.kind) {
             SearchShelfKind.SHORTS -> {
-                ShortsShelf(shelf.videos, onShortsClick)
+                MediaShortsShelf(shelf.videos, onShortsClick)
             }
 
             SearchShelfKind.VIDEOS -> {
-                VideoStrip(shelf, asThumbnailRows, thumbnailWidth, onVideoClick, onChannelClick)
+                VideoStrip(shelf, asThumbnailRows, thumbnailWidth, onVideoClick)
             }
 
             SearchShelfKind.POSTS -> {
@@ -95,7 +96,6 @@ private fun VideoStrip(
     asThumbnailRows: Boolean,
     thumbnailWidth: Dp,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable(shelf.id) { mutableStateOf(false) }
     val collapsedCount = shelf.collapsedItemCount ?: shelf.videos.size
@@ -107,9 +107,8 @@ private fun VideoStrip(
     shown.forEach { video ->
         MediaVideoCard(
             video = video,
-            asThumbnailRow = asThumbnailRows,
+            layout = if (asThumbnailRows) VideoCardLayout.Row else VideoCardLayout.Stacked,
             onClick = { onVideoClick(video) },
-            onChannelClick = onChannelClick,
             thumbnailWidth = thumbnailWidth,
         )
     }

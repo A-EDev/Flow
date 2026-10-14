@@ -4,6 +4,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.ui.util.lerp
 import kotlin.math.abs
 
+/** How far below its resting place a collapsed bar can be pulled, in bar heights, while closing it. */
+private const val CLOSE_PULL_LIMIT_HEIGHTS = 1.5f
+private const val CLOSE_PULL_HEIGHTS = 0.5f
+private const val CLOSE_FLING_VELOCITY = 800f
+
 internal data class MusicSheetDragFrame(
     val translationY: Float,
     val expansionFraction: Float,
@@ -17,12 +22,14 @@ internal fun computeMusicSheetDragFrame(
     miniHeightPx: Float,
     initialFractionOnDragStart: Float,
     initialYOnDragStart: Float,
+    canPullToClose: Boolean = false,
 ): MusicSheetDragFrame {
+    val pullLimit = if (canPullToClose) CLOSE_PULL_LIMIT_HEIGHTS else 0.2f
     val newY =
         (currentTranslationY + dragAmount)
             .coerceIn(
                 expandedY - miniHeightPx * 0.2f,
-                collapsedY + miniHeightPx * 0.2f,
+                collapsedY + miniHeightPx * pullLimit,
             )
     val denominator = (collapsedY - expandedY).coerceAtLeast(1f)
     val dragRatio = (initialYOnDragStart - newY) / denominator
@@ -47,6 +54,17 @@ internal fun resolveMusicSheetDragTarget(
         abs(verticalVelocity) > velocityThreshold -> verticalVelocity < 0
         else -> currentFraction > 0.5f
     }
+
+/** Whether a drag that started on the collapsed bar closes it: pulled half its height down, or flicked down. */
+internal fun shouldCloseMusicMiniDownward(
+    startedCollapsed: Boolean,
+    accumulatedDragY: Float,
+    miniHeightPx: Float,
+    verticalVelocity: Float,
+): Boolean =
+    startedCollapsed &&
+        accumulatedDragY > 0f &&
+        (accumulatedDragY > miniHeightPx * CLOSE_PULL_HEIGHTS || verticalVelocity > CLOSE_FLING_VELOCITY)
 
 internal fun collapseSpringDampingForFraction(currentFraction: Float): Float =
     lerp(

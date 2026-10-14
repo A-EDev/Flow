@@ -23,6 +23,9 @@ env:
   # installed client pin this value; an APK signed with anything else cannot
   # be installed as an update. Changing it forces every user to reinstall.
   EXPECTED_SIGNER_SHA256: 4322294ed4caa2d4294140095818080ffe8acc1fbe3cdc76107df45c5286be40
+  # Certificate of the nightly key. Every nightly must carry it so each one
+  # installs over the previous nightly without an uninstall.
+  EXPECTED_NIGHTLY_SIGNER_SHA256: e42225b5ab3ac68236e54567ef0c4878afbafcdd3d438fbaba343e2d70425bf0
 
 jobs:
   build:
@@ -75,6 +78,25 @@ jobs:
             echo "Release keystore secret is not available. Continuing with an unsigned CI build."
           fi
 
+      - name: Decode nightly keystore
+        id: nightly_keystore
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          NIGHTLY_KEYSTORE_BASE64: ${{ secrets.NIGHTLY_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$NIGHTLY_KEYSTORE_BASE64" ]; then
+            echo "$NIGHTLY_KEYSTORE_BASE64" | base64 --decode > nightly.keystore
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            # Main publishes the nightly testers install; a debug-signed build
+            # could not update the previous one.
+            echo "::error::NIGHTLY_KEYSTORE_BASE64 is unavailable on a main push. Refusing to publish a debug-signed nightly."
+            exit 1
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "Nightly keystore secret is not available. This run's nightly is debug-signed and is not published."
+          fi
+
       - name: Run unit tests
         run: >
           ./gradlew :app:testGithubDebugUnitTest :app:testFossDebugUnitTest
@@ -108,6 +130,11 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          NIGHTLY_STORE_PASSWORD: ${{ secrets.NIGHTLY_STORE_PASSWORD }}
+          NIGHTLY_KEY_ALIAS: ${{ secrets.NIGHTLY_KEY_ALIAS }}
+          NIGHTLY_KEY_PASSWORD: ${{ secrets.NIGHTLY_KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
 
       - name: Build release APKs
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -118,6 +145,8 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
 
       # Guards the IzzyOnDroid/F-Droid update path: a wrong or missing key here
       # is unrecoverable for installed users, so fail the build rather than
@@ -156,11 +185,28 @@ jobs:
           done
           exit $status
 
-      - name: Checksum nightly APK
+      # The run number in the file name is how the in-app updater tells
+      # nightlies apart (GitHubRelease.toNightlyReleaseIfNewer).
+      - name: Verify and name nightly APK
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          NIGHTLY_SIGNED: ${{ steps.nightly_keystore.outputs.signed }}
         run: |
-          test -f app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
-          sha256sum app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk | tee app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk.sha256
+          set -euo pipefail
+          src=app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
+          test -f "$src"
+          if [ "$NIGHTLY_SIGNED" = "true" ]; then
+            apksigner=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)
+            actual=$("$apksigner" verify --print-certs "$src" | grep -m1 'certificate SHA-256 digest' | awk '{print $NF}')
+            if [ "$actual" != "$EXPECTED_NIGHTLY_SIGNER_SHA256" ]; then
+              echo "::error::The nightly is signed with '$actual', expected '$EXPECTED_NIGHTLY_SIGNER_SHA256'"
+              exit 1
+            fi
+            echo "OK nightly -> $actual"
+          fi
+          mkdir -p dist-nightly
+          cp "$src" "dist-nightly/flow-nightly-${GITHUB_RUN_NUMBER}.apk"
+          (cd dist-nightly && sha256sum flow-nightly-*.apk | tee checksums.txt)
 
       - name: Report individual APK sizes
         shell: bash
@@ -228,9 +274,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: flow-nightly-apk
-          path: |
-            app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk
-            app/build/outputs/apk/github/nightly/app-github-universal-nightly.apk.sha256
+          path: dist-nightly/*
           if-no-files-found: error
           retention-days: 14
 
@@ -260,6 +304,52 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+  # A rolling prerelease under the tag "nightly". GitHub's "latest release"
+  # never includes a prerelease, so stable builds never see it; nightly
+  # builds read it by tag (UpdateRepository).
+  nightly:
+    name: Publish nightly
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+    concurrency:
+      group: nightly-publish
+      cancel-in-progress: false
+
+    steps:
+      - name: Download nightly APK
+        uses: actions/download-artifact@v8
+        with:
+          name: flow-nightly-apk
+          path: dist-nightly/
+
+      - name: Move the nightly tag and replace its assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          apk="flow-nightly-${GITHUB_RUN_NUMBER}.apk"
+          test -f "dist-nightly/$apk"
+          if gh release view nightly >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/nightly" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+          else
+            gh release create nightly --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Flow nightly" --notes "Rolling nightly build."
+          fi
+          gh release upload nightly "dist-nightly/$apk" dist-nightly/checksums.txt --clobber
+          for old in $(gh release view nightly --json assets --jq '.assets[].name'); do
+            if [ "$old" != "$apk" ] && [ "$old" != "checksums.txt" ]; then
+              gh release delete-asset nightly "$old" --yes
+            fi
+          done
+          gh release edit nightly --prerelease --latest=false \
+            --title "Flow nightly ${GITHUB_RUN_NUMBER}" \
+            --notes "Built from ${GITHUB_SHA::7} by run ${GITHUB_RUN_NUMBER}. Installs next to the stable app as Flow Nightly and updates itself from here."
 
   release:
     name: Create Release

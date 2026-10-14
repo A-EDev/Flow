@@ -4,46 +4,41 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.data.download.DownloadUtil
+import io.github.aedev.flow.data.download.CachedSongMigration
+import io.github.aedev.flow.data.download.LegacySongDownloads
+import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
+import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.local.safePreferencesDataStore
-import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.withTypedArtists
 import io.github.aedev.flow.data.video.VideoDownloadManager
-import io.github.aedev.flow.data.video.downloader.FlowDownloadService
-import io.github.aedev.flow.service.ExoDownloadService
-import io.github.aedev.flow.utils.MusicPlayerUtils
-import kotlinx.coroutines.CoroutineScope
+import io.github.aedev.flow.data.video.downloader.request.StoredArtist
+import io.github.aedev.flow.data.video.downloader.request.toDownloadRequest
+import io.github.aedev.flow.data.video.downloader.tags.DownloadKind
+import io.github.aedev.flow.data.video.downloader.work.DownloadController
+import io.github.aedev.flow.data.video.storage.DownloadFiles
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private val Context.downloadDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "downloads")
-
-enum class DownloadStatus {
-    NOT_DOWNLOADED,
-    DOWNLOADING,
-    DOWNLOADED,
-    FAILED,
-}
 
 data class DownloadedTrack(
     val track: MusicTrack,
@@ -53,249 +48,155 @@ data class DownloadedTrack(
     val downloadId: Long = -1,
 )
 
+/**
+ * The music library's view of downloads: every finished audio download, with the album and
+ * artists its row keeps, plus the few songs older versions cached through Media3 instead of saving
+ * them as files, until each is downloaded again as one. New songs go through the shared queue.
+ */
 @Singleton
 class DownloadManager
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val downloadUtil: DownloadUtil,
+        private val legacySongs: LegacySongDownloads,
         private val videoDownloadManager: VideoDownloadManager,
+        private val downloadDao: DownloadDao,
+        private val controller: DownloadController,
     ) {
         private val gson = Gson()
-        private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        private val migration = Mutex()
 
-        companion object {
-            private val DOWNLOADED_TRACKS_KEY = stringPreferencesKey("downloaded_tracks")
-        }
+        @Volatile
+        private var migrated = false
 
-        val downloadProgress: StateFlow<Map<String, Int>> =
-            downloadUtil.downloads
-                .map { downloads ->
-                    downloads.mapValues { (_, download) ->
-                        download.percentDownloaded.toInt()
-                    }
-                }.stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-        val downloadStatus: StateFlow<Map<String, DownloadStatus>> =
-            downloadUtil.downloads
-                .map { downloads ->
-                    downloads.mapValues { (_, download) ->
-                        when (download.state) {
-                            Download.STATE_COMPLETED -> DownloadStatus.DOWNLOADED
-                            Download.STATE_FAILED -> DownloadStatus.FAILED
-                            Download.STATE_DOWNLOADING, Download.STATE_QUEUED, Download.STATE_RESTARTING -> DownloadStatus.DOWNLOADING
-                            else -> DownloadStatus.NOT_DOWNLOADED
-                        }
-                    }
-                }.stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-        /**
-         * Check if a track is cached for offline playback.
-         * This checks the actual cache, not the download state metadata.
-         */
-        fun isCachedForOffline(mediaId: String): Boolean = downloadUtil.isCachedForOffline(mediaId)
+        fun isCachedForOffline(mediaId: String): Boolean = legacySongs.isCachedForOffline(mediaId)
 
         val downloadedTracks: Flow<List<DownloadedTrack>> =
             combine(
-                context.downloadDataStore.data.map { prefs -> parseDownloadedTracks(prefs[DOWNLOADED_TRACKS_KEY]) },
                 videoDownloadManager.audioOnlyDownloads,
-            ) { storedTracks, audioDownloads ->
-                val roomById =
-                    audioDownloads
+                context.downloadDataStore.data.map { parseStoredTracks(it[STORED_TRACKS_KEY]) },
+            ) { rows, stored ->
+                val files =
+                    rows
                         .filter { it.overallStatus == DownloadItemStatus.COMPLETED }
-                        .associateBy { it.download.videoId }
+                        .mapNotNull(::toDownloadedTrack)
+                val onDisk = files.mapTo(HashSet()) { it.track.videoId }
+                val cached = legacySongs.completedIds()
+                val cachedOnly = stored.filter { it.track.videoId !in onDisk && it.track.videoId in cached }
+                files + cachedOnly
+            }.onStart { migrateStoredMetadata() }
+                .flowOn(Dispatchers.IO)
 
-                storedTracks
-                    .mapNotNull { storedTrack ->
-                        val roomDownload = roomById[storedTrack.track.videoId]
-                        when {
-                            roomDownload != null -> {
-                                val audioItem =
-                                    roomDownload.items.firstOrNull {
-                                        it.status == DownloadItemStatus.COMPLETED && isReadablePath(it.filePath)
-                                    }
-                                audioItem?.let {
-                                    storedTrack.copy(
-                                        filePath = it.filePath,
-                                        downloadedAt = roomDownload.download.createdAt,
-                                        fileSize = it.totalBytes.takeIf { size -> size > 0 } ?: it.downloadedBytes,
-                                    )
-                                }
-                            }
-
-                            downloadUtil.isFullyDownloaded(storedTrack.track.videoId) ||
-                                downloadUtil.isCachedForOffline(storedTrack.track.videoId) -> {
-                                storedTrack
-                            }
-
-                            else -> {
-                                null
-                            }
-                        }
-                    }.distinctBy { it.track.videoId }
-            }
-
-        init {
-            downloadUtil.getDownloadManagerInstance().addListener(
-                object : androidx.media3.exoplayer.offline.DownloadManager.Listener {
-                    override fun onDownloadChanged(
-                        downloadManager: androidx.media3.exoplayer.offline.DownloadManager,
-                        download: Download,
-                        finalException: Exception?,
-                    ) {
-                        if (download.state == Download.STATE_COMPLETED) {
-                            scope.launch {
-                                updateDownloadedTrack(download.request.id, download.contentLength)
-                            }
-                        }
-                    }
-                },
-            )
-        }
-
+        /** Queues [track]; a song already downloaded or waiting is left as it is. */
         suspend fun downloadTrack(track: MusicTrack): Result<String> =
+            runCatching {
+                controller.enqueue(track.toDownloadRequest())
+                track.videoId
+            }.onFailure { Log.e(TAG, "Could not queue ${track.videoId}", it) }
+
+        suspend fun isDownloaded(videoId: String): Boolean =
+            getDownloadedTrackPath(videoId) != null || videoId in legacySongs.completedIds()
+
+        suspend fun getDownloadedTrackPath(videoId: String): String? =
             withContext(Dispatchers.IO) {
-                try {
-                    if (isDownloaded(track.videoId) || hasActiveFileDownload(track.videoId)) {
-                        return@withContext Result.success(track.videoId)
-                    }
-
-                    val downloadedTrack =
-                        DownloadedTrack(
-                            track = track,
-                            filePath = "",
-                            fileSize = 0,
-                            downloadId = 0,
-                        )
-                    saveDownloadedTrack(downloadedTrack)
-
-                    val playbackData = MusicPlayerUtils.playerResponseForPlayback(track.videoId).getOrThrow()
-                    val streamUrl = playbackData.streamUrl
-                    val contentLength = playbackData.format.contentLength
-                    val downloadUrl =
-                        if (contentLength != null) {
-                            val sep = if ("?" in streamUrl) "&" else "?"
-                            "${streamUrl}${sep}range=0-$contentLength"
-                        } else {
-                            streamUrl
-                        }
-
-                    val extension = "mp3"
-                    val mimeType = "audio/mpeg"
-                    val quality =
-                        playbackData.format.averageBitrate
-                            ?.takeIf { it > 0 }
-                            ?.let { "${it / 1000}kbps" }
-                            ?: playbackData.format.bitrate
-                                .takeIf { it > 0 }
-                                ?.let { "${it / 1000}kbps" }
-                            ?: "Music"
-
-                    val video =
-                        Video(
-                            id = track.videoId,
-                            title = track.title,
-                            channelName = track.artist,
-                            channelId = track.channelId,
-                            thumbnailUrl = track.thumbnailUrl,
-                            duration = track.duration,
-                            viewCount = track.views,
-                            uploadDate = System.currentTimeMillis().toString(),
-                            description = track.album,
-                            isMusic = true,
-                        )
-
-                    FlowDownloadService.startDownload(
-                        context = context,
-                        video = video,
-                        url = downloadUrl,
-                        quality = quality,
-                        audioOnly = true,
-                        userAgent = playbackData.usedClient.userAgent,
-                        audioExtension = extension,
-                        audioMimeType = mimeType.ifBlank { "audio/mp4" },
-                        isMusic = true,
-                    )
-
-                    Result.success(track.videoId)
-                } catch (e: Exception) {
-                    Log.e("DownloadManager", "Download failed", e)
-                    Result.failure(e)
-                }
+                val download = videoDownloadManager.getDownloadWithItems(videoId) ?: return@withContext null
+                if (!download.isAudioOnly || download.overallStatus != DownloadItemStatus.COMPLETED) return@withContext null
+                download.items
+                    .firstOrNull { it.status == DownloadItemStatus.COMPLETED && DownloadFiles.exists(context, it.filePath) }
+                    ?.filePath
             }
-
-        suspend fun updateDownloadedTrack(
-            videoId: String,
-            size: Long = 0,
-        ) {
-            context.downloadDataStore.edit { prefs ->
-                val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-                val storedTracks = parseDownloadedTracks(json).toMutableList()
-
-                val index = storedTracks.indexOfFirst { it.track.videoId == videoId }
-                if (index != -1) {
-                    val updated =
-                        storedTracks[index].copy(
-                            fileSize = size,
-                            downloadedAt = System.currentTimeMillis(),
-                        )
-                    storedTracks[index] = updated
-                    prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(storedTracks)
-                }
-            }
-        }
-
-        suspend fun isDownloaded(videoId: String): Boolean {
-            if (getCompletedAudioFilePath(videoId) != null) return true
-            val download = downloadUtil.downloads.value[videoId]
-            return download?.state == Download.STATE_COMPLETED
-        }
-
-        suspend fun getDownloadedTrackPath(videoId: String): String? = getCompletedAudioFilePath(videoId)
 
         suspend fun deleteDownload(videoId: String) {
             videoDownloadManager
                 .getDownloadWithItems(videoId)
                 ?.takeIf { it.isAudioOnly }
                 ?.let { videoDownloadManager.deleteDownload(videoId) }
-
-            DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, videoId, false)
-
+            if (videoId in legacySongs.completedIds()) legacySongs.remove(videoId)
             context.downloadDataStore.edit { prefs ->
-                val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-                val currentTracks = parseDownloadedTracks(json).toMutableList()
-                currentTracks.removeAll { it.track.videoId == videoId }
-                prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
+                val remaining = parseStoredTracks(prefs[STORED_TRACKS_KEY]).filterNot { it.track.videoId == videoId }
+                prefs[STORED_TRACKS_KEY] = gson.toJson(remaining)
             }
         }
 
-        private suspend fun saveDownloadedTrack(track: DownloadedTrack) {
-            context.downloadDataStore.edit { prefs ->
-                val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-                val currentTracks = parseDownloadedTracks(json).toMutableList()
-                currentTracks.removeAll { it.track.videoId == track.track.videoId }
-                currentTracks.add(track)
-                prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
-            }
+        private fun toDownloadedTrack(row: DownloadWithItems): DownloadedTrack? {
+            val item =
+                row.items.firstOrNull {
+                    it.status == DownloadItemStatus.COMPLETED && DownloadFiles.exists(context, it.filePath)
+                } ?: return null
+            val entity = row.download
+            val artists = StoredArtist.decode(entity.artistsJson).map { MusicArtist(it.name, it.id) }
+            val cover = entity.thumbnailPath?.let { "file://$it" }
+            return DownloadedTrack(
+                track =
+                    MusicTrack(
+                        videoId = entity.videoId,
+                        title = entity.title,
+                        artist = artists.joinToString(", ") { it.name }.ifBlank { entity.uploader },
+                        thumbnailUrl = cover ?: entity.thumbnailUrl,
+                        duration = entity.duration.toInt(),
+                        views = entity.viewCount,
+                        album = entity.album.orEmpty(),
+                        channelId = entity.channelId,
+                        albumId = entity.albumId,
+                        artists = artists,
+                    ),
+                filePath = item.filePath,
+                downloadedAt = entity.createdAt,
+                fileSize = item.totalBytes.takeIf { it > 0 } ?: item.downloadedBytes,
+            )
         }
 
-        private suspend fun updateDownloadedTrackSize(
-            videoId: String,
-            size: Long,
-        ) {
-            context.downloadDataStore.edit { prefs ->
-                val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-                val currentTracks = parseDownloadedTracks(json).toMutableList()
-                val index = currentTracks.indexOfFirst { it.track.videoId == videoId }
-                if (index != -1) {
-                    val existing = currentTracks[index]
-                    currentTracks[index] = existing.copy(fileSize = size, downloadedAt = System.currentTimeMillis())
-                    prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
+        /**
+         * Older versions kept a song's album and artists only in a DataStore list beside its row.
+         * Once, those are written into the rows, so the music list reads Room alone from then on.
+         */
+        private suspend fun migrateStoredMetadata() {
+            if (migrated) return
+            migration.withLock {
+                if (migrated) return
+                val prefs = context.downloadDataStore.data.first()
+                if (prefs[MIGRATED_KEY] != true) {
+                    parseStoredTracks(prefs[STORED_TRACKS_KEY]).forEach { stored ->
+                        val track = stored.track
+                        if (downloadDao.getDownloadByVideoId(track.videoId) == null) return@forEach
+                        downloadDao.updateMusicMetadata(
+                            videoId = track.videoId,
+                            kind = DownloadKind.MUSIC,
+                            album = track.album.takeIf { it.isNotBlank() },
+                            albumId = track.albumId,
+                            artistsJson =
+                                track.artists.takeIf { it.isNotEmpty() }?.let { artists ->
+                                    StoredArtist.encode(artists.map { StoredArtist(it.name, it.id) })
+                                },
+                            channelId = track.channelId,
+                            uploader = track.artist,
+                        )
+                    }
+                    context.downloadDataStore.edit { it[MIGRATED_KEY] = true }
                 }
+                migrateCachedSongs(parseStoredTracks(prefs[STORED_TRACKS_KEY]))
+                migrated = true
             }
         }
 
-        private fun parseDownloadedTracks(json: String?): List<DownloadedTrack> =
+        /**
+         * Queues each song an older version only cached as a file download of its own, once: a song
+         * that already has a row, finished or failed, is left to it. A cached copy is dropped only
+         * after its file exists, so the song stays playable offline throughout.
+         */
+        private suspend fun migrateCachedSongs(stored: List<DownloadedTrack>) {
+            legacySongs.retireService()
+            val cached = legacySongs.completedIds()
+            if (cached.isEmpty()) return
+            val songs = stored.associateBy { it.track.videoId }.filterKeys { it in cached }
+            val withFile = songs.keys.filterTo(HashSet()) { getDownloadedTrackPath(it) != null }
+            val withRow = songs.keys.filterTo(HashSet()) { downloadDao.exists(it) }
+            val plan = CachedSongMigration.of(songs.keys.toList(), cached, { it in withFile }, { it in withRow })
+            plan.drop.forEach { legacySongs.remove(it) }
+            plan.queue.forEach { controller.enqueue(songs.getValue(it).track.toDownloadRequest()) }
+        }
+
+        private fun parseStoredTracks(json: String?): List<DownloadedTrack> =
             runCatching {
                 val type = object : TypeToken<List<DownloadedTrack>>() {}.type
                 gson
@@ -303,28 +204,13 @@ class DownloadManager
                     .orEmpty()
                     .map { it.copy(track = it.track.withTypedArtists()) }
             }.getOrElse {
-                Log.w("DownloadManager", "Failed to parse music downloads", it)
+                Log.w(TAG, "Failed to parse stored music downloads", it)
                 emptyList()
             }
 
-        private suspend fun getCompletedAudioFilePath(videoId: String): String? {
-            val download = videoDownloadManager.getDownloadWithItems(videoId) ?: return null
-            if (!download.isAudioOnly || download.overallStatus != DownloadItemStatus.COMPLETED) return null
-            return download.items
-                .firstOrNull {
-                    it.status == DownloadItemStatus.COMPLETED && isReadablePath(it.filePath)
-                }?.filePath
+        private companion object {
+            const val TAG = "MusicDownloads"
+            val STORED_TRACKS_KEY = stringPreferencesKey("downloaded_tracks")
+            val MIGRATED_KEY = booleanPreferencesKey("downloaded_tracks_in_room")
         }
-
-        private suspend fun hasActiveFileDownload(videoId: String): Boolean {
-            val download = videoDownloadManager.getDownloadWithItems(videoId) ?: return false
-            return download.isAudioOnly && download.overallStatus in
-                setOf(
-                    DownloadItemStatus.PENDING,
-                    DownloadItemStatus.DOWNLOADING,
-                    DownloadItemStatus.PAUSED,
-                )
-        }
-
-        private fun isReadablePath(path: String): Boolean = path.startsWith("content://") || File(path).exists()
     }

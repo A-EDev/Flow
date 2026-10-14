@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
@@ -31,20 +33,25 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.DurationBadge
 import io.github.aedev.flow.ui.components.shared.MediaIconBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
+import io.github.aedev.flow.ui.components.shared.feedStripCardWidth
 
 internal val LibraryShelfCardWidth = 220.dp
 internal val LibraryShelfArtworkHeight = LibraryShelfCardWidth * 9f / 16f
+
+/** A shelf card's width: the phone's pinned width, derived from the shelf's own width once it widens. */
+internal fun libraryShelfCardWidth(availableWidth: Dp): Dp = feedStripCardWidth(availableWidth, LibraryShelfCardWidth)
 
 @Composable
 internal fun LibraryVideoCard(
     video: Video,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    width: Dp = LibraryShelfCardWidth,
 ) {
     Column(
         modifier =
             modifier
-                .width(LibraryShelfCardWidth)
+                .width(width)
                 .clickable(onClick = onClick)
                 .padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -104,17 +111,19 @@ internal fun LibraryAlbumCard(
     onClick: () -> Unit,
     isDownloaded: Boolean = false,
     modifier: Modifier = Modifier,
+    artworkSize: Dp = LibraryShelfArtworkHeight,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier =
             modifier
-                .width(LibraryShelfArtworkHeight)
-                .clickable(onClick = onClick)
+                .width(artworkSize)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(
-            modifier = Modifier.size(LibraryShelfArtworkHeight),
+            modifier = Modifier.size(artworkSize),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
             tonalElevation = 2.dp,

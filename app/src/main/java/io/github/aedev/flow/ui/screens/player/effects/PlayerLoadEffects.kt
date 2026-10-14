@@ -15,6 +15,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.NetworkState
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -138,8 +139,9 @@ internal fun SubscriptionAndLikeEffect(
 ) {
     // Keyed on the cached video: the channel id arrives with it, and keying this on the extractor
     // result is what stopped the subscribe button and the like state ever loading once the load
-    // stopped producing one.
-    LaunchedEffect(uiState.cachedVideo?.channelId) {
+    // stopped producing one. The video id is a key too, or the next video from the same channel
+    // kept the previous video's collector.
+    LaunchedEffect(uiState.cachedVideo?.channelId, videoId) {
         val channelId = uiState.cachedVideo?.channelId.orEmpty()
         if (channelId.isNotEmpty()) {
             viewModel.loadSubscriptionAndLikeState(channelId, videoId)
@@ -148,18 +150,31 @@ internal fun SubscriptionAndLikeEffect(
 }
 
 @Composable
-internal fun SponsorSkipEffect(context: Context) {
+internal fun SponsorSkipEffect(
+    context: Context,
+    onSkipped: (category: String, skippedMs: Long) -> Unit,
+) {
+    val currentOnSkipped by rememberUpdatedState(onSkipped)
     LaunchedEffect(Unit) {
         EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
-            Toast.makeText(context, context.getString(R.string.ui_skipped_segment, segment.category), Toast.LENGTH_SHORT).show()
+            currentOnSkipped(segment.category, ((segment.endTime - segment.startTime) * 1000).toLong())
+            val message = context.getString(R.string.ui_skipped_segment, context.sponsorCategoryLabel(segment.category))
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+    LaunchedEffect(Unit) {
+        EnhancedPlayerManager.getInstance().sbToastEvent.collect { segment ->
+            val message = context.getString(R.string.sb_segment_notice, context.sponsorCategoryLabel(segment.category))
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 }
 
+private fun Context.sponsorCategoryLabel(category: String): String = sponsorCategoryLabelRes(category)?.let(::getString) ?: category
+
 @Composable
 internal fun SubtitleLoadErrorEffect(
     context: Context,
-    screenState: PlayerScreenState,
     subtitles: List<SubtitleOption>,
     rememberLanguage: (String) -> Unit,
 ) {
@@ -175,10 +190,10 @@ internal fun SubtitleLoadErrorEffect(
                     wasTranslated = failure.isTranslated,
                 )
             val message =
-                if (fallback != null && SubtitleSelection.applyAt(screenState, options, fallback, rememberLanguage)) {
+                if (fallback != null && SubtitleSelection.applyAt(options, fallback, rememberLanguage)) {
                     context.getString(R.string.subtitle_translation_unavailable, options[fallback].label)
                 } else {
-                    SubtitleSelection.disable(screenState)
+                    SubtitleSelection.disable()
                     context.getString(R.string.subtitle_load_failed, failure.label)
                 }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  *
  * Flow is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,14 +39,24 @@ internal object NeuroVectorMath {
     /** Topics above this score are developing — decay slowly */
     const val DEVELOPING_TOPIC_THRESHOLD = 0.10
 
-    /** Established interests: half-life ~1400 interactions */
+    /** Established interests: half-life ~346 full-strength events */
     const val ESTABLISHED_DECAY_RATE = 0.998
 
-    /** Developing interests: half-life ~330 interactions */
+    /** Developing interests: half-life ~99 full-strength events */
     const val DEVELOPING_DECAY_RATE = 0.993
 
-    /** Emerging/noisy topics: half-life ~46 interactions*/
+    /** Emerging/noisy topics: half-life ~23 full-strength events */
     const val EMERGING_DECAY_RATE = 0.97
+
+    /**
+     * The learning rate of a full long-form watch. An event decays the rest of the vector in
+     * proportion to its rate against this one, so a Short (1 % of a watch) can no longer erase as
+     * much as a watch does (#907).
+     */
+    const val DECAY_REFERENCE_RATE = 0.15
+
+    /** Slower decay prunes less, so the vector needs a hard size bound of its own. */
+    const val MAX_GLOBAL_TOPICS = 300
 
     const val NEGATIVE_PROPORTIONAL_EXPONENT = 1.5
     const val NEGATIVE_FLOOR_FACTOR = 0.3
@@ -55,6 +65,92 @@ internal object NeuroVectorMath {
     const val COMPRESSION_THRESHOLD = 0.6
     const val COMPRESSION_CEILING = 0.5
     const val COMPRESSION_FACTOR = 0.7
+
+    /**
+     * A vector indexed once for many [calculateCosineSimilarity] calls against it. rank() scores
+     * hundreds of candidates against the same user vectors; building these lookups per candidate
+     * was most of its cost.
+     */
+    class PreparedVector(
+        val vector: ContentVector,
+    ) {
+        internal val baseToTagged = HashMap<String, Pair<String, Double>>(vector.topics.size)
+        internal val untagged = HashMap<String, Double>(vector.topics.size)
+        internal val magnitudeSquared: Double
+
+        init {
+            for ((k, v) in vector.topics) {
+                if (k.contains(':')) {
+                    baseToTagged.putIfAbsent(k.substringBefore(':'), k to v)
+                } else {
+                    untagged[k] = v
+                }
+            }
+            var sum = 0.0
+            vector.topics.values.forEach { sum += it * it }
+            magnitudeSquared = sum
+        }
+    }
+
+    /** Same result as [calculateCosineSimilarity] with [user] as the first argument. */
+    fun calculateCosineSimilarity(
+        user: PreparedVector,
+        content: ContentVector,
+    ): Double {
+        // The index covers the larger side; when the content is not the smaller one, fall back so
+        // the migration matches run in the same direction as before.
+        if (user.vector.topics.size <= content.topics.size) return calculateCosineSimilarity(user.vector, content)
+        val userVector = user.vector
+        val scalarScore = scalarSimilarity(userVector, content)
+        if (content.topics.isEmpty()) return scalarScore * SCALAR_ONLY_DAMP
+
+        var dotProduct = 0.0
+        var hasIntersection = false
+        for ((key, smallVal) in content.topics) {
+            val exactMatch = userVector.topics[key]
+            if (exactMatch != null) {
+                dotProduct += smallVal * exactMatch
+                hasIntersection = true
+                continue
+            }
+            if (!key.contains(":")) {
+                val taggedMatch = user.baseToTagged[key]
+                if (taggedMatch != null) {
+                    dotProduct += smallVal * taggedMatch.second * 0.3
+                    hasIntersection = true
+                }
+            } else {
+                val untaggedMatch = user.untagged[key.substringBefore(":")]
+                if (untaggedMatch != null) {
+                    dotProduct += smallVal * untaggedMatch * 0.3
+                    hasIntersection = true
+                }
+            }
+        }
+        if (!hasIntersection) return scalarScore * SCALAR_ONLY_DAMP
+
+        var magnitudeB = 0.0
+        content.topics.values.forEach { magnitudeB += it * it }
+        val topicSim =
+            if (user.magnitudeSquared > 0 && magnitudeB > 0) {
+                dotProduct / (sqrt(user.magnitudeSquared) * sqrt(magnitudeB))
+            } else {
+                0.0
+            }
+        return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
+    }
+
+    private fun scalarSimilarity(
+        user: ContentVector,
+        content: ContentVector,
+    ): Double {
+        val durationSim = 1.0 - abs(user.duration - content.duration)
+        val pacingSim = 1.0 - abs(user.pacing - content.pacing)
+        val complexitySim = 1.0 - abs(user.complexity - content.complexity)
+        return (durationSim * DURATION_SIMILARITY_WEIGHT) +
+            (pacingSim * PACING_SIMILARITY_WEIGHT) +
+            (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
+    }
 
     fun calculateCosineSimilarity(
         user: ContentVector,
@@ -135,10 +231,14 @@ internal object NeuroVectorMath {
         return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
     }
 
+    /** How strongly an event of [rate] decays everything it does not touch, from 0 to 1. */
+    fun decayStrength(rate: Double): Double = (abs(rate) / DECAY_REFERENCE_RATE).coerceIn(0.0, 1.0)
+
     fun adjustVector(
         current: ContentVector,
         target: ContentVector,
         baseRate: Double,
+        decayStrength: Double = 1.0,
     ): ContentVector {
         val newTopics = current.topics.toMutableMap()
         val isNegative = baseRate < 0
@@ -177,7 +277,7 @@ internal object NeuroVectorMath {
                         entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
                         else -> EMERGING_DECAY_RATE
                     }
-                entry.setValue(entry.value * tieredDecay)
+                entry.setValue(entry.value * tieredDecay.pow(decayStrength))
             }
             if (!isCurrentTarget && entry.value < TOPIC_PRUNE_THRESHOLD) {
                 iterator.remove()
@@ -246,16 +346,83 @@ internal object NeuroVectorMath {
         topK: Int,
     ): ContentVector {
         if (source.topics.isEmpty()) return current
+        return plantKeys(current, selectPlantKeys(source, topK), floor)
+    }
+
+    /** How much of its weight a word keeps when a stronger phrase of the same video contains it. */
+    const val PHRASE_WORD_SHARE = 0.5
+
+    /**
+     * The vector a positive signal learns from. A word gives way to a phrase of the same video that
+     * outweighs it, so "guitar playalong" becomes the interest rather than "guitar" alone. A pair the
+     * engine does not yet know is a phrase weighs less than its words and takes nothing from them.
+     */
+    fun phraseFirst(
+        vector: ContentVector,
+        wordShare: Double = PHRASE_WORD_SHARE,
+    ): ContentVector {
+        val strongestPhraseByWord = HashMap<String, Double>()
+        vector.topics.forEach { (key, weight) ->
+            val base = NeuroScoring.stripDomainTag(key)
+            if (' ' in base) base.split(' ').forEach { strongestPhraseByWord.merge(it, weight, ::maxOf) }
+        }
+        if (strongestPhraseByWord.isEmpty()) return vector
+        return vector.copy(
+            topics =
+                vector.topics.mapValues { (key, weight) ->
+                    val base = NeuroScoring.stripDomainTag(key)
+                    val phrase = strongestPhraseByWord[base]
+                    if (' ' !in base && phrase != null && phrase >= weight) weight * wordShare else weight
+                },
+        )
+    }
+
+    /**
+     * Phrase keys first, and never the words of a planted phrase: planting
+     * "hip hop" beside "hip" and "hop" gives generic words the same weight as
+     * the interest itself.
+     */
+    fun selectPlantKeys(
+        source: ContentVector,
+        topK: Int,
+    ): List<String> {
+        val ranked =
+            source.topics.entries
+                .sortedByDescending { it.value }
+                .map { it.key }
+                .filter { NeuroText.isTopicSized(NeuroScoring.stripDomainTag(it)) }
+        val phrases = ranked.filter { ' ' in NeuroScoring.stripDomainTag(it) }.take(topK)
+        val phraseWords = phrases.flatMap { NeuroScoring.stripDomainTag(it).split(' ') }.toSet()
+        val words = ranked.filter { ' ' !in it && NeuroScoring.stripDomainTag(it) !in phraseWords }
+        return (phrases + words).take(topK)
+    }
+
+    fun plantKeys(
+        current: ContentVector,
+        keys: List<String>,
+        floor: Double,
+    ): ContentVector {
+        if (keys.isEmpty()) return current
         val planted = current.topics.toMutableMap()
-        source.topics.entries
-            .sortedByDescending { it.value }
-            .asSequence()
-            .filter { it.key.length >= 3 }
-            .take(topK)
-            .forEach { (topic, _) ->
-                if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
-            }
+        keys.forEach { topic ->
+            if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
+        }
         return current.copy(topics = planted)
+    }
+
+    /** Keeps the [max] strongest topics; [protected] keys always stay. */
+    fun capTopics(
+        vector: ContentVector,
+        max: Int,
+        protected: Set<String> = emptySet(),
+    ): ContentVector {
+        if (vector.topics.size <= max) return vector
+        val kept =
+            vector.topics.entries
+                .sortedByDescending { it.value }
+                .filterIndexed { index, entry -> index < max || NeuroScoring.stripDomainTag(entry.key) in protected }
+                .associate { it.key to it.value }
+        return vector.copy(topics = kept)
     }
 
     fun normalizeTopicVector(topics: MutableMap<String, Double>): Map<String, Double> {

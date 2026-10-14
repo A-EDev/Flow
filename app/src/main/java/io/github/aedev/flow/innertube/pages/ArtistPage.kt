@@ -16,6 +16,7 @@ import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.models.getItems
 import io.github.aedev.flow.innertube.models.oddElements
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
+import io.github.aedev.flow.innertube.models.splitBySeparator
 import io.github.aedev.flow.innertube.models.watchPlaylistEndpointFor
 
 enum class ArtistSectionKind {
@@ -33,6 +34,10 @@ data class ArtistSection(
     val items: List<YTItem>,
     val moreEndpoint: BrowseEndpoint?,
     val kind: ArtistSectionKind = ArtistSectionKind.OTHER,
+    /** The release shelf the section's discography link opens, when it has one. */
+    val discographyKind: ArtistSectionKind? = null,
+    /** Every item's subtitle names its release type ("Single • 2026"), as the singles shelf does. */
+    val showsReleaseType: Boolean = false,
 )
 
 data class ArtistPage(
@@ -126,7 +131,11 @@ data class ArtistPage(
                                 ?.navigationEndpoint
                                 ?.watchEndpoint,
                     ),
-                sections = classify(sectionContents.mapNotNull(::fromSectionListRendererContent)),
+                sections =
+                    classify(
+                        sections = sectionContents.mapNotNull(::fromSectionListRendererContent),
+                        artistChannelIds = setOfNotNull(browseId, header?.subscriptionButton?.subscribeButtonRenderer?.channelId),
+                    ),
                 description =
                     header
                         ?.description
@@ -150,10 +159,17 @@ data class ArtistPage(
             )
         }
 
-        fun classify(sections: List<ArtistSection>): List<ArtistSection> {
-            var releaseShelves = 0
+        /**
+         * Types each section without reading its title, which is localized. [artistChannelIds] tells
+         * the artist's own playlists apart from the ones they are featured on.
+         */
+        fun classify(
+            sections: List<ArtistSection>,
+            artistChannelIds: Set<String> = emptySet(),
+        ): List<ArtistSection> {
+            val releaseKinds = releaseKinds(sections)
             var songCarousels = 0
-            return sections.map { section ->
+            return sections.mapIndexed { index, section ->
                 val items = section.items
                 val kind =
                     when {
@@ -161,10 +177,8 @@ data class ArtistPage(
                             ArtistSectionKind.TOP_SONGS
                         }
 
-                        items.all { it is AlbumItem } && section.moreEndpoint?.browseId?.startsWith(
-                            ARTIST_RELEASES_BROWSE_PREFIX,
-                        ) == true -> {
-                            if (releaseShelves++ == 0) ArtistSectionKind.ALBUMS else ArtistSectionKind.SINGLES
+                        index in releaseKinds -> {
+                            releaseKinds.getValue(index)
                         }
 
                         items.all { it is SongItem } -> {
@@ -175,7 +189,9 @@ data class ArtistPage(
                             ArtistSectionKind.RELATED_ARTISTS
                         }
 
-                        items.all { it is PlaylistItem } && section.moreEndpoint == null -> {
+                        items.all { it is PlaylistItem } &&
+                            section.moreEndpoint == null &&
+                            items.none { (it as PlaylistItem).author?.id?.let(artistChannelIds::contains) == true } -> {
                             ArtistSectionKind.FEATURED_ON
                         }
 
@@ -185,6 +201,31 @@ data class ArtistPage(
                     }
                 if (kind == section.kind) section else section.copy(kind = kind)
             }
+        }
+
+        /**
+         * Albums and Singles & EPs are all-album shelves. A shelf's discography link says which it is,
+         * but an artist with only a few releases gets no link, so the rest are taken in page order,
+         * where Albums comes first. A lone unlinked shelf goes by its subtitles instead.
+         */
+        private fun releaseKinds(sections: List<ArtistSection>): Map<Int, ArtistSectionKind> {
+            val shelves =
+                sections.withIndex().filter { (_, section) ->
+                    section.kind != ArtistSectionKind.TOP_SONGS && section.items.isNotEmpty() && section.items.all { it is AlbumItem }
+                }
+            val kinds = mutableMapOf<Int, ArtistSectionKind>()
+            shelves.forEach { (index, section) ->
+                section.discographyKind?.takeIf { it !in kinds.values }?.let { kinds[index] = it }
+            }
+            val open = listOf(ArtistSectionKind.ALBUMS, ArtistSectionKind.SINGLES).filterNot { it in kinds.values }
+            val unlinked = shelves.filterNot { it.index in kinds }
+            if (unlinked.size == 1 && open.size == 2) {
+                val shelf = unlinked.single()
+                kinds[shelf.index] = if (shelf.value.showsReleaseType) ArtistSectionKind.SINGLES else ArtistSectionKind.ALBUMS
+            } else {
+                unlinked.zip(open).forEach { (shelf, kind) -> kinds[shelf.index] = kind }
+            }
+            return kinds
         }
 
         fun fromSectionListRendererContent(content: SectionListRenderer.Content): ArtistSection? =
@@ -218,14 +259,19 @@ data class ArtistPage(
         }
 
         private fun fromMusicCarouselShelfRenderer(renderer: MusicCarouselShelfRenderer): ArtistSection? {
+            val header = renderer.header?.musicCarouselShelfBasicHeaderRenderer ?: return null
+            val titleRun = header.title.runs?.firstOrNull() ?: return null
+            val moreEndpoint =
+                header.moreContentButton
+                    ?.buttonRenderer
+                    ?.navigationEndpoint
+                    ?.browseEndpoint
+            val discographyEndpoint =
+                listOfNotNull(moreEndpoint, titleRun.navigationEndpoint?.browseEndpoint)
+                    .firstOrNull { it.browseId.startsWith(ARTIST_RELEASES_BROWSE_PREFIX) }
+            val subtitles = renderer.contents.mapNotNull { it.musicTwoRowItemRenderer?.subtitle?.runs }
             return ArtistSection(
-                title =
-                    renderer.header
-                        ?.musicCarouselShelfBasicHeaderRenderer
-                        ?.title
-                        ?.runs
-                        ?.firstOrNull()
-                        ?.text ?: return null,
+                title = titleRun.text,
                 items =
                     renderer.contents
                         .mapNotNull { content ->
@@ -235,11 +281,9 @@ data class ArtistPage(
                                 fromMusicResponsiveListItemRenderer(listItemRenderer)
                             }
                         }.ifEmpty { null } ?: return null,
-                moreEndpoint =
-                    renderer.header.musicCarouselShelfBasicHeaderRenderer.moreContentButton
-                        ?.buttonRenderer
-                        ?.navigationEndpoint
-                        ?.browseEndpoint,
+                moreEndpoint = moreEndpoint,
+                discographyKind = ArtistDiscographyParams.releaseKind(discographyEndpoint?.params),
+                showsReleaseType = subtitles.isNotEmpty() && subtitles.all { it.splitBySeparator().size > 1 },
             )
         }
 
@@ -380,14 +424,18 @@ data class ArtistPage(
                                 ?.firstOrNull()
                                 ?.text ?: return null,
                         author =
-                            Artist(
-                                name =
-                                    renderer.subtitle
-                                        ?.runs
-                                        ?.lastOrNull()
-                                        ?.text ?: return null,
-                                id = null,
-                            ),
+                            renderer.subtitle
+                                ?.runs
+                                ?.firstOrNull { it.navigationEndpoint?.browseEndpoint != null }
+                                ?.let { Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId) }
+                                ?: Artist(
+                                    name =
+                                        renderer.subtitle
+                                            ?.runs
+                                            ?.lastOrNull()
+                                            ?.text ?: return null,
+                                    id = null,
+                                ),
                         songCountText = null,
                         thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         playEndpoint =

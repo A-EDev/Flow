@@ -29,7 +29,7 @@ fun TvPlaybackSettingsPane(
     val autoplay by playerPreferences.autoplayEnabled.collectAsStateWithLifecycle(initialValue = true)
     val skipSilence by playerPreferences.skipSilenceEnabled.collectAsStateWithLifecycle(initialValue = false)
     val stableVolume by playerPreferences.stableVolumeEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val subtitles by playerPreferences.subtitlesEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val autoCaptions by playerPreferences.autoEnableSubtitles.collectAsStateWithLifecycle(initialValue = false)
     val ambientMode by playerPreferences.videoAmbientModeEnabled.collectAsStateWithLifecycle(initialValue = false)
 
     LazyColumn(
@@ -54,9 +54,10 @@ fun TvPlaybackSettingsPane(
         }
         item(key = "subtitles") {
             TvToggleRow(
-                label = stringResource(R.string.filter_subtitles),
-                checked = subtitles,
-                onCheckedChange = { scope.launch { playerPreferences.setSubtitlesEnabled(it) } },
+                label = stringResource(R.string.player_settings_auto_enable_subtitles),
+                supportingText = stringResource(R.string.player_settings_auto_enable_subtitles_subtitle),
+                checked = autoCaptions,
+                onCheckedChange = { scope.launch { playerPreferences.setAutoEnableSubtitles(it) } },
             )
         }
         item(key = "skip-silence") {

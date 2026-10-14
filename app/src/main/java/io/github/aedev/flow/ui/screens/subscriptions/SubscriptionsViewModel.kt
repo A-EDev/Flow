@@ -1,31 +1,26 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.backup.BackupCoordinator
+import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
-import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Channel
-import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toUiModel
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import io.github.aedev.flow.data.subscriptions.withHighQualityThumbnails
-import io.github.aedev.flow.data.subscriptions.withRelativeUploadDates
-import io.github.aedev.flow.data.subscriptions.withStableUploadSortKeys
-import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
-import io.github.aedev.flow.utils.premiereDateText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -41,12 +36,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel as EventChannel
 
 @HiltViewModel
 class SubscriptionsViewModel
@@ -57,6 +53,8 @@ class SubscriptionsViewModel
         private val playerPreferences: PlayerPreferences,
         private val subscriptionGroupDao: SubscriptionGroupDao,
         private val subscriptionWatchedVideos: SubscriptionWatchedVideos,
+        private val neuroEngine: FlowNeuroEngine,
+        private val backupCoordinator: BackupCoordinator,
     ) : ViewModel() {
         companion object {
             private const val TAG = "SubsViewModel"
@@ -72,6 +70,7 @@ class SubscriptionsViewModel
 
         private var latestFeedVideos: List<Video> = emptyList()
         private var watchedVideoIds: Set<String> = emptySet()
+        private var watchedShortIds: Set<String> = emptySet()
         private var unplayableVideoIds: Set<String> = emptySet()
         private var excludedShortsChannelIds: Set<String> = emptySet()
         private val durationEnrichmentAttemptedAt = mutableMapOf<String, Long>()
@@ -175,8 +174,9 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                subscriptionWatchedVideos.ids.collect { ids ->
-                    watchedVideoIds = ids
+                combine(subscriptionWatchedVideos.ids, subscriptionWatchedVideos.shortIds, ::Pair).collect { (videoIds, shortIds) ->
+                    watchedVideoIds = videoIds
+                    watchedShortIds = shortIds
                     refreshVisibleFeed()
                 }
             }
@@ -201,6 +201,14 @@ class SubscriptionsViewModel
                         val notifStates = allSubs.associate { it.channelId to it.isNotificationEnabled }
                         _uiState.update { it.copy(notificationStates = notifStates) }
                     }
+            }
+
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                FeedInvalidationBus.events.collect { event ->
+                    if (event is FeedInvalidationBus.Event.ChannelBlocked || event is FeedInvalidationBus.Event.NotInterested) {
+                        refreshVisibleFeed()
+                    }
+                }
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -309,78 +317,31 @@ class SubscriptionsViewModel
         }
 
         private suspend fun updateVideos(videos: List<Video>) {
-            val sortNow = System.currentTimeMillis()
-            val unplayableIds = unplayableVideoIds
-            val sortedVideos =
-                videos
-                    .withHighQualityThumbnails()
-                    .withSubscriptionAvatars()
-                    .filter { video -> video.id !in unplayableIds }
-                    .filter { video ->
-                        when {
-                            video.isShort -> _uiState.value.showSubscriptionShorts
-                            video.isLive -> _uiState.value.showSubscriptionLive
-                            else -> _uiState.value.showSubscriptionVideos
-                        }
-                    }.withStableUploadSortKeys(sortNow)
-
-            val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
-
-            // ── 1 short per channel (most recent first) ──────────────────
-            val latestShortPerChannel =
-                shorts
-                    .groupBy { it.channelId }
-                    .flatMap { (_, channelShorts) -> channelShorts.withStableUploadSortKeys(sortNow).take(1) }
-                    .withStableUploadSortKeys(sortNow)
-
-            val watchedIds = watchedVideoIds
-            val unwatchedShorts =
-                if (watchedIds.isNotEmpty()) {
-                    latestShortPerChannel.filter { it.id !in watchedIds }
-                } else {
-                    latestShortPerChannel
-                }
-
-            val filteredRegular =
-                if (watchedIds.isNotEmpty()) {
-                    regular.filter { it.id !in watchedIds }
-                } else {
-                    regular
-                }
-
-            val selectedGroup = _uiState.value.selectedGroupName
-            val allowedChannelIds: Set<String>? =
-                if (selectedGroup != null) {
-                    _uiState.value.groups
-                        .find { it.name == selectedGroup }
-                        ?.channelIds
-                        ?.toHashSet()
-                } else {
-                    null
-                }
-
-            val groupFilteredRegular =
-                if (allowedChannelIds != null) {
-                    filteredRegular.filter { it.channelId in allowedChannelIds }
-                } else {
-                    filteredRegular
-                }
-
-            val groupFilteredShorts =
-                (
-                    if (allowedChannelIds != null) {
-                        unwatchedShorts.filter { it.channelId in allowedChannelIds }
-                    } else {
-                        unwatchedShorts
-                    }
-                ).filter { it.channelId !in excludedShortsChannelIds }
-
-            _uiState.update {
-                it.copy(
-                    recentVideos = groupFilteredRegular.withRelativeUploadDates(sortNow),
-                    shorts = groupFilteredShorts.withRelativeUploadDates(sortNow),
+            val state = _uiState.value
+            val sections =
+                subscriptionFeedSections(
+                    videos = videos.withHighQualityThumbnails().withSubscriptionAvatars(),
+                    filters =
+                        SubscriptionFeedFilters(
+                            showVideos = state.showSubscriptionVideos,
+                            showShorts = state.showSubscriptionShorts,
+                            showLive = state.showSubscriptionLive,
+                            watchedVideoIds = watchedVideoIds,
+                            watchedShortIds = watchedShortIds,
+                            unplayableVideoIds = unplayableVideoIds,
+                            allowedChannelIds =
+                                state.selectedGroupName?.let { name ->
+                                    state.groups
+                                        .find { it.name == name }
+                                        ?.channelIds
+                                        ?.toHashSet()
+                                },
+                            excludedShortsChannelIds = excludedShortsChannelIds,
+                            exclusions = neuroEngine.feedExclusions(),
+                        ),
+                    now = System.currentTimeMillis(),
                 )
-            }
+            _uiState.update { it.copy(recentVideos = sections.recentVideos, shorts = sections.shorts) }
         }
 
         private fun List<Video>.withSubscriptionAvatars(): List<Video> {
@@ -452,7 +413,7 @@ class SubscriptionsViewModel
                                     batch
                                         .map { video ->
                                             async(PerformanceDispatcher.networkIO) {
-                                                fetchDurationFromPlayerMetadata(video)
+                                                fetchSubscriptionPlayerMetadata(video, DURATION_METADATA_TIMEOUT_MS)
                                             }
                                         }.awaitAll()
                                 }
@@ -469,23 +430,8 @@ class SubscriptionsViewModel
 
                         val mergedVideos =
                             latestFeedVideos
-                                .map { video ->
-                                    enrichedById[video.id]?.let { enriched ->
-                                        video.copy(
-                                            title = enriched.title.takeIf { it.isNotBlank() } ?: video.title,
-                                            channelName = enriched.channelName.takeIf { it.isNotBlank() } ?: video.channelName,
-                                            channelId = enriched.channelId.takeIf { it.isNotBlank() } ?: video.channelId,
-                                            thumbnailUrl = enriched.thumbnailUrl.takeIf { it.isNotBlank() } ?: video.thumbnailUrl,
-                                            duration = enriched.duration.takeIf { it > 0 } ?: video.duration,
-                                            viewCount = maxOf(video.viewCount, enriched.viewCount),
-                                            isLive = enriched.isLive || (!enriched.isUpcoming && video.isLive),
-                                            isUpcoming = enriched.isUpcoming,
-                                            isScheduledLive = enriched.isScheduledLive,
-                                            timestamp = if (enriched.isUpcoming) enriched.timestamp else video.timestamp,
-                                            uploadDate = if (enriched.isUpcoming) enriched.uploadDate else video.uploadDate,
-                                        )
-                                    } ?: video
-                                }.withHighQualityThumbnails()
+                                .map { video -> enrichedById[video.id]?.let(video::withPlayerMetadata) ?: video }
+                                .withHighQualityThumbnails()
                                 .withSubscriptionAvatars()
 
                         latestFeedVideos = mergedVideos
@@ -505,54 +451,6 @@ class SubscriptionsViewModel
                 }
         }
 
-        private suspend fun fetchDurationFromPlayerMetadata(video: Video): Video? =
-            withTimeoutOrNull(DURATION_METADATA_TIMEOUT_MS) {
-                val response =
-                    YouTube.player(video.id, client = YouTubeClient.ANDROID).getOrNull()
-                        ?: YouTube.player(video.id, client = YouTubeClient.MOBILE).getOrNull()
-                        ?: return@withTimeoutOrNull null
-                val details = response.videoDetails ?: return@withTimeoutOrNull null
-                // The feed only knows the day the stream was announced; the player endpoint knows
-                // the day it starts, and until then "live content" is a scheduled stream, not a live one.
-                val scheduledStartMs =
-                    response.playabilityStatus.liveStreamability
-                        ?.liveStreamabilityRenderer
-                        ?.offlineSlate
-                        ?.liveStreamOfflineSlateRenderer
-                        ?.scheduledStartTime
-                        ?.toLongOrNull()
-                        ?.times(1000L)
-                        ?.takeIf { it > System.currentTimeMillis() }
-                val isUpcoming =
-                    scheduledStartMs != null ||
-                        response.playabilityStatus.status.equals("LIVE_STREAM_OFFLINE", ignoreCase = true)
-                val isLive = !isUpcoming && (details.isLive == true || details.isLiveContent == true)
-                val duration = details.lengthSeconds.toIntOrNull()?.takeIf { it > 0 } ?: 0
-                if (!isUpcoming && !isLive && duration <= 0) return@withTimeoutOrNull null
-
-                val bestThumbnail =
-                    details.thumbnail
-                        ?.thumbnails
-                        ?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }
-                        ?.url
-                        ?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, it) }
-                        ?: ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, video.thumbnailUrl)
-
-                video.copy(
-                    title = details.title?.takeIf { it.isNotBlank() } ?: video.title,
-                    channelName = details.author?.takeIf { it.isNotBlank() } ?: video.channelName,
-                    channelId = details.channelId.takeIf { it.isNotBlank() } ?: video.channelId,
-                    thumbnailUrl = bestThumbnail,
-                    duration = if (isLive || isUpcoming) 0 else duration,
-                    viewCount = maxOf(video.viewCount, details.viewCount?.toLongOrNull() ?: 0L),
-                    isLive = isLive || (!isUpcoming && video.isLive),
-                    isUpcoming = isUpcoming,
-                    isScheduledLive = isUpcoming && details.isLiveContent == true,
-                    timestamp = scheduledStartMs ?: video.timestamp,
-                    uploadDate = scheduledStartMs?.let(::premiereDateText) ?: video.uploadDate,
-                )
-            }
-
         fun selectGroup(groupName: String?) {
             _uiState.update { it.copy(selectedGroupName = groupName) }
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -565,16 +463,7 @@ class SubscriptionsViewModel
             name: String,
             channelIds: List<String>,
         ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val nextOrder = subscriptionGroupDao.getAllGroupsOnce().size
-                subscriptionGroupDao.insertGroup(
-                    SubscriptionGroupEntity(
-                        name = name,
-                        channelIds = channelIds.joinToString(","),
-                        sortOrder = nextOrder,
-                    ),
-                )
-            }
+            viewModelScope.launch(PerformanceDispatcher.diskIO) { subscriptionGroupDao.appendGroup(name, channelIds) }
         }
 
         fun updateGroup(
@@ -583,22 +472,10 @@ class SubscriptionsViewModel
             channelIds: List<String>,
         ) {
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val existing = subscriptionGroupDao.getAllGroupsOnce().find { it.name == oldName }
-                if (existing != null) {
-                    if (oldName != newName) {
-                        subscriptionGroupDao.deleteGroup(oldName)
-                        subscriptionGroupDao.insertGroup(
-                            existing.copy(name = newName, channelIds = channelIds.joinToString(",")),
-                        )
-                    } else {
-                        subscriptionGroupDao.updateGroup(
-                            existing.copy(channelIds = channelIds.joinToString(",")),
-                        )
-                    }
-                    if (_uiState.value.selectedGroupName == oldName) {
-                        _uiState.update { it.copy(selectedGroupName = newName) }
-                        playerPreferences.setSelectedSubscriptionGroup(newName)
-                    }
+                val edited = subscriptionGroupDao.editGroup(oldName, newName, channelIds)
+                if (edited && _uiState.value.selectedGroupName == oldName) {
+                    _uiState.update { it.copy(selectedGroupName = newName) }
+                    playerPreferences.setSelectedSubscriptionGroup(newName)
                 }
             }
         }
@@ -616,78 +493,15 @@ class SubscriptionsViewModel
             fromIndex: Int,
             toIndex: Int,
         ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val groups = subscriptionGroupDao.getAllGroupsOnce().toMutableList()
-                if (fromIndex !in groups.indices || toIndex !in groups.indices || fromIndex == toIndex) {
-                    return@launch
-                }
-
-                groups.add(toIndex, groups.removeAt(fromIndex))
-                subscriptionGroupDao.insertAll(groups.mapIndexed { index, group -> group.copy(sortOrder = index) })
-            }
+            viewModelScope.launch(PerformanceDispatcher.diskIO) { subscriptionGroupDao.moveGroup(fromIndex, toIndex) }
         }
 
-        fun moveGroup(
-            name: String,
-            direction: Int,
-        ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val groups = subscriptionGroupDao.getAllGroupsOnce().toMutableList()
-                val currentIndex = groups.indexOfFirst { it.name == name }
-                val targetIndex = (currentIndex + direction).coerceIn(0, groups.lastIndex)
-                if (currentIndex < 0 || currentIndex == targetIndex) return@launch
+        private val _importMessages = EventChannel<String>(EventChannel.BUFFERED)
+        val importMessages = _importMessages.receiveAsFlow()
 
-                val moved = groups.removeAt(currentIndex)
-                groups.add(targetIndex, moved)
-                subscriptionGroupDao.insertAll(groups.mapIndexed { index, group -> group.copy(sortOrder = index) })
-            }
-        }
-
-        fun importNewPipeBackup(
-            uri: android.net.Uri,
-            context: Context,
-        ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                try {
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val jsonString = inputStream.bufferedReader().use { it.readText() }
-                        val jsonObject = org.json.JSONObject(jsonString)
-
-                        if (jsonObject.has("subscriptions")) {
-                            val subscriptionsArray = jsonObject.getJSONArray("subscriptions")
-
-                            for (i in 0 until subscriptionsArray.length()) {
-                                val item = subscriptionsArray.getJSONObject(i)
-                                val url = item.optString("url")
-                                val name = item.optString("name")
-
-                                if (url.isNotEmpty() && name.isNotEmpty()) {
-                                    var channelId = ""
-                                    if (url.contains("/channel/")) {
-                                        channelId = url.substringAfter("/channel/")
-                                    } else if (url.contains("/user/")) {
-                                        channelId = url.substringAfter("/user/")
-                                    }
-                                    if (channelId.contains("/")) channelId = channelId.substringBefore("/")
-                                    if (channelId.contains("?")) channelId = channelId.substringBefore("?")
-
-                                    if (channelId.isNotEmpty()) {
-                                        subscriptionRepository.subscribe(
-                                            ChannelSubscription(
-                                                channelId = channelId,
-                                                channelName = name,
-                                                channelThumbnail = "", // Will load lazily or show placeholder
-                                                subscribedAt = System.currentTimeMillis(),
-                                            ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "NewPipe backup import failed", e)
-                }
+        fun importNewPipeBackup(uri: android.net.Uri) {
+            viewModelScope.launch {
+                backupCoordinator.importNewPipeForResult(uri).takeIf { it.isNotEmpty() }?.let { _importMessages.send(it) }
             }
         }
 
@@ -780,51 +594,3 @@ class SubscriptionsViewModel
             }
         }
     }
-
-enum class SubscriptionSortMode {
-    DEFAULT,
-    NAME_ASC,
-    RECENTLY_UPDATED,
-    ;
-
-    companion object {
-        fun fromStorage(value: String?): SubscriptionSortMode = entries.firstOrNull { it.name == value } ?: DEFAULT
-    }
-}
-
-data class SubscriptionsUiState(
-    val subscribedChannels: List<Channel> = emptyList(),
-    val recentVideos: List<Video> = emptyList(),
-    val shorts: List<Video> = emptyList(),
-    val selectedChannelId: String? = null,
-    val isLoading: Boolean = false,
-    val isFullWidthView: Boolean = false,
-    val sortMode: SubscriptionSortMode = SubscriptionSortMode.DEFAULT,
-    val isShortsShelfEnabled: Boolean = true,
-    val notificationStates: Map<String, Boolean> = emptyMap(),
-    val groups: List<SubscriptionGroup> = emptyList(),
-    val selectedGroupName: String? = null,
-    val refreshProcessedChannels: Int = 0,
-    val refreshTotalChannels: Int = 0,
-    val lastRefreshTime: Long = 0L,
-    val lastRefreshText: String? = null,
-    val lastRefreshVideoCount: Int = 0,
-    val showLastRefreshVideoCount: Boolean = true,
-    val showSubscriptionVideos: Boolean = true,
-    val showSubscriptionShorts: Boolean = true,
-    val showSubscriptionLive: Boolean = true,
-    val excludedShortsChannelIds: Set<String> = emptySet(),
-    /** Channels the last refresh could not reach at all; surfaced instead of silently showing less. */
-    val failedChannelIds: Set<String> = emptySet(),
-    val failedChannelReasons: Map<String, String> = emptyMap(),
-) {
-    /** Display names for [failedChannelIds], falling back to the raw id for an unknown channel. */
-    val failedChannelNames: List<String>
-        get() {
-            if (failedChannelIds.isEmpty()) return emptyList()
-            val namesById = subscribedChannels.associate { it.id to it.name }
-            return failedChannelIds
-                .map { id -> namesById[id]?.takeIf { it.isNotBlank() } ?: id }
-                .sorted()
-        }
-}

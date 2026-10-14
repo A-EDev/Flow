@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.music
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,29 +20,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
@@ -68,40 +62,7 @@ fun ArtistItemsScreen(
     val artistItemsPage = uiState.artistItemsPage
     val isLoading = uiState.isArtistItemsLoading
     val isMoreLoading = uiState.isMoreLoading
-    val context = LocalContext.current
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
-
-    selectedTrack?.let { track ->
-        MusicQuickActionsSheet(
-            track = track,
-            onDismiss = { selectedTrack = null },
-            onViewArtist = { artistId -> if (artistId.isNotEmpty()) onArtistClick(artistId) },
-            onViewAlbum = { albumId -> if (albumId.isNotEmpty()) onAlbumClick(albumId) },
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, track.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(R.string.share_message_template, track.title, track.artist, track.videoId),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-        )
-    }
-
-    selectedCollection?.let { collection ->
-        MusicCollectionQuickActionsSheet(
-            item = collection,
-            onDismiss = { selectedCollection = null },
-            onOpen = {
-                if (collection.isAlbum) onAlbumClick(collection.id) else onPlaylistClick(collection.id)
-            },
-        )
-    }
+    val musicMenus = LocalMusicMenus.current
 
     LaunchedEffect(browseId, params) {
         viewModel.loadArtistItems(browseId, params)
@@ -155,7 +116,7 @@ fun ArtistItemsScreen(
                 if (artistItemsPage.items.firstOrNull() is SongItem) {
                     LazyColumn(
                         state = lazyListState,
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
@@ -164,8 +125,8 @@ fun ArtistItemsScreen(
                                     track = track,
                                     isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                     onClick = { onTrackClick(item) },
-                                    onLongClick = { selectedTrack = track },
-                                    onMenuClick = { selectedTrack = track },
+                                    onLongClick = { musicMenus.openSong(track) },
+                                    onMenuClick = { musicMenus.openSong(track) },
                                 )
                             }
                         }
@@ -178,14 +139,14 @@ fun ArtistItemsScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(GridCellMinWidth),
                         state = lazyGridState,
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = flowBottomContentPadding()),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             val onAction: (() -> Unit)? =
                                 when (item) {
-                                    is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
+                                    is AlbumItem, is PlaylistItem -> ({ item.toCollectionActionItem()?.let(musicMenus::openCollection) })
                                     else -> null
                                 }
                             MusicCollectionCard(

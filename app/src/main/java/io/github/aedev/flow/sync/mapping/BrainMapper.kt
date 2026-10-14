@@ -17,6 +17,8 @@ import io.github.aedev.flow.sync.merge.BrainCrdtState
 import io.github.aedev.flow.sync.merge.Crdt
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * Mirror of the app's on-disk `SerializableBrain` (NeuroStorage, schemaVersion 13)
@@ -100,6 +102,20 @@ object BrainMapper {
 
     fun serialize(brain: SBrain): ByteArray = json.encodeToString(SBrain.serializer(), brain).toByteArray(Charsets.UTF_8)
 
+    /**
+     * [merged] written over the local brain's own JSON. [SBrain] mirrors only the fields sync
+     * carries; importing it alone replaced the whole brain and reset every field added since
+     * (seed cooldowns, cluster rotation, tag affinities, time-bucket counts) on each merge.
+     */
+    fun serializeOver(
+        localJson: ByteArray,
+        merged: SBrain,
+    ): ByteArray {
+        val local = json.parseToJsonElement(String(localJson, Charsets.UTF_8)).jsonObject
+        val synced = json.encodeToJsonElement(SBrain.serializer(), merged).jsonObject
+        return json.encodeToString(JsonObject.serializer(), JsonObject(local + synced)).toByteArray(Charsets.UTF_8)
+    }
+
     // --- vector conversions ---
 
     private fun SVector.toCanonical() = CanonicalVector.of(topics, duration, pacing, complexity, isLive)
@@ -147,17 +163,18 @@ object BrainMapper {
 
     /**
      * Build the canonical brain. Per-device counters, OR-Set stamps and the wire-only fields come
-     * from the sidecar [state]; every LWW register is stamped with this snapshot's [hlc] so a
-     * phone-side write actually wins on the peer instead of relying on the peer's ingest-time
-     * stamping (which would make it lose every merge).
+     * from the sidecar [state]. An LWW register keeps the stamp it was last merged with while its
+     * value is unchanged and takes this snapshot's [hlc] only once it changes here, so a local edit
+     * wins on the peer without an old value overriding the peer's newer edit.
      */
     fun toCanonical(
         brain: SBrain,
         deviceId: String,
         hlc: String,
         state: BrainCrdtState,
-    ): CanonicalBrain =
-        CanonicalBrain(
+    ): CanonicalBrain {
+        val synced = state.syncedLww
+        return CanonicalBrain(
             schema = brain.schemaVersion,
             deviceId = deviceId,
             hlc = hlc,
@@ -190,15 +207,17 @@ object BrainMapper {
             sets = state.sets,
             lwwMaps =
                 BrainLwwMaps(
-                    suppressedVideoIds = brain.suppressedVideoIds.mapValues { Lww(it.value, hlc) },
-                    suppressedChannels = brain.suppressedChannels.mapValues { Lww(it.value, hlc) },
+                    suppressedVideoIds = stamp(brain.suppressedVideoIds, synced.suppressedVideoIds, hlc),
+                    suppressedChannels = stamp(brain.suppressedChannels, synced.suppressedChannels, hlc),
                     rejectionPatterns =
-                        brain.rejectionPatterns.mapValues {
-                            Lww(CanonicalRejectionSignal(it.value.count, it.value.lastRejectedAt), hlc)
-                        },
+                        stamp(
+                            brain.rejectionPatterns.mapValues { CanonicalRejectionSignal(it.value.count, it.value.lastRejectedAt) },
+                            synced.rejectionPatterns,
+                            hlc,
+                        ),
                     topicEvidence =
-                        brain.topicEvidence.mapValues {
-                            Lww(
+                        stamp(
+                            brain.topicEvidence.mapValues {
                                 CanonicalTopicEvidence(
                                     positiveSignals = it.value.positiveSignals,
                                     watchSignals = it.value.watchSignals,
@@ -208,18 +227,32 @@ object BrainMapper {
                                     channelIds = it.value.channelIds,
                                     firstSeenAt = it.value.firstSeenAt,
                                     lastSeenAt = it.value.lastSeenAt,
-                                ),
-                                hlc,
-                            )
-                        },
+                                )
+                            },
+                            synced.topicEvidence,
+                            hlc,
+                        ),
                     feedHistory =
-                        brain.feedHistory.mapValues {
-                            Lww(CanonicalFeedEntry(it.value.lastShown, it.value.showCount), hlc)
-                        },
+                        stamp(
+                            brain.feedHistory.mapValues { CanonicalFeedEntry(it.value.lastShown, it.value.showCount) },
+                            synced.feedHistory,
+                            hlc,
+                        ),
                     channelStrikes = state.channelStrikes,
                 ),
             flags = BrainFlags(hasCompletedOnboarding = brain.hasCompletedOnboarding),
         )
+    }
+
+    private fun <T> stamp(
+        current: Map<String, T>,
+        synced: Map<String, Lww<T>>,
+        hlc: String,
+    ): Map<String, Lww<T>> =
+        current.mapValues { (key, value) ->
+            val previous = synced[key]
+            if (previous != null && previous.value == value) previous else Lww(value, hlc)
+        }
 
     /**
      * Write a merged canonical brain back into a serializable brain, preserving [local]'s
@@ -255,7 +288,7 @@ object BrainMapper {
                     .toInt(),
             watchHistoryMap = merged.perVideo.watchHistoryMap,
             channelTopicProfiles = merged.vectors.channelTopicProfiles,
-            shortsVector = merged.vectors.shortsVector.toS(),
+            shortsVector = merged.vectors.shortsVector?.toS() ?: local.shortsVector,
             suppressedVideoIds = merged.lwwMaps.suppressedVideoIds.mapValues { it.value.value },
             suppressedChannels = merged.lwwMaps.suppressedChannels.mapValues { it.value.value },
             rejectionPatterns =

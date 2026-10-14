@@ -1,0 +1,9 @@
+[
+  {
+    "channelIds": ["UCabc", "UCdef"],
+    "deleted": false,
+    "hlc": "1781000000000:0:deviceaa",
+    "name": "Tech",
+    "sortOrder": 0
+  }
+]

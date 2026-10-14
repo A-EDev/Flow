@@ -15,10 +15,12 @@ import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.text.TextRenderer
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.extractor.text.DefaultSubtitleParserFactory
 import androidx.media3.extractor.text.SubtitleDecoder
 import io.github.aedev.flow.player.config.PlayerConfig
-import io.github.aedev.flow.player.renderer.subtitle.Srv3SubtitleDecoder
+import io.github.aedev.flow.player.renderer.subtitle.DelayedSubtitleDecoder
 import io.github.aedev.flow.player.renderer.subtitle.Srv3SubtitleParser
+import io.github.aedev.flow.player.subtitle.SubtitleDelay
 import java.util.ArrayList
 
 /**
@@ -28,18 +30,32 @@ import java.util.ArrayList
 open class CustomRenderersFactory(
     context: Context,
     private val audioProcessors: Array<AudioProcessor> = emptyArray(),
+    private val subtitleDelay: SubtitleDelay = SubtitleDelay(),
 ) : DefaultRenderersFactory(context) {
-    /** Adds srv3 support (YouTube's styled/positioned caption XML) on top of Media3's defaults. */
+    /**
+     * Media3's decoders plus srv3 (YouTube's styled, positioned caption XML), with every track a
+     * Media3 parser reads shifted by [subtitleDelay]. CEA-608/708 keep Media3's own decoders.
+     */
     private val subtitleDecoderFactory =
         object : SubtitleDecoderFactory {
+            private val parsers = DefaultSubtitleParserFactory()
+
             override fun supportsFormat(format: Format): Boolean =
                 format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE || SubtitleDecoderFactory.DEFAULT.supportsFormat(format)
 
             override fun createDecoder(format: Format): SubtitleDecoder =
-                if (format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE) {
-                    Srv3SubtitleDecoder()
-                } else {
-                    SubtitleDecoderFactory.DEFAULT.createDecoder(format)
+                when {
+                    format.sampleMimeType == Srv3SubtitleParser.MIME_TYPE -> {
+                        DelayedSubtitleDecoder("Srv3SubtitleDecoder", Srv3SubtitleParser(), subtitleDelay)
+                    }
+
+                    parsers.supportsFormat(format) -> {
+                        DelayedSubtitleDecoder("Delayed${format.sampleMimeType}", parsers.create(format), subtitleDelay)
+                    }
+
+                    else -> {
+                        SubtitleDecoderFactory.DEFAULT.createDecoder(format)
+                    }
                 }
         }
 

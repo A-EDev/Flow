@@ -12,6 +12,7 @@ import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
@@ -20,6 +21,7 @@ import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.innertube.pages.search.SearchHeader
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,6 +51,9 @@ class SearchViewModel
         private val suggestionsRepository: SearchSuggestionsRepository,
         private val shortsContentFilter: ShortsContentFilter,
         private val shortsQueueHandoff: ShortsQueueHandoff,
+        private val searchHistory: SearchHistoryRepository,
+        private val videoStats: VideoStatsRecorder,
+        private val neuroEngine: FlowNeuroEngine,
     ) : ViewModel() {
         // Signal each distinct submitted query once — typing and filter churn stay silent.
         private var lastSignaledQuery: String? = null
@@ -82,7 +87,7 @@ class SearchViewModel
                                 filter = key.filter,
                                 shortsEnabled = shortsEnabled,
                                 onHeader = ::onHeader,
-                                blockedChannelIds = { FlowNeuroEngine.getInstance(context).getBlockedChannels() },
+                                exclusions = { neuroEngine.feedExclusions() },
                             )
                         },
                     ).flow
@@ -110,16 +115,37 @@ class SearchViewModel
                 lastSignaledQuery = normalized
                 viewModelScope.launch {
                     runCatching { FlowNeuroEngine.onSearchQuery(context, query) }
+                    videoStats.onSearch(query.takeIf { searchHistory.isSearchHistoryEnabled() })
                 }
             }
         }
+
+        /** A search the user asked for, kept in history with its filters. Typing on TV goes through [search] and is not kept. */
+        fun submit(
+            query: String,
+            filters: SearchFilter,
+        ) {
+            search(query, filters)
+            rememberSearch(query, filters)
+        }
+
+        fun onSearchHistoryCleared() = videoStats.onSearchHistoryCleared()
 
         fun updateFilters(filters: SearchFilter) {
             val currentQuery = _uiState.value.query
             _uiState.value = _uiState.value.copy(filters = filters)
             if (currentQuery.isNotBlank()) {
                 _searchKey.value = SearchKey(currentQuery, filters)
+                rememberSearch(currentQuery, filters)
             }
+        }
+
+        private fun rememberSearch(
+            query: String,
+            filters: SearchFilter,
+        ) {
+            if (query.isBlank()) return
+            viewModelScope.launch { searchHistory.saveSearchQuery(query, filters = filters) }
         }
 
         fun clearSearch() {

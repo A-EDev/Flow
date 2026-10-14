@@ -1,0 +1,10 @@
+[
+  { "key": "autoplay", "value": true, "hlc": "1781512000000:0:device-aaa" },
+  { "key": "default_quality_wifi", "value": "1080p", "hlc": "1781512000000:0:device-aaa" },
+  { "key": "playback_speed", "value": 1.25, "hlc": "1781512000000:0:device-aaa" },
+  {
+    "key": "sponsorblock_categories",
+    "value": { "sponsor": "skip", "intro": "manual", "selfpromo": "skip" },
+    "hlc": "1781512000000:0:device-aaa"
+  }
+]

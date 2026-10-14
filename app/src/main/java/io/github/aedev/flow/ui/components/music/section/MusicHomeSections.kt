@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.ui.components.music.section
@@ -213,6 +213,7 @@ fun <T> MusicArtistShelf(
     thumbnailUrl: (T) -> String?,
     onArtistClick: (T) -> Unit,
     modifier: Modifier = Modifier,
+    action: MusicSectionAction? = null,
     subtitle: @Composable (T) -> String? = { null },
 ) {
     val artistShape = flowArtistShape()
@@ -222,6 +223,7 @@ fun <T> MusicArtistShelf(
         items = artists,
         key = key,
         modifier = modifier,
+        action = action,
     ) { artist ->
         MusicCollectionCard(
             title = name(artist),

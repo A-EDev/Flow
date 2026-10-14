@@ -3,13 +3,16 @@ package io.github.aedev.flow.utils.cipher
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
  * This is based and ported from Metrolist,
  * see https://github.com/MetrolistGroup/Metrolist for the original code and license.
- * 
+ *
  * Main cipher deobfuscation orchestrator for YouTube stream URLs.
  *
  * Handles both signature deobfuscation (for signatureCipher streams) and
@@ -30,74 +33,72 @@ object CipherDeobfuscator {
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
 
+    // Signature and n callers can arrive together (a song resolving during a video load); without
+    // this each would build its own WebView around the same 3 MB script.
+    private val webViewMutex = Mutex()
+
     @Volatile
     private var cachedSignatureTimestamp: Int? = null
 
-    fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
+    @Volatile
+    private var lastAnalyzedHash: String? = null
+
+    @Volatile
+    private var refetchedForHash: String? = null
 
     /**
-     * Ensure the signature timestamp is available, fetching/analyzing the player JS if needed.
-     * Required by the WEB client player request. Safe to call repeatedly (cached after first).
+     * The player script whose signature and n-function the patterns in [FunctionNameExtractor]
+     * could not find, once a fresh copy has been tried. Non-null means YouTube shipped a player
+     * shape this build does not know — the single most useful thing a bug report can carry, and
+     * not something the logs otherwise name.
+     */
+    @Volatile
+    var unparseablePlayerHash: String? = null
+        private set
+
+    /**
+     * The signature timestamp the WEB/MWEB `/player` request has to send. Cached after the first
+     * read; the player script itself is cached by [PlayerJsFetcher].
+     *
+     * Reads the script and runs one regex rather than standing up the cipher WebView: the timestamp
+     * is a plain number in the script and needs none of the machinery a decipher does. That also
+     * makes it independent of signature extraction, which the current player defeats entirely —
+     * the timestamp still resolves on players whose cipher cannot be read at all.
      */
     suspend fun ensureSignatureTimestamp(): Int? {
         cachedSignatureTimestamp?.let { return it }
         return try {
-            getOrCreateWebView(forceRefresh = false)
-            cachedSignatureTimestamp
+            val playerJs = PlayerJsFetcher.getPlayerJs()?.first ?: return null
+            FunctionNameExtractor.extractSignatureTimestamp(playerJs)?.also { cachedSignatureTimestamp = it }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "ensureSignatureTimestamp failed: ${e.message}")
             cachedSignatureTimestamp
         }
     }
 
+    /**
+     * [signature] run through the player script's own signature function, or null when the script
+     * has none this build can find or the function failed.
+     */
+    suspend fun deobfuscateSignature(signature: String): String? =
+        try {
+            val webView = webViewMutex.withLock { getOrCreateWebView(forceRefresh = false) }
+            webView?.takeIf { it.sigFunctionAvailable }?.decipherSignature(signature)?.takeIf { it != signature }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Signature decipher failed: ${e.message}")
+            null
+        }
+
+    /** The hash of the player script whose signature timestamp the web `/player` requests carry. */
+    suspend fun playerHash(): String? = PlayerJsFetcher.getPlayerJs()?.second
+
     fun invalidateSignatureTimestamp() {
         Log.d(TAG, "Invalidating signature timestamp")
         cachedSignatureTimestamp = null
-    }
-
-    /**
-     * Deobfuscate a signatureCipher stream URL.
-     * Returns the full URL with deobfuscated signature, or null if failed.
-     */
-    suspend fun deobfuscateStreamUrl(signatureCipher: String, videoId: String): String? {
-        Log.d(TAG, "deobfuscateStreamUrl: videoId=$videoId, cipher length=${signatureCipher.length}")
-        return try {
-            deobfuscateInternal(signatureCipher, videoId, isRetry = false)
-        } catch (e: Exception) {
-            Log.e(TAG, "Cipher deobfuscation failed, retrying with fresh JS: ${e.message}", e)
-            try {
-                PlayerJsFetcher.invalidateCache()
-                closeWebView()
-                deobfuscateInternal(signatureCipher, videoId, isRetry = true)
-            } catch (retryE: Exception) {
-                Log.e(TAG, "Cipher deobfuscation retry also failed: ${retryE.message}", retryE)
-                null
-            }
-        }
-    }
-
-    private suspend fun deobfuscateInternal(signatureCipher: String, videoId: String, isRetry: Boolean): String? {
-        val params = parseQueryParams(signatureCipher)
-        val obfuscatedSig = params["s"]
-        val sigParam = params["sp"] ?: "signature"
-        val baseUrl = params["url"]
-
-        if (obfuscatedSig == null || baseUrl == null) {
-            Log.e(TAG, "Could not parse signatureCipher params: s=${obfuscatedSig != null}, url=${baseUrl != null}")
-            return null
-        }
-
-        val webView = getOrCreateWebView(forceRefresh = isRetry) ?: run {
-            Log.e(TAG, "Failed to get/create CipherWebView")
-            return null
-        }
-
-        val deobfuscatedSig = webView.deobfuscateSignature(obfuscatedSig)
-        val separator = if ("?" in baseUrl) "&" else "?"
-        val finalUrl = "$baseUrl${separator}${sigParam}=${Uri.encode(deobfuscatedSig)}"
-
-        Log.d(TAG, "Cipher deobfuscation success: videoId=$videoId, url length=${finalUrl.length}")
-        return finalUrl
     }
 
     /**
@@ -127,10 +128,11 @@ object CipherDeobfuscator {
         val nValue = Uri.decode(nValueEncoded)
         Log.d(TAG, "N-param: encoded=$nValueEncoded, decoded=$nValue")
 
-        val webView = getOrCreateWebView(forceRefresh = false) ?: run {
-            Log.e(TAG, "Failed to get CipherWebView for n-transform")
-            return url
-        }
+        val webView =
+            webViewMutex.withLock { getOrCreateWebView(forceRefresh = false) } ?: run {
+                Log.e(TAG, "Failed to get CipherWebView for n-transform")
+                return url
+            }
 
         if (!webView.nFunctionAvailable) {
             Log.e(TAG, "N-transform function was not discovered at init time")
@@ -142,7 +144,7 @@ object CipherDeobfuscator {
 
         return url.replaceFirst(
             Regex("([?&])n=[^&]+"),
-            "$1n=${Uri.encode(transformedN)}"
+            "$1n=${Uri.encode(transformedN)}",
         )
     }
 
@@ -157,6 +159,21 @@ object CipherDeobfuscator {
             closeWebView()
         }
 
+        buildWebView(forceRefresh)?.let { return it }
+
+        // A player script the extractors cannot read stays cached for six hours, so without this
+        // every request in that window fails identically — the device goes a working day with no
+        // signature and no n-transform. Re-fetch once per player hash: if YouTube really did ship
+        // a shape the patterns miss, the second attempt costs one request and then stops.
+        val failedHash = lastAnalyzedHash
+        if (forceRefresh || failedHash == null || refetchedForHash == failedHash) return null
+        refetchedForHash = failedHash
+        Log.w(TAG, "Player JS $failedHash could not be analyzed — dropping the cached copy and refetching once")
+        PlayerJsFetcher.invalidateCache()
+        return buildWebView(forceRefresh = true)
+    }
+
+    private suspend fun buildWebView(forceRefresh: Boolean): CipherWebView? {
         val result = PlayerJsFetcher.getPlayerJs(forceRefresh = forceRefresh)
         if (result == null) {
             Log.e(TAG, "Failed to get player JS")
@@ -168,9 +185,21 @@ object CipherDeobfuscator {
         val analysis = FunctionNameExtractor.analyzePlayerJs(playerJs, knownHash = hash)
         cachedSignatureTimestamp = analysis.signatureTimestamp
         Log.d(TAG, "Extracted signatureTimestamp: $cachedSignatureTimestamp")
+        lastAnalyzedHash = hash
+
+        // Reported on a missing signature alone, not only when the n-function is missing too: the
+        // signature is the capability that is actually lost, and a player whose indices are computed
+        // at runtime cannot be read by any pattern, so the hash is the useful thing to report.
+        if (analysis.sigInfo == null) {
+            unparseablePlayerHash = hash
+            val computed = FunctionNameExtractor.hasComputedArrayIndices(playerJs)
+            Log.e(TAG, "No signature function in player JS (hash=$hash, computedArrayIndices=$computed)")
+        } else {
+            unparseablePlayerHash = null
+        }
 
         if (analysis.sigInfo == null && analysis.nFuncInfo == null) {
-            Log.e(TAG, "Could not extract signature or n-function info from player JS")
+            Log.e(TAG, "Could not extract signature or n-function info from player JS (hash=$hash)")
             return null
         }
 
@@ -183,12 +212,13 @@ object CipherDeobfuscator {
         }
 
         Log.d(TAG, "Creating CipherWebView: sig=${analysis.sigInfo?.name}, nFunc=${analysis.nFuncInfo?.name}")
-        val webView = CipherWebView.create(
-            context = appContext,
-            playerJs = playerJs,
-            sigInfo = analysis.sigInfo,
-            nFuncInfo = analysis.nFuncInfo,
-        )
+        val webView =
+            CipherWebView.create(
+                context = appContext,
+                playerJs = playerJs,
+                sigInfo = analysis.sigInfo,
+                nFuncInfo = analysis.nFuncInfo,
+            )
 
         Log.d(TAG, "CipherWebView created: nAvailable=${webView.nFunctionAvailable}, sigAvailable=${webView.sigFunctionAvailable}")
         cipherWebView = webView
@@ -203,16 +233,5 @@ object CipherDeobfuscator {
         cipherWebView = null
         currentPlayerHash = null
         Log.d(TAG, "CipherWebView closed")
-    }
-
-    private fun parseQueryParams(query: String): Map<String, String> {
-        val result = mutableMapOf<String, String>()
-        for (pair in query.split("&")) {
-            val idx = pair.indexOf('=')
-            if (idx > 0) {
-                result[Uri.decode(pair.substring(0, idx))] = Uri.decode(pair.substring(idx + 1))
-            }
-        }
-        return result
     }
 }

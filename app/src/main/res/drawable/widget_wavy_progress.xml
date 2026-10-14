@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The flat parts of the bar: the played line from the left (shown while paused) and the remaining
+     track with its stop dot from the right, set to max - progress, so the two meet at the playhead. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/secondaryProgress">
+        <clip
+            android:clipOrientation="horizontal"
+            android:gravity="right">
+            <layer-list>
+                <item
+                    android:height="4dp"
+                    android:gravity="center_vertical|fill_horizontal"
+                    android:right="6dp">
+                    <shape android:shape="rectangle">
+                        <corners android:radius="2dp" />
+                        <solid android:color="@android:color/white" />
+                    </shape>
+                </item>
+                <item
+                    android:width="4dp"
+                    android:height="4dp"
+                    android:gravity="center_vertical|right">
+                    <shape android:shape="oval">
+                        <solid android:color="@android:color/white" />
+                    </shape>
+                </item>
+            </layer-list>
+        </clip>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip
+            android:clipOrientation="horizontal"
+            android:gravity="left">
+            <layer-list>
+                <item
+                    android:height="4dp"
+                    android:gravity="center_vertical|fill_horizontal">
+                    <shape android:shape="rectangle">
+                        <corners android:radius="2dp" />
+                        <solid android:color="@android:color/white" />
+                    </shape>
+                </item>
+            </layer-list>
+        </clip>
+    </item>
+</layer-list>

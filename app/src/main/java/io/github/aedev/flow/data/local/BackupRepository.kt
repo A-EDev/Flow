@@ -9,10 +9,15 @@ import android.provider.OpenableColumns
 import androidx.room.withTransaction
 import com.google.gson.GsonBuilder
 import com.google.gson.Strictness
-import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
+import dagger.hilt.android.EntryPointAccessors
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.audio.eq.EqStateJson
+import io.github.aedev.flow.data.backup.NewPipeChannelRef
+import io.github.aedev.flow.data.backup.NewPipeSubscriptionCodec
+import io.github.aedev.flow.data.backup.NewPipeSubscriptionEntry
+import io.github.aedev.flow.data.backup.NewPipeSubscriptionExport
 import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
@@ -20,6 +25,9 @@ import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.platform.AppIconEntryPoint
+import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.util.AppIcons
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
@@ -30,15 +38,15 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.channel.ChannelInfo
+import kotlinx.serialization.SerializationException
+import java.io.BufferedInputStream
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.StringReader
+import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -67,6 +75,7 @@ data class BackupData(
     val timestamp: Long = System.currentTimeMillis(),
     val viewHistory: List<VideoHistoryEntry>? = emptyList(),
     val searchHistory: List<SearchHistoryItem>? = emptyList(),
+    val musicSearchHistory: List<SearchHistoryItem>? = emptyList(),
     val subscriptions: List<ChannelSubscription>? = emptyList(),
     val playlists: List<PlaylistEntity>? = emptyList(),
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
@@ -76,21 +85,6 @@ data class BackupData(
     val likedVideos: List<LikedVideoInfo>? = emptyList(),
     val contentPreferences: ContentPreferencesBackup? = null,
     val settings: SettingsBackup? = null,
-)
-
-data class NewPipeSubscriptionItem(
-    @SerializedName("service_id")
-    val serviceId: Int,
-    val url: String,
-    val name: String,
-)
-
-data class NewPipeSubscriptionExport(
-    val subscriptions: List<NewPipeSubscriptionItem>,
-    @SerializedName("app_version")
-    val appVersion: String = BuildConfig.VERSION_NAME,
-    @SerializedName("app_version_int")
-    val appVersionInt: Int = BuildConfig.VERSION_CODE,
 )
 
 private data class FreeTubeHistoryExportEntry(
@@ -136,11 +130,32 @@ private enum class HistoryImportFormat {
     JSON,
 }
 
+private const val MASTER_APP_DATA_ENTRY = "app_data.json"
+private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
+private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
+private const val MASTER_RECAP_ENTRY = "recap_stats.json"
+private const val MASTER_FAVOURITE_ARTISTS_ENTRY = "favourite_artists.json"
+
+internal const val NO_LIKES = "no_likes"
+private const val LIKES_LEARNING_WINDOW_DAYS = 365L
+private const val MAX_LEARNED_LIKES = 500
+
 class BackupRepository(
     private val context: Context,
 ) {
     private val playerPreferences = PlayerPreferences(context)
+    private val equalizer by lazy {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, AudioEffectsEntryPoint::class.java)
+            .equalizerRepository()
+    }
+    private val appIconController by lazy {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, AppIconEntryPoint::class.java)
+            .appIconController()
+    }
     private val localDataManager = LocalDataManager(context)
+    private val appFontPreferences = AppFontPreferences(context)
     private val gson =
         GsonBuilder()
             .setPrettyPrinting()
@@ -158,6 +173,18 @@ class BackupRepository(
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
     private val likedVideosRepo = LikedVideosRepository.getInstance(context)
     private val database = AppDatabase.getDatabase(context)
+    private val takeoutImporter by lazy {
+        YouTubeTakeoutImporter(
+            context = context,
+            database = database,
+            viewHistory = viewHistory,
+            searchHistory = searchHistoryRepo,
+            subscriptions = subscriptionRepo,
+            saveLikes = ::saveImportedLikes,
+            channelAvatar = ::fetchChannelAvatar,
+            learnFromHistory = ::bootstrapNeuroFromImportedHistory,
+        )
+    }
 
     private suspend fun getContentPreferencesBackup(): ContentPreferencesBackup {
         val engine = FlowNeuroEngine.getInstance(context)
@@ -174,15 +201,19 @@ class BackupRepository(
         val playerSettings = playerPreferences.getExportData()
         val localSettings = localDataManager.getExportData()
         val searchSettings = searchHistoryRepo.getSettingsBackup()
+        val fontSettings = appFontPreferences.getSettingsBackup()
         val activeIconSuffix = detectActiveIconSuffix()
+        val equalizerSettings = mapOf(EqStateJson.KEY to equalizer.exportJson())
         val exportedStrings =
             if (activeIconSuffix != null) {
                 playerSettings.strings +
                     mapOf("app_icon_suffix" to activeIconSuffix) +
                     localSettings.strings +
-                    searchSettings.strings
+                    searchSettings.strings +
+                    fontSettings.strings +
+                    equalizerSettings
             } else {
-                playerSettings.strings + localSettings.strings + searchSettings.strings
+                playerSettings.strings + localSettings.strings + searchSettings.strings + fontSettings.strings + equalizerSettings
             }
         return SettingsBackup(
             strings = exportedStrings,
@@ -250,30 +281,67 @@ class BackupRepository(
         }
     }
 
+    private suspend fun buildBackupData(): BackupData =
+        BackupData(
+            viewHistory = viewHistory.getAllHistory().first(),
+            searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
+            musicSearchHistory = searchHistoryRepo.getSearchHistoryFlow(SearchHistoryScope.MUSIC).first(),
+            subscriptions = subscriptionRepo.getAllSubscriptions().first(),
+            playlists = database.playlistDao().getAllPlaylists().first(),
+            playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
+            videos = database.videoDao().getAllVideos(),
+            subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+            notes = database.noteDao().getAll(),
+            likedVideos = likedVideosRepo.getAllLikedVideos().first(),
+            contentPreferences = getContentPreferencesBackup(),
+            settings = getMergedSettingsBackup(),
+        )
+
+    /** The master backup: app data, the video engine and, when given, the music engine, in one ZIP. */
+    private fun writeMasterZip(
+        out: java.io.OutputStream,
+        appDataJson: String,
+        brainBytes: ByteArray,
+        musicBrain: ByteArray?,
+        recap: ByteArray?,
+        favouriteArtists: ByteArray?,
+    ) {
+        ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(ZipEntry(MASTER_APP_DATA_ENTRY))
+            zip.write(appDataJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry(MASTER_ENGINE_ENTRY))
+            zip.write(brainBytes)
+            zip.closeEntry()
+            if (musicBrain != null) {
+                zip.putNextEntry(ZipEntry(MASTER_MUSIC_BRAIN_ENTRY))
+                zip.write(musicBrain)
+                zip.closeEntry()
+            }
+            if (recap != null) {
+                zip.putNextEntry(ZipEntry(MASTER_RECAP_ENTRY))
+                zip.write(recap)
+                zip.closeEntry()
+            }
+            if (favouriteArtists != null) {
+                zip.putNextEntry(ZipEntry(MASTER_FAVOURITE_ARTISTS_ENTRY))
+                zip.write(favouriteArtists)
+                zip.closeEntry()
+            }
+        }
+    }
+
     suspend fun exportData(uri: Uri): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
 
                 val json = gson.toJson(backupData)
                 context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
                     OutputStreamWriter(outputStream).use { writer ->
                         writer.write(json)
                     }
-                }
+                } ?: return@withContext Result.failure(Exception("Could not open output stream"))
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -302,29 +370,22 @@ class BackupRepository(
             }
         }
 
-    suspend fun exportSubscriptionsAsNewPipe(uri: Uri): Result<Unit> =
+    suspend fun exportSubscriptionsAsNewPipe(uri: Uri): Result<NewPipeSubscriptionExport> =
         withContext(Dispatchers.IO) {
             try {
-                val subscriptions = subscriptionRepo.getAllSubscriptions().first()
-                val items =
-                    subscriptions.mapNotNull { sub ->
-                        val url = toNewPipeChannelUrl(sub.channelId) ?: return@mapNotNull null
-                        NewPipeSubscriptionItem(
-                            serviceId = 0,
-                            url = url,
-                            name = sub.channelName.ifBlank { sub.channelId.trim() },
-                        )
-                    }
-                val payload = NewPipeSubscriptionExport(subscriptions = items)
-
-                val json = gson.toJson(payload)
+                val export =
+                    NewPipeSubscriptionCodec.encode(
+                        subscriptionRepo.getAllSubscriptions().first(),
+                        appVersion = BuildConfig.VERSION_NAME,
+                        appVersionInt = BuildConfig.VERSION_CODE,
+                    )
                 context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
                     OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
-                        writer.write(json)
+                        writer.write(export.json)
                     }
                 } ?: return@withContext Result.failure(Exception("Could not open output stream"))
 
-                Result.success(Unit)
+                Result.success(export)
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -378,83 +439,39 @@ class BackupRepository(
     ): Result<Int> =
         withContext(Dispatchers.IO) {
             try {
-                var importedCount = 0
-                val subscriptionsToImport = mutableListOf<ChannelSubscription>()
-                val semaphore = Semaphore(5) // Limit concurrent requests
-
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val jsonString = inputStream.bufferedReader().use { it.readText() }
-                    val jsonObject = org.json.JSONObject(jsonString)
-
-                    if (jsonObject.has("subscriptions")) {
-                        val subscriptionsArray = jsonObject.getJSONArray("subscriptions")
-
-                        for (i in 0 until subscriptionsArray.length()) {
-                            val item = subscriptionsArray.getJSONObject(i)
-                            // NewPipe Export Format: service_id, url, name
-                            val url = item.optString("url")
-                            val name = item.optString("name")
-
-                            if (url.isNotEmpty() && name.isNotEmpty()) {
-                                var channelId = ""
-                                if (url.contains("/channel/")) {
-                                    channelId = url.substringAfter("/channel/")
-                                } else if (url.contains("/@")) {
-                                    channelId = url.substringAfter("/@")
-                                } else if (url.contains("/user/")) {
-                                    channelId = url.substringAfter("/user/")
-                                }
-
-                                if (channelId.contains("/")) channelId = channelId.substringBefore("/")
-                                if (channelId.contains("?")) channelId = channelId.substringBefore("?")
-
-                                if (channelId.isNotEmpty()) {
-                                    val subscription =
-                                        ChannelSubscription(
-                                            channelId = channelId,
-                                            channelName = name,
-                                            channelThumbnail = "", // Will be fetched
-                                            subscribedAt = System.currentTimeMillis(),
-                                        )
-                                    subscriptionsToImport.add(subscription)
-                                }
-                            }
-                        }
+                val json =
+                    context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+                        ?: return@withContext Result.failure(Exception("Could not read file"))
+                val entries =
+                    NewPipeSubscriptionCodec.decode(json).getOrElse {
+                        return@withContext Result.failure(Exception("invalid_format", it))
                     }
-                }
 
-                // Fetch avatars in parallel with rate limiting
-                val totalForProgress = subscriptionsToImport.size
+                val semaphore = Semaphore(5)
                 val completedCount = AtomicInteger(0)
-                onProgress?.invoke(0, totalForProgress)
-                val subscriptionsWithAvatars = mutableListOf<ChannelSubscription>()
+                onProgress?.invoke(0, entries.size)
+                val resolved = mutableListOf<ChannelSubscription>()
                 supervisorScope {
-                    subscriptionsToImport.chunked(25).forEach { batch ->
-                        subscriptionsWithAvatars +=
+                    entries.chunked(25).forEach { batch ->
+                        resolved +=
                             batch
-                                .map { sub ->
+                                .map { entry ->
                                     async(Dispatchers.IO) {
                                         semaphore.withPermit {
-                                            val result =
-                                                try {
-                                                    val avatarUrl = fetchChannelAvatar(sub.channelId)
-                                                    sub.copy(channelThumbnail = avatarUrl)
-                                                } catch (e: Exception) {
-                                                    sub
-                                                }
-                                            onProgress?.invoke(completedCount.incrementAndGet(), totalForProgress)
-                                            result
+                                            resolveNewPipeEntry(entry).also {
+                                                onProgress?.invoke(completedCount.incrementAndGet(), entries.size)
+                                            }
                                         }
                                     }
                                 }.awaitAll()
+                                .filterNotNull()
                     }
                 }
-
-                subscriptionRepo.subscribeAll(subscriptionsWithAvatars)
-                importedCount = subscriptionsWithAvatars.size
+                val subscriptions = resolved.distinctBy { it.channelId }
+                subscriptionRepo.subscribeAll(subscriptions)
 
                 // V9.2: Seed recommendation engine from imported subscriptions
-                val channelNames = subscriptionsWithAvatars.map { it.channelName }.filter { it.isNotEmpty() }
+                val channelNames = subscriptions.map { it.channelName }.filter { it.isNotEmpty() }
                 if (channelNames.isNotEmpty()) {
                     try {
                         FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames)
@@ -462,11 +479,30 @@ class BackupRepository(
                     }
                 }
 
-                Result.success(importedCount)
+                Result.success(subscriptions.size)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+
+    /**
+     * Browse only opens channel ids, so links are resolved first. A handle that does not resolve is
+     * kept as `@handle` so it still exports; a `/user/` or `/c/` link that does not is dropped.
+     */
+    private suspend fun resolveNewPipeEntry(entry: NewPipeSubscriptionEntry): ChannelSubscription? {
+        val channelId =
+            when (val ref = entry.ref) {
+                is NewPipeChannelRef.Id -> ref.channelId
+                is NewPipeChannelRef.Handle -> YouTube.resolveChannelId(ref.url).getOrElse { "@${ref.handle}" }
+                is NewPipeChannelRef.Legacy -> YouTube.resolveChannelId(ref.url).getOrNull() ?: return null
+            }
+        val header = if (channelId.startsWith("UC")) YouTube.channelLanding(channelId).getOrNull()?.header else null
+        return ChannelSubscription(
+            channelId = channelId,
+            channelName = entry.name.ifBlank { header?.title.orEmpty() }.ifBlank { channelId },
+            channelThumbnail = header?.avatarUrl.orEmpty(),
+        )
+    }
 
     suspend fun importYouTube(
         uri: Uri,
@@ -573,6 +609,96 @@ class BackupRepository(
             }
         }
 
+    /** Likes from a Takeout "My Activity" export: its YouTube JSON file, or the ZIP that holds it. */
+    suspend fun importYouTubeLikes(uri: Uri): Result<Int> =
+        withContext(Dispatchers.IO) {
+            try {
+                val parsed =
+                    context.contentResolver.openInputStream(uri)?.use { raw ->
+                        val stream = raw.buffered()
+                        if (stream.startsWithZipSignature()) {
+                            readLikesFromZip(ZipInputStream(stream))
+                        } else {
+                            readMyActivityLikes(stream)
+                        }
+                    } ?: return@withContext Result.failure(Exception("Could not open file"))
+                if (parsed.likes.isEmpty()) return@withContext Result.failure(Exception(NO_LIKES))
+                Result.success(saveImportedLikes(parsed.likes))
+            } catch (e: SerializationException) {
+                Result.failure(Exception("invalid_format", e))
+            } catch (e: IllegalArgumentException) {
+                Result.failure(Exception("invalid_format", e))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    private fun BufferedInputStream.startsWithZipSignature(): Boolean {
+        mark(2)
+        val signature = byteArrayOf(read().toByte(), read().toByte())
+        reset()
+        return signature[0] == 'P'.code.toByte() && signature[1] == 'K'.code.toByte()
+    }
+
+    private fun readLikesFromZip(zip: ZipInputStream): TakeoutLikes {
+        zip.use {
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && isMyActivityYouTubeEntry(entry.name)) return readMyActivityLikes(zip)
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        return TakeoutLikes(emptyList(), 0)
+    }
+
+    /**
+     * Stores imported likes and returns how many were new. The engine learns only from new likes of
+     * the past year, so a decade of likes cannot revive long-abandoned topics (#1030).
+     */
+    private suspend fun saveImportedLikes(likes: List<TakeoutLike>): Int {
+        val added =
+            likedVideosRepo.importLikes(
+                likes.map { like ->
+                    LikedVideoInfo(
+                        videoId = like.videoId,
+                        title = like.title,
+                        thumbnail = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(like.videoId),
+                        channelName = like.channelName,
+                        likedAt = like.likedAt,
+                        isMusic = like.isMusic,
+                        channelId = like.channelId.ifBlank { null },
+                    )
+                },
+            )
+        val learnSince = System.currentTimeMillis() - Duration.ofDays(LIKES_LEARNING_WINDOW_DAYS).toMillis()
+        val learnable =
+            added
+                .asSequence()
+                .filter { !it.isMusic && it.likedAt >= learnSince }
+                .take(MAX_LEARNED_LIKES)
+                .map { like ->
+                    Video(
+                        id = like.videoId,
+                        title = like.title,
+                        channelName = like.channelName,
+                        channelId = like.channelId.orEmpty(),
+                        thumbnailUrl = like.thumbnail,
+                        duration = 0,
+                        viewCount = 0L,
+                        uploadDate = "",
+                        timestamp = like.likedAt,
+                    )
+                }.toList()
+        if (learnable.isNotEmpty()) {
+            try {
+                FlowNeuroEngine.bootstrapFromWatchHistory(context, learnable)
+            } catch (_: Exception) {
+            }
+        }
+        return added.size
+    }
+
     suspend fun importNewPipeWatchHistory(uri: Uri): Result<Int> =
         withContext(Dispatchers.IO) {
             val tempDb = java.io.File(context.cacheDir, "newpipe_history_${System.currentTimeMillis()}.db")
@@ -678,112 +804,10 @@ class BackupRepository(
     }
 
     private suspend fun importHtmlWatchHistory(uri: Uri): Result<Int> {
-        val readSize = 65_536
-        val overlap = 2_048
-        val batchSize = 500
-
-        val videoPattern =
-            Regex(
-                """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE,
-            )
-        val channelPattern =
-            Regex(
-                """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE,
-            )
-
-        var importedCount = 0
-        val batch = mutableListOf<VideoHistoryEntry>()
-        val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
-
-        context.contentResolver
-            .openInputStream(uri)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { reader ->
-                val buffer = CharArray(readSize)
-                val tail = StringBuilder(overlap)
-
-                while (true) {
-                    val count = reader.read(buffer)
-                    if (count == -1) break
-
-                    val window = tail.toString() + String(buffer, 0, count)
-                    val videoMatches = videoPattern.findAll(window).toList()
-                    val channelMatches = channelPattern.findAll(window).toList()
-                    var channelIndex = 0
-
-                    for (videoMatch in videoMatches) {
-                        if (videoMatch.range.last < tail.length) continue
-
-                        val videoId = videoMatch.groupValues[1].trim()
-                        if (videoId.isEmpty()) continue
-
-                        val title = unescapeHtmlEntities(videoMatch.groupValues[2].trim())
-
-                        while (channelIndex < channelMatches.size &&
-                            channelMatches[channelIndex].range.first <= videoMatch.range.first
-                        ) {
-                            channelIndex++
-                        }
-
-                        val channelMatch = channelMatches.getOrNull(channelIndex)
-                        val channelId: String
-                        val channelName: String
-                        if (channelMatch != null && channelMatch.range.first - videoMatch.range.last < 2_000) {
-                            channelId = channelMatch.groupValues[1].trim()
-                            channelName = unescapeHtmlEntities(channelMatch.groupValues[2].trim())
-                        } else {
-                            channelId = ""
-                            channelName = ""
-                        }
-
-                        val historyEntry =
-                            VideoHistoryEntry(
-                                videoId = videoId,
-                                position = 0L,
-                                duration = 0L,
-                                timestamp = System.currentTimeMillis() - importedCount,
-                                title = title,
-                                thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                channelName = channelName,
-                                channelId = channelId,
-                                isMusic = false,
-                            )
-                        batch.add(historyEntry)
-                        rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
-                        importedCount++
-                    }
-
-                    tail.clear()
-                    if (window.length > overlap) {
-                        tail.append(window, window.length - overlap, window.length)
-                    } else {
-                        tail.append(window)
-                    }
-
-                    if (batch.size >= batchSize) {
-                        viewHistory.bulkSaveHistoryEntries(batch)
-                        batch.clear()
-                        kotlinx.coroutines.yield()
-                    }
-                }
-
-                if (batch.isNotEmpty()) {
-                    viewHistory.bulkSaveHistoryEntries(batch)
-                    batch.clear()
-                }
-            } ?: return Result.failure(Exception("Could not read file"))
-
-        if (importedCount == 0) {
-            return Result.failure(Exception("no_entries"))
-        }
-
-        try {
-            bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
-        } catch (_: Exception) {
-        }
-
+        val importedCount =
+            context.contentResolver.openInputStream(uri)?.use { takeoutImporter.importHtmlHistory(it) }
+                ?: return Result.failure(Exception("Could not read file"))
+        if (importedCount == 0) return Result.failure(Exception("no_entries"))
         return Result.success(importedCount)
     }
 
@@ -947,16 +971,6 @@ class BackupRepository(
         }
         return destination
     }
-
-    private fun unescapeHtmlEntities(text: String): String =
-        text
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&#39;", "'")
-            .replace("&apos;", "'")
-            .replace("&#x27;", "'")
 
     /** First column of a Takeout playlist CSV row, when it looks like a video id. */
     private fun parseTakeoutVideoId(line: String): String? =
@@ -1346,286 +1360,9 @@ class BackupRepository(
     // ── Google Takeout all-in-one import ──
 
     suspend fun importYouTubeTakeout(
-        uri: Uri,
+        uris: List<Uri>,
         onProgress: ((label: String, current: Int, total: Int) -> Unit)? = null,
-    ): Result<String> =
-        withContext(Dispatchers.IO) {
-            try {
-                var subscriptionsImported = 0
-                var historyImported = 0
-                var playlistsImported = 0
-                var playlistVideosImported = 0
-
-                val playlistTitlesByDirectory = mutableMapOf<String, MutableList<String>>()
-                val videoCsvData = mutableMapOf<String, List<String>>()
-                val subRows = mutableListOf<YouTubeTakeoutSubscription>()
-                val takeoutCsvBudget = YouTubeTakeoutCsvBudget()
-                val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
-
-                val overlap = 2_048
-                val readSize = 65_536
-                val batchSize = 500
-
-                val videoPattern =
-                    Regex(
-                        """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
-                        RegexOption.IGNORE_CASE,
-                    )
-                val channelPattern =
-                    Regex(
-                        """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
-                        RegexOption.IGNORE_CASE,
-                    )
-                val historyBatch = mutableListOf<VideoHistoryEntry>()
-
-                context.contentResolver.openInputStream(uri)?.use { raw ->
-                    ZipInputStream(raw.buffered()).use { zip ->
-                        var entry = zip.nextEntry
-                        while (entry != null) {
-                            val name = entry.name
-                            when {
-                                name.endsWith("history/watch-history.html", ignoreCase = true) -> {
-                                    onProgress?.invoke("Watch history", 0, 0)
-                                    val reader = zip.bufferedReader(Charsets.UTF_8)
-                                    val buf = CharArray(readSize)
-                                    val tail = StringBuilder(overlap)
-                                    while (true) {
-                                        val n = reader.read(buf)
-                                        if (n == -1) break
-                                        val window = tail.toString() + String(buf, 0, n)
-                                        val videoMatches = videoPattern.findAll(window).toList()
-                                        val channelMatches = channelPattern.findAll(window).toList()
-                                        var chIdx = 0
-                                        for (vm in videoMatches) {
-                                            if (vm.range.last < tail.length) continue
-                                            val videoId = vm.groupValues[1].trim()
-                                            if (videoId.isEmpty()) continue
-                                            val title = unescapeHtmlEntities(vm.groupValues[2].trim())
-                                            while (chIdx < channelMatches.size &&
-                                                channelMatches[chIdx].range.first <= vm.range.first
-                                            ) {
-                                                chIdx++
-                                            }
-                                            val cm = channelMatches.getOrNull(chIdx)
-                                            val chId: String
-                                            val chName: String
-                                            if (cm != null && cm.range.first - vm.range.last < 2_000) {
-                                                chId = cm.groupValues[1].trim()
-                                                chName = unescapeHtmlEntities(cm.groupValues[2].trim())
-                                            } else {
-                                                chId = ""
-                                                chName = ""
-                                            }
-                                            val historyEntry =
-                                                VideoHistoryEntry(
-                                                    videoId = videoId,
-                                                    position = 0L,
-                                                    duration = 0L,
-                                                    timestamp = System.currentTimeMillis() - historyImported,
-                                                    title = title,
-                                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                                    channelName = chName,
-                                                    channelId = chId,
-                                                    isMusic = false,
-                                                )
-                                            historyBatch.add(historyEntry)
-                                            rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
-                                            historyImported++
-                                            if (historyBatch.size >= batchSize) {
-                                                viewHistory.bulkSaveHistoryEntries(historyBatch)
-                                                historyBatch.clear()
-                                                kotlinx.coroutines.yield()
-                                            }
-                                        }
-                                        tail.clear()
-                                        if (window.length > overlap) {
-                                            tail.append(window, window.length - overlap, window.length)
-                                        } else {
-                                            tail.append(window)
-                                        }
-                                    }
-                                    if (historyBatch.isNotEmpty()) {
-                                        viewHistory.bulkSaveHistoryEntries(historyBatch)
-                                        historyBatch.clear()
-                                    }
-                                }
-
-                                !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
-                                    takeoutCsvBudget.startEntry()
-                                    val content =
-                                        readYouTubeTakeoutCsv(
-                                            zip.bufferedReader(Charsets.UTF_8),
-                                            takeoutCsvBudget,
-                                        )
-                                    when (content) {
-                                        is YouTubeTakeoutCsvContent.Subscriptions -> {
-                                            onProgress?.invoke("Subscriptions", 0, 0)
-                                            subRows += content.rows
-                                        }
-
-                                        is YouTubeTakeoutCsvContent.PlaylistVideos -> {
-                                            videoCsvData[name] = content.videoIds
-                                        }
-
-                                        is YouTubeTakeoutCsvContent.PlaylistMetadata -> {
-                                            playlistTitlesByDirectory
-                                                .getOrPut(name.takeoutParentPath()) { mutableListOf() }
-                                                .addAll(content.titles)
-                                        }
-
-                                        YouTubeTakeoutCsvContent.Unsupported -> {}
-                                    }
-                                }
-                            }
-                            zip.closeEntry()
-                            entry = zip.nextEntry
-                        }
-                    }
-                } ?: return@withContext Result.failure(Exception("Could not open file"))
-
-                if (subRows.isNotEmpty()) {
-                    onProgress?.invoke("Subscriptions", 0, subRows.size)
-                    val semaphore = Semaphore(5)
-                    val completed = AtomicInteger(0)
-                    val importedSubscriptions = mutableListOf<ChannelSubscription>()
-                    supervisorScope {
-                        subRows.chunked(25).forEach { batch ->
-                            importedSubscriptions +=
-                                batch
-                                    .map { sub ->
-                                        async(Dispatchers.IO) {
-                                            semaphore.withPermit {
-                                                val avatar =
-                                                    try {
-                                                        fetchChannelAvatar(sub.channelId)
-                                                    } catch (e: Exception) {
-                                                        ""
-                                                    }
-                                                onProgress?.invoke("Subscriptions", completed.incrementAndGet(), subRows.size)
-                                                ChannelSubscription(
-                                                    channelId = sub.channelId,
-                                                    channelName = sub.channelName,
-                                                    channelThumbnail = avatar,
-                                                    subscribedAt = System.currentTimeMillis(),
-                                                )
-                                            }
-                                        }
-                                    }.awaitAll()
-                        }
-                    }
-                    subscriptionRepo.subscribeAll(importedSubscriptions)
-                    subscriptionsImported += importedSubscriptions.size
-                    val channelNames = subRows.map { it.channelName }.filter { it.isNotEmpty() }
-                    if (channelNames.isNotEmpty()) {
-                        try {
-                            FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames)
-                        } catch (_: Exception) {
-                        }
-                    }
-                }
-
-                validateYouTubeTakeoutPlaylistCount(
-                    videoFileCount = videoCsvData.size,
-                    metadataTitleCount = playlistTitlesByDirectory.values.sumOf { titles -> titles.size },
-                )
-                val fallbackPlaylistName = context.getString(R.string.imported_playlist_fallback)
-                val playlistNames =
-                    buildMap {
-                        videoCsvData.keys
-                            .groupBy { filename -> filename.takeoutParentPath() }
-                            .forEach { (directory, filenames) ->
-                                putAll(
-                                    resolveYouTubeTakeoutPlaylistNames(
-                                        filenames,
-                                        playlistTitlesByDirectory[directory].orEmpty(),
-                                        fallbackPlaylistName,
-                                    ),
-                                )
-                            }
-                    }
-                playlistNames.forEach { (filename, playlistName) ->
-                    val videoIds = videoCsvData.getValue(filename)
-
-                    val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
-                    val playlistId =
-                        if (isWatchLater) {
-                            PlaylistRepository.WATCH_LATER_ID
-                        } else {
-                            "yt_takeout_${UUID.randomUUID()}"
-                        }
-                    val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
-
-                    database.withTransaction {
-                        val existing = database.playlistDao().getPlaylist(playlistId)
-                        if (existing == null) {
-                            database.playlistDao().insertPlaylist(
-                                PlaylistEntity(
-                                    id = playlistId,
-                                    name = if (isWatchLater) "Watch Later" else playlistName,
-                                    description = context.getString(R.string.imported_from_google_takeout),
-                                    thumbnailUrl = firstThumb,
-                                    isPrivate = isWatchLater,
-                                    createdAt = System.currentTimeMillis(),
-                                    isMusic = false,
-                                    isUserCreated = true,
-                                ),
-                            )
-                        }
-                        val alreadyInPlaylist = database.playlistDao().getVideoIdsInPlaylist(playlistId).toHashSet()
-                        var nextPosition = (database.playlistDao().getMaxPlaylistPosition(playlistId) ?: -1L) + 1L
-
-                        videoIds.forEach { videoId ->
-                            database.videoDao().insertVideoOrIgnore(
-                                VideoEntity(
-                                    id = videoId,
-                                    title = "",
-                                    channelName = "",
-                                    channelId = "",
-                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                    duration = 0,
-                                    viewCount = 0L,
-                                    uploadDate = "",
-                                    description = "",
-                                    channelThumbnailUrl = "",
-                                    isMusic = false,
-                                ),
-                            )
-                            if (!alreadyInPlaylist.add(videoId)) return@forEach
-                            database.playlistDao().insertPlaylistVideoCrossRef(
-                                PlaylistVideoCrossRef(
-                                    playlistId = playlistId,
-                                    videoId = videoId,
-                                    position = nextPosition++,
-                                ),
-                            )
-                        }
-                    }
-                    playlistsImported++
-                    playlistVideosImported += videoIds.size
-                }
-
-                if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0) {
-                    return@withContext Result.failure(Exception("no_content"))
-                }
-
-                if (historyImported > 0) {
-                    try {
-                        bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
-                    } catch (_: Exception) {
-                    }
-                }
-
-                val parts =
-                    buildList {
-                        if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
-                        if (historyImported > 0) add("$historyImported history entries")
-                        if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
-                    }
-                Result.success(parts.joinToString(", "))
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+    ): Result<String> = takeoutImporter.import(uris, onProgress)
 
     // ── NewPipe playlist import (ZIP containing SQLite DB) ──
 
@@ -1989,37 +1726,21 @@ class BackupRepository(
 
     // ── Master Backup (app data + engine brain in one ZIP) ──
 
-    suspend fun exportMasterBackup(uri: Uri): Result<Unit> =
+    suspend fun exportMasterBackup(
+        uri: Uri,
+        musicBrain: ByteArray? = null,
+        recap: ByteArray? = null,
+        favouriteArtists: ByteArray? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val appDataJson = gson.toJson(backupData)
 
                 val brainBytes = exportBrainBytes()
 
                 context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                    ZipOutputStream(out).use { zip ->
-                        zip.putNextEntry(ZipEntry("app_data.json"))
-                        zip.write(appDataJson.toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
-
-                        zip.putNextEntry(ZipEntry("engine_brain.json"))
-                        zip.write(brainBytes)
-                        zip.closeEntry()
-                    }
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap, favouriteArtists)
                 } ?: return@withContext Result.failure(Exception("Could not open output stream"))
 
                 Result.success(Unit)
@@ -2028,11 +1749,19 @@ class BackupRepository(
             }
         }
 
-    suspend fun importMasterBackup(uri: Uri): Result<Unit> =
+    suspend fun importMasterBackup(
+        uri: Uri,
+        onMusicBrain: (suspend (ByteArray) -> Unit)? = null,
+        onRecap: (suspend (ByteArray) -> Unit)? = null,
+        onFavouriteArtists: (suspend (ByteArray) -> Unit)? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 var appDataJson: String? = null
                 var brainBytes: ByteArray? = null
+                var musicBrainBytes: ByteArray? = null
+                var recapBytes: ByteArray? = null
+                var favouriteArtistBytes: ByteArray? = null
                 var contentPreferences: ContentPreferencesBackup? = null
 
                 context.contentResolver.openInputStream(uri)?.use { raw ->
@@ -2040,8 +1769,11 @@ class BackupRepository(
                         var entry = zip.nextEntry
                         while (entry != null) {
                             when (entry.name) {
-                                "app_data.json" -> appDataJson = zip.readBytes().toString(Charsets.UTF_8)
-                                "engine_brain.json" -> brainBytes = zip.readBytes()
+                                MASTER_APP_DATA_ENTRY -> appDataJson = zip.readBytes().toString(Charsets.UTF_8)
+                                MASTER_ENGINE_ENTRY -> brainBytes = zip.readBytes()
+                                MASTER_MUSIC_BRAIN_ENTRY -> musicBrainBytes = zip.readBytes()
+                                MASTER_RECAP_ENTRY -> recapBytes = zip.readBytes()
+                                MASTER_FAVOURITE_ARTISTS_ENTRY -> favouriteArtistBytes = zip.readBytes()
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
@@ -2064,6 +1796,10 @@ class BackupRepository(
                 brainBytes?.let { bytes ->
                     FlowNeuroEngine.importBrainFromStream(context, bytes.inputStream())
                 }
+
+                musicBrainBytes?.let { bytes -> onMusicBrain?.invoke(bytes) }
+                recapBytes?.let { bytes -> onRecap?.invoke(bytes) }
+                favouriteArtistBytes?.let { bytes -> onFavouriteArtists?.invoke(bytes) }
 
                 contentPreferences?.let { preferences ->
                     FlowNeuroEngine.restoreContentPreferences(
@@ -2089,6 +1825,7 @@ class BackupRepository(
         }
         backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
         backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
+        backupData.musicSearchHistory?.let { searchHistoryRepo.replaceSearchHistory(it, SearchHistoryScope.MUSIC) }
         backupData.subscriptions?.let { subs ->
             subscriptionRepo.subscribeAll(subs)
             val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }
@@ -2124,48 +1861,18 @@ class BackupRepository(
                 )
             }
         }
-        backupData.settings?.let { settings ->
+        backupData.settings?.let { backedUp ->
+            backedUp.strings[EqStateJson.KEY]?.let { equalizer.importJson(it) }
+            val settings = backedUp.copy(strings = backedUp.strings - EqStateJson.KEY)
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
             searchHistoryRepo.restoreSettings(settings)
+            appFontPreferences.restoreSettings(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
             if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
-                withContext(Dispatchers.Main) {
-                    val pm = context.packageManager
-                    val pkg = context.packageName
-                    for (suffix in AppIcons.ALL_SUFFIXES) {
-                        val cn = ComponentName(pkg, "${AppIcons.NAMESPACE}$suffix")
-                        val want =
-                            if (suffix == savedIconSuffix) {
-                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                            } else {
-                                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                            }
-                        pm.setComponentEnabledSetting(cn, want, PackageManager.DONT_KILL_APP)
-                    }
-                }
+                appIconController.apply(savedIconSuffix)
             }
         }
-    }
-
-    private fun toNewPipeChannelUrl(channelId: String): String? {
-        val trimmed = channelId.trim()
-        if (trimmed.isEmpty()) return null
-
-        val ucId = Regex("UC[0-9A-Za-z_-]{22}").find(trimmed)?.value
-        if (ucId != null) {
-            return "https://www.youtube.com/channel/$ucId"
-        }
-
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            return trimmed
-        }
-
-        if (trimmed.startsWith("@")) {
-            return "https://www.youtube.com/$trimmed"
-        }
-
-        return "https://www.youtube.com/@$trimmed"
     }
 
     private suspend fun writeToFolder(
@@ -2222,20 +1929,7 @@ class BackupRepository(
     suspend fun exportDataToFolder(folderUri: Uri): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val json = gson.toJson(backupData)
                 writeToFolder(folderUri, "flow_backup.json", "application/json") { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
@@ -2257,53 +1951,35 @@ class BackupRepository(
             }
         }
 
-    suspend fun exportMasterToFolder(folderUri: Uri): Result<Unit> =
+    suspend fun exportMasterToFolder(
+        folderUri: Uri,
+        musicBrain: ByteArray? = null,
+        recap: ByteArray? = null,
+        favouriteArtists: ByteArray? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val appDataJson = gson.toJson(backupData)
                 val brainBytes = exportBrainBytes()
 
                 writeToFolder(folderUri, "flow_master_backup.zip", "application/zip") { out ->
-                    ZipOutputStream(out).use { zip ->
-                        zip.putNextEntry(ZipEntry("app_data.json"))
-                        zip.write(appDataJson.toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
-                        zip.putNextEntry(ZipEntry("engine_brain.json"))
-                        zip.write(brainBytes)
-                        zip.closeEntry()
-                    }
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap, favouriteArtists)
                 }
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
 
-    // Helper to fetch channel avatar using NewPipe
-    private fun fetchChannelAvatar(channelId: String): String =
-        try {
-            val url =
-                if (channelId.startsWith("UC") && channelId.length > 20) {
-                    "https://www.youtube.com/channel/$channelId"
-                } else {
-                    "https://www.youtube.com/@$channelId"
-                }
-            val info = ChannelInfo.getInfo(ServiceList.YouTube, url)
-            info.avatars.maxByOrNull { it.height }?.url ?: ""
-        } catch (e: Exception) {
+    private suspend fun fetchChannelAvatar(channelId: String): String =
+        if (channelId.startsWith("UC")) {
+            YouTube
+                .channelLanding(channelId)
+                .getOrNull()
+                ?.header
+                ?.avatarUrl
+                .orEmpty()
+        } else {
             ""
         }
 }

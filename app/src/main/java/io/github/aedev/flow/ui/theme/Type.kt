@@ -7,15 +7,18 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Using system default (Roboto on Android)
-val InterFontFamily = FontFamily.Default
+/** The system font (Roboto on most devices); the app font when the user has not picked another. */
+val FlowFontFamily: FontFamily = FontFamily.Default
 
-private val BaseTypography =
+/** Material's own scale, for the roles Flow keeps at their Material size. */
+private val MaterialScale = Typography()
+
+private fun baseTypography(family: FontFamily) =
     Typography(
         // Display - Large titles
         displayLarge =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Bold,
                 fontSize = 34.sp,
                 lineHeight = 40.sp,
@@ -23,16 +26,17 @@ private val BaseTypography =
             ),
         displayMedium =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp,
                 lineHeight = 36.sp,
                 letterSpacing = 0.sp,
             ),
+        displaySmall = MaterialScale.displaySmall.copy(fontFamily = family),
         // Headline - Screen titles
         headlineLarge =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 24.sp,
                 lineHeight = 32.sp,
@@ -40,16 +44,17 @@ private val BaseTypography =
             ),
         headlineMedium =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp,
                 lineHeight = 28.sp,
                 letterSpacing = 0.sp,
             ),
+        headlineSmall = MaterialScale.headlineSmall.copy(fontFamily = family),
         // Title - Card titles, section headers
         titleLarge =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
@@ -57,7 +62,7 @@ private val BaseTypography =
             ),
         titleMedium =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
@@ -65,7 +70,7 @@ private val BaseTypography =
             ),
         titleSmall =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -74,7 +79,7 @@ private val BaseTypography =
         // Body - Main content
         bodyLarge =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
@@ -82,7 +87,7 @@ private val BaseTypography =
             ),
         bodyMedium =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -90,7 +95,7 @@ private val BaseTypography =
             ),
         bodySmall =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Normal,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
@@ -99,7 +104,7 @@ private val BaseTypography =
         // Label - Buttons, tabs
         labelLarge =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -107,7 +112,7 @@ private val BaseTypography =
             ),
         labelMedium =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
@@ -115,7 +120,7 @@ private val BaseTypography =
             ),
         labelSmall =
             TextStyle(
-                fontFamily = InterFontFamily,
+                fontFamily = family,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
@@ -125,22 +130,28 @@ private val BaseTypography =
 
 private fun TextStyle.emphasized(weight: FontWeight = FontWeight.Bold): TextStyle = copy(fontWeight = weight)
 
+/** The app's type scale, every role (and its emphasized form) set in [family]. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-val Typography =
-    BaseTypography.copy(
-        displayLargeEmphasized = BaseTypography.displayLarge.emphasized(FontWeight.ExtraBold),
-        displayMediumEmphasized = BaseTypography.displayMedium.emphasized(FontWeight.ExtraBold),
-        displaySmallEmphasized = BaseTypography.displaySmall.emphasized(),
-        headlineLargeEmphasized = BaseTypography.headlineLarge.emphasized(),
-        headlineMediumEmphasized = BaseTypography.headlineMedium.emphasized(),
-        headlineSmallEmphasized = BaseTypography.headlineSmall.emphasized(),
-        titleLargeEmphasized = BaseTypography.titleLarge.emphasized(),
-        titleMediumEmphasized = BaseTypography.titleMedium.emphasized(),
-        titleSmallEmphasized = BaseTypography.titleSmall.emphasized(),
-        bodyLargeEmphasized = BaseTypography.bodyLarge.emphasized(FontWeight.Medium),
-        bodyMediumEmphasized = BaseTypography.bodyMedium.emphasized(FontWeight.Medium),
-        bodySmallEmphasized = BaseTypography.bodySmall.emphasized(FontWeight.Medium),
-        labelLargeEmphasized = BaseTypography.labelLarge.emphasized(),
-        labelMediumEmphasized = BaseTypography.labelMedium.emphasized(),
-        labelSmallEmphasized = BaseTypography.labelSmall.emphasized(),
+fun flowTypography(family: FontFamily): Typography {
+    val base = baseTypography(family)
+    return base.copy(
+        displayLargeEmphasized = base.displayLarge.emphasized(FontWeight.ExtraBold),
+        displayMediumEmphasized = base.displayMedium.emphasized(FontWeight.ExtraBold),
+        displaySmallEmphasized = base.displaySmall.emphasized(),
+        headlineLargeEmphasized = base.headlineLarge.emphasized(),
+        headlineMediumEmphasized = base.headlineMedium.emphasized(),
+        headlineSmallEmphasized = base.headlineSmall.emphasized(),
+        titleLargeEmphasized = base.titleLarge.emphasized(),
+        titleMediumEmphasized = base.titleMedium.emphasized(),
+        titleSmallEmphasized = base.titleSmall.emphasized(),
+        bodyLargeEmphasized = base.bodyLarge.emphasized(FontWeight.Medium),
+        bodyMediumEmphasized = base.bodyMedium.emphasized(FontWeight.Medium),
+        bodySmallEmphasized = base.bodySmall.emphasized(FontWeight.Medium),
+        labelLargeEmphasized = base.labelLarge.emphasized(),
+        labelMediumEmphasized = base.labelMedium.emphasized(),
+        labelSmallEmphasized = base.labelSmall.emphasized(),
     )
+}
+
+/** The type scale in the system font, for surfaces that cannot take the user's font (widgets). */
+val Typography: Typography = flowTypography(FlowFontFamily)

@@ -5,15 +5,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.theme.FlowFontFamily
 
-private val TvShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(24.dp),
-)
+private val TvShapes =
+    Shapes(
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(10.dp),
+        medium = RoundedCornerShape(12.dp),
+        large = RoundedCornerShape(16.dp),
+        extraLarge = RoundedCornerShape(24.dp),
+    )
 
 /**
  * TV layer over [io.github.aedev.flow.ui.theme.FlowTheme]: keeps the already-resolved
@@ -22,10 +25,11 @@ private val TvShapes = Shapes(
  */
 @Composable
 fun TvTheme(content: @Composable () -> Unit) {
+    val appFont = MaterialTheme.typography.bodyLarge.fontFamily ?: FlowFontFamily
     CompositionLocalProvider(LocalTvDimens provides TvDimens()) {
         MaterialTheme(
             colorScheme = MaterialTheme.colorScheme,
-            typography = TvTypography,
+            typography = remember(appFont) { tvTypography(appFont) },
             shapes = TvShapes,
             content = content,
         )

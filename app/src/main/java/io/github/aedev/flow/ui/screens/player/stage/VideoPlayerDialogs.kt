@@ -1,10 +1,15 @@
 package io.github.aedev.flow.ui.screens.player.stage
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.SbSubmitSegmentDialog
@@ -59,6 +64,19 @@ internal fun VideoPlayerDialogs(
             videoId = video.id,
             currentPositionMs = initialPosition,
             onDismiss = { screenState.closeSheet() },
+            onSubmitted = { playerViewModel.reloadSponsorSegments(video.id) },
+        )
+    }
+
+    if (screenState.activeSheet == PlayerSheet.Note) {
+        val note by playerViewModel.videoNote.collectAsStateWithLifecycle()
+        val insertPositionMs = remember { screenState.currentPosition.takeUnless { video.isLive } }
+        FlowNoteEditorDialog(
+            initialText = note.orEmpty(),
+            title = stringResource(R.string.note_video_title),
+            onSave = { text -> playerViewModel.saveVideoNote(video.id, text) },
+            onDismiss = { screenState.closeSheet() },
+            insertPositionMs = insertPositionMs,
         )
     }
 

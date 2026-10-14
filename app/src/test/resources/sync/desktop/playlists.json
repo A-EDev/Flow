@@ -1,0 +1,44 @@
+[
+  {
+    "syncId": "550e8400-e29b-41d4-a716-446655440000",
+    "origin": "local",
+    "youtubeId": null,
+    "title": "Gym",
+    "description": "",
+    "isMusic": false,
+    "isUserCreated": true,
+    "isProtected": false,
+    "createdAtMs": 1781000000000,
+    "updatedHlc": "1781000000000:0:device-aaa",
+    "deleted": false,
+    "items": [
+      {
+        "videoId": "dQw4w9WgXcQ",
+        "position": 1000,
+        "addedAtMs": 1781000001000,
+        "deleted": false,
+        "title": "Never Gonna Give You Up",
+        "channelName": "Rick Astley",
+        "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+        "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+        "durationSeconds": 212,
+        "isMusic": false,
+        "hlc": "1781000001000:0:device-aaa"
+      }
+    ]
+  },
+  {
+    "syncId": "reserved:watch-later",
+    "origin": "local",
+    "youtubeId": null,
+    "title": "Watch Later",
+    "description": "",
+    "isMusic": false,
+    "isUserCreated": false,
+    "isProtected": true,
+    "createdAtMs": 1780000000000,
+    "updatedHlc": "1781200000000:2:device-aaa",
+    "deleted": false,
+    "items": []
+  }
+]

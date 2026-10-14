@@ -6,14 +6,21 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SearchHistoryItem
+import io.github.aedev.flow.data.local.SearchHistoryRepository
+import io.github.aedev.flow.data.local.SearchHistoryScope
+import io.github.aedev.flow.data.local.SearchType
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.music.DownloadManager
+import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.SearchSuggestions
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.ArtistSectionKind
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
+import io.github.aedev.flow.ui.components.search.matchingTyped
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -29,10 +36,19 @@ class MusicSearchViewModel
     @Inject
     constructor(
         private val downloadManager: DownloadManager,
+        private val searchHistory: SearchHistoryRepository,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val _query = MutableStateFlow("")
         val query: StateFlow<String> = _query.asStateFlow()
+
+        val matchingHistory: StateFlow<List<SearchHistoryItem>> =
+            combine(searchHistory.getSearchHistoryFlow(SearchHistoryScope.MUSIC), _query) { history, typed ->
+                history.matchingTyped(typed)
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+        private val _moods = MutableStateFlow<List<MoodAndGenres>>(emptyList())
+        val moods: StateFlow<List<MoodAndGenres>> = _moods.asStateFlow()
 
         private val _uiState = MutableStateFlow(MusicSearchUiState())
         val uiState: StateFlow<MusicSearchUiState> = _uiState.asStateFlow()
@@ -41,10 +57,14 @@ class MusicSearchViewModel
             // Handle search suggestions with debounce
             _query
                 .debounce(300)
-                .filter { it.isNotBlank() }
+                .filter { it.isNotBlank() && searchHistory.isSearchSuggestionsEnabled() }
                 .onEach { q ->
                     fetchSuggestions(q)
                 }.launchIn(viewModelScope)
+
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                _moods.value = InnertubeMusicService.fetchMoodAndGenres()
+            }
 
             viewModelScope.launch {
                 downloadManager.downloadedTracks.collect { tracks ->
@@ -93,11 +113,15 @@ class MusicSearchViewModel
         /**
          *  PERFORMANCE OPTIMIZED: Perform search with timeout protection
          */
-        fun performSearch(q: String = _query.value) {
+        fun performSearch(
+            q: String = _query.value,
+            type: SearchType = SearchType.TEXT,
+        ) {
             if (q.isBlank()) return
 
             _query.value = q
-            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null) }
+            viewModelScope.launch { searchHistory.saveSearchQuery(q.trim(), type, SearchHistoryScope.MUSIC) }
+            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null, error = null) }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val result =
@@ -116,7 +140,8 @@ class MusicSearchViewModel
                             )
                         }
                     }?.onFailure { throwable ->
-                        _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+                        android.util.Log.w("MusicSearchViewModel", "Search failed", throwable)
+                        _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
                     } ?: run {
                     _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_search_timed_out)) }
                 }
@@ -130,7 +155,7 @@ class MusicSearchViewModel
             val q = _query.value
             if (q.isBlank()) return
 
-            _uiState.update { state -> state.copy(isLoading = true, activeFilter = filter) }
+            _uiState.update { state -> state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null) }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 if (filter == null) {
@@ -151,7 +176,8 @@ class MusicSearchViewModel
                                 )
                             }
                         }?.onFailure { throwable ->
-                            _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+                            android.util.Log.w("MusicSearchViewModel", "Filtered search failed", throwable)
+                            _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
                         } ?: run {
                         _uiState.update { state ->
                             state.copy(isLoading = false, error = context.getString(R.string.error_filter_search_timed_out))
@@ -159,6 +185,14 @@ class MusicSearchViewModel
                     }
                 }
             }
+        }
+
+        fun deleteHistoryItem(item: SearchHistoryItem) {
+            viewModelScope.launch { searchHistory.deleteSearchItem(item.id, SearchHistoryScope.MUSIC) }
+        }
+
+        fun clearHistory() {
+            viewModelScope.launch { searchHistory.clearSearchHistory(SearchHistoryScope.MUSIC) }
         }
 
         fun clearSearch() {

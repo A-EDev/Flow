@@ -7,10 +7,12 @@ import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
+internal const val HISTORY_SEED_MAX = 40
+
 /** Watch-history seed candidates for related-graph retrieval, newest first. */
 internal fun graphSeedInputsFromHistory(
     history: List<VideoHistoryEntry>,
-    max: Int = 40,
+    max: Int = HISTORY_SEED_MAX,
 ): List<GraphSeedInput> =
     history
         .filter { !it.isShort }
@@ -24,7 +26,8 @@ internal fun graphSeedInputsFromHistory(
                 source = GraphSeedSource.WATCH_HISTORY,
                 engagementWeight = (it.progressPercentage / 100.0).coerceIn(0.0, 1.0),
                 timestamp = it.timestamp,
-                durationSec = it.duration.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                // History stores milliseconds; the seed rule's "3 minutes" is in seconds.
+                durationSec = (it.duration / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                 percentWatched = it.progressPercentage.toDouble(),
                 isShort = it.isShort,
             )

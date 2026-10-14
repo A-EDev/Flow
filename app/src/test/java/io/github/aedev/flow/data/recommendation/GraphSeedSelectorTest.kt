@@ -92,4 +92,104 @@ class GraphSeedSelectorTest {
 
         assertThat(selected).containsExactly("allowed")
     }
+
+    @Test
+    fun `a feed pick never outranks a real watch that qualifies as a seed`() {
+        val weakestWatch =
+            seed("watch", engagementWeight = 0.35, percentWatched = 35.0, durationSec = 1_200, timestamp = now - 200L * 86_400_000L)
+        val feedPick = seed("feed", source = GraphSeedSource.FEED, engagementWeight = 0.6)
+
+        assertThat(GraphSeedSelector.scoreSeed(feedPick, now)).isLessThan(GraphSeedSelector.scoreSeed(weakestWatch, now))
+    }
+
+    @Test
+    fun `the long-term slot goes to the heaviest interest the recent seeds miss`() {
+        val picked =
+            GraphSeedSelector.selectLongTermSeed(
+                candidates =
+                    listOf(
+                        seed("guitar-old", title = "guitar solo"),
+                        seed("cooking-old", title = "cooking pasta"),
+                        seed("comedy-liked", title = "comedy special", source = GraphSeedSource.LIKED),
+                    ),
+                coveredCommunities = setOf("guitar"),
+                communityMass = mapOf("guitar" to 0.9, "comedy" to 0.6, "cooking" to 0.3),
+                communityOf = { it },
+                topicScores = mapOf("guitar" to 0.9, "comedy" to 0.6, "cooking" to 0.3),
+            )
+
+        assertThat(picked).isEqualTo("comedy-liked")
+    }
+
+    @Test
+    fun `no long-term seed when every learnt interest is already covered`() {
+        val picked =
+            GraphSeedSelector.selectLongTermSeed(
+                candidates = listOf(seed("guitar-old", title = "guitar solo")),
+                coveredCommunities = setOf("guitar"),
+                communityMass = mapOf("guitar" to 0.9),
+                communityOf = { it },
+                topicScores = mapOf("guitar" to 0.9),
+            )
+
+        assertThat(picked).isNull()
+    }
+
+    @Test
+    fun `the last seed goes to the long-term interest`() {
+        val recent =
+            (0 until 3).map { seed("g$it", title = "guitar lesson $it") } + (0 until 3).map { seed("c$it", title = "cooking pasta $it") }
+
+        val selected =
+            GraphSeedSelector.selectWithLongTerm(
+                candidates = recent,
+                maxSeeds = 4,
+                longTermCandidates = listOf(seed("comedy", title = "comedy special", source = GraphSeedSource.LIKED)),
+                communityMass = mapOf("guitar" to 0.4, "cooking" to 0.3, "comedy" to 0.5),
+                communityOf = { it },
+                now = now,
+                topicScores = mapOf("guitar" to 0.4, "cooking" to 0.3, "comedy" to 0.5),
+            )
+
+        assertThat(selected).hasSize(4)
+        assertThat(selected.last()).isEqualTo("comedy")
+    }
+
+    @Test
+    fun `cooled seeds come back when only unqualified watches are left`() {
+        val qualified = listOf("guitar lesson", "cooking pasta", "chess opening").mapIndexed { i, title -> seed("q$i", title = title) }
+        val halfWatched = (0 until 20).map { seed("h$it", title = "guitar tab $it", percentWatched = 20.0, engagementWeight = 0.2) }
+
+        val selected =
+            GraphSeedSelector.selectWithLongTerm(
+                candidates = qualified + halfWatched,
+                maxSeeds = 3,
+                longTermCandidates = emptyList(),
+                communityMass = emptyMap(),
+                communityOf = { it },
+                now = now,
+                cooledIds = qualified.mapTo(HashSet()) { it.id },
+            )
+
+        assertThat(selected).containsExactly("q0", "q1", "q2")
+    }
+
+    @Test
+    fun `fresh seeds are never topped up with cooled ones`() {
+        val fresh = seed("fresh", title = "guitar lesson")
+        val cooled = listOf("cooking pasta", "chess opening").mapIndexed { i, title -> seed("cooled$i", title = title) }
+
+        val selected =
+            GraphSeedSelector.selectWithLongTerm(
+                candidates = listOf(fresh) + cooled,
+                maxSeeds = 3,
+                longTermCandidates = emptyList(),
+                communityMass = emptyMap(),
+                communityOf = { it },
+                now = now,
+                cooledIds = cooled.mapTo(HashSet()) { it.id },
+            )
+
+        assertThat(selected).containsExactly("fresh")
+    }
 }

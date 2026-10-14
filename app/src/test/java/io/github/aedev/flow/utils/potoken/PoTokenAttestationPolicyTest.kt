@@ -4,8 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class PoTokenAttestationPolicyTest {
-    private fun token(decodedBytes: Int): String {
-        val unpadded = "A".repeat(decodedBytes * 4 / 3)
+    private fun token(characters: Int): String {
+        val unpadded = "A".repeat(characters)
         return unpadded + "=".repeat((4 - unpadded.length % 4) % 4)
     }
 
@@ -90,17 +90,25 @@ class PoTokenAttestationPolicyTest {
 
     @Test
     fun `token length ignores base64 padding`() {
-        assertThat(PoTokenAttestationPolicy.tokenByteLength("QUJD")).isEqualTo(3)
-        assertThat(PoTokenAttestationPolicy.tokenByteLength("QUJDRA==")).isEqualTo(4)
+        assertThat(PoTokenAttestationPolicy.tokenLength("QUJD")).isEqualTo(4)
+        assertThat(PoTokenAttestationPolicy.tokenLength("QUJDRA==")).isEqualTo(6)
     }
 
     @Test
-    fun `a cold 88-byte attestation is treated as low trust`() {
+    fun `a genuinely short attestation is treated as low trust`() {
         assertThat(PoTokenAttestationPolicy.isLowTrust(token(88))).isTrue()
     }
 
     @Test
-    fun `a full-trust 110-byte token is accepted`() {
+    fun `the token lengths YouTube actually returns are accepted`() {
+        // Measured on device: every one of 88 mints came back at one of these two lengths, and
+        // playback on them was healthy. The old byte-based threshold rejected both.
+        assertThat(PoTokenAttestationPolicy.isLowTrust(token(116))).isFalse()
+        assertThat(PoTokenAttestationPolicy.isLowTrust(token(120))).isFalse()
+    }
+
+    @Test
+    fun `the documented full-trust floor is accepted`() {
         assertThat(PoTokenAttestationPolicy.isLowTrust(token(110))).isFalse()
     }
 }

@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer
 
 import android.content.Context
-import android.graphics.Outline
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
@@ -11,12 +10,14 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
@@ -33,21 +35,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
-import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
+import io.github.aedev.flow.ui.components.shared.clipToCornerRadius
+import io.github.aedev.flow.ui.components.shared.flowPlayerViewLayout
 import io.github.aedev.flow.ui.components.videoplayer.ambient.VideoAmbientBackground
 import io.github.aedev.flow.ui.components.videoplayer.ambient.rememberAmbientFrame
-
-private fun pickPlayerViewLayoutRes(): Int =
-    if (VideoSurfacePolicy.usesSurfaceView(Build.VERSION.SDK_INT)) {
-        R.layout.video_player_view_surface
-    } else {
-        R.layout.video_player_view
-    }
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -78,7 +73,7 @@ fun VideoPlayerSurface(
     val playerView =
         remember {
             Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (sdk=${Build.VERSION.SDK_INT})")
-            (LayoutInflater.from(context).inflate(pickPlayerViewLayoutRes(), null) as PlayerView).apply {
+            (LayoutInflater.from(context).inflate(flowPlayerViewLayout(), null) as PlayerView).apply {
                 layoutParams =
                     FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -189,10 +184,16 @@ fun VideoPlayerSurface(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (ambientActive) {
+            // Held back until the first frame is sampled, then faded in: before that the glow is only
+            // its dark base, which used to black out the backdrop around the video for a moment.
+            val ambientAppear = remember { Animatable(0f) }
+            val ambientFade = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
+            val ambientReady = ambientFrame.frame != null
+            LaunchedEffect(ambientReady) { if (ambientReady) ambientAppear.animateTo(1f, ambientFade) }
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
                 videoAspect = ambientVideoAspect,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = ambientAppear.value },
             )
         }
         AndroidView(
@@ -274,36 +275,11 @@ fun VideoPlayerSurface(
                     if (ambientActive) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK,
                 )
 
-                applyOutlineCornerRadius(view, cornerRadiusPx)
+                view.clipToCornerRadius(cornerRadiusPx)
             },
             modifier = Modifier.fillMaxSize(),
         )
     }
-}
-
-private fun applyOutlineCornerRadius(
-    view: PlayerView,
-    radiusPx: Float,
-) {
-    val current = view.getTag(R.id.player_view) as? Float
-    if (current != null && current == radiusPx) return
-    if (radiusPx <= 0f) {
-        view.clipToOutline = false
-        view.outlineProvider = ViewOutlineProvider.BACKGROUND
-    } else {
-        view.outlineProvider =
-            object : ViewOutlineProvider() {
-                override fun getOutline(
-                    v: View,
-                    outline: Outline,
-                ) {
-                    outline.setRoundRect(0, 0, v.width, v.height, radiusPx)
-                }
-            }
-        view.clipToOutline = true
-    }
-    view.invalidateOutline()
-    view.setTag(R.id.player_view, radiusPx)
 }
 
 private fun Context.isDisplayInteractive(): Boolean =

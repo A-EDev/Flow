@@ -12,4 +12,6 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:description="@string/widget_quick_actions_description"
     android:resizeMode="horizontal"
+    android:configure="io.github.aedev.flow.widget.config.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
     android:widgetCategory="home_screen" />

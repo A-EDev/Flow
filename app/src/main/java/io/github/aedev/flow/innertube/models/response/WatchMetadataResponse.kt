@@ -1,6 +1,11 @@
 package io.github.aedev.flow.innertube.models.response
 
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.innertube.pages.renderer.collaboratorDialog
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class WatchMetadataResponse(
@@ -39,7 +44,7 @@ data class WatchMetadataResponse(
         val viewCount: ViewCount? = null,
         val dateText: SimpleText? = null,
         val relativeDateText: SimpleText? = null,
-        val videoActions: VideoActions? = null,
+        val videoActions: WatchVideoActions? = null,
     ) {
         @Serializable
         data class ViewCount(
@@ -48,39 +53,6 @@ data class WatchMetadataResponse(
             @Serializable
             data class Inner(
                 val viewCount: SimpleText? = null,
-            )
-        }
-
-        /**
-         * The like button, which carries the count as text rather than a number.
-         *
-         * Three forms are served for the three states the button can be in; they differ by one or
-         * two because the counter moves between requests, and the indifferent one is what a viewer
-         * who has not voted sees.
-         */
-        @Serializable
-        data class VideoActions(
-            val menuRenderer: MenuRenderer? = null,
-        ) {
-            @Serializable
-            data class MenuRenderer(
-                val topLevelButtons: List<TopLevelButton> = emptyList(),
-            )
-
-            @Serializable
-            data class TopLevelButton(
-                val segmentedLikeDislikeButtonViewModel: SegmentedLikeDislike? = null,
-            )
-
-            @Serializable
-            data class SegmentedLikeDislike(
-                val likeCountEntity: LikeCountEntity? = null,
-            )
-
-            @Serializable
-            data class LikeCountEntity(
-                val expandedLikeCountIfIndifferent: SecondaryInfo.TextContent? = null,
-                val likeCountIfIndifferent: SecondaryInfo.TextContent? = null,
             )
         }
     }
@@ -126,12 +98,12 @@ data class WatchMetadataResponse(
         val itemSectionRenderer: ItemSection? = null,
         val lockupViewModel: LockupViewModel? = null,
     ) {
-        fun videos(): List<CompactVideo> =
+        fun videos(hl: String? = null): List<CompactVideo> =
             buildList {
                 compactVideoRenderer?.let(::add)
-                compactAutoplayRenderer?.contents?.flatMapTo(this) { it.videos() }
-                itemSectionRenderer?.contents?.flatMapTo(this) { it.videos() }
-                lockupViewModel?.toCompactVideo()?.let(::add)
+                compactAutoplayRenderer?.contents?.flatMapTo(this) { it.videos(hl) }
+                itemSectionRenderer?.contents?.flatMapTo(this) { it.videos(hl) }
+                lockupViewModel?.toCompactVideo(hl)?.let(::add)
             }
     }
 
@@ -158,6 +130,7 @@ data class WatchMetadataResponse(
         val resolvedChannelId: String? = null,
         val channelHandle: String? = null,
         val channelAvatarUrl: String? = null,
+        @Transient val collaborators: List<VideoCollaborator> = emptyList(),
     ) {
         fun channelId(): String? =
             resolvedChannelId
@@ -171,7 +144,7 @@ data class WatchMetadataResponse(
         val contentImage: LockupContentImage? = null,
         val metadata: LockupMetadataWrap? = null,
     ) {
-        fun toCompactVideo(): CompactVideo? {
+        fun toCompactVideo(hl: String? = null): CompactVideo? {
             if (contentId.isNullOrBlank()) return null
             if (contentType != null && contentType != "LOCKUP_CONTENT_TYPE_VIDEO") return null
 
@@ -195,7 +168,18 @@ data class WatchMetadataResponse(
             val viewsPart = metadataParts.firstOrNull { it.isViewCount }
             val views = viewsPart?.content() ?: metadataTexts.firstOrNull { it.looksLikeViewCount() }
             val remaining = metadataTexts.filter { it != views }
-            val published = remaining.firstOrNull { it.looksLikeDateOrDuration() && !it.contains(":") }
+            // The first row is the byline, and a channel name can read as an age ("5-Minute Crafts").
+            val laterRowTexts =
+                metadataModel
+                    ?.metadata
+                    ?.contentMetadataViewModel
+                    ?.metadataRows
+                    ?.drop(1)
+                    ?.flatMap { row -> row.metadataParts.mapNotNull { it.content() } }
+                    .orEmpty()
+            val published =
+                remaining.firstOrNull { it.looksLikeDateOrDuration() && !it.contains(":") }
+                    ?: laterRowTexts.firstOrNull { it != views && RelativeUploadDateParser.parse(it, hl) != null }
             val byline =
                 remaining.firstOrNull { text ->
                     text != published &&
@@ -204,6 +188,8 @@ data class WatchMetadataResponse(
                         !text.contains("recommended", ignoreCase = true)
                 }
             val avatar = metadataModel?.image?.decoratedAvatarViewModel
+            val collaborators = metadataModel?.image?.avatarStackViewModel.collaboratorDialog()
+            val lead = collaborators.firstOrNull()
 
             return CompactVideo(
                 videoId = contentId,
@@ -222,9 +208,10 @@ data class WatchMetadataResponse(
                 lengthText = SimpleText(simpleText = contentImage?.thumbnailViewModel?.durationText()),
                 publishedTimeText = SimpleText(simpleText = published),
                 isLive = live,
-                resolvedChannelId = avatar?.channelId(),
+                resolvedChannelId = avatar?.channelId() ?: lead?.channelId,
                 channelHandle = avatar?.channelHandle(),
-                channelAvatarUrl = avatar?.avatarUrl(),
+                channelAvatarUrl = avatar?.avatarUrl() ?: lead?.thumbnailUrl,
+                collaborators = collaborators,
             )
         }
 
@@ -328,11 +315,13 @@ data class WatchMetadataResponse(
 
     /**
      * The channel avatar beside a lockup's title. It is also the only place the card carries its
-     * channel id — the byline is plain text with no endpoint of its own.
+     * channel id — the byline is plain text with no endpoint of its own. A collaboration carries an
+     * avatar stack instead, whose tap opens the dialog naming every channel.
      */
     @Serializable
     data class LockupMetadataImage(
         val decoratedAvatarViewModel: DecoratedAvatar? = null,
+        val avatarStackViewModel: JsonObject? = null,
     )
 
     @Serializable
@@ -511,15 +500,7 @@ data class WatchMetadataResponse(
      */
     fun relativeUploadDate(): String? = primary()?.relativeDateText?.text()?.takeIf { it.isNotBlank() }
 
-    /** The exact like count, or the abbreviated one when the expanded form is absent. */
-    fun likeCountText(): String? =
-        primary()
-            ?.videoActions
-            ?.menuRenderer
-            ?.topLevelButtons
-            ?.firstNotNullOfOrNull { it.segmentedLikeDislikeButtonViewModel?.likeCountEntity }
-            ?.let { it.expandedLikeCountIfIndifferent?.content ?: it.likeCountIfIndifferent?.content }
-            ?.takeIf { it.isNotBlank() }
+    fun likeCountText(): String? = primary()?.videoActions?.likeCountText()
 
     fun description(): String? = secondary()?.attributedDescription?.content
 
@@ -552,13 +533,13 @@ data class WatchMetadataResponse(
             ?.subscriberCountText
             ?.text()
 
-    fun relatedVideos(): List<CompactVideo> =
+    fun relatedVideos(hl: String? = null): List<CompactVideo> =
         contents
             ?.twoColumnWatchNextResults
             ?.secondaryResults
             ?.secondaryResults
             ?.results
-            ?.flatMap { it.videos() }
+            ?.flatMap { it.videos(hl) }
             ?.filter { !it.videoId.isNullOrBlank() }
             ?.distinctBy { it.videoId }
             .orEmpty()

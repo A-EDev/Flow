@@ -1,12 +1,10 @@
 package io.github.aedev.flow.ui.screens.player.state
 
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 /*
  * The decisions a load makes before it does anything, and the states it starts from.
@@ -44,7 +42,8 @@ internal fun VideoPlayerUiState.loadSkipReason(
 
 /**
  * The state a load runs behind: the previous video's streams, lane, engagement and live chat are
- * gone, and the only thing carried over is the channel avatar this video already came with.
+ * gone, and the only thing carried over is the channel avatar this video already came with. A
+ * reload of the video on screen keeps its engagement, which nothing would re-emit (#1160).
  */
 internal fun VideoPlayerUiState.beginLoadFor(videoId: String): VideoPlayerUiState =
     copy(
@@ -63,8 +62,8 @@ internal fun VideoPlayerUiState.beginLoadFor(videoId: String): VideoPlayerUiStat
                 ?.takeIf { it.isNotBlank() },
         channelSubscriberCount = null,
         dislikeCount = null,
-        isSubscribed = false,
-        likeState = null,
+        isSubscribed = isSubscribed && cachedVideo?.id == videoId,
+        likeState = likeState.takeIf { cachedVideo?.id == videoId },
         hlsUrl = null,
         localFilePath = null,
         localFileVideoId = null,
@@ -111,6 +110,10 @@ internal fun VideoPlayerUiState.startLocalPlaybackOf(
         offlineSponsorBlockSegments = null,
     )
 
+/** The device file's own channel and description, if it is still the one on screen. */
+internal fun VideoPlayerUiState.withDeviceFileDetails(detailed: Video): VideoPlayerUiState =
+    if (cachedVideo?.id == detailed.id) copy(cachedVideo = detailed) else this
+
 /** Everything the screen keeps once the player is cleared: the two settings that are not a video. */
 internal fun VideoPlayerUiState.clearedForNoVideo(): VideoPlayerUiState =
     VideoPlayerUiState(
@@ -138,6 +141,13 @@ internal fun VideoPlayerUiState.shouldReopenInsteadOfPlaying(
                 playerState.playWhenReady ||
                 playerState.isBuffering,
     )
+
+/**
+ * Whether a link to [videoId] should only reopen the sheet. A failed, restored or upcoming screen
+ * for the same video still needs `playVideo`, or re-sharing it after a failure does nothing.
+ */
+internal fun VideoPlayerUiState.shouldExpandInsteadOfPlaying(videoId: String): Boolean =
+    cachedVideo?.id == videoId && !isRestoredSession && error == null && !isUpcoming
 
 /** What a late prepare has to arm from the screen state alone, when the player owns no media item. */
 internal sealed interface LatePrepare {
@@ -169,3 +179,12 @@ internal fun VideoPlayerUiState.blocksLatePrepare(): Boolean = isLoading || erro
 
 /** Whether the screen holds [videoId] at all, under any of the three identities it can be under. */
 internal fun VideoPlayerUiState.holdsVideo(videoId: String): Boolean = cachedVideo?.id == videoId || localFileVideoId == videoId
+
+/**
+ * Whether a downloaded copy of [videoId] should still load its watch page: the title, counts,
+ * related lane, chapters and channel all come from there, and the file carries none of them.
+ */
+internal fun shouldLoadOnlineMetadataForLocalCopy(
+    videoId: String,
+    isOnline: Boolean,
+): Boolean = isOnline && !LocalMediaIds.isLocal(videoId)

@@ -1,11 +1,13 @@
 package io.github.aedev.flow.ui.components.search
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -25,6 +27,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.SearchType
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowSuggestionRow
 
 /**
@@ -37,41 +40,23 @@ fun SearchSuggestionsPanel(
     history: List<SearchHistoryItem>,
     suggestions: List<SearchSuggestion>,
     onSubmit: (String) -> Unit,
+    onHistorySelect: (SearchHistoryItem) -> Unit,
     onFill: (String) -> Unit,
     onDeleteHistoryItem: (SearchHistoryItem) -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        if (history.isNotEmpty()) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = HeaderStartPadding, end = HeaderEndPadding),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.recent_searches),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    TextButton(onClick = onClearHistory) {
-                        Text(stringResource(R.string.clear_search_history))
-                    }
-                }
-            }
-            items(history, key = { "history:${it.id}" }) { item ->
-                FlowSuggestionRow(
-                    text = item.query,
-                    leadingIcon = if (item.type == SearchType.VOICE) Icons.Rounded.Mic else Icons.Rounded.History,
-                    onClick = { onSubmit(item.query) },
-                    query = query,
-                    trailingIcon = Icons.Rounded.Close,
-                    trailingContentDescription = stringResource(R.string.remove),
-                    onTrailingClick = { onDeleteHistoryItem(item) },
-                )
-            }
-        }
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
+    ) {
+        searchHistoryItems(
+            query = query,
+            history = history,
+            onSelect = onHistorySelect,
+            onDeleteHistoryItem = onDeleteHistoryItem,
+            onClearHistory = onClearHistory,
+        )
 
         items(suggestions, key = { "suggestion:${it.text}" }) { suggestion ->
             FlowSuggestionRow(
@@ -86,6 +71,45 @@ fun SearchSuggestionsPanel(
                 onTrailingClick = { onFill(suggestion.text) },
             )
         }
+    }
+}
+
+/** The "Recent searches" header and rows, for any search surface's lazy list. */
+fun LazyListScope.searchHistoryItems(
+    query: String,
+    history: List<SearchHistoryItem>,
+    onSelect: (SearchHistoryItem) -> Unit,
+    onDeleteHistoryItem: (SearchHistoryItem) -> Unit,
+    onClearHistory: () -> Unit,
+) {
+    if (history.isEmpty()) return
+    item(key = "history:header") {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = HeaderStartPadding, end = HeaderEndPadding),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.recent_searches),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onClearHistory) {
+                Text(stringResource(R.string.clear_search_history))
+            }
+        }
+    }
+    items(history, key = { "history:${it.id}" }) { item ->
+        FlowSuggestionRow(
+            text = item.query,
+            leadingIcon = if (item.type == SearchType.VOICE) Icons.Rounded.Mic else Icons.Rounded.History,
+            onClick = { onSelect(item) },
+            query = query,
+            supportingText = item.filters?.let { searchFilterSummary(it) },
+            trailingIcon = Icons.Rounded.Close,
+            trailingContentDescription = stringResource(R.string.remove),
+            onTrailingClick = { onDeleteHistoryItem(item) },
+        )
     }
 }
 

@@ -30,9 +30,8 @@ enum class PlaybackFailure {
 /**
  * One thing the player screen can act on, handed over in the order the pipeline produces it.
  *
- * A single resolution emits one step in the common case and two when a downloaded copy starts
- * playing before the network leg finishes. The screen owns every `_uiState` write and every
- * hand-off to the player manager; this type carries only the values those need.
+ * A single resolution emits one step. The screen owns every `_uiState` write and every hand-off to
+ * the player manager; this type carries only the values those need.
  */
 sealed interface ResolvedPlayback {
     /** A downloaded copy of the video exists and should start playing now. */
@@ -41,25 +40,8 @@ sealed interface ResolvedPlayback {
         val offlineSegments: List<SponsorBlockSegment>?,
         /** The download was saved before SponsorBlock data was, so it is worth fetching once. */
         val needsSponsorBlockBackfill: Boolean = false,
-    ) : ResolvedPlayback
-
-    /**
-     * Resolution failed but a downloaded copy exists. A null [localFilePath] means the copy went
-     * missing between the two checks: the load stops reporting an error but nothing is prepared.
-     */
-    data class LocalCopyAfterFailure(
-        val localFilePath: String?,
-        val offlineSegments: List<SponsorBlockSegment>?,
-    ) : ResolvedPlayback
-
-    /**
-     * Streams could not be resolved while a downloaded copy is already playing from an earlier
-     * [LocalCopyReady]: only the surrounding metadata is filled in.
-     */
-    data class OfflineFallback(
-        val localFilePath: String?,
-        val offlineSegments: List<SponsorBlockSegment>?,
-        val relatedVideos: List<Video>,
+        /** What the download row knows about the video, for a screen opened with only its id. */
+        val downloadedVideo: Video? = null,
     ) : ResolvedPlayback
 
     /** A live stream, from the manifest InnerTube produced. */

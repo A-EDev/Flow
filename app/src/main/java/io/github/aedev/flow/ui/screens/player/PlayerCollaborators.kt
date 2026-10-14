@@ -7,10 +7,13 @@ import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.repository.LiveChatRepository
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.transcript.TranscriptRepository
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
@@ -40,11 +43,13 @@ internal class PlayerCollaborators(
     playerPreferences: PlayerPreferences,
     videoDownloadManager: VideoDownloadManager,
     offlineSubtitleStore: OfflineSubtitleStore,
+    localSubtitles: LocalSubtitles,
     sponsorBlockRepository: SponsorBlockRepository,
     liveChatRepository: LiveChatRepository,
     homeFeedCacheRepository: HomeFeedCacheRepository,
     playerManager: EnhancedPlayerManager,
     upcomingPremiereProbe: UpcomingPremiereProbe,
+    private val videoStats: VideoStatsRecorder,
     private val uiState: MutableStateFlow<VideoPlayerUiState>,
     scope: CoroutineScope,
     networkDispatcher: CoroutineDispatcher,
@@ -52,7 +57,7 @@ internal class PlayerCollaborators(
     isLoadCurrent: (Long) -> Boolean,
     currentLoadToken: () -> Long,
     shortsEnabled: () -> Boolean,
-    blockedChannelIds: () -> Set<String>,
+    exclusions: () -> FeedExclusions,
 ) {
     val comments =
         CommentsPager(
@@ -88,6 +93,8 @@ internal class PlayerCollaborators(
             playerManager = playerManager,
             playerPreferences = playerPreferences,
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
+            cachedCategory = repository::cachedVideoCategory,
         )
 
     val secondaryMetadata =
@@ -100,7 +107,7 @@ internal class PlayerCollaborators(
             currentState = { uiState.value },
             relatedVideosFor = ::relatedVideosFor,
             shortsEnabled = shortsEnabled,
-            blockedChannelIds = blockedChannelIds,
+            exclusions = exclusions,
             isPlaybackCurrent = isLoadCurrent,
             onResult = { result -> sessionApplier.applySecondary(result) },
         )
@@ -111,6 +118,7 @@ internal class PlayerCollaborators(
             viewHistory = viewHistory,
             repository = repository,
             homeFeedCacheRepository = homeFeedCacheRepository,
+            videoStats = videoStats,
             scope = scope,
             networkDispatcher = networkDispatcher,
             shortsEnabled = shortsEnabled,
@@ -162,6 +170,7 @@ internal class PlayerCollaborators(
             sponsorBlockRepository = sponsorBlockRepository,
             videoDownloadManager = videoDownloadManager,
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
             playerManager = playerManager,
             scope = scope,
             networkDispatcher = networkDispatcher,

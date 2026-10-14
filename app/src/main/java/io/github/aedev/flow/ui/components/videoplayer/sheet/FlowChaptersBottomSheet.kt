@@ -15,16 +15,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
+import io.github.aedev.flow.utils.formatDurationMillis
 import kotlinx.coroutines.delay
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
@@ -46,6 +49,7 @@ fun FlowChaptersBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberFlowBottomSheetState()
+    val tint = rememberMediaArtworkTint(thumbnailUrl)
     val positionChapterIndex =
         chapters
             .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
@@ -93,16 +97,11 @@ fun FlowChaptersBottomSheet(
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
-                title = stringResource(R.string.in_this_video),
+                inSidePane = !enableVerticalDismiss,
+                title = stringResource(R.string.chapters),
+                subtitle = chaptersSubtitle(chapters.size, durationMs),
                 onClose = { sheetState.dismiss() },
                 modifier = dragModifier,
-                subtitle = stringResource(R.string.chapters),
-                titleStyle =
-                    MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                    ),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 10.dp),
             )
         },
     ) {
@@ -112,8 +111,8 @@ fun FlowChaptersBottomSheet(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
         ) {
             itemsIndexed(
                 chapters,
@@ -134,17 +133,16 @@ fun FlowChaptersBottomSheet(
                     } else {
                         0f
                     }
-                val durationLabel =
-                    endTimeMs
-                        ?.takeIf { it > startTimeMs }
-                        ?.let { formatChapterDuration((it - startTimeMs) / 1000L) }
+                val durationSeconds = endTimeMs?.takeIf { it > startTimeMs }?.let { ((it - startTimeMs) / 1000L).toInt() }
 
                 ChapterItem(
                     chapter = chapter,
                     isCurrent = isCurrent,
                     progress = progress,
-                    durationLabel = durationLabel,
+                    durationSeconds = durationSeconds,
                     thumbnailUrl = chapter.previewUrl?.takeIf { it.isNotBlank() } ?: thumbnailUrl,
+                    shape = flowSegmentShape(index, chapters.size),
+                    tint = tint,
                     onClick = {
                         pendingChapterIndex = index
                         onChapterClick(startTimeMs)
@@ -155,19 +153,12 @@ fun FlowChaptersBottomSheet(
     }
 }
 
-private fun formatChapterDuration(totalSeconds: Long): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return when {
-        hours > 0 && minutes > 0 -> "$hours ${pluralize("hour", hours)} $minutes ${pluralize("minute", minutes)}"
-        hours > 0 -> "$hours ${pluralize("hour", hours)}"
-        minutes > 0 -> "$minutes ${pluralize("minute", minutes)}"
-        else -> "$seconds ${pluralize("second", seconds)}"
-    }
+@Composable
+private fun chaptersSubtitle(
+    count: Int,
+    durationMs: Long,
+): String {
+    val chapters = pluralStringResource(R.plurals.chapters_count_template, count, count)
+    if (durationMs <= 0L) return chapters
+    return "$chapters ${stringResource(R.string.metadata_separator)} ${formatDurationMillis(durationMs)}"
 }
-
-private fun pluralize(
-    unit: String,
-    value: Long,
-): String = if (value == 1L) unit else "${unit}s"

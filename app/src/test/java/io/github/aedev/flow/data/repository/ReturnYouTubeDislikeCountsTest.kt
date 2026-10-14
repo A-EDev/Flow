@@ -26,7 +26,6 @@ class ReturnYouTubeDislikeCountsTest {
     private val repository =
         YouTubeRepository(
             playerPreferences = mockk(relaxed = true),
-            channelReelIndex = mockk(relaxed = true),
         )
 
     @After

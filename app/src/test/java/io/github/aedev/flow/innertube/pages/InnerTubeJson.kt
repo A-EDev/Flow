@@ -2,6 +2,7 @@ package io.github.aedev.flow.innertube.pages
 
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
+import io.github.aedev.flow.innertube.models.response.SearchResponse
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 
@@ -40,6 +41,44 @@ internal object InnerTubeJson {
         return json.decodeFromString(BrowseResponse.serializer(), """{"responseContext":{},"contents":$contents$headerField}""")
     }
 
+    fun search(sections: List<String>): SearchResponse =
+        json.decodeFromString(
+            SearchResponse.serializer(),
+            """{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":
+            |{"sectionListRenderer":{"contents":[${sections.joinToString(",")}]}}}}]}}}
+            """.trimMargin(),
+        )
+
+    fun itemSection(row: String) = """{"itemSectionRenderer":{"contents":[$row]}}"""
+
+    /** A search row that opens a browse page: an artist, album or playlist, with play and radio actions. */
+    fun browseRow(
+        browseId: String,
+        pageType: String,
+        title: String,
+        secondary: List<String>,
+        playlistId: String = "PL$browseId",
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(browseId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title))},${flexColumn(*secondary.toTypedArray())}],
+        |"overlay":${playOverlay(watchPlaylistEndpoint(playlistId))},"menu":${menu(playlistId)},
+        |"navigationEndpoint":${browseEndpoint(browseId, pageType)}}}
+        """.trimMargin()
+
+    fun topResultArtistCard(
+        header: String,
+        browseId: String,
+        name: String,
+    ): String {
+        fun button(iconType: String) =
+            """{"buttonRenderer":{"text":${runs(run(iconType))},"icon":{"iconType":"$iconType"},
+            |"command":${watchPlaylistEndpoint("RD$browseId")}}}
+            """.trimMargin()
+        return """{"musicCardShelfRenderer":{"header":{"musicCardShelfHeaderBasicRenderer":{"title":${runs(run(header))}}},
+            |"title":${runs(run(name))},"subtitle":${runs(run("Artist"))},"thumbnail":${thumbnail(browseId, CIRCLE)},
+            |"buttons":[${button("MUSIC_SHUFFLE")},${button("MIX")}],"onTap":${browseEndpoint(browseId, ARTIST)}}}
+            """.trimMargin()
+    }
+
     fun next(queueRows: List<String>): NextResponse =
         json.decodeFromString(
             NextResponse.serializer(),
@@ -61,8 +100,13 @@ internal object InnerTubeJson {
     fun browseEndpoint(
         browseId: String,
         pageType: String,
-    ) =
-        """{"browseEndpoint":{"browseId":"$browseId","browseEndpointContextSupportedConfigs":{"browseEndpointContextMusicConfig":{"pageType":"$pageType"}}}}"""
+        params: String? = null,
+    ): String {
+        val paramsField = params?.let { ""","params":"$it"""" }.orEmpty()
+        return """{"browseEndpoint":{"browseId":"$browseId"$paramsField,
+            |"browseEndpointContextSupportedConfigs":{"browseEndpointContextMusicConfig":{"pageType":"$pageType"}}}}
+            """.trimMargin()
+    }
 
     fun watchEndpoint(
         videoId: String,
@@ -145,6 +189,7 @@ internal object InnerTubeJson {
         strapline: String? = null,
         moreBrowseId: String? = null,
         morePageType: String = DISCOGRAPHY,
+        moreParams: String? = null,
     ): String {
         val straplineField = strapline?.let { ""","strapline":${runs(run(it))}""" }.orEmpty()
         val moreField =
@@ -152,7 +197,7 @@ internal object InnerTubeJson {
                 ?.let {
                     ""","moreContentButton":{"buttonRenderer":{"text":${runs(
                         run("More"),
-                    )},"navigationEndpoint":${browseEndpoint(it, morePageType)}}}"""
+                    )},"navigationEndpoint":${browseEndpoint(it, morePageType, moreParams)}}}"""
                 }.orEmpty()
         return """{"musicCarouselShelfRenderer":{"header":{"musicCarouselShelfBasicHeaderRenderer":{"title":${runs(
             run(title, titleEndpoint),
@@ -165,6 +210,7 @@ internal object InnerTubeJson {
         title: String?,
         items: List<String>,
         formItemKeys: List<String> = emptyList(),
+        continuation: String? = null,
     ): String {
         val titleField = title?.let { """"title":${runs(run(it))},""" }.orEmpty()
         val options = formItemKeys.joinToString(",") { """{"musicMultiSelectMenuItemRenderer":{"formItemEntityKey":"$it"}}""" }
@@ -174,7 +220,8 @@ internal object InnerTubeJson {
             } else {
                 ""","subheaders":[{"musicSideAlignedItemRenderer":{"startItems":[{"musicSortFilterButtonRenderer":{"menu":{"musicMultiSelectMenuRenderer":{"options":[$options]}}}}]}}]"""
             }
-        return """{"musicShelfRenderer":{$titleField"contents":[${items.joinToString(",")}]$subheaders}}"""
+        val continuations = continuation?.let { ""","continuations":[{"nextContinuationData":{"continuation":"$it"}}]""" }.orEmpty()
+        return """{"musicShelfRenderer":{$titleField"contents":[${items.joinToString(",")}]$subheaders$continuations}}"""
     }
 
     fun immersiveHeader(

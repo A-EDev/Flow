@@ -1,8 +1,8 @@
 package io.github.aedev.flow.ui.screens.player.state
 
+import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import io.github.aedev.flow.ui.components.FeedInvalidationBus
 
 /*
  * What the player screen mirrors from outside itself: the player's own state, the live chat drip,

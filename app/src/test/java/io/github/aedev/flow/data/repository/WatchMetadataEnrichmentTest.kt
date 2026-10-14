@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.repository
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
+import io.github.aedev.flow.innertube.pages.YouTubeCountParser
 import kotlinx.serialization.json.Json
 import org.junit.Test
 
@@ -77,6 +78,45 @@ class WatchMetadataEnrichmentTest {
         val empty = json.decodeFromString<WatchMetadataResponse>("""{"contents":{}}""")
 
         assertThat(mergeWatchMetadata(card(), empty)).isNull()
+    }
+
+    private fun unsetLikeEntity(
+        title: String,
+        accessibilityText: String,
+    ): WatchMetadataResponse =
+        json.decodeFromString(
+            """
+            {"contents":{"twoColumnWatchNextResults":{"results":{"results":{"contents":[
+            {"videoPrimaryInfoRenderer":{"dateText":{"simpleText":"Oct 25, 2009"},"videoActions":{"menuRenderer":{
+            "topLevelButtons":[{"segmentedLikeDislikeButtonViewModel":{
+            "likeCountEntity":{"key":"unset_like_count_entity_key"},
+            "likeButtonViewModel":{"likeButtonViewModel":{"toggleButtonViewModel":{"toggleButtonViewModel":{
+            "defaultButtonViewModel":{"buttonViewModel":{"title":"$title","accessibilityText":"$accessibilityText"}}}}}}}}]}}}}]}}}}}
+            """.trimIndent(),
+        )
+
+    @Test
+    fun `an unset count entity falls back to the like button's own label`() {
+        val response = unsetLikeEntity("19M", "like this video along with 19,485,233 other people")
+
+        val merged = mergeWatchMetadata(card(), response)
+
+        assertThat(response.likeCountText()).isEqualTo("like this video along with 19,485,233 other people")
+        assertThat(merged!!.likeCount).isEqualTo(19_485_233L)
+    }
+
+    @Test
+    fun `the label reads in other languages too`() {
+        val response = unsetLikeEntity("19\u202fM", "J'aime cette vidéo, comme 19\u202f485\u202f235 autres personnes")
+
+        assertThat(YouTubeCountParser.parse(response.likeCountText(), "fr")).isEqualTo(19_485_235L)
+    }
+
+    @Test
+    fun `a button whose likes are hidden still has no count`() {
+        val response = unsetLikeEntity("Like", "like this video")
+
+        assertThat(response.likeCountText()).isNull()
     }
 
     @Test

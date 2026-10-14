@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -46,11 +47,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.TabScrollEventBus
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import kotlinx.coroutines.delay
@@ -67,15 +72,27 @@ fun SubscriptionsScreen(
     onShortClick: (ShortsQueueSource) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
+    openMusicSubscriptions: Boolean = false,
+    onMusicSubscriptionsOpened: () -> Unit = {},
     viewModel: SubscriptionsViewModel = sharedSubscriptionsViewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val columnPreference by remember(context) { PlayerPreferences(context) }
+        .homeFeedColumns
+        .collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
 
     var isManagingSubs by remember { mutableStateOf(false) }
+    var manageShowsMusic by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(openMusicSubscriptions) {
+        if (!openMusicSubscriptions) return@LaunchedEffect
+        manageShowsMusic = true
+        isManagingSubs = true
+        onMusicSubscriptionsOpened()
+    }
     var searchQuery by remember { mutableStateOf("") }
     var showSortMenu by remember { mutableStateOf(false) }
     var showGroupsDialog by remember { mutableStateOf(false) }
@@ -85,7 +102,7 @@ fun SubscriptionsScreen(
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
-                viewModel.importNewPipeBackup(it, context)
+                viewModel.importNewPipeBackup(it)
                 scope.launch {
                     snackbarHostState.showSnackbar(context.getString(R.string.importing_from_backup))
                 }
@@ -93,6 +110,7 @@ fun SubscriptionsScreen(
         }
 
     LaunchedEffect(viewModel) { viewModel.ensureStarted() }
+    LaunchedEffect(viewModel) { viewModel.importMessages.collect { snackbarHostState.showSnackbar(it) } }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {
@@ -121,10 +139,6 @@ fun SubscriptionsScreen(
     val topChannels =
         remember(sortedChannels) {
             quickAccessOrder(sortedChannels).take(QUICK_ACCESS_CHANNEL_LIMIT)
-        }
-    val openVideoChannel: (String) -> Unit =
-        remember(uiState.subscribedChannels, onChannelClick) {
-            { channelRef -> onChannelClick(resolveChannel(uiState.subscribedChannels, channelRef)) }
         }
     val videos = uiState.recentVideos
 
@@ -214,7 +228,10 @@ fun SubscriptionsScreen(
                                 contentDescription = stringResource(R.string.toggle_view_mode),
                             )
                         }
-                        IconButton(onClick = { isManagingSubs = true }) {
+                        IconButton(onClick = {
+                            manageShowsMusic = false
+                            isManagingSubs = true
+                        }) {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = stringResource(R.string.search_subscriptions),
@@ -224,7 +241,9 @@ fun SubscriptionsScreen(
                 )
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current))
+        },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp),
     ) { padding ->
@@ -244,6 +263,8 @@ fun SubscriptionsScreen(
                         onChannelClick = onChannelClick,
                         onNotificationChange = viewModel::updateNotificationState,
                         onShortsExcludeChange = viewModel::setShortsChannelExcluded,
+                        showsMusic = manageShowsMusic,
+                        onShowsMusicChange = { manageShowsMusic = it },
                         onUnsubscribe = { channel ->
                             scope.launch {
                                 unsubscribeWithUndo(
@@ -265,12 +286,19 @@ fun SubscriptionsScreen(
                         videos = videos,
                         topChannels = topChannels,
                         gridState = feedGridState,
+                        columnPreference = columnPreference,
                         onRefresh = viewModel::refreshFeed,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onChannelClick = onChannelClick,
-                        onVideoChannelClick = openVideoChannel,
-                        onViewAllClick = { isManagingSubs = true },
+                        onViewAllClick = {
+                            manageShowsMusic = false
+                            isManagingSubs = true
+                        },
+                        onMusicSubscriptionsClick = {
+                            manageShowsMusic = true
+                            isManagingSubs = true
+                        },
                         onGroupSelected = viewModel::selectGroup,
                         onManageGroups = { showGroupsDialog = true },
                         onRetryFailedChannels = viewModel::retryFailedChannels,

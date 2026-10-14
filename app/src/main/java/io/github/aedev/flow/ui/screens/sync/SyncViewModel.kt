@@ -22,11 +22,6 @@ class SyncViewModel
             collections: List<String>,
         ) = manager.host(role, collections)
 
-        fun hostForTv(
-            role: SyncRole,
-            collections: List<String>,
-        ) = manager.hostForTv(role, collections)
-
         fun join(
             role: SyncRole,
             qrText: String,

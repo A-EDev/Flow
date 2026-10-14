@@ -4,23 +4,24 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class ThumbnailUrlResolverTest {
-
     @Test
     fun `normalizes jpg thumbnail variants to hq720`() {
-        val result = ThumbnailUrlResolver.normalizeVideoThumbnail(
-            "abc123",
-            "https://i.ytimg.com/vi/abc123/hqdefault.jpg"
-        )
+        val result =
+            ThumbnailUrlResolver.normalizeVideoThumbnail(
+                "abc123",
+                "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+            )
 
         assertThat(result).isEqualTo("https://i.ytimg.com/vi/abc123/hq720.jpg")
     }
 
     @Test
     fun `normalizes query and webp variants to hq720`() {
-        val result = ThumbnailUrlResolver.normalizeVideoThumbnail(
-            "fallback",
-            "https://i.ytimg.com/vi_webp/abc123/mqdefault.webp?sqp=abc"
-        )
+        val result =
+            ThumbnailUrlResolver.normalizeVideoThumbnail(
+                "fallback",
+                "https://i.ytimg.com/vi_webp/abc123/mqdefault.webp?sqp=abc",
+            )
 
         assertThat(result).isEqualTo("https://i.ytimg.com/vi/abc123/hq720.jpg")
     }
@@ -42,10 +43,11 @@ class ThumbnailUrlResolverTest {
     fun `card candidates never request maxresdefault`() {
         val candidates = ThumbnailUrlResolver.youtubeThumbnailCandidates(VIDEO_ID)
 
-        assertThat(candidates).containsExactly(
-            "https://i.ytimg.com/vi/$VIDEO_ID/hq720.jpg",
-            "https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg",
-        ).inOrder()
+        assertThat(candidates)
+            .containsExactly(
+                "https://i.ytimg.com/vi/$VIDEO_ID/hq720.jpg",
+                "https://i.ytimg.com/vi/$VIDEO_ID/hqdefault.jpg",
+            ).inOrder()
     }
 
     @Test
@@ -79,10 +81,11 @@ class ThumbnailUrlResolverTest {
 
         val candidates = ThumbnailUrlResolver.resolveVideoThumbnailCandidates("", raw)
 
-        assertThat(candidates).containsExactly(
-            "https://i.ytimg.com/vi/$OTHER_ID/hq720.jpg",
-            "https://i.ytimg.com/vi/$OTHER_ID/hqdefault.jpg",
-        ).inOrder()
+        assertThat(candidates)
+            .containsExactly(
+                "https://i.ytimg.com/vi/$OTHER_ID/hq720.jpg",
+                "https://i.ytimg.com/vi/$OTHER_ID/hqdefault.jpg",
+            ).inOrder()
     }
 
     @Test
@@ -124,5 +127,14 @@ class ThumbnailUrlResolverTest {
     private companion object {
         const val VIDEO_ID = "dQw4w9WgXcQ"
         const val OTHER_ID = "aBcDeFgHiJk"
+    }
+
+    @Test
+    fun `a channel page or a video thumbnail is not a usable avatar`() {
+        assertThat(ThumbnailUrlResolver.isUnusableChannelAvatar("https://www.youtube.com/channel/UCkVfrGwV-iG9bSsgCbrNPxQ")).isTrue()
+        assertThat(ThumbnailUrlResolver.isUnusableChannelAvatar("https://youtube.com/@betterstack")).isTrue()
+        assertThat(ThumbnailUrlResolver.isUnusableChannelAvatar("https://i.ytimg.com/vi/93iYf9wp7Qw/hqdefault.jpg")).isTrue()
+        assertThat(ThumbnailUrlResolver.isUnusableChannelAvatar("https://yt3.ggpht.com/abc=s176-c-k-c0x00ffffff-no-rj")).isFalse()
+        assertThat(ThumbnailUrlResolver.isUnusableChannelAvatar("")).isFalse()
     }
 }

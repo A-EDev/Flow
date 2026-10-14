@@ -60,7 +60,7 @@ class PlayerDraggableStateTest {
     }
 
     private fun PlayerDraggableState.isAnimating(): Boolean =
-        expandFraction.isRunning || offsetX.isRunning || offsetY.isRunning || miniSizeScale.isRunning || settleDip.isRunning
+        expandFraction.isRunning || offsetX.isRunning || offsetY.isRunning || miniSizeScale.isRunning
 
     private fun phoneTargets(
         x: Float = 570f,
@@ -102,62 +102,87 @@ class PlayerDraggableStateTest {
         }
 
     @Test
-    fun `a collapse dips below its corner and lifts back before it is done`() =
+    fun `a long frame pauses a collapse instead of skipping it ahead`() =
         runTest {
             val state = newState(collapsed = false)
             state.cachedTargetX = 570f
             state.cachedTargetY = 2200f
-            state.settleDipPx = 132f
 
             state.collapse()
-            var deepest = 0f
-            var frames = 0
-            while (frames < 600) {
-                runCurrent()
-                deepest = maxOf(deepest, state.settleDip.value)
-                if (!state.isAnimating() && !state.settleDip.isRunning && frames > 30) break
-                frameNanos += FRAME_NANOS
-                clock.sendFrame(frameNanos)
-                testScheduler.advanceTimeBy(FRAME_NANOS / 1_000_000)
-                frames++
-            }
+            pumpFrames(2)
+            val beforeLongFrame = state.expandFraction.value
+            frameNanos += 200_000_000L
+            clock.sendFrame(frameNanos)
             runCurrent()
 
-            assertThat(deepest).isWithin(1f).of(132f)
-            assertThat(state.settleDip.value).isEqualTo(0f)
+            assertThat(state.expandFraction.value).isGreaterThan(beforeLongFrame)
+            assertThat(state.expandFraction.value).isLessThan(0.6f)
+            state.scope.cancel()
+        }
+
+    @Test
+    fun `an open grows from its origin and lets go of it once expanded`() =
+        runTest {
+            val state = newState(collapsed = true)
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            assertThat(state.openOrigin).isEqualTo(SheetOpenOrigin.BelowScreen)
+            pumpFrames(3)
+            assertThat(state.expandFraction.value).isLessThan(1f)
+            assertThat(state.currentValue).isEqualTo(PlayerSheetValue.Expanded)
+
+            settle(state)
+            assertThat(state.expandFraction.value).isEqualTo(0f)
+            assertThat(state.openOrigin).isNull()
+            state.scope.cancel()
+        }
+
+    @Test
+    fun `an expand while an open is running leaves the open alone`() =
+        runTest {
+            val state = newState(collapsed = true)
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            state.expand()
+            pumpFrames(3)
+
+            assertThat(state.openOrigin).isEqualTo(SheetOpenOrigin.BelowScreen)
+            settle(state)
+            assertThat(state.openOrigin).isNull()
+            state.scope.cancel()
+        }
+
+    @Test
+    fun `a collapse during an open drops the origin`() =
+        runTest {
+            val state = newState(collapsed = true)
+            state.cachedTargetX = 570f
+            state.cachedTargetY = 2200f
+
+            state.open(SheetOpenOrigin.BelowScreen)
+            pumpFrames(3)
+            state.collapse()
+            settle(state)
+
+            assertThat(state.openOrigin).isNull()
             assertThat(state.expandFraction.value).isEqualTo(1f)
             state.scope.cancel()
         }
 
     @Test
-    fun `isSettled waits for the finger, the fraction, the offsets and the dip`() =
+    fun `isSettled waits for the finger, the fraction and the offsets`() =
         runTest {
             val state = newState(collapsed = false)
             state.cachedTargetX = 570f
             state.cachedTargetY = 2200f
-            state.settleDipPx = 132f
             assertThat(state.isSettled).isTrue()
 
             state.collapse()
             pumpFrames(4)
             assertThat(state.isSettled).isFalse()
 
-            var frames = 0
-            var fractionLandedWhileMoving = false
-            while (frames < 600) {
-                runCurrent()
-                if (state.isSettled) break
-                if (!state.expandFraction.isRunning && state.settleDip.isRunning) fractionLandedWhileMoving = true
-                frameNanos += FRAME_NANOS
-                clock.sendFrame(frameNanos)
-                testScheduler.advanceTimeBy(FRAME_NANOS / 1_000_000)
-                frames++
-            }
-            runCurrent()
-
-            assertThat(fractionLandedWhileMoving).isTrue()
+            settle(state)
             assertThat(state.isSettled).isTrue()
-            assertThat(state.settleDip.value).isEqualTo(0f)
 
             state.isDragging = true
             assertThat(state.isSettled).isFalse()
@@ -165,20 +190,38 @@ class PlayerDraggableStateTest {
         }
 
     @Test
-    fun `expand clears a settle dip that is still running`() =
+    fun `a released fling carries its speed into the collapse`() =
+        runTest {
+            val thrown = newState(collapsed = false)
+            thrown.cachedTargetX = 570f
+            thrown.cachedTargetY = 2200f
+            val dropped = newState(collapsed = false)
+            dropped.cachedTargetX = 570f
+            dropped.cachedTargetY = 2200f
+
+            thrown.collapse(velocity = 4f)
+            dropped.collapse(velocity = 0f)
+            pumpFrames(3)
+
+            assertThat(thrown.expandFraction.value).isGreaterThan(dropped.expandFraction.value)
+            thrown.scope.cancel()
+            dropped.scope.cancel()
+        }
+
+    @Test
+    fun `an expand mid-collapse turns the sheet around and lands expanded`() =
         runTest {
             val state = newState(collapsed = false)
             state.cachedTargetX = 570f
             state.cachedTargetY = 2200f
-            state.settleDipPx = 132f
 
             state.collapse()
             pumpFrames(8)
-            assertThat(state.settleDip.value).isGreaterThan(0f)
+            val turnedAt = state.expandFraction.value
+            assertThat(turnedAt).isGreaterThan(0f)
 
             state.expand()
             settle(state)
-            assertThat(state.settleDip.value).isEqualTo(0f)
             assertThat(state.expandFraction.value).isEqualTo(0f)
             state.scope.cancel()
         }

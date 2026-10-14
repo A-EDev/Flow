@@ -20,7 +20,9 @@ private const val PLATFORM_METADATA_BITMAP_MAX_DP = 320f
  * density. When the two disagree, `MediaSession.setMetadata` rescales the shared bitmap itself,
  * and at least one ROM recycles the source in that path, so the next metadata update crashes with
  * "cannot use a recycled source in createBitmap" (#1017). Matching the framework's own number
- * keeps the framework from ever touching the bitmap.
+ * keeps the framework from ever touching the bitmap. Some of those ROMs (Infinity X, RisingOS on
+ * Android 15) read a ROM-only `config_maxBitmapSizePx` instead, so the smaller of the two wins
+ * (#1231).
  */
 @OptIn(UnstableApi::class)
 internal fun sessionArtworkBitmapLoader(context: Context): BitmapLoader {
@@ -34,15 +36,22 @@ internal fun sessionArtworkBitmapLoader(context: Context): BitmapLoader {
             .build()
     // Media3 wraps this loader in its own SizeLimitedBitmapLoader(makeShared = true); sharing here too
     // would just copy the pixels into ashmem twice.
-    return SizeLimitedBitmapLoader(decoder, limit, false)
+    return SizeLimitedBitmapLoader(MediaStoreArtworkBitmapLoader(context.applicationContext, decoder, limit), limit, false)
 }
 
 @SuppressLint("DiscouragedApi")
 private fun platformMetadataBitmapLimitPx(context: Context): Int {
     val resources = context.resources
-    val id = resources.getIdentifier("config_mediaMetadataBitmapMaxSize", "dimen", "android")
-    if (id != 0) return resources.getDimensionPixelSize(id)
-    return TypedValue
-        .applyDimension(TypedValue.COMPLEX_UNIT_DIP, PLATFORM_METADATA_BITMAP_MAX_DP, resources.displayMetrics)
-        .roundToInt()
+    val dimenId = resources.getIdentifier("config_mediaMetadataBitmapMaxSize", "dimen", "android")
+    val limit =
+        if (dimenId != 0) {
+            resources.getDimensionPixelSize(dimenId)
+        } else {
+            TypedValue
+                .applyDimension(TypedValue.COMPLEX_UNIT_DIP, PLATFORM_METADATA_BITMAP_MAX_DP, resources.displayMetrics)
+                .roundToInt()
+        }
+    val romLimitId = resources.getIdentifier("config_maxBitmapSizePx", "integer", "android")
+    val romLimit = if (romLimitId != 0) resources.getInteger(romLimitId) else 0
+    return if (romLimit > 0) minOf(limit, romLimit) else limit
 }

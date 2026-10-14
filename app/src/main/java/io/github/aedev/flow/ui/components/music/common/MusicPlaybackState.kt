@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
- * This file is part of Flow (https://github.com/A-EDev/Flow).
+ * This file is part of Flow (https://github.com/Flow-Tube/Flow).
  */
 
 package io.github.aedev.flow.ui.components.music.common
@@ -46,12 +46,6 @@ val LocalPlayingVideoId: ProvidableCompositionLocal<String?> = compositionLocalO
 val LocalMusicNowPlayingAnimates: ProvidableCompositionLocal<Boolean> = compositionLocalOf { false }
 
 /**
- * Height the collapsed music player currently takes at the bottom of the window, or zero when it
- * is dismissed or expanded. Anything floating at the bottom of a music screen lifts by this much.
- */
-val LocalMusicMiniPlayerInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
-
-/**
  * Publishes the playing track id to every music item below it.
  *
  * Collected once, here, and mapped down to the id so the value only changes on an actual track
@@ -60,7 +54,6 @@ val LocalMusicMiniPlayerInset: ProvidableCompositionLocal<Dp> = compositionLocal
  */
 @Composable
 fun ProvideMusicPlaybackState(
-    miniPlayerInset: Dp = 0.dp,
     surfacesVisible: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -82,7 +75,6 @@ fun ProvideMusicPlaybackState(
     CompositionLocalProvider(
         LocalPlayingVideoId provides playingVideoId,
         LocalMusicNowPlayingAnimates provides (isPlaying && surfacesVisible),
-        LocalMusicMiniPlayerInset provides miniPlayerInset,
         content = content,
     )
 }

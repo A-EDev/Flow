@@ -11,6 +11,21 @@ internal data class YouTubeTakeoutSubscription(
     val channelName: String,
 )
 
+/** A playlist as `playlists.csv` lists it; [createdAt] is null when the row carries no timestamp. */
+internal data class TakeoutPlaylistInfo(
+    val id: String,
+    val title: String,
+    val createdAt: Long?,
+)
+
+/** A song saved to the YouTube Music library; [artists] are joined for display. */
+internal data class TakeoutLibrarySong(
+    val videoId: String,
+    val title: String,
+    val album: String,
+    val artists: String,
+)
+
 internal sealed interface YouTubeTakeoutCsvContent {
     data class Subscriptions(
         val rows: List<YouTubeTakeoutSubscription>,
@@ -21,7 +36,11 @@ internal sealed interface YouTubeTakeoutCsvContent {
     ) : YouTubeTakeoutCsvContent
 
     data class PlaylistMetadata(
-        val titles: List<String>,
+        val playlists: List<TakeoutPlaylistInfo>,
+    ) : YouTubeTakeoutCsvContent
+
+    data class MusicLibrarySongs(
+        val songs: List<TakeoutLibrarySong>,
     ) : YouTubeTakeoutCsvContent
 
     data object Unsupported : YouTubeTakeoutCsvContent
@@ -34,11 +53,26 @@ private const val MAX_IMPORTED_NAME_CHARACTERS = 1_000
 private const val MAX_TAKEOUT_ENTRY_NAME_CHARACTERS = 4_096
 private const val MAX_TAKEOUT_LEAF_NAME_CHARACTERS = 512
 private const val MAX_TAKEOUT_PLAYLISTS = 2_000
+private val LIBRARY_COLUMNS = 3..8
 
-internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean {
-    if (entryName.length > MAX_TAKEOUT_ENTRY_NAME_CHARACTERS) return false
-    val normalized = entryName.replace('\\', '/')
-    val segments = normalized.split('/')
+internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.last()?.endsWith(".csv", ignoreCase = true) == true
+
+/** An HTML file one folder inside the YouTube product, where Takeout puts the history files in every language. */
+internal fun isYouTubeTakeoutHtmlEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.let { segments ->
+        segments.size == 4 && segments.last().endsWith(".html", ignoreCase = true)
+    } == true
+
+/** A JSON file one folder inside the YouTube product: the watch or search history, when the export chose JSON. */
+internal fun isYouTubeTakeoutJsonEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.let { segments ->
+        segments.size == 4 && segments.last().endsWith(".json", ignoreCase = true)
+    } == true
+
+private fun youTubeTakeoutSegments(entryName: String): List<String>? {
+    if (entryName.length > MAX_TAKEOUT_ENTRY_NAME_CHARACTERS) return null
+    val segments = entryName.replace('\\', '/').split('/')
     val product = segments.getOrNull(1).orEmpty()
     val isYouTubeProduct =
         product.equals("YouTube", ignoreCase = true) ||
@@ -46,12 +80,13 @@ internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean {
                 product.startsWith("YouTube ", ignoreCase = true) &&
                     product.endsWith("YouTube Music", ignoreCase = true)
             )
-    return segments.size >= 3 &&
-        segments.first().equals("Takeout", ignoreCase = true) &&
-        isYouTubeProduct &&
-        segments.none { it.isEmpty() || it == "." || it == ".." } &&
-        segments.last().length <= MAX_TAKEOUT_LEAF_NAME_CHARACTERS &&
-        segments.last().endsWith(".csv", ignoreCase = true)
+    val isValid =
+        segments.size >= 3 &&
+            segments.first().equals("Takeout", ignoreCase = true) &&
+            isYouTubeProduct &&
+            segments.none { it.isEmpty() || it == "." || it == ".." } &&
+            segments.last().length <= MAX_TAKEOUT_LEAF_NAME_CHARACTERS
+    return segments.takeIf { isValid }
 }
 
 internal fun String.takeoutParentPath(): String = replace('\\', '/').substringBeforeLast('/', "")
@@ -79,7 +114,8 @@ internal fun readYouTubeTakeoutCsv(
 
     val firstSubscription = firstData.fields.toSubscription()
     val firstPlaylistVideo = firstData.fields.toPlaylistVideoId()
-    val firstPlaylistTitle = firstData.fields.toPlaylistTitle()
+    val firstPlaylist = firstData.fields.toPlaylistInfo()
+    val firstSong = firstData.fields.toLibrarySong()
 
     return when {
         header.fields.size >= 3 && header.fields.toSubscription() == null && firstSubscription != null -> {
@@ -100,12 +136,21 @@ internal fun readYouTubeTakeoutCsv(
             )
         }
 
-        header.fields.size >= 11 && header.fields.toPlaylistTitle() == null && firstPlaylistTitle != null -> {
+        header.fields.size >= 11 && header.fields.toPlaylistInfo() == null && firstPlaylist != null -> {
             csvReader.readRows(
-                first = firstPlaylistTitle,
-                weight = String::length,
-                parse = { fields -> fields.toPlaylistTitle() },
-                build = { titles -> YouTubeTakeoutCsvContent.PlaylistMetadata(titles) },
+                first = firstPlaylist,
+                weight = { it.id.length + it.title.length },
+                parse = { fields -> fields.toPlaylistInfo() },
+                build = { playlists -> YouTubeTakeoutCsvContent.PlaylistMetadata(playlists) },
+            )
+        }
+
+        header.fields.size in LIBRARY_COLUMNS && header.fields.toLibrarySong() == null && firstSong != null -> {
+            csvReader.readRows(
+                first = firstSong,
+                weight = { it.videoId.length + it.title.length + it.album.length + it.artists.length },
+                parse = { fields -> fields.toLibrarySong() },
+                build = { songs -> YouTubeTakeoutCsvContent.MusicLibrarySongs(songs) },
             )
         }
 
@@ -222,11 +267,40 @@ private fun List<String>.toPlaylistVideoId(): String? {
     return videoId
 }
 
-private fun List<String>.toPlaylistTitle(): String? {
+/**
+ * The create timestamp is found by its shape, not its column: the first field after the id that
+ * reads as a date, which is the create timestamp and is followed by the update one.
+ */
+private fun List<String>.toPlaylistInfo(): TakeoutPlaylistInfo? {
     if (size < 11) return null
     val playlistId = this[0].trim().trimStart('\uFEFF')
     if (!youtubePlaylistIdPattern.matches(playlistId)) return null
-    return this[10].validatedTakeoutName()
+    val title = this[10].validatedTakeoutName() ?: return null
+    val createdAt =
+        drop(1).firstNotNullOfOrNull { field ->
+            runCatching { OffsetDateTime.parse(field.trim()).toInstant().toEpochMilli() }.getOrNull()
+        }
+    return TakeoutPlaylistInfo(playlistId, title, createdAt)
+}
+
+/**
+ * A row of the YouTube Music library's songs file: the video id, then the title, album and artists.
+ * The account's own uploads (`video metadata`) also start with a video id, but run longer and carry
+ * timestamps and channel ids, which no library row does.
+ */
+private fun List<String>.toLibrarySong(): TakeoutLibrarySong? {
+    if (size !in LIBRARY_COLUMNS) return null
+    val videoId = this[0].trim().trimStart('\uFEFF')
+    if (!youtubeVideoIdPattern.matches(videoId)) return null
+    val rest = drop(1).map(String::trim)
+    if (rest.any { youtubeChannelIdPattern.matches(it) || runCatching { OffsetDateTime.parse(it) }.isSuccess }) return null
+    val title = rest[0].validatedTakeoutName() ?: return null
+    return TakeoutLibrarySong(
+        videoId = videoId,
+        title = title,
+        album = rest.getOrNull(1)?.validatedTakeoutName().orEmpty(),
+        artists = rest.drop(2).mapNotNull { it.validatedTakeoutName() }.joinToString(", "),
+    )
 }
 
 private fun String.validatedTakeoutName(): String? =
