@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.settings.taste
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ClearAll
@@ -33,6 +34,8 @@ import io.github.aedev.flow.ui.screens.settings.index.TasteIndex
 
 private const val STRONG_CHANNEL = 0.65f
 private const val BALANCED_CHANNEL = 0.4f
+private const val OFTEN_WATCHED = 8
+private const val SOMETIMES_WATCHED = 3
 
 internal class TasteActions(
     val onTopicPreferred: (String, Boolean) -> Unit,
@@ -61,6 +64,7 @@ internal fun SettingsListScope.tasteContent(
 ) {
     state.persona?.let { persona -> item("taste.persona") { PersonaHeroCard(persona, state.maturity) } }
     if (state.profile != null && state.now != null) traits(state.profile, state.now)
+    picks(state.picks, actions)
     interests(state.topics, actions)
     channels(state.channels, actions)
     remembered(state.remembered, actions)
@@ -141,6 +145,45 @@ private fun SettingsListScope.traits(
     }
 }
 
+@StringRes
+private fun evidenceLabel(evidence: Int): Int =
+    when {
+        evidence >= OFTEN_WATCHED -> R.string.taste_evidence_often
+        evidence >= SOMETIMES_WATCHED -> R.string.taste_evidence_some
+        evidence > 0 -> R.string.taste_evidence_once
+        else -> R.string.taste_evidence_none
+    }
+
+/** The viewer's picks, apart from what was learned: no bar, since a pick is a choice, not a measure. */
+private fun SettingsListScope.picks(
+    picks: List<TasteTopic>,
+    actions: TasteActions,
+) {
+    if (picks.isEmpty()) return
+    group(key = "taste.picks", header = R.string.taste_picks_header) {
+        picks.forEach { pick ->
+            row("taste.pick.${pick.id}") { shape ->
+                TasteMeterRow(
+                    title = pick.label,
+                    value = null,
+                    shape = shape,
+                    detail = stringResource(R.string.taste_topic_boosted) + " · " + stringResource(evidenceLabel(pick.evidence)),
+                    trailing = {
+                        ItemMenu(
+                            label = pick.label,
+                            options =
+                                listOf(
+                                    stringResource(R.string.taste_topic_unboost) to { actions.onTopicPreferred(pick.id, false) },
+                                    stringResource(R.string.taste_topic_block) to { actions.onBlockTopic(pick.id) },
+                                ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
 private fun SettingsListScope.interests(
     topics: List<TasteTopic>,
     actions: TasteActions,
@@ -158,7 +201,7 @@ private fun SettingsListScope.interests(
                     title = label,
                     value = topic.share,
                     shape = shape,
-                    detail = if (topic.preferred) stringResource(R.string.taste_topic_boosted) else null,
+                    detail = stringResource(evidenceLabel(topic.evidence)),
                     trailing = {
                         ItemMenu(
                             label = label,

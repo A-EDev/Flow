@@ -319,6 +319,8 @@ class FlowNeuroEngine internal constructor(
 
         fun pickKeys(brain: UserBrain): Set<String> = requireInstance().pickKeys(brain)
 
+        fun pickKeysByLabel(brain: UserBrain): Map<String, List<String>> = requireInstance().pickKeysByLabel(brain)
+
         suspend fun removePreferredTopic(
             context: Context,
             topic: String,
@@ -1034,6 +1036,9 @@ class FlowNeuroEngine internal constructor(
 
     /** The keys the viewer's picks stand for, as titles key them. */
     fun pickKeys(brain: UserBrain): Set<String> = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
+
+    /** Each pick as the viewer chose it, with the keys titles give it. */
+    fun pickKeysByLabel(brain: UserBrain): Map<String, List<String>> = brain.preferredTopics.associateWith(tokenizer::keysOf)
 
     /** [topic] is a pick as the viewer typed it, or the key Your taste lists for it. */
     suspend fun removePreferredTopic(topic: String) {

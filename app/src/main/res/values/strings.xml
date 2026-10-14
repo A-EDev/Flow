@@ -3879,6 +3879,11 @@
     <string name="taste_interests_footer">Boost a topic to see more of it, or block it to see none of it.</string>
     <string name="taste_interests_empty">Watch a few videos and your interests show up here</string>
     <string name="taste_topic_boosted">Boosted</string>
+    <string name="taste_picks_header">Your picks</string>
+    <string name="taste_evidence_often">Watched often</string>
+    <string name="taste_evidence_some">Watched a few times</string>
+    <string name="taste_evidence_once">Watched once or twice</string>
+    <string name="taste_evidence_none">Not watched yet</string>
     <string name="taste_topic_boost">Show more like this</string>
     <string name="taste_topic_unboost">Stop boosting</string>
     <string name="taste_topic_block">Block topic</string>

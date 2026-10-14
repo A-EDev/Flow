@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.DisplayForm
 import io.github.aedev.flow.data.recommendation.NeuroTokenizer
+import io.github.aedev.flow.data.recommendation.TopicEvidence
 import io.github.aedev.flow.data.recommendation.UserBrain
 import org.junit.Test
 
@@ -33,17 +34,24 @@ class TasteTopicsTest {
     }
 
     @Test
-    fun `an onboarding pick stored as typed shows as boosted, under its own spelling (#907)`() {
+    fun `a pick stands apart under its own spelling, with how much it was watched (#907)`() {
+        val key = NeuroTokenizer().keysOf("Web Development")
         val brain =
             UserBrain(
-                globalVector = ContentVector(topics = mapOf("web development" to 0.38)),
+                globalVector = ContentVector(topics = mapOf("web development" to 0.38, "kotlin" to 0.2)),
                 preferredTopics = setOf("Web Development"),
                 displayForms = mapOf("web development" to DisplayForm("Web Development")),
+                topicEvidence = mapOf("web development" to TopicEvidence(watchSignals = 9)),
             )
 
-        val topic = tasteTopics(brain, count = 12, pickKeys = NeuroTokenizer().keysOf("Web Development").toSet()).single()
+        val pick = tastePicks(brain, mapOf("Web Development" to key)).single()
+        val learned = tasteTopics(brain, count = 12, pickKeys = key.toSet())
 
-        assertThat(topic.preferred).isTrue()
-        assertThat(topic.label).isEqualTo("Web Development")
+        assertThat(pick.label).isEqualTo("Web Development")
+        assertThat(pick.share).isNull()
+        assertThat(pick.evidence).isEqualTo(9)
+        assertThat(learned.map { it.id }).containsExactly("kotlin")
+        // Without the pick beside it, the strongest learned topic is the full bar.
+        assertThat(learned.single().share).isEqualTo(1f)
     }
 }

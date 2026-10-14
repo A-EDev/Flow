@@ -233,7 +233,7 @@ private fun polygon(
 @Composable
 internal fun TasteMeterRow(
     title: String,
-    value: Float,
+    value: Float?,
     shape: Shape,
     detail: String? = null,
     trailing: (@Composable () -> Unit)? = null,
@@ -244,7 +244,7 @@ internal fun TasteMeterRow(
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(MeterSpacing), modifier = Modifier.padding(top = MeterSpacing)) {
-                LinearProgressIndicator(progress = { value.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                value?.let { LinearProgressIndicator(progress = { it.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth()) }
                 detail?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         },
