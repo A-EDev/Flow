@@ -61,7 +61,8 @@ internal data class HomeFeedLanes(
  *
  * [rank] is the engine call, passed in so the whole pipeline can be exercised without one.
  * [rankRelevant] ranks the discovery and related lanes and may drop candidates that share nothing
- * with the viewer's taste; subscriptions and remembered channels use [rank].
+ * with the viewer's taste; subscriptions and remembered channels use [rank]. [share] then spreads
+ * those two lanes over the viewer's interests before they are cut to length.
  */
 internal suspend fun buildHomeFeedLanes(
     rawSubs: List<Video>,
@@ -78,6 +79,7 @@ internal suspend fun buildHomeFeedLanes(
     subAvatarMap: Map<String, String>,
     rank: suspend (List<Video>) -> List<Video>,
     rankRelevant: suspend (List<Video>) -> List<Video> = rank,
+    share: suspend (List<Video>) -> List<Video> = { it },
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
@@ -152,16 +154,18 @@ internal suspend fun buildHomeFeedLanes(
         overflowFresh = unshownFresh.drop(FRESH_SUBS_PIN_TOP),
         shownFresh = shownFresh,
         bestSubs = bestSubs,
-        bestDiscovery = demoteByFit(rankRelevant(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
+        bestDiscovery = share(demoteByFit(rankRelevant(discoveryPool), taste)).take(BEST_DISCOVERY_LIMIT),
         // One upload per remembered channel: the lane spreads across channels, never floods with one.
         bestMemory =
             demoteByFit(rank(memoryPool), taste)
                 .distinctBy { it.channelId }
                 .take(BEST_MEMORY_LIMIT),
         bestRelated =
-            demoteByFit(
-                applyGraphBoost(rankRelevant(relatedPool), relatedMetadata),
-                taste,
+            share(
+                demoteByFit(
+                    applyGraphBoost(rankRelevant(relatedPool), relatedMetadata),
+                    taste,
+                ),
             ).take(BEST_RELATED_LIMIT),
         relatedCandidates = relatedCandidates,
         relatedMetadata = relatedMetadata,

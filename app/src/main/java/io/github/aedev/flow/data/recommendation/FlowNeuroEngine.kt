@@ -192,6 +192,8 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun clusterKeys(videos: List<Video>): Map<String, String> = requireInstance().clusterKeys(videos)
 
+        suspend fun shareByInterest(ranked: List<Video>): List<Video> = requireInstance().shareByInterest(ranked)
+
         fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
 
         suspend fun markNotInterested(video: Video) = requireInstance().markNotInterested(video)
@@ -692,6 +694,25 @@ class FlowNeuroEngine internal constructor(
                         .orEmpty()
                 video.id to (communityOf[primary] ?: primary.ifEmpty { video.channelId })
             }
+        }
+
+    /** [ranked] with its places shared between the viewer's lasting interests ([NeuroInterestShare]). */
+    suspend fun shareByInterest(ranked: List<Video>): List<Video> =
+        withContext(Dispatchers.Default) {
+            val clusters = clustersOf(getBrainSnapshot())
+            val weights = NeuroInterestShare.weights(clusters)
+            if (weights.size < 2) return@withContext ranked
+            val groupByTopic =
+                clusters
+                    .filter { it.representative in weights }
+                    .flatMap { c ->
+                        c.topics.map { it to c.representative }
+                    }.toMap()
+            val idf = takeIdfSnapshotSafe()
+            NeuroInterestShare.interleave(
+                ranked,
+                weights,
+            ) { NeuroInterestShare.groupOf(getOrExtractFeatures(it, idf).topics, groupByTopic) }
         }
 
     /** A short-lived nudge, such as opening an interest chip: session topics only, never long-term taste. */

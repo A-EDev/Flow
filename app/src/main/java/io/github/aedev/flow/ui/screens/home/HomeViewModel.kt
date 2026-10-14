@@ -591,6 +591,7 @@ class HomeViewModel
                                 subAvatarMap = subAvatarMap,
                                 rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
                                 rankRelevant = { pool -> FlowNeuroEngine.rank(pool, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR) },
+                                share = FlowNeuroEngine::shareByInterest,
                             )
 
                         Log.d(
@@ -743,8 +744,10 @@ class HomeViewModel
                             if (wave2Valid.isEmpty()) return@wave2
 
                             val wave2Ranked =
-                                demoteByFit(FlowNeuroEngine.rank(wave2Valid, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste)
-                                    .take(15)
+                                FlowNeuroEngine
+                                    .shareByInterest(
+                                        demoteByFit(FlowNeuroEngine.rank(wave2Valid, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste),
+                                    ).take(15)
 
                             if (wave2Ranked.isNotEmpty()) {
                                 var updatedSnapshot: List<Video>? = null
@@ -826,13 +829,15 @@ class HomeViewModel
                     .filter { it.source == HomeFeedCacheRepository.SOURCE_RELATED }
                     .mapTo(HashSet()) { it.video.id }
             val reserveVideos =
-                FlowNeuroEngine.rank(
-                    reserveRows
-                        .map { it.video }
-                        .filterValid()
-                        .filterRecentHomeSuggestion(now),
-                    userSubs,
-                    NeuroScoring.LANE_RELEVANCE_FLOOR,
+                FlowNeuroEngine.shareByInterest(
+                    FlowNeuroEngine.rank(
+                        reserveRows
+                            .map { it.video }
+                            .filterValid()
+                            .filterRecentHomeSuggestion(now),
+                        userSubs,
+                        NeuroScoring.LANE_RELEVANCE_FLOOR,
+                    ),
                 )
             val start = page.size
             val reserveAdded =
@@ -879,12 +884,14 @@ class HomeViewModel
                     .filterRecentHomeSuggestionGraph(now)
             val graphMetadata = graphCandidates.associateBy { it.video.id }
             val graphRanked =
-                demoteByFit(
-                    applyGraphBoost(
-                        FlowNeuroEngine.rank(graphCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
-                        graphMetadata,
+                FlowNeuroEngine.shareByInterest(
+                    demoteByFit(
+                        applyGraphBoost(
+                            FlowNeuroEngine.rank(graphCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
+                            graphMetadata,
+                        ),
+                        taste,
                     ),
-                    taste,
                 )
             val graphStartIndex = page.size
             addUniquePageVideos(
@@ -1007,7 +1014,10 @@ class HomeViewModel
                         .filterRecentHomeSuggestion(now)
 
                 if (newVideos.isNotEmpty()) {
-                    val rankedDiscovery = demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste)
+                    val rankedDiscovery =
+                        FlowNeuroEngine.shareByInterest(
+                            demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste),
+                        )
                     addUniquePageVideos(
                         candidates = rankedDiscovery,
                         targetList = page,
@@ -1052,12 +1062,18 @@ class HomeViewModel
                                 .filterRecentHomeSuggestionGraph(now)
                         val fallbackMetadata = fallbackCandidates.associateBy { it.video.id }
                         val fallbackRanked =
-                            demoteByFit(
-                                applyGraphBoost(
-                                    FlowNeuroEngine.rank(fallbackCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
-                                    fallbackMetadata,
+                            FlowNeuroEngine.shareByInterest(
+                                demoteByFit(
+                                    applyGraphBoost(
+                                        FlowNeuroEngine.rank(
+                                            fallbackCandidates.map { it.video },
+                                            userSubs,
+                                            NeuroScoring.LANE_RELEVANCE_FLOOR,
+                                        ),
+                                        fallbackMetadata,
+                                    ),
+                                    taste,
                                 ),
-                                taste,
                             )
                         val fallbackStartIndex = page.size
                         addUniquePageVideos(
@@ -1459,19 +1475,22 @@ class HomeViewModel
                         val existing = _uiState.value.videos.mapTo(HashSet()) { it.id }
                         val relatedMetadata = relatedCandidates.associateBy { it.video.id }
                         val enriched =
-                            demoteByFit(
-                                applyGraphBoost(
-                                    FlowNeuroEngine.rank(
-                                        relatedCandidates
-                                            .map { it.video }
-                                            .filterNot { existing.contains(it.id) },
-                                        userSubs,
-                                        NeuroScoring.LANE_RELEVANCE_FLOOR,
+                            FlowNeuroEngine
+                                .shareByInterest(
+                                    demoteByFit(
+                                        applyGraphBoost(
+                                            FlowNeuroEngine.rank(
+                                                relatedCandidates
+                                                    .map { it.video }
+                                                    .filterNot { existing.contains(it.id) },
+                                                userSubs,
+                                                NeuroScoring.LANE_RELEVANCE_FLOOR,
+                                            ),
+                                            relatedMetadata,
+                                        ),
+                                        taste,
                                     ),
-                                    relatedMetadata,
-                                ),
-                                taste,
-                            ).take(SAVED_RELATED_SLOTS)
+                                ).take(SAVED_RELATED_SLOTS)
                         if (enriched.isEmpty()) return@launch
                         enriched.mapTo(relatedPickIds) { it.id }
 
