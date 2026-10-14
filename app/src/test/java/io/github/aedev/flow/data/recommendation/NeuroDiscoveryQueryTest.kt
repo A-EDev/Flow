@@ -19,6 +19,30 @@ class NeuroDiscoveryQueryTest {
     }
 
     @Test
+    fun `exploration searches a subject, never a verb or a word that needs a qualifier`() {
+        val tokenizer = NeuroTokenizer()
+        val endgame = tokenizer.keysOf("endgame").single()
+        val claudeCode = tokenizer.keysOf("claude code").single()
+        val brain =
+            UserBrain(
+                globalVector = ContentVector(topics = mapOf("ai" to 0.4)),
+                topicAffinities =
+                    mapOf(
+                        "ai|build" to 0.3,
+                        "ai|test" to 0.3,
+                        NeuroScoring.makeAffinityKey("ai", claudeCode) to 0.3,
+                        NeuroScoring.makeAffinityKey("ai", endgame) to 0.3,
+                    ),
+            )
+
+        val queries = discovery.explorationQueries(brain, 6).map { it.lowercase() }
+
+        assertThat(queries.none { it == "build" || it.startsWith("build ") || it == "test" || it.startsWith("test ") }).isTrue()
+        assertThat(queries.any { claudeCode in it }).isTrue()
+        assertThat(queries.any { endgame in it }).isTrue()
+    }
+
+    @Test
     fun `every confidence falls in a tier`() {
         val tiers = listOf(0.0, 0.39, 0.4, 0.55 + 0.09 + 0.05, 0.69, 0.7, 1.0).map(discovery::confidenceTier)
 

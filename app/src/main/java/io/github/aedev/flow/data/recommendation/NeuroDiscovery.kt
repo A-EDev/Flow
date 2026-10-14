@@ -339,6 +339,9 @@ internal class NeuroDiscovery(
     /** Words these lists compare keys with; key spec 2 never stems them ([NeuroStemmer]). */
     internal val curatedWords: Set<String> get() = ambiguousQueryWords + queryNoiseWords + fillerWords
 
+    /** Verbs titles use for anything ("I tested", "we built"), as keys titles give them. */
+    private val genericTitleVerbs = hashSetOf("test", "built", "make", "made", "tri", "use", "get", "got", "show", "watch")
+
     private val ambiguousQueryWords =
         hashSetOf(
             "code",
@@ -1034,10 +1037,16 @@ internal class NeuroDiscovery(
         // Exploration is a guess, so it also steers clear of the single words of a blocked phrase:
         // channels that taught "resident evil" go on teaching "evil".
         val blockedPhraseWords = blocked.filter { ' ' in it }.flatMapTo(HashSet()) { tokenizer.tokenize(it) }
+
+        // Exploration searches the topic itself, so a word that needs a qualifier or is only a title's
+        // verb names nothing: "build" went out as "build knife", "test" brought cricket Test matches (#907).
+        fun namesSubject(topic: String) =
+            ' ' in topic || (topic !in ambiguousQueryWords && topic !in tokenizer.polysemousWords && topic !in genericTitleVerbs)
         val picks =
             adjacentWeights.entries
                 .filter { (topic, _) ->
-                    !blocked.any { b -> topic.contains(b) || tokenizer.keyOf(topic).contains(b) } &&
+                    namesSubject(topic) &&
+                        !blocked.any { b -> topic.contains(b) || tokenizer.keyOf(topic).contains(b) } &&
                         tokenizer.keyOf(topic) !in blockedPhraseWords &&
                         !tokenizer.isNoiseTopic(topic)
                 }.sortedByDescending { it.value }
