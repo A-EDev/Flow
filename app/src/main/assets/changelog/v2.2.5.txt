@@ -281,6 +281,8 @@ FIXES AND STABILITY
 - Recommendations learn each channel's YouTube category from the videos you watch, and rank a video a little lower when its category is one you rarely watch; subscriptions and your picked interests are never lowered (#907)
 - Home chips group interests of one kind into a theme such as "Gaming", which searches each of them, so the row has room for more of what you like; interests you picked get a chip before you have watched anything (#907)
 - Recommendations learn which channels go together from the related videos beside what you watch or like, once two videos agree; a channel next to ones you watch gets a small lift and joins the same interest group (#907)
+- Home shares its pages between your interests by how much you watch each, so one strong interest no longer pushes the others out; searches it explores are always a subject, never a word like "build" or "test" (#907)
+- Your taste lists your picks apart from what it learned, each with how much you watch it, and interest chips are named after the topic you watch most (#907)
 - Add Open source notices to About
 
 BUILD AND CI
