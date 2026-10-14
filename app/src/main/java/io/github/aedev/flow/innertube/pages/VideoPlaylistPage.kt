@@ -19,6 +19,7 @@ data class VideoPlaylistPage(
     val thumbnailUrl: String? = null,
     val videos: List<Video> = emptyList(),
     val continuation: String? = null,
+    val isCourse: Boolean = false,
 )
 
 /**
@@ -28,7 +29,13 @@ data class VideoPlaylistPage(
 internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
     val items = playlistItems()
     val header =
-        findRenderers("pageHeaderRenderer", "pageHeaderViewModel", "playlistHeaderRenderer", "playlistSidebarPrimaryInfoRenderer")
+        findRenderers(
+            "pageHeaderRenderer",
+            "pageHeaderViewModel",
+            "playlistHeaderRenderer",
+            "playlistSidebarPrimaryInfoRenderer",
+            "courseProgressViewModel",
+        )
     val pageHeader = header["pageHeaderViewModel"]
     // Courses still arrive with the older playlistHeaderRenderer.
     val legacyHeader = header["playlistHeaderRenderer"]
@@ -73,6 +80,7 @@ internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
                 .map { it.video }
                 .distinctBy { it.id },
         continuation = items.lastOrNull().continuationToken(),
+        isCourse = header["courseProgressViewModel"] != null,
     )
 }
 

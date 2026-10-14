@@ -26,7 +26,11 @@ internal fun rememberPlaylistHeaderState(
     val parts =
         listOfNotNull(
             uiState.ownerName?.takeIf(String::isNotBlank),
-            pluralStringResource(R.plurals.videos_count_template, videos.size, videos.size),
+            if (uiState.isCourse) {
+                pluralStringResource(R.plurals.course_lessons_count, videos.size, videos.size)
+            } else {
+                pluralStringResource(R.plurals.videos_count_template, videos.size, videos.size)
+            },
             mediaLengthLabel(totalSeconds).takeUnless { uiState.isLoadingMore },
             when {
                 uiState.isWatchLater || uiState.isLikes -> stringResource(R.string.playlist_type_builtin)

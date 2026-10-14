@@ -68,6 +68,7 @@ class VideoPlaylistPageTest {
         assertThat(page.videos[0].uploadDate).isEqualTo("2 years ago")
         assertThat(page.videos[0].duration).isEqualTo(297)
         assertThat(page.continuation).isEqualTo("NEXT")
+        assertThat(page.isCourse).isFalse()
     }
 
     @Test
@@ -110,9 +111,12 @@ class VideoPlaylistPageTest {
                         "playlistBadges": [{"metadataBadgeRenderer": {"label": "Course"}}]
                       }},
                       "contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
-                        "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
-                          ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")}
-                        ]}}]}
+                        "sectionListRenderer": {"contents": [
+                          {"courseProgressViewModel": {"progressText": {"content": "0 of 124 lessons complete"}}},
+                          {"itemSectionRenderer": {"contents": [
+                            ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")}
+                          ]}}
+                        ]}
                       }}}]}}
                     }
                     """,
@@ -121,6 +125,7 @@ class VideoPlaylistPageTest {
         assertThat(page.title).isEqualTo("Python for Beginners (Full Course)")
         assertThat(page.ownerName).isEqualTo("Telusko")
         assertThat(page.ownerId).isEqualTo("UCtelusko")
+        assertThat(page.isCourse).isTrue()
     }
 
     @Test

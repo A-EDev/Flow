@@ -24,6 +24,7 @@ data class RemotePlaylistPage(
     val thumbnailUrl: String,
     val videos: List<Video>,
     val continuation: String?,
+    val isCourse: Boolean = false,
 )
 
 /**
@@ -71,6 +72,7 @@ class YouTubePlaylistRepository
                                 .orEmpty(),
                         videos = page.videos,
                         continuation = page.continuation,
+                        isCourse = page.isCourse,
                     )
                 }
 

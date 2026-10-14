@@ -90,6 +90,7 @@ fun PlaylistCard(
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
+        isCourse = playlist.isCourse,
         onClick = onClick,
         onDeleteClick = null,
         layout = layout,
@@ -109,8 +110,14 @@ private fun PlaylistCardContent(
     layout: PlaylistCardLayout,
     modifier: Modifier,
     useInternalPadding: Boolean,
+    isCourse: Boolean = false,
 ) {
-    val metadata = pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
+    val metadata =
+        pluralStringResource(
+            if (isCourse) R.plurals.course_lessons_count else R.plurals.videos_count_template,
+            videoCount,
+            videoCount,
+        )
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(
