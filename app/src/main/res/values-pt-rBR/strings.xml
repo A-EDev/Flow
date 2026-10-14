@@ -3453,4 +3453,12 @@
     </plurals>
     <string name="sync_error_qr_not_local">Esse código leva para fora da sua rede local, então Flow não se conecta a ela. Use apenas códigos mostrados por seus próprios dispositivos.</string>
     <string name="sync_error_no_peer">Nenhum dispositivo conectado antes do código expirar. Verifique se ambos os dispositivos estão no mesmo Wi-Fi e tente novamente.</string>
+    <string name="music_home_lastfm_discover_subtitle">Selecionadas pelos ouvintes do Last.fm entre as suas músicas mais ouvidas</string>
+    <string name="music_home_lastfm_discover">Descubra com o Last.fm</string>
+    <string name="scrobbling_import_failed">Não consegui ler sua lista de artistas mais populares</string>
+    <string name="scrobbling_import_none">Não há novos artistas para adicionar</string>
+    <string name="scrobbling_import_later">Nenhum agora</string>
+    <string name="scrobbling_import_action">importar</string>
+    <string name="scrobbling_import_offer_body">Flow adiciona seus 20 artistas mais tocados do ano passado aos seus artistas favoritos. Você pode remover qualquer um deles mais tarde.</string>
+    <string name="scrobbling_import_summary">Adiciona seus artistas mais tocados aos seus favoritos</string>
 </resources>
