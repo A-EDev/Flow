@@ -92,10 +92,6 @@ class HomeViewModel
             private const val UI_STATE_SUBSCRIPTION_TIMEOUT_MS = 5_000L
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
-
-            // No channel twice within this many cards, across pages; repeats that remain sit this far apart.
-            private const val RECENT_CHANNEL_WINDOW = 20
-            private const val CHANNEL_GAP = 10
             private const val LOAD_MORE_GRAPH_SEEDS = 3
 
             // Saved rows of each source ranked again on load-more; the best of them fill the page.
@@ -764,6 +760,7 @@ class HomeViewModel
                                         wave2Ranked
                                             .filterWatched(watchedVideoIds.value)
                                             .filter { !currentIds.contains(it.id) }
+                                            .filterNot { video -> state.videos.any { it.channelId == video.channelId } }
                                             .distinctBy { it.channelId }
                                     if (uniqueNew.isEmpty()) return@update state
                                     val updated = state.videos + uniqueNew

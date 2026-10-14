@@ -5,6 +5,12 @@ import io.github.aedev.flow.data.recommendation.FeedExclusions
 
 internal const val HOME_TARGET_SIZE = 40
 
+// No channel twice within this many cards, across pages and late arrivals.
+internal const val RECENT_CHANNEL_WINDOW = 20
+
+// Repeats a short page could not avoid sit at least this far apart.
+internal const val CHANNEL_GAP = 10
+
 // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
 private const val FRESH_SUBS_PIN_TOP = 2
 

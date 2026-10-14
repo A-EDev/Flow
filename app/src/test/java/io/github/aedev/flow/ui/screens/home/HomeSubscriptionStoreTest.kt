@@ -78,6 +78,19 @@ class HomeSubscriptionStoreTest {
     }
 
     @Test
+    fun `a late upload never lands near its own channel, and is left out when it cannot (#907)`() {
+        val feed = (0 until 20).map { video("f$it", channelId = if (it == 6) "UCjack" else "c-$it") }
+        val late = listOf(video("jack2", channelId = "UCjack"), video("other", channelId = "UCother"))
+
+        val merged = insertBelowViewport(feed, late, lastVisibleIndex = 4)
+        val wide = insertBelowViewport(feed + (20 until 50).map { video("f$it") }, late, lastVisibleIndex = 4)
+
+        assertThat(merged.map { it.id }).doesNotContain("jack2")
+        assertThat(merged.map { it.id }).contains("other")
+        assertThat(wide.indexOfFirst { it.id == "jack2" } - wide.indexOfFirst { it.id == "f6" }).isGreaterThan(20)
+    }
+
+    @Test
     fun `nothing new leaves the feed as it is`() {
         val feed = listOf(video("a"), video("b"))
 
