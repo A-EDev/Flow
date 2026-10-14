@@ -5,6 +5,7 @@ import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import io.github.aedev.flow.BuildConfig
 import java.util.Locale
 
 data class AppLanguageOption(
@@ -18,26 +19,7 @@ object AppLanguageManager {
     private const val PREFS_FILE = "flow_language_prefs"
     private const val PREFS_KEY = "app_language_tag"
 
-    private val supportedLanguageTags =
-        listOf(
-            "en",
-            "ar",
-            "bs",
-            "de",
-            "es",
-            "et",
-            "fr",
-            "hi",
-            "id",
-            "it",
-            "kab",
-            "pl",
-            "pt-BR",
-            "ru",
-            "tr",
-            "uk",
-            "zh-CN",
-        )
+    private val supportedLanguageTags = BuildConfig.APP_LANGUAGE_TAGS.split(',')
 
     fun loadSelectedLanguageTag(context: Context): String =
         context
