@@ -106,15 +106,23 @@ internal object InterestChips {
         return interests
     }
 
+    /**
+     * The chips of [set]. A chip reads as the topic of its cluster the viewer has watched most
+     * ([evidenceOf]): nine picks of equal weight would otherwise name a tech cluster after whichever
+     * sorts first ("Smartphones" for someone who watches AI).
+     */
     fun chips(
         set: InterestChipSet,
         groups: List<Group>,
         forms: Map<String, DisplayForm> = emptyMap(),
+        evidenceOf: (String) -> Int = { 0 },
     ): List<InterestChip> {
         val byKey = groups.associateBy { it.key }
 
-        fun chipOf(cluster: NeuroClusters.TopicCluster) =
-            InterestChip(cluster.representative, NeuroDisplayForms.label(forms, cluster.representative), cluster.topics)
+        fun chipOf(cluster: NeuroClusters.TopicCluster): InterestChip {
+            val named = cluster.topics.maxByOrNull(evidenceOf)?.takeIf { evidenceOf(it) > 0 } ?: cluster.representative
+            return InterestChip(cluster.representative, NeuroDisplayForms.label(forms, named), cluster.topics)
+        }
         return set.masses.keys.mapNotNull { key ->
             val group = byKey[key] ?: return@mapNotNull null
             if (group.category == null) {

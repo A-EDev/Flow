@@ -90,6 +90,18 @@ class InterestChipsTest {
     }
 
     @Test
+    fun `a chip reads as the topic of its cluster the viewer watched most`() {
+        val tech = cluster("smartphones", 2.0, listOf("smartphones", "laptops", "ai"))
+        val set = InterestChips.stable(InterestChipSet(), groups(listOf(tech, cluster("gym", 0.5))), now)
+
+        val chips = InterestChips.chips(set, groups(listOf(tech, cluster("gym", 0.5)))) { if (it == "ai") 12 else 1 }
+
+        assertThat(chips.first().representative).isEqualTo("smartphones")
+        assertThat(chips.first().label).isEqualTo("Ai")
+        assertThat(InterestChips.chips(set, groups(listOf(tech, cluster("gym", 0.5)))).first().label).isEqualTo("Smartphones")
+    }
+
+    @Test
     fun `a default category and a lone cluster stay plain interests`() {
         val categories = mapOf("claude" to "people", "android" to "people", "gym" to "sports")
 

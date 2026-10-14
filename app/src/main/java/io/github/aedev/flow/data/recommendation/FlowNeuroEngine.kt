@@ -603,7 +603,9 @@ class FlowNeuroEngine internal constructor(
                     scheduleDebouncedSave(bookkeeping = true)
                 }
             }
-            InterestChips.chips(set, groups, brain.displayForms)
+            InterestChips.chips(set, groups, brain.displayForms) { key ->
+                brain.topicEvidence[key]?.let { it.watchSignals + it.explicitSignals } ?: 0
+            }
         }
 
     private val pendingRelated =
