@@ -89,6 +89,33 @@ internal fun demoteByFit(
 }
 
 /**
+ * Spreads videos from followed channels evenly through [videos]. The blend fills its smaller quotas
+ * first, so subscriptions bunched at the end of a page and Home read as a subscriptions feed. The
+ * same videos stay, each kind in its own order, and the first [keepTop] (fresh uploads pinned on
+ * purpose) do not move.
+ */
+internal fun spreadSubscriptions(
+    videos: List<Video>,
+    isSubscribed: (Video) -> Boolean,
+    keepTop: Int = 0,
+): List<Video> {
+    val rest = videos.drop(keepTop)
+    val (subs, others) = rest.partition(isSubscribed)
+    if (subs.isEmpty() || others.isEmpty()) return videos
+    val share = subs.size.toDouble() / rest.size
+    val out = ArrayList<Video>(videos.size)
+    out += videos.take(keepTop)
+    var placedSubs = 0
+    var placedOthers = 0
+    rest.indices.forEach { index ->
+        val subsDue = ((index + 1) * share + 0.5).toInt()
+        val takeSub = placedOthers == others.size || (placedSubs < subs.size && placedSubs < subsDue)
+        if (takeSub) out += subs[placedSubs++] else out += others[placedOthers++]
+    }
+    return out
+}
+
+/**
  * Greedy reorder that keeps same-channel items at least `gap` slots apart when possible; order is
  * otherwise preserved. seedRecent primes the cooldown with the prior page's tail to space appends.
  */

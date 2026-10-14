@@ -648,7 +648,7 @@ class HomeViewModel
 
                         val spacedMix =
                             repository.enrichLikelyCollabAvatarStacks(
-                                spaceByChannel(finalMix),
+                                spaceByChannel(spreadSubscriptions(finalMix, { it.channelId in userSubs }, keepTop = mix.freshAdded)),
                                 limit = 8,
                             )
                         val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
@@ -1114,6 +1114,7 @@ class HomeViewModel
         ): List<Video>? {
             if (page.isEmpty() || !homePrefetchQueue.isCurrent(generation)) return null
             val exclusions = feedExclusions()
+            val followed = subscriptionScope().boosted
             var updatedSnapshot: List<Video>? = null
             var appendedPage = emptyList<Video>()
             _uiState.update { state ->
@@ -1125,7 +1126,9 @@ class HomeViewModel
                         .filterNot { it.id in existingVideoIds || exclusions.hidesFromRecommendations(it) }
                 if (appendedPage.isEmpty()) return@update state
                 val tailChannels = state.videos.takeLast(2).map { it.channelId }
-                val updated = state.videos + spaceByChannel(appendedPage, seedRecent = tailChannels)
+                val updated =
+                    state.videos +
+                        spaceByChannel(spreadSubscriptions(appendedPage, { it.channelId in followed }), seedRecent = tailChannels)
                 updatedSnapshot = updated
                 HomeFeedCache.update(updated, state.shorts)
                 val appendedIds = appendedPage.mapTo(HashSet()) { it.id }

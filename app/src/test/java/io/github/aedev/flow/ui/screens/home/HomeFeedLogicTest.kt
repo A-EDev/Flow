@@ -161,6 +161,26 @@ class HomeFeedLogicTest {
         videos.zipWithNext().count { (a, b) -> a.channelId.isNotBlank() && a.channelId == b.channelId }
 
     @Test
+    fun `subscriptions spread through the page instead of bunching at its end, pinned uploads stay first (#907)`() {
+        // Pinned fresh, then the blend's order: other lanes run dry and the subscriptions quota fills the tail.
+        val page =
+            listOf(vc("fresh1", "S1"), vc("fresh2", "S2")) +
+                (1..8).map { vc("o$it", "O$it") } +
+                (1..8).map { vc("s$it", "S$it") }
+        val followed = (1..8).mapTo(HashSet()) { "S$it" }
+
+        val spread = spreadSubscriptions(page, { it.channelId in followed }, keepTop = 2)
+
+        assertThat(spread.take(2).map { it.id }).containsExactly("fresh1", "fresh2").inOrder()
+        assertThat(spread.map { it.id }).containsExactlyElementsIn(page.map { it.id })
+        val rest = spread.drop(2)
+        // At most two of a kind in a row, and every half of the page holds both kinds.
+        assertThat(rest.windowed(3).none { w -> w.all { it.channelId in followed } || w.none { it.channelId in followed } }).isTrue()
+        assertThat(rest.filter { it.channelId in followed }.map { it.id }).isEqualTo((1..8).map { "s$it" })
+        assertThat(rest.filter { it.channelId !in followed }.map { it.id }).isEqualTo((1..8).map { "o$it" })
+    }
+
+    @Test
     fun `spaceByChannel separates clustered same-channel items without dropping any`() {
         val clustered =
             listOf(
