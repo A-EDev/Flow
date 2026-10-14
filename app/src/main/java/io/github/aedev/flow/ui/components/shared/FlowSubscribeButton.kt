@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PersonRemove
@@ -22,8 +24,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
@@ -36,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -91,6 +96,7 @@ fun FlowSubscribeButton(
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
     tint: MediaArtworkTint? = null,
     onSubscribedClick: (() -> Unit)? = null,
+    showSubscribedLabel: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
@@ -131,6 +137,31 @@ fun FlowSubscribeButton(
                 modifier = Modifier.heightIn(min = containerHeight),
             ) {
                 Text(text = stringResource(R.string.subscribed), maxLines = 1)
+            }
+        } else if (isSubscribed && !showSubscribedLabel) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onNotificationChange != null) {
+                    FilledTonalIconToggleButton(
+                        checked = isNotificationsEnabled,
+                        onCheckedChange = onNotificationChange,
+                    ) {
+                        Icon(
+                            imageVector =
+                                if (isNotificationsEnabled) {
+                                    Icons.Rounded.NotificationsActive
+                                } else {
+                                    Icons.Rounded.NotificationsOff
+                                },
+                            contentDescription = stringResource(R.string.notifications),
+                        )
+                    }
+                }
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                    )
+                }
             }
         } else if (isSubscribed) {
             SplitButtonLayout(

@@ -24,12 +24,12 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.ChannelGroupBadge
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
-import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 private val RowPadding = 12.dp
 private val AvatarSize = 48.dp
 private val AvatarTextSpacing = 16.dp
 private val TitleBlockSpacing = 4.dp
+private val TitleActionSpacing = 8.dp
 
 @Composable
 internal fun SubscriptionManagerItem(
@@ -75,14 +75,15 @@ internal fun SubscriptionManagerItem(
                 text = channel.name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier.titleMarquee(),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             if (channel.isMusic) {
                 SubscriptionMusicPill()
             }
         }
+
+        Spacer(modifier = Modifier.width(TitleActionSpacing))
 
         FlowSubscribeButton(
             isSubscribed = true,
@@ -92,6 +93,7 @@ internal fun SubscriptionManagerItem(
             onNotificationChange = onNotificationChange,
             areShortsExcluded = areShortsExcluded,
             onShortsExcludeChange = onShortsExcludeChange,
+            showSubscribedLabel = false,
         )
     }
 }

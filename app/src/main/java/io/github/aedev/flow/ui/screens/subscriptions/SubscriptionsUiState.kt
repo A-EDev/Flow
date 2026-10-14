@@ -1,8 +1,10 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
+import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 enum class SubscriptionSortMode {
     DEFAULT,
@@ -14,6 +16,18 @@ enum class SubscriptionSortMode {
         fun fromStorage(value: String?): SubscriptionSortMode = entries.firstOrNull { it.name == value } ?: DEFAULT
     }
 }
+
+internal fun List<ChannelSubscription>.toSubscribedChannels(): List<Channel> =
+    map { sub ->
+        Channel(
+            id = sub.channelId,
+            name = sub.channelName,
+            thumbnailUrl = ThumbnailUrlResolver.resolveChannelAvatar(sub.channelThumbnail),
+            subscriberCount = 0L,
+            isSubscribed = true,
+            isMusic = sub.isMusic,
+        )
+    }
 
 data class SubscriptionsUiState(
     val subscribedChannels: List<Channel> = emptyList(),

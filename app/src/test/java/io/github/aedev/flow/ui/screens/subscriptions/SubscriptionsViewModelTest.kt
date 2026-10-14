@@ -1,13 +1,17 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
+import androidx.lifecycle.ViewModelStore
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.AppDatabase
+import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRefreshProgress
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
@@ -15,16 +19,25 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SubscriptionsViewModelTest {
@@ -39,6 +52,7 @@ class SubscriptionsViewModelTest {
     private val neuroEngine: FlowNeuroEngine = mockk(relaxed = true)
 
     private lateinit var viewModel: SubscriptionsViewModel
+    private val viewModelStore = ViewModelStore()
 
     @Before
     fun setUp() {
@@ -77,10 +91,12 @@ class SubscriptionsViewModelTest {
                 neuroEngine = neuroEngine,
                 backupCoordinator = mockk(relaxed = true),
             )
+        viewModelStore.put("subscriptions", viewModel)
     }
 
     @After
     fun tearDown() {
+        viewModelStore.clear()
         Dispatchers.resetMain()
         unmockkAll()
     }
@@ -169,6 +185,177 @@ class SubscriptionsViewModelTest {
 
             coVerify(timeout = VERIFY_TIMEOUT_MS, exactly = 1) { subscriptionRepository.updateNotificationState(channelId, true) }
         }
+
+    @Test
+    fun `unsubscribe and undo update a large channel list while the feed refresh is stalled`() =
+        runTest {
+            val original =
+                List(373) { index ->
+                    ChannelSubscription(channelId = "channel-$index", channelName = "Channel $index", channelThumbnail = "")
+                }
+            val subscriptions = MutableStateFlow(original)
+            val refreshStarted = stallRefresh(subscriptions)
+            val removed = original.first()
+            coEvery { subscriptionRepository.unsubscribe(removed.channelId) } coAnswers {
+                subscriptions.value = original.drop(1)
+            }
+            coEvery { subscriptionRepository.subscribe(removed) } coAnswers {
+                subscriptions.value = original
+            }
+            viewModel.ensureStarted()
+            awaitState { it.subscribedChannels.size == original.size }
+            awaitRefresh(refreshStarted)
+
+            viewModel.unsubscribe(removed.channelId)
+            val afterRemoval = awaitState { it.subscribedChannels.size == original.size - 1 }
+            assertThat(afterRemoval.subscribedChannels.map { it.id }).doesNotContain(removed.channelId)
+            assertThat(afterRemoval.notificationStates).doesNotContainKey(removed.channelId)
+
+            viewModel.subscribeChannel(removed)
+            val restored = awaitState { it.subscribedChannels.size == original.size }
+            assertThat(restored.subscribedChannels.first().id).isEqualTo(removed.channelId)
+            coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
+        }
+
+    @Test
+    fun `notification and channel metadata changes publish without another feed fetch`() =
+        runTest {
+            val original = ChannelSubscription(channelId = "channel", channelName = "Original", channelThumbnail = "")
+            val subscriptions = MutableStateFlow(listOf(original))
+            val refreshStarted = stallRefresh(subscriptions)
+            coEvery { subscriptionRepository.updateNotificationState(original.channelId, true) } coAnswers {
+                subscriptions.value = listOf(original.copy(channelName = "Updated", isNotificationEnabled = true, isMusic = true))
+            }
+            viewModel.ensureStarted()
+            awaitState { it.subscribedChannels.size == 1 }
+            awaitRefresh(refreshStarted)
+
+            viewModel.updateNotificationState(original.channelId, true)
+            val updated = awaitState { it.subscribedChannels.single().name == "Updated" }
+            assertThat(updated.subscribedChannels.single().isMusic).isTrue()
+            assertThat(updated.notificationStates[original.channelId]).isTrue()
+            coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
+        }
+
+    @Test
+    fun `successive notification changes do not wait behind a stalled feed refresh`() =
+        runTest {
+            val original = ChannelSubscription(channelId = "channel", channelName = "Channel", channelThumbnail = "")
+            val subscriptions = MutableStateFlow(listOf(original))
+            val refreshStarted = stallRefresh(subscriptions)
+            val upstreamCollections = AtomicInteger()
+            coEvery { subscriptionRepository.getAllSubscriptions() } returns subscriptions.onStart { upstreamCollections.incrementAndGet() }
+            coEvery { subscriptionRepository.updateNotificationState(original.channelId, any()) } coAnswers {
+                subscriptions.value = listOf(original.copy(isNotificationEnabled = secondArg()))
+            }
+            viewModel.ensureStarted()
+            awaitState { it.subscribedChannels.size == 1 }
+            awaitRefresh(refreshStarted)
+
+            repeat(100) { index ->
+                val enabled = index % 2 == 0
+                viewModel.updateNotificationState(original.channelId, enabled)
+                awaitState { it.notificationStates[original.channelId] == enabled }
+            }
+
+            assertThat(upstreamCollections.get()).isEqualTo(1)
+            coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
+        }
+
+    @Test
+    fun `unsubscribing the last channel clears the list while the feed refresh is stalled`() =
+        runTest {
+            val original = ChannelSubscription(channelId = "channel", channelName = "Channel", channelThumbnail = "")
+            val subscriptions = MutableStateFlow(listOf(original))
+            val refreshStarted = stallRefresh(subscriptions)
+            coEvery { subscriptionRepository.unsubscribe(original.channelId) } coAnswers {
+                subscriptions.value = emptyList()
+            }
+            viewModel.ensureStarted()
+            awaitState { it.subscribedChannels.size == 1 }
+            awaitRefresh(refreshStarted)
+
+            viewModel.unsubscribe(original.channelId)
+            val empty = awaitState { it.subscribedChannels.isEmpty() }
+
+            assertThat(empty.notificationStates).isEmpty()
+            coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
+        }
+
+    @Test
+    fun `channel changes preserve progressive feed results and enrich their avatars`() =
+        runTest {
+            val original = ChannelSubscription(channelId = "channel", channelName = "Original", channelThumbnail = "")
+            val subscriptions = MutableStateFlow(listOf(original))
+            val refreshStarted = stallRefresh(subscriptions)
+            val releasePreview = CompletableDeferred<Unit>()
+            val cached =
+                Video(
+                    id = "cached",
+                    title = "Cached video",
+                    channelName = "Original",
+                    channelId = original.channelId,
+                    thumbnailUrl = "",
+                    duration = 120,
+                    viewCount = 0L,
+                    uploadDate = "",
+                )
+            val preview = cached.copy(id = "preview", title = "New video")
+            coEvery { subscriptionFeedRepository.observeFeed() } returns flowOf(listOf(cached))
+            coEvery { subscriptionFeedRepository.refresh(any()) } returns
+                flow {
+                    refreshStarted.complete(Unit)
+                    releasePreview.await()
+                    emit(
+                        SubscriptionFeedRefreshProgress(
+                            videos = listOf(preview),
+                            failedChannelIds = emptySet(),
+                            failedChannelReasons = emptyMap(),
+                            processedChannels = 1,
+                            totalChannels = 1,
+                        ),
+                    )
+                    awaitCancellation()
+                }
+            viewModel.ensureStarted()
+            awaitState { it.recentVideos.singleOrNull()?.id == cached.id }
+            awaitRefresh(refreshStarted)
+            releasePreview.complete(Unit)
+            awaitState { it.recentVideos.singleOrNull()?.id == preview.id }
+
+            subscriptions.value =
+                listOf(original.copy(channelName = "Updated", channelThumbnail = "https://yt3.googleusercontent.com/avatar"))
+            val updated =
+                awaitState {
+                    it.subscribedChannels.single().name == "Updated" &&
+                        it.recentVideos
+                            .singleOrNull()
+                            ?.channelThumbnailUrl
+                            ?.isNotBlank() == true
+                }
+
+            assertThat(updated.recentVideos.single().id).isEqualTo(preview.id)
+            coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
+        }
+
+    private fun stallRefresh(subscriptions: MutableStateFlow<List<ChannelSubscription>>): CompletableDeferred<Unit> {
+        val started = CompletableDeferred<Unit>()
+        val plan = SubscriptionRefreshPlan(subscriptions.value.map { it.channelId }, isFullRefresh = true)
+        coEvery { subscriptionRepository.getAllSubscriptions() } returns subscriptions
+        coEvery { subscriptionFeedRepository.planRefresh(false) } returns plan
+        coEvery { subscriptionFeedRepository.refresh(plan) } returns
+            flow {
+                started.complete(Unit)
+                awaitCancellation()
+            }
+        return started
+    }
+
+    private suspend fun awaitRefresh(started: CompletableDeferred<Unit>) =
+        withContext(Dispatchers.Default) { withTimeout(VERIFY_TIMEOUT_MS) { started.await() } }
+
+    private suspend fun awaitState(predicate: (SubscriptionsUiState) -> Boolean): SubscriptionsUiState =
+        withContext(Dispatchers.Default) { withTimeout(VERIFY_TIMEOUT_MS) { viewModel.uiState.first(predicate) } }
 
     private companion object {
         /**

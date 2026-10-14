@@ -28,15 +28,19 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -90,6 +94,13 @@ class SubscriptionsViewModel
         fun ensureStarted() {
             if (hasStarted) return
             hasStarted = true
+
+            val subscriptions =
+                subscriptionRepository
+                    .getAllSubscriptions()
+                    .flowOn(PerformanceDispatcher.diskIO)
+                    .conflate()
+                    .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 subscriptionGroupDao.getAllGroups().collect { entities ->
@@ -195,12 +206,11 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                subscriptionRepository
-                    .getAllSubscriptions()
-                    .collect { allSubs ->
-                        val notifStates = allSubs.associate { it.channelId to it.isNotificationEnabled }
-                        _uiState.update { it.copy(notificationStates = notifStates) }
-                    }
+                subscriptions.collect { allSubs ->
+                    val channels = allSubs.toSubscribedChannels()
+                    val notifStates = allSubs.associate { it.channelId to it.isNotificationEnabled }
+                    _uiState.update { it.copy(subscribedChannels = channels, notificationStates = notifStates) }
+                }
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -212,9 +222,12 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                subscriptionFeedRepository.observeFeed().collect { videos ->
-                    latestFeedVideos = videos
-                    updateVideos(videos)
+                combine(
+                    subscriptionFeedRepository.observeFeed().onEach { latestFeedVideos = it },
+                    subscriptions.map { it.toSubscribedChannels() }.distinctUntilChanged(),
+                    ::Pair,
+                ).collect { (_, channels) ->
+                    updateVideos(latestFeedVideos, channels)
                 }
             }
 
@@ -232,35 +245,16 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                subscriptionRepository
-                    .getAllSubscriptions()
+                subscriptions
                     .map { subs -> subs.map { it.channelId }.sorted() }
                     .distinctUntilChanged()
                     .collect { channelIds ->
                         Log.i(TAG, "Channel IDs changed: ${channelIds.size} channels")
-                        publishSubscribedChannels()
                         if (channelIds.isNotEmpty()) {
                             runRefresh(force = false, showLoading = _uiState.value.recentVideos.isEmpty())
                         }
                     }
             }
-        }
-
-        private suspend fun publishSubscribedChannels() {
-            val allSubs = subscriptionRepository.getAllSubscriptions().first()
-            val channels =
-                allSubs.map { sub ->
-                    Channel(
-                        id = sub.channelId,
-                        name = sub.channelName,
-                        thumbnailUrl = ThumbnailUrlResolver.resolveChannelAvatar(sub.channelThumbnail),
-                        subscriberCount = 0L,
-                        isSubscribed = true,
-                        isMusic = sub.isMusic,
-                    )
-                }
-            _uiState.update { it.copy(subscribedChannels = channels) }
-            refreshVisibleFeed()
         }
 
         /**
@@ -316,11 +310,14 @@ class SubscriptionsViewModel
             }
         }
 
-        private suspend fun updateVideos(videos: List<Video>) {
+        private suspend fun updateVideos(
+            videos: List<Video>,
+            channels: List<Channel> = _uiState.value.subscribedChannels,
+        ) {
             val state = _uiState.value
             val sections =
                 subscriptionFeedSections(
-                    videos = videos.withHighQualityThumbnails().withSubscriptionAvatars(),
+                    videos = videos.withHighQualityThumbnails().withSubscriptionAvatars(channels),
                     filters =
                         SubscriptionFeedFilters(
                             showVideos = state.showSubscriptionVideos,
@@ -344,9 +341,9 @@ class SubscriptionsViewModel
             _uiState.update { it.copy(recentVideos = sections.recentVideos, shorts = sections.shorts) }
         }
 
-        private fun List<Video>.withSubscriptionAvatars(): List<Video> {
+        private fun List<Video>.withSubscriptionAvatars(channels: List<Channel> = _uiState.value.subscribedChannels): List<Video> {
             val avatarByChannelId =
-                _uiState.value.subscribedChannels
+                channels
                     .asSequence()
                     .filter { it.thumbnailUrl.isNotBlank() }
                     .associate { it.id to ThumbnailUrlResolver.resolveChannelAvatar(it.thumbnailUrl) }
