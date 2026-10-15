@@ -162,6 +162,28 @@ internal fun spaceByChannel(
     return out
 }
 
+/**
+ * Gives each search an even share of the first [limit] places before any search takes more, so one
+ * broad subject cannot fill the search lane on its own. Rank order holds within each share.
+ */
+internal fun spreadAcrossSearches(
+    videos: List<Video>,
+    queryOf: (videoId: String) -> String?,
+    limit: Int,
+): List<Video> {
+    val searches = videos.mapNotNullTo(HashSet()) { queryOf(it.id) }.size
+    if (searches < 2) return videos.take(limit)
+    val share = (limit + searches - 1) / searches
+    val placed = HashMap<String, Int>()
+    val (even, overflow) =
+        videos.partition { video ->
+            val query = queryOf(video.id) ?: return@partition true
+            val count = placed.getOrDefault(query, 0)
+            (count < share).also { within -> if (within) placed[query] = count + 1 }
+        }
+    return (even + overflow).take(limit)
+}
+
 internal fun Video.withChannelMetadataFrom(enriched: Video): Video {
     val avatarUrl = enriched.channelThumbnailUrl.ifBlank { channelThumbnailUrl }
     return copy(

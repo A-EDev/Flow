@@ -94,6 +94,7 @@ internal suspend fun buildHomeFeedLanes(
     rankRelevant: suspend (List<Video>) -> List<Video> = rank,
     share: suspend (List<Video>) -> List<Video> = { it },
     rawNeighbours: List<Video> = emptyList(),
+    searchOf: (videoId: String) -> String? = { null },
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
@@ -177,7 +178,7 @@ internal suspend fun buildHomeFeedLanes(
         overflowFresh = unshownFresh.drop(FRESH_SUBS_PIN_TOP),
         shownFresh = shownFresh,
         bestSubs = bestSubs,
-        bestDiscovery = share(demoteByFit(rankRelevant(discoveryPool), taste)).take(BEST_DISCOVERY_LIMIT),
+        bestDiscovery = spreadAcrossSearches(share(demoteByFit(rankRelevant(discoveryPool), taste)), searchOf, BEST_DISCOVERY_LIMIT),
         // One upload per remembered channel: the lane spreads across channels, never floods with one.
         bestMemory =
             demoteByFit(rank(memoryPool), taste)

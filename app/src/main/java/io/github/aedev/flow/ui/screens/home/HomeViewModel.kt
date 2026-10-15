@@ -649,6 +649,7 @@ class HomeViewModel
                                 },
                                 share = FlowNeuroEngine::shareByInterest,
                                 rawNeighbours = rawNeighbours,
+                                searchOf = queriesById(discoveryPairs)::get,
                             )
 
                         Log.d(
@@ -1186,9 +1187,13 @@ class HomeViewModel
                             .filterRecentHomeSuggestion(now)
                     if (newVideos.isEmpty()) return
                     val rankedDiscovery =
-                        FlowNeuroEngine.shareByInterest(
-                            demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, snapshotTrace), taste),
-                        )
+                        FlowNeuroEngine
+                            .shareByInterest(
+                                demoteByFit(
+                                    FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, snapshotTrace),
+                                    taste,
+                                ),
+                            ).let { spreadAcrossSearches(it, queries::get, it.size) }
                     addUniquePageVideos(
                         candidates = rankedDiscovery,
                         targetList = page,

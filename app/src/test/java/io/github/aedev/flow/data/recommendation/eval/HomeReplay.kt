@@ -131,6 +131,11 @@ internal object HomeReplay {
                     rank = { engine.rank(it, subs, trace = trace) },
                     rankRelevant = { engine.rank(it, subs, NeuroScoring.LANE_RELEVANCE_FLOOR, trace) },
                     share = engine::shareByInterest,
+                    searchOf = snapshot.discovery
+                        .asReversed()
+                        .flatMap { search ->
+                            search.videos.map { it.id to search.query }
+                        }.toMap()::get,
                 )
             val mix = assembleHomeFeed(lanes, emptySet(), subs.size, brain.totalInteractions)
             engine.shutdown()

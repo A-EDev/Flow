@@ -223,6 +223,23 @@ class HomeFeedLogicTest {
     }
 
     @Test
+    fun `one search takes no more than its even share before the others are placed`() {
+        val ranked = (1..6).map { vc("h$it", "H$it") } + (1..3).map { vc("p$it", "P$it") }
+        val searchOf = ranked.associate { it.id to if (it.id.startsWith("h")) "anime horror" else "pixel" }
+
+        val spread = spreadAcrossSearches(ranked, searchOf::get, limit = 6)
+
+        assertThat(spread.map { it.id }).containsExactly("h1", "h2", "h3", "p1", "p2", "p3").inOrder()
+    }
+
+    @Test
+    fun `a single search keeps its rank order`() {
+        val ranked = (1..4).map { vc("h$it", "H$it") }
+
+        assertThat(spreadAcrossSearches(ranked, { "anime horror" }, limit = 3).map { it.id }).containsExactly("h1", "h2", "h3").inOrder()
+    }
+
+    @Test
     fun `spaceByChannel ignores blank channel ids`() {
         val related = listOf(vc("r1", ""), vc("r2", ""), vc("r3", ""))
         assertThat(spaceByChannel(related).map { it.id }).containsExactly("r1", "r2", "r3").inOrder()
