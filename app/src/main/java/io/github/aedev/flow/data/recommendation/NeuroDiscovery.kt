@@ -42,6 +42,9 @@ internal class NeuroDiscovery(
         private const val SPECIFIC_QUERY_MAX_WORDS = 4
         private const val QUERY_MIN_SPECIFICITY = 0.65
 
+        // A phrase this strong against its word alone takes the word's place in searches.
+        private const val PHRASE_SHARE = 0.5
+
         /** How much a viewer must take to a format before searches ask for it. */
         private const val FORMAT_QUERY_MIN_AFFINITY = 0.2
     }
@@ -401,6 +404,20 @@ internal class NeuroDiscovery(
             "match",
         )
 
+    internal fun enclosingPhrase(
+        word: String,
+        brain: UserBrain,
+    ): String? {
+        val alone =
+            brain.globalVector.topics.entries
+                .sumOf { (key, value) -> if (NeuroScoring.stripDomainTag(key) == word) value else 0.0 }
+        return brain.globalVector.topics.entries
+            .map { (key, value) -> NeuroScoring.stripDomainTag(key) to value }
+            .filter { (key, value) -> ' ' in key && word in key.split(' ') && value >= alone * PHRASE_SHARE }
+            .maxByOrNull { it.second }
+            ?.first
+    }
+
     private fun needsQueryEnrichment(topic: String): Boolean {
         val base = NeuroScoring.stripDomainTag(topic)
         // Only genuinely AMBIGUOUS words need a qualifier. The old length<6 rule
@@ -423,6 +440,10 @@ internal class NeuroDiscovery(
         brain: UserBrain,
     ): String {
         val base = NeuroScoring.stripDomainTag(topic)
+
+        // A word the viewer mostly meets inside a phrase names something else alone: "elite" of
+        // "elite gen" searches up a TV series and a space game (#907).
+        if (' ' !in base) enclosingPhrase(base, brain)?.let { return it }
 
         if (!needsQueryEnrichment(base)) return base
 
