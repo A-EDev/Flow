@@ -17,6 +17,8 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import androidx.media3.exoplayer.util.EventLogger
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -30,6 +32,7 @@ import kotlinx.coroutines.runBlocking
 class PlayerFactory {
     companion object {
         private const val TAG = "PlayerFactory"
+        private const val EVENT_LOG_TAG = "FlowVideoEvents"
     }
 
     private class CachedPrefs(
@@ -168,6 +171,9 @@ class PlayerFactory {
             .also {
                 it.setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 it.setWakeMode(C.WAKE_MODE_LOCAL)
+                // Renderer, decoder, surface and stall events under one tag, so a stall can be
+                // timed from logcat instead of argued about (#1298).
+                if (BuildConfig.DEBUG) it.addAnalyticsListener(EventLogger(EVENT_LOG_TAG))
                 Log.d(TAG, "ExoPlayer instance created")
             }
     }
