@@ -42,8 +42,11 @@ internal fun PlayerBackEffects(
             playerSheetState.beginBackScrub()
             progress.collect { event -> playerSheetState.scrubBack(event.progress) }
             playerSheetState.collapse()
-        } catch (_: CancellationException) {
+        } catch (e: CancellationException) {
             playerSheetState.expand()
+            // Returning normally from here, before the flow was collected, makes activity-compose
+            // throw "You must collect the progress flow" (#1307).
+            throw e
         } finally {
             backScrubInFlight = false
         }
