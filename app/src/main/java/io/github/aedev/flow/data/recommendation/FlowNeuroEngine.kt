@@ -18,6 +18,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
+import androidx.tracing.traceAsync
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,13 @@ class FlowNeuroEngine internal constructor(
         private const val TAG = "FlowNeuroEngine"
 
         // ── Orchestrator-only constants ──
+        // Trace sections the startup and Home benchmarks read (#1301).
+        const val TRACE_INIT = "neuro.init"
+        const val TRACE_RANK = "neuro.rank"
+        private val traceCookies =
+            java.util.concurrent.atomic
+                .AtomicInteger()
+
         // A refresh ranks about 600 candidates; a smaller cache missed on every one of them.
         private const val FEATURE_CACHE_MAX = 700
         private const val SESSION_TOPIC_HISTORY_MAX = 50
@@ -483,50 +491,52 @@ class FlowNeuroEngine internal constructor(
             if (isInitialized) return
 
             // Off the caller's thread: a cold start calls this from the main thread too (#1301).
-            withContext(Dispatchers.Default) {
-                val stores = listOf(async { contentStore.load() }, async { categoryStore.load() }, async { coWatchStore.load() })
-                val loaded = storage.load()
-                if (loaded != null) {
-                    currentUserBrain = loaded
-                } else if (!storage.hasSavedBrain()) {
-                    // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
-                    storage.migrateLegacy()?.let { migrated ->
-                        currentUserBrain = migrated
-                        Log.i(TAG, "Migrated an earlier brain")
-                    }
-                    storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
-                }
-                storage.deleteOldBrainFiles()
-
-                currentUserBrain = withLanguageProfile(currentUserBrain)
-                val maintained = runMaintenanceIfNeeded(currentUserBrain)
-                if (maintained !== currentUserBrain) {
-                    if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
-                        storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
-                    }
-                    currentUserBrain = maintained
-                    storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
-                }
-
-                idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
-                idfTotalDocuments = currentUserBrain.idfTotalDocuments
-
-                // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
-                val unspelled =
-                    currentUserBrain.preferredTopics.filter { label ->
-                        tokenizer.keysOf(label).any {
-                            it !in
-                                currentUserBrain.displayForms
+            traceAsync(TRACE_INIT, traceCookies.incrementAndGet()) {
+                withContext(Dispatchers.Default) {
+                    val stores = listOf(async { contentStore.load() }, async { categoryStore.load() }, async { coWatchStore.load() })
+                    val loaded = storage.load()
+                    if (loaded != null) {
+                        currentUserBrain = loaded
+                    } else if (!storage.hasSavedBrain()) {
+                        // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
+                        storage.migrateLegacy()?.let { migrated ->
+                            currentUserBrain = migrated
+                            Log.i(TAG, "Migrated an earlier brain")
                         }
+                        storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                     }
-                if (unspelled.isNotEmpty()) {
-                    currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
-                }
+                    storage.deleteOldBrainFiles()
 
-                currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
-                    watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+                    currentUserBrain = withLanguageProfile(currentUserBrain)
+                    val maintained = runMaintenanceIfNeeded(currentUserBrain)
+                    if (maintained !== currentUserBrain) {
+                        if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
+                            storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                        }
+                        currentUserBrain = maintained
+                        storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
+                    }
+
+                    idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
+                    idfTotalDocuments = currentUserBrain.idfTotalDocuments
+
+                    // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
+                    val unspelled =
+                        currentUserBrain.preferredTopics.filter { label ->
+                            tokenizer.keysOf(label).any {
+                                it !in
+                                    currentUserBrain.displayForms
+                            }
+                        }
+                    if (unspelled.isNotEmpty()) {
+                        currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
+                    }
+
+                    currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
+                        watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+                    }
+                    stores.awaitAll()
                 }
-                stores.awaitAll()
             }
             appContext.registerComponentCallbacks(trimCallbacks)
 
@@ -2036,6 +2046,13 @@ class FlowNeuroEngine internal constructor(
         userSubs: Set<String>,
         minRelevance: Double = 0.0,
         trace: RankTrace? = null,
+    ): List<Video> = traceAsync(TRACE_RANK, traceCookies.incrementAndGet()) { rankTraced(candidates, userSubs, minRelevance, trace) }
+
+    private suspend fun rankTraced(
+        candidates: List<Video>,
+        userSubs: Set<String>,
+        minRelevance: Double,
+        trace: RankTrace?,
     ): List<Video> =
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()

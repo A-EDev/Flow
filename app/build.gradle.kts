@@ -387,6 +387,8 @@ dependencies {
     // library AARs (Compose, RecyclerView, ...) at build time; this applies them at runtime,
     // which matters for sideloaded/F-Droid installs that bypass Play's cloud profiles.
     implementation(libs.androidx.profileinstaller)
+    // Trace sections the startup and Home benchmarks measure (#1301); already on the classpath through Compose.
+    implementation(libs.androidx.tracing)
     baselineProfile(project(":benchmark"))
 
     // Desugaring for older Android versions

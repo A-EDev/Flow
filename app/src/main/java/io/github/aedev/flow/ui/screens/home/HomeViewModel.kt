@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.tracing.traceAsync
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
@@ -115,6 +116,12 @@ class HomeViewModel
             // Before the grid reports its viewport the first screen is still in view; never shift it.
             private const val LATE_SUBS_MIN_INDEX = 5
             private const val SNAPSHOT_FEED_DEBOUNCE_MS = 2_000L
+
+            // Trace section the Home refresh benchmark reads (#1301).
+            private const val TRACE_WAVE1 = "home.wave1"
+            private val traceCookies =
+                java.util.concurrent.atomic
+                    .AtomicInteger()
 
             // Next pages of earlier searches a short load-more page may fetch.
             private const val DEEPER_SEARCH_PAGES = 2
@@ -527,33 +534,35 @@ class HomeViewModel
                         currentQueryIndex = wave1QueryCount
 
                         val results =
-                            supervisorScope {
-                                val deferredDiscovery =
-                                    async {
-                                        wave1Queries
-                                            .map { query ->
-                                                async {
-                                                    query to
-                                                        runCatching {
-                                                            searchPages.firstPage(query)
-                                                        }.getOrElse { emptyList() }
-                                                }
-                                            }.awaitAll()
-                                    }
+                            traceAsync(TRACE_WAVE1, traceCookies.incrementAndGet()) {
+                                supervisorScope {
+                                    val deferredDiscovery =
+                                        async {
+                                            wave1Queries
+                                                .map { query ->
+                                                    async {
+                                                        query to
+                                                            runCatching {
+                                                                searchPages.firstPage(query)
+                                                            }.getOrElse { emptyList() }
+                                                    }
+                                                }.awaitAll()
+                                        }
 
-                                // ── Related-graph lane: harvest /next neighbours of recent positives ──
-                                val deferredRelated =
-                                    async {
-                                        val seedInputs = feedSources.historySeedInputs()
-                                        val longTermInputs = feedSources.longTermSeedInputs()
-                                        val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS, longTermInputs)
-                                        feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
-                                    }
+                                    // ── Related-graph lane: harvest /next neighbours of recent positives ──
+                                    val deferredRelated =
+                                        async {
+                                            val seedInputs = feedSources.historySeedInputs()
+                                            val longTermInputs = feedSources.longTermSeedInputs()
+                                            val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS, longTermInputs)
+                                            feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
+                                        }
 
-                                Wave1FeedResults(
-                                    discovery = deferredDiscovery.await(),
-                                    related = deferredRelated.await(),
-                                )
+                                    Wave1FeedResults(
+                                        discovery = deferredDiscovery.await(),
+                                        related = deferredRelated.await(),
+                                    )
+                                }
                             }
 
                         val discoveryPairs = results.discovery
