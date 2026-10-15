@@ -112,6 +112,7 @@ internal fun VideoStage(
                     onExitFullscreenDrag = { offsetPx -> screenState.exitDragOffsetY = offsetPx },
                     isSeekForwardActive = screenState.showSeekForwardAnimation,
                     isSeekBackActive = screenState.showSeekBackAnimation,
+                    onTapWindowChange = { screenState.isTapWindowOpen = it },
                 ).videoPlayerZoom(
                     scope = scope,
                     scale = { screenState.zoomScale },

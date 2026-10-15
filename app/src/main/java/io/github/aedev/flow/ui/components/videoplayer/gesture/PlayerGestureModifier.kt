@@ -53,6 +53,7 @@ fun Modifier.videoPlayerControls(
     onExitFullscreenDrag: (offsetPx: Float) -> Unit = {},
     isSeekForwardActive: Boolean = false,
     isSeekBackActive: Boolean = false,
+    onTapWindowChange: (Boolean) -> Unit = {},
 ): Modifier {
     val isSpeedBoostActiveState = rememberUpdatedState(isSpeedBoostActive)
     val onSpeedBoostChangeState = rememberUpdatedState(onSpeedBoostChange)
@@ -87,6 +88,7 @@ fun Modifier.videoPlayerControls(
     val onExitFullscreenDragState = rememberUpdatedState(onExitFullscreenDrag)
     val isSeekForwardActiveState = rememberUpdatedState(isSeekForwardActive)
     val isSeekBackActiveState = rememberUpdatedState(isSeekBackActive)
+    val onTapWindowChangeState = rememberUpdatedState(onTapWindowChange)
 
     // The width the system itself reserves for the back gesture, so the player's dead zones match
     // the ones the user is already swiping against rather than a number of our own.
@@ -128,6 +130,7 @@ fun Modifier.videoPlayerControls(
             isSeekForwardActive = isSeekForwardActiveState,
             isSeekBackActive = isSeekBackActiveState,
             sideEdgeIgnorePx = sideEdgeIgnorePxState,
+            onTapWindowChange = onTapWindowChangeState,
             haptics = haptics,
         ).playerDragGestures(
             currentPosition = currentPositionState,

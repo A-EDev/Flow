@@ -49,6 +49,9 @@ class PlayerScreenState {
     var seekAccumulation by mutableIntStateOf(10)
     var showSeekBackAnimation by mutableStateOf(false)
 
+    /** A tap just lifted and the double-tap timeout is still running. */
+    var isTapWindowOpen by mutableStateOf(false)
+
     // Subtitle States
     var subtitleStyle by mutableStateOf(SubtitleStyle())
 

@@ -136,6 +136,8 @@ internal fun VideoStageControls(
             lockModeEnabled = prefs.lockModeEnabled,
             lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
             isGestureReadoutActive = screenState.isSpeedBoostActive || screenState.showZoomIndicator,
+            yieldsTapsToPlayer =
+                screenState.isTapWindowOpen || screenState.showSeekBackAnimation || screenState.showSeekForwardAnimation,
         )
     // The session is rebuilt every composition, so these lambdas are too; they read the values the
     // host observed this frame exactly as the parameter list they replace did.

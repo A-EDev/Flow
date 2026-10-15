@@ -45,6 +45,7 @@ class PlayerControlsOverlayTest {
         isTouchLocked: Boolean = false,
         qualityLabel: String? = "1080p",
         duration: Long = 125_000L,
+        yieldsTapsToPlayer: Boolean = false,
         onPlayPause: () -> Unit = {},
     ) {
         rule.setContent {
@@ -64,6 +65,7 @@ class PlayerControlsOverlayTest {
                                 videoTitle = "Fixture video",
                                 isLive = isLive,
                                 isTouchLocked = isTouchLocked,
+                                yieldsTapsToPlayer = yieldsTapsToPlayer,
                             ),
                         actions = PlayerControlActions(onPlayPause = onPlayPause),
                         currentPosition = { 0L },
@@ -89,6 +91,16 @@ class PlayerControlsOverlayTest {
         rule.onNodeWithContentDescription(string(R.string.play)).performClick()
 
         assertThat(toggled).isTrue()
+    }
+
+    @Test
+    fun controlsLeaveTheTapToThePlayerWhileADoubleTapIsOpen() {
+        var toggled = false
+        setOverlay(yieldsTapsToPlayer = true, onPlayPause = { toggled = true })
+
+        rule.onNodeWithContentDescription(string(R.string.play)).performClick()
+
+        assertThat(toggled).isFalse()
     }
 
     @Test

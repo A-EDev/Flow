@@ -42,6 +42,7 @@ internal fun Modifier.playerTapGestures(
     isSeekForwardActive: State<Boolean>,
     isSeekBackActive: State<Boolean>,
     sideEdgeIgnorePx: State<Float>,
+    onTapWindowChange: State<(Boolean) -> Unit>,
     haptics: HapticFeedback,
 ): Modifier {
     val currentIsSpeedBoostActive by isSpeedBoostActive
@@ -61,6 +62,7 @@ internal fun Modifier.playerTapGestures(
     val currentIsSeekForwardActive by isSeekForwardActive
     val currentIsSeekBackActive by isSeekBackActive
     val currentSideEdgeIgnorePx by sideEdgeIgnorePx
+    val currentOnTapWindowChange by onTapWindowChange
 
     return this.pointerInput(Unit) {
         var accumulatedForwardMs = 0L
@@ -139,6 +141,7 @@ internal fun Modifier.playerTapGestures(
 
         detectPlayerTaps(
             isEdge = { offset -> zoneOf(offset.x) == TapZone.EDGE },
+            onTapWindowChange = { open -> currentOnTapWindowChange(open) },
             onTapUp = { offset ->
                 if (!currentIsSpeedBoostActive) {
                     val zone = zoneOf(offset.x)
@@ -233,9 +236,14 @@ internal fun Modifier.playerTapGestures(
  * A touch that starts on [isEdge] may belong to the system back gesture, whose down reaches the app
  * before the system cancels it: such a touch never long-presses, never opens the double-tap window
  * and never counts as a second tap. The double tap fires on the second up, which a cancel never is.
+ *
+ * [onTapWindowChange] reports the double-tap window, so the controls the first tap revealed can
+ * leave the second tap to this detector (#1308). It is closed in a finally: the modifier is removed
+ * mid-gesture on minimise, PiP and touch lock, and a window left open would lock the controls.
  */
 private suspend fun PointerInputScope.detectPlayerTaps(
     isEdge: (Offset) -> Boolean,
+    onTapWindowChange: (Boolean) -> Unit,
     onTapUp: (Offset) -> Unit,
     onSingleTapConfirmed: () -> Unit,
     onDoubleTap: (Offset) -> Unit,
@@ -266,11 +274,17 @@ private suspend fun PointerInputScope.detectPlayerTaps(
             return@awaitEachGesture
         }
 
-        val secondDown =
-            withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
-                awaitFirstDown(requireUnconsumed = false)
+        onTapWindowChange(true)
+        val secondUp =
+            try {
+                val secondDown =
+                    withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                        awaitFirstDown(requireUnconsumed = false)
+                    }
+                secondDown?.takeUnless { isEdge(it.position) }?.let { awaitStillUp(it) }
+            } finally {
+                onTapWindowChange(false)
             }
-        val secondUp = secondDown?.takeUnless { isEdge(it.position) }?.let { awaitStillUp(it) }
         if (secondUp == null) {
             onSingleTapConfirmed()
             return@awaitEachGesture

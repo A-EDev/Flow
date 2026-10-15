@@ -370,6 +370,12 @@ internal fun PlayerControlsOverlay(
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
+
+                // The second tap of a double tap, a tap during a double-tap seek and a tap on a
+                // fading-out button all belong to the player, not to the button under the finger.
+                if (!isVisible || state.yieldsTapsToPlayer) {
+                    PlayerTapShield(modifier = Modifier.matchParentSize())
+                }
             }
         }
 
