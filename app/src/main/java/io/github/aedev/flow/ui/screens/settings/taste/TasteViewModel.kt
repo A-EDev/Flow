@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.TimeBucket
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.snapshot.HomeSnapshotStore
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import io.github.aedev.flow.ui.screens.settings.home.DeepFlowState
@@ -114,6 +115,7 @@ class TasteViewModel
         private val watchHistoryDao: WatchHistoryDao,
         private val backup: BackupCoordinator,
         private val channelMemory: ChannelMemoryRepository,
+        private val homeSnapshots: HomeSnapshotStore,
         playerPreferences: PlayerPreferences,
     ) : SettingsViewModel() {
         private val _state = MutableStateFlow(TasteState())
@@ -161,7 +163,11 @@ class TasteViewModel
 
         fun clearChannelMemory() = act { channelMemory.clear() }
 
-        fun resetVideoProfile() = act { FlowNeuroEngine.resetBrain(context) }
+        fun resetVideoProfile() =
+            act {
+                FlowNeuroEngine.resetBrain(context)
+                homeSnapshots.clear()
+            }
 
         fun resetMusicProfile() = act { musicBrain.resetBrain() }
 

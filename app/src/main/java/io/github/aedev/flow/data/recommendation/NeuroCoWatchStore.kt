@@ -146,6 +146,13 @@ internal class NeuroCoWatchStore(
 
     fun sources(): Collection<Source> = sources.values
 
+    fun index(): CoWatchIndex = CoWatchIndex(sources)
+
+    /** Replaces the in-memory index without persisting it, for replaying a recorded Home load. */
+    fun restore(index: CoWatchIndex) {
+        sources = index.sources
+    }
+
     /** Records the channels [relatedChannels] listed beside [videoId], a video of [channelId] the viewer took to. */
     fun record(
         videoId: String,

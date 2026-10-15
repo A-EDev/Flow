@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Locale
@@ -140,7 +142,8 @@ class FlowNeuroEngine internal constructor(
             candidates: List<Video>,
             userSubs: Set<String>,
             minRelevance: Double = 0.0,
-        ): List<Video> = requireInstance().rank(candidates, userSubs, minRelevance)
+            trace: RankTrace? = null,
+        ): List<Video> = requireInstance().rank(candidates, userSubs, minRelevance, trace)
 
         suspend fun recordFeedImpressions(ids: List<String>) = requireInstance().recordFeedImpressions(ids)
 
@@ -161,6 +164,8 @@ class FlowNeuroEngine internal constructor(
         ): List<String> = requireInstance().topTopicsFor(video, limit)
 
         suspend fun getBrainSnapshot(): UserBrain = requireInstance().getBrainSnapshot()
+
+        internal suspend fun diagnosticState(): NeuroDiagnosticState = requireInstance().diagnosticState()
 
         suspend fun getSavedBrainSnapshot(): UserBrain = requireInstance().getSavedBrainSnapshot()
 
@@ -557,6 +562,16 @@ class FlowNeuroEngine internal constructor(
     }
 
     suspend fun getBrainSnapshot(): UserBrain = withBrainLock { currentUserBrain }
+
+    /** The brain as its export writes it, plus the device-local stores ranking reads. */
+    internal suspend fun diagnosticState(): NeuroDiagnosticState {
+        val brain = withBrainLock { deepFlowBookkeeping.persistable(currentUserBrain) }
+        return NeuroDiagnosticState(
+            brain = Json.encodeToJsonElement(with(storage) { brain.toSerializable() }),
+            categories = categoryStore.index(),
+            coWatch = coWatchStore.index(),
+        )
+    }
 
     /** The brain as saved: during Deep Flow, without that session's bookkeeping. */
     suspend fun getSavedBrainSnapshot(): UserBrain = withBrainLock { deepFlowBookkeeping.persistable(currentUserBrain) }
@@ -1948,11 +1963,15 @@ class FlowNeuroEngine internal constructor(
     // MAIN RANKING FUNCTION
     // =================================================
 
-    /** [minRelevance] above 0 drops candidates that share less topic overlap with the viewer (see [NeuroScoring.keepRelevant]). */
+    /**
+     * [minRelevance] above 0 drops candidates that share less topic overlap with the viewer (see [NeuroScoring.keepRelevant]).
+     * [trace] collects why each returned video was admitted.
+     */
     suspend fun rank(
         candidates: List<Video>,
         userSubs: Set<String>,
         minRelevance: Double = 0.0,
+        trace: RankTrace? = null,
     ): List<Video> =
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()
@@ -2081,6 +2100,7 @@ class FlowNeuroEngine internal constructor(
                         minRelevance,
                         userSubs,
                         brain.channelScores,
+                        trace,
                     )
                 }
 
@@ -2189,7 +2209,7 @@ class FlowNeuroEngine internal constructor(
                     (brain.channelScores[candidate.video.channelId] ?: 0.0) < 0.5 &&
                     NeuroVectorMath.topicSimilarity(viewer, candidate.vector) <= 0.0
             }
-            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated)
+            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated, trace)
         }
 
     suspend fun recordFeedImpressions(ids: List<String>) {

@@ -1,9 +1,12 @@
 package io.github.aedev.flow.ui.screens.settings.diagnostics
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.recommendation.snapshot.HomeSnapshotStore
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import io.github.aedev.flow.utils.DeviceInfo
@@ -24,6 +27,8 @@ class DiagnosticsViewModel
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
+        private val preferences: PlayerPreferences,
+        private val snapshots: HomeSnapshotStore,
     ) : SettingsViewModel() {
         val device: DeviceInfo by lazy { FlowDiagnostics.deviceInfo(context) }
 
@@ -34,13 +39,35 @@ class DiagnosticsViewModel
 
         private var sessionText = ""
 
+        val recordingSnapshots: StateFlow<Boolean> = preferences.homeSnapshotRecording.asState(false)
+
+        private val _snapshotCount = MutableStateFlow(0)
+        val snapshotCount: StateFlow<Int> = _snapshotCount.asStateFlow()
+
         init {
+            viewModelScope.launch { _snapshotCount.value = snapshots.count() }
             viewModelScope.launch(Dispatchers.IO) {
                 sessionText = FlowDiagnostics.readSessionLogs()
                 _session.value = parseLog(sessionText, ::logcatLevel)
                 _crashes.value = parseLog(FlowDiagnostics.crashLogsOrNull(context), ::crashLevel)
             }
         }
+
+        /** Switching recording off deletes the snapshots already kept. */
+        fun setRecordingSnapshots(enabled: Boolean) =
+            write {
+                preferences.setHomeSnapshotRecording(enabled)
+                if (!enabled) {
+                    snapshots.clear()
+                    _snapshotCount.value = 0
+                }
+            }
+
+        suspend fun exportSnapshot(uri: Uri): Boolean =
+            withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openOutputStream(uri)?.use { snapshots.exportLatest(it) } ?: false }
+                    .getOrDefault(false)
+            }
 
         suspend fun report(): String = withContext(Dispatchers.IO) { FlowDiagnostics.buildFullReport(context, sessionText) }
 

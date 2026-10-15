@@ -1097,12 +1097,15 @@ internal object NeuroScoring {
         minRelevance: Double,
         userSubs: Set<String>,
         channelScores: Map<String, Double>,
+        trace: RankTrace? = null,
     ): List<Pair<Video, ContentVector>> {
         fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= NEUTRAL_CHANNEL_SCORE
         val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second) }
         val (kept, dropped) = scored.partition { (pair, relevance) -> relevance >= minRelevance || knownChannel(pair.first.channelId) }
         if (kept.size >= MIN_RELEVANT_KEPT || dropped.isEmpty()) return kept.map { it.first }
-        return (kept + dropped.sortedByDescending { it.second }.take(MIN_RELEVANT_KEPT - kept.size)).map { it.first }
+        val topUp = dropped.sortedByDescending { it.second }.take(MIN_RELEVANT_KEPT - kept.size)
+        trace?.toppedUp?.addAll(topUp.map { it.first.first.id })
+        return (kept + topUp).map { it.first }
     }
 
     /**
@@ -1398,7 +1401,16 @@ internal object NeuroScoring {
         tokenizer: NeuroTokenizer,
         extraExplorationSlots: Int = 0,
         isUnrelated: (ScoredVideo) -> Boolean = { false },
+        trace: RankTrace? = null,
     ): List<Video> {
+        fun placed(
+            scored: ScoredVideo,
+            phase: DiversityPhase,
+        ) {
+            if (trace == null) return
+            trace.phases[scored.video.id] = phase
+            if (isUnrelated(scored)) trace.unrelated += scored.video.id
+        }
         val finalPlaylist = mutableListOf<Video>()
         val channelWindow = mutableListOf<String>()
         val topicWindow = mutableListOf<String>()
@@ -1505,6 +1517,7 @@ internal object NeuroScoring {
                     topicWindow.add(primaryTopic)
                 }
                 if (qualifiesForExploration) explorationCount++
+                placed(current, if (qualifiesForExploration) DiversityPhase.EXPLORATION else DiversityPhase.STRICT)
                 phase1Iterator.remove()
             } else if (topScore > 0 &&
                 current.score > (topScore * 0.8)
@@ -1535,6 +1548,7 @@ internal object NeuroScoring {
                     }
             if (channelOk && titleOk) {
                 finalPlaylist.add(scored.video)
+                placed(scored, DiversityPhase.DEFERRED)
             }
         }
 
@@ -1559,6 +1573,7 @@ internal object NeuroScoring {
                     }
             if (!channelSpam && !titleSimilar) {
                 finalPlaylist.add(scored.video)
+                placed(scored, DiversityPhase.RELAXED)
             }
         }
 

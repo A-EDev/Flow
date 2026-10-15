@@ -176,6 +176,7 @@ class PlayerPreferences(
         val PLAYLISTS_SHOW_MUSIC = booleanPreferencesKey("playlists_show_music")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_SUBSCRIPTIONS_ENABLED = booleanPreferencesKey("home_subscriptions_enabled")
+        val HOME_SNAPSHOT_RECORDING = booleanPreferencesKey("home_snapshot_recording")
         val SUBSCRIPTION_COLLABORATIONS_ENABLED = booleanPreferencesKey("subscription_collaborations_enabled")
         val NOTES_SORT = stringPreferencesKey("notes_sort")
         val SHOW_WATCH_PROGRESS = booleanPreferencesKey("show_watch_progress")
@@ -1048,6 +1049,17 @@ class PlayerPreferences(
     suspend fun setHomeSubscriptionsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HOME_SUBSCRIPTIONS_ENABLED] = enabled
+        }
+    }
+
+    /** Keeps a copy of each Home load on the device so it can be exported for a recommendation report. */
+    val homeSnapshotRecording: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.HOME_SNAPSHOT_RECORDING] ?: false }
+
+    suspend fun setHomeSnapshotRecording(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_SNAPSHOT_RECORDING] = enabled
         }
     }
 

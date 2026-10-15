@@ -34,6 +34,20 @@ internal object DiagnosticsIndex {
             R.string.settings_diagnostics_reset_summary,
         )
     val clearCrashes = entry("clear_crashes", R.string.diagnostics_clear_crashes, R.string.diagnostics_tab_crashes)
+    val recordSnapshots =
+        entry(
+            "record_snapshots",
+            R.string.diagnostics_record_home_snapshots,
+            R.string.settings_section_home_snapshots,
+            R.string.settings_diagnostics_record_snapshots_summary,
+        )
+    val exportSnapshot =
+        entry(
+            "export_snapshot",
+            R.string.diagnostics_export_home_snapshot,
+            R.string.settings_section_home_snapshots,
+            R.string.settings_diagnostics_export_snapshot_summary,
+        )
 
     val all =
         listOf(
@@ -43,5 +57,7 @@ internal object DiagnosticsIndex {
             copy,
             share,
             resetSession,
+            recordSnapshots,
+            exportSnapshot,
         )
 }

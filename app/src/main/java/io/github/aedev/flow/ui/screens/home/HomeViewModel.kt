@@ -23,6 +23,7 @@ import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.NeuroScoring
+import io.github.aedev.flow.data.recommendation.RankTrace
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.repository.needsChannelMetadata
@@ -79,6 +80,7 @@ class HomeViewModel
         private val viewHistory: ViewHistory,
         private val channelMemory: ChannelMemoryRepository,
         private val chipFeeds: HomeChipFeeds,
+        private val snapshotRecorder: HomeSnapshotRecorder,
         savedStateHandle: SavedStateHandle,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
@@ -575,6 +577,7 @@ class HomeViewModel
                         val watched = watchedVideoIds.value
                         // Cached uploads only: the network refresh runs after first paint.
                         val rawMemory = runCatching { channelMemory.storedUploads(now) }.getOrDefault(emptyList())
+                        val trace = if (snapshotRecorder.isRecording()) RankTrace() else null
                         val lanes =
                             buildHomeFeedLanes(
                                 rawSubs = storedFeed.storedSubscriptionVideos(now),
@@ -589,8 +592,10 @@ class HomeViewModel
                                 now = now,
                                 freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
                                 subAvatarMap = subAvatarMap,
-                                rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
-                                rankRelevant = { pool -> FlowNeuroEngine.rank(pool, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR) },
+                                rank = { pool -> FlowNeuroEngine.rank(pool, userSubs, trace = trace) },
+                                rankRelevant = { pool ->
+                                    FlowNeuroEngine.rank(pool, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, trace)
+                                },
                                 share = FlowNeuroEngine::shareByInterest,
                             )
 
@@ -685,6 +690,20 @@ class HomeViewModel
                         HomeFeedCache.update(visibleFeed, _uiState.value.shorts)
                         persistentHomeFeedCache.saveLastFeed(spacedMix)
                         persistentHomeFeedCache.saveReserve(reserveCandidates)
+                        if (trace != null) {
+                            snapshotRecorder.record(
+                                createdAt = now,
+                                subscriptions = userSubs,
+                                watched = watched,
+                                discovery = discoveryPairs,
+                                related = relatedFetch,
+                                subscriptionFeed = storedFeed,
+                                memory = rawMemory,
+                                page = spacedMix,
+                                sourceOf = sourceById::get,
+                                trace = trace,
+                            )
+                        }
                         enrichVisibleChannelMetadata(spacedMix)?.let {
                             persistentHomeFeedCache.saveLastFeed(it)
                         }
