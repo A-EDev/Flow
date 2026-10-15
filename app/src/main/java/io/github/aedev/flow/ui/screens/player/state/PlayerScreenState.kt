@@ -144,6 +144,8 @@ class PlayerScreenState {
     fun revealLockOverlay() {
         lockOverlayRevealSignal++
     }
+
+    fun playbackFraction(): Float = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
 }
 
 @Composable
