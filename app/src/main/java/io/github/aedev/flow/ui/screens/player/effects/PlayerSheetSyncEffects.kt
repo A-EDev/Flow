@@ -77,7 +77,8 @@ internal fun AutoplayCommentsHoldEffect(
 /**
  * Live chat is a poll loop, so it only runs while a surface is actually showing it: the sheet or
  * side panel the user raised, or the wide layout's detail column. The expanded player keeps those
- * surfaces composed once opened, so composition alone is not evidence anyone is watching.
+ * surfaces composed once opened, so composition alone is not evidence anyone is watching, and an
+ * open chat behind the background, a locked screen or PiP is not on screen either.
  */
 @Composable
 internal fun LiveChatVisibilityEffect(
@@ -86,15 +87,20 @@ internal fun LiveChatVisibilityEffect(
     layoutMode: PlayerLayoutMode,
     viewModel: VideoPlayerViewModel,
 ) {
-    LaunchedEffect(viewModel, layoutMode) {
-        snapshotFlow {
-            screenState.activeSheet is PlayerSheet.LiveChat ||
-                (
-                    layoutMode == PlayerLayoutMode.WIDE &&
-                        screenState.showLiveChatPanel &&
-                        playerSheetState.currentValue == PlayerSheetValue.Expanded
-                )
-        }.collect(viewModel::setLiveChatPanelVisible)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(viewModel, layoutMode, lifecycle) {
+        combine(
+            lifecycle.currentStateFlow,
+            snapshotFlow {
+                screenState.activeSheet is PlayerSheet.LiveChat ||
+                    (
+                        layoutMode == PlayerLayoutMode.WIDE &&
+                            screenState.showLiveChatPanel &&
+                            playerSheetState.currentValue == PlayerSheetValue.Expanded
+                    )
+            },
+        ) { state, chatShown -> chatShown && state.isAtLeast(Lifecycle.State.RESUMED) }
+            .collect(viewModel::setLiveChatPanelVisible)
     }
 }
 

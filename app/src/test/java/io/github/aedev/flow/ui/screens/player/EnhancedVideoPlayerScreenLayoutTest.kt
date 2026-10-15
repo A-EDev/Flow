@@ -54,7 +54,8 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
     private val video = fakeVideo()
 
-    private fun setScreen(screenState: PlayerScreenState = PlayerScreenState()) {
+    // The chat column starts closed (#1042); opened, its close button marks the side column.
+    private fun setScreen(screenState: PlayerScreenState = PlayerScreenState().apply { showLiveChatPanel = true }) {
         val uiState = MutableStateFlow(fakeUiState(video = video, isLiveChatAvailable = true))
         val viewModel = relaxedVideoPlayerViewModel(uiState = uiState)
         rule.setContent {

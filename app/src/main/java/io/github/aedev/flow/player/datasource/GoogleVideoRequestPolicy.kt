@@ -39,15 +39,20 @@ object GoogleVideoRequestPolicy {
     /**
      * `Origin`, `Referer` and the `Sec-Fetch-*` triple are browser-only: a real visionOS or Android
      * VR client sends none of them, so they go only on URLs a web client minted.
+     *
+     * [allowGzip] is for HLS playlists and DASH manifests: a live playlist is about 880 KB as text and
+     * 12 KB gzipped, reloaded every few seconds (#1042). Leaving the header out lets OkHttp ask for
+     * gzip and decompress it.
      */
-    fun headers(clientName: String?): Map<String, String> {
-        val headers =
-            linkedMapOf(
-                // Media is already compressed and served in byte ranges, so identity keeps the
-                // range arithmetic exact rather than saving anything.
-                "Accept-Encoding" to "identity",
-                "Accept" to "*/*",
-            )
+    fun headers(
+        clientName: String?,
+        allowGzip: Boolean = false,
+    ): Map<String, String> {
+        val headers = linkedMapOf<String, String>()
+        // Media is already compressed and served in byte ranges, so identity keeps the range
+        // arithmetic exact rather than saving anything.
+        if (!allowGzip) headers["Accept-Encoding"] = "identity"
+        headers["Accept"] = "*/*"
         val client = clientName?.uppercase()
         if (client == null || client in WEB_FAMILY_CLIENTS) {
             headers["Origin"] = "https://www.youtube.com"

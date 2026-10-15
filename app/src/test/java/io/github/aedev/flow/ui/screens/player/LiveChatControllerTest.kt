@@ -172,6 +172,55 @@ class LiveChatControllerTest {
             assertThat(controller.isAvailable.value).isFalse()
         }
 
+    @Test
+    fun `with live chat off nothing is requested, not even availability (#1042)`() =
+        liveChatTest { controller ->
+            controller.setEnabled(false)
+            controller.setPanelVisible(true)
+            controller.start("v1")
+            advanceTimeBy(POLL_WINDOW_MS)
+            runCurrent()
+
+            coVerify(exactly = 0) { repository.initialContinuation(any()) }
+            coVerify(exactly = 0) { repository.poll(any()) }
+            assertThat(controller.isAvailable.value).isFalse()
+            assertThat(controller.isLoading.value).isFalse()
+        }
+
+    @Test
+    fun `turning live chat off mid-stream stops the polling and clears the chat`() =
+        liveChatTest { controller ->
+            controller.setPanelVisible(true)
+            controller.start("v1")
+            advanceTimeBy(POLL_WINDOW_MS)
+            runCurrent()
+            assertThat(controller.messages.value).isNotEmpty()
+
+            controller.setEnabled(false)
+            val pollsBeforeOff = pollCount
+            advanceTimeBy(POLL_WINDOW_MS * 4)
+            runCurrent()
+
+            assertThat(pollCount).isEqualTo(pollsBeforeOff)
+            assertThat(controller.messages.value).isEmpty()
+            assertThat(controller.isAvailable.value).isFalse()
+        }
+
+    @Test
+    fun `turning live chat back on picks up the stream already playing`() =
+        liveChatTest { controller ->
+            controller.setEnabled(false)
+            controller.start("v1")
+            runCurrent()
+
+            controller.setEnabled(true)
+            advanceTimeBy(POLL_WINDOW_MS)
+            runCurrent()
+
+            coVerify(exactly = 1) { repository.initialContinuation("v1") }
+            assertThat(controller.isAvailable.value).isTrue()
+        }
+
     private fun page(messages: List<LiveChatMessage>): LiveChatRepository.LiveChatPage {
         pollCount++
         return LiveChatRepository.LiveChatPage(

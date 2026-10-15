@@ -31,7 +31,8 @@ class PlayerScreenState {
     internal var activeSheet by mutableStateOf<PlayerSheet>(PlayerSheet.None)
 
     // The tablet side column's own show/hide toggle, not a sheet: it survives a sheet dismissal.
-    var showLiveChatPanel by mutableStateOf(true)
+    // Closed until tapped, because an open column is a running poll (#1042).
+    var showLiveChatPanel by mutableStateOf(false)
 
     // Comment Sorting
     var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
@@ -94,7 +95,7 @@ class PlayerScreenState {
         hasShownShortsPrompt = false
         showShortsPrompt = false
         activeSheet = PlayerSheet.None
-        showLiveChatPanel = true
+        showLiveChatPanel = false
         zoomScale = 1f
         zoomOffsetX = 0f
         zoomOffsetY = 0f

@@ -374,6 +374,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_watch_page,
             destination = page,
         )
+    val liveChat =
+        SettingEntry(
+            key = "playback.live_chat",
+            title = R.string.content_settings_live_chat_enabled_title,
+            summary = R.string.content_settings_live_chat_enabled_subtitle,
+            section = R.string.settings_section_watch_page,
+            destination = page,
+        )
     val disableShortsPlayer =
         SettingEntry(
             key = "playback.disable_shorts_player",
@@ -501,6 +509,7 @@ internal object PlaybackIndex {
             titleLines,
             comments,
             commentsPreview,
+            liveChat,
             disableShortsPlayer,
             shortsPlayerPrompt,
             shortsPlaybackMode,

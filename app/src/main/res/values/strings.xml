@@ -1142,6 +1142,8 @@
     <string name="content_settings_comments_enabled_subtitle">Show comments under videos</string>
     <string name="content_settings_comments_preview_title">Comments preview</string>
     <string name="content_settings_comments_preview_subtitle">Show the latest comment inside the comments card</string>
+    <string name="content_settings_live_chat_enabled_title">Live chat</string>
+    <string name="content_settings_live_chat_enabled_subtitle">Show chat on live streams</string>
     <string name="content_settings_subs_startup_refresh_title">Refresh subscriptions at startup</string>
     <string name="content_settings_subs_startup_refresh_subtitle">Check your subscription feed when the app opens</string>
     <string name="content_settings_subs_show_checked_count_title">Checked video count</string>

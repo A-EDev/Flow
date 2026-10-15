@@ -240,6 +240,8 @@ class VideoPlayerViewModel
                 .onEach { (videos, index) -> videoQueueStore.save(videos, index, playerManager.playerState.value.queueTitle) }
                 .launchIn(viewModelScope)
 
+            playerPreferences.liveChatEnabled.onEach(liveChat::setEnabled).launchIn(viewModelScope)
+
             combine(liveChat.messages, liveChat.isLoading, liveChat.isAvailable, ::Triple)
                 .onEach { (messages, isLoading, isAvailable) ->
                     _uiState.update { it.applyLiveChat(messages, isLoading, isAvailable) }

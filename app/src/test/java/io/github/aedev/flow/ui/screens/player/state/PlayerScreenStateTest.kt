@@ -28,7 +28,7 @@ class PlayerScreenStateTest {
             "bufferedPosition" to 0L,
             "duration" to 0L,
             "activeSheet" to PlayerSheet.None,
-            "showLiveChatPanel" to true,
+            "showLiveChatPanel" to false,
             "commentSortFilter" to CommentSortFilter.TOP,
             "brightnessLevel" to 0.5f,
             "volumeLevel" to 0.5f,
@@ -164,7 +164,7 @@ class PlayerScreenStateTest {
         bufferedPosition = 120_000L
         duration = 600_000L
         activeSheet = PlayerSheet.Settings(PlayerSettingsPage.Quality)
-        showLiveChatPanel = false
+        showLiveChatPanel = true
         commentSortFilter = CommentSortFilter.NEWEST
         brightnessLevel = 0.9f
         volumeLevel = 0.1f
@@ -237,7 +237,7 @@ class PlayerScreenStateTest {
 
         val expected = dirty + dismissMediaSheetsClears.associateWith { PlayerSheet.None }
         assertThat(state.snapshot()).containsExactlyEntriesIn(expected)
-        assertThat(state.showLiveChatPanel).isFalse()
+        assertThat(state.showLiveChatPanel).isTrue()
         assertThat(state.lastInteractionTimestamp).isEqualTo(1L)
     }
 

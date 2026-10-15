@@ -168,6 +168,7 @@ private fun SettingsListScope.watchPageSection(
     }
     switch(PlaybackIndex.comments, viewModel.comments, viewModel::setComments)
     switch(PlaybackIndex.commentsPreview, viewModel.commentsPreview, viewModel::setCommentsPreview, enabled = state.comments)
+    switch(PlaybackIndex.liveChat, viewModel.liveChat, viewModel::setLiveChat)
 }
 
 private fun SettingsListScope.shortsPlayerSection(

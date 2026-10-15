@@ -382,6 +382,7 @@ class PlayerPreferences(
 
         // Player comments preview
         val COMMENTS_ENABLED = booleanPreferencesKey("comments_enabled")
+        val LIVE_CHAT_ENABLED = booleanPreferencesKey("live_chat_enabled")
         val COMMENTS_PREVIEW_ENABLED = booleanPreferencesKey("comments_preview_enabled")
 
         val SUBSCRIPTION_SHOW_VIDEOS = booleanPreferencesKey("subscription_show_videos")
@@ -2382,6 +2383,17 @@ class PlayerPreferences(
     suspend fun setCommentsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.COMMENTS_ENABLED] = enabled
+        }
+    }
+
+    val liveChatEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.LIVE_CHAT_ENABLED] ?: true }
+            .distinctUntilChanged()
+
+    suspend fun setLiveChatEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LIVE_CHAT_ENABLED] = enabled
         }
     }
 

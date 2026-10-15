@@ -81,6 +81,7 @@ class PlaybackSettingsViewModel
         val relatedCardStyle = preferences.playerRelatedCardStyle.asState(PlayerRelatedCardStyle.FULL_WIDTH)
         val titleLines = preferences.videoTitleMaxLines.asState(1)
         val comments = preferences.commentsEnabled.asState(true)
+        val liveChat = preferences.liveChatEnabled.asState(true)
         val commentsPreview = preferences.commentsPreviewEnabled.asState(true)
 
         val shortsContent = preferences.shortsContentEnabled.asState(true)
@@ -199,6 +200,8 @@ class PlaybackSettingsViewModel
         fun setTitleLines(value: Int) = write { preferences.setVideoTitleMaxLines(value) }
 
         fun setComments(value: Boolean) = write { preferences.setCommentsEnabled(value) }
+
+        fun setLiveChat(value: Boolean) = write { preferences.setLiveChatEnabled(value) }
 
         fun setCommentsPreview(value: Boolean) = write { preferences.setCommentsPreviewEnabled(value) }
 

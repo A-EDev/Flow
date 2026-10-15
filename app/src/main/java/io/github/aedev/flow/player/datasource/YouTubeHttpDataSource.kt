@@ -100,7 +100,7 @@ class YouTubeHttpDataSource private constructor(
         val requestHeaders = LinkedHashMap<String, String>()
         requestHeaders.putAll(defaultRequestProperties)
         if (isYouTubeUri(dataSpec.uri)) {
-            requestHeaders.putAll(youtubeHeaders(dataSpec.uri))
+            requestHeaders.putAll(youtubeHeaders(dataSpec))
         }
         if (requestHeaders.isNotEmpty()) {
             factory.setDefaultRequestProperties(requestHeaders)
@@ -185,5 +185,9 @@ class YouTubeHttpDataSource private constructor(
 
     private fun resolveYouTubeUserAgent(uri: Uri): String = GoogleVideoRequestPolicy.userAgent(uri.getQueryParameter("c"), userAgent)
 
-    private fun youtubeHeaders(uri: Uri): Map<String, String> = GoogleVideoRequestPolicy.headers(uri.getQueryParameter("c"))
+    private fun youtubeHeaders(dataSpec: DataSpec): Map<String, String> =
+        GoogleVideoRequestPolicy.headers(
+            clientName = dataSpec.uri.getQueryParameter("c"),
+            allowGzip = dataSpec.isFlagSet(DataSpec.FLAG_ALLOW_GZIP),
+        )
 }
