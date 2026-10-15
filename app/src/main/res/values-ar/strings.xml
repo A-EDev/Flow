@@ -3804,7 +3804,7 @@
     <string name="taste_export_music">تصدير ملف الموسيقى</string>
     <string name="taste_import_music">استيراد ملف الموسيقى</string>
     <string name="taste_reset_music">إعادة ضبط ملف الموسيقى</string>
-    <string name="taste_reset_video_body">سيؤدي هذا إلى مسح ما تعلّمه Flow من مشاهداتك والبدء من جديد. لن تتأثر صفحة الملخص والقنوات والمواضيع والفيديوهات المخفية.</string>
+    <string name="taste_reset_video_body">ينسى Flow ما تعلّمه من فيديوهاتك وعمليات بحثك. يظل سجل المشاهدة والإعجابات وقوائم التشغيل والعناصر المخفية محفوظة، وتستمر صفحة «المنزل» في استخدامها.</string>
     <string name="taste_reset_music_title">هل تريد إعادة ضبط ملف الموسيقى؟</string>
     <string name="taste_reset_music_body">‏يمسح هذا ما تعلّمه Flow من موسيقاك ويبدأ من الصفر. يبقى ملخصك كما هو.</string>
     <string name="taste_trait_now">الآن %1$s</string>
@@ -4529,4 +4529,22 @@
     <string name="music_playback_warning_unavailable">لم تعد هذه الأغنية متاحة على YouTube.</string>
     <string name="notif_type_shorts_subtitle">تضمين المقاطع القصيرة في تنبيهات الفيديو الجديد من الاشتراكات</string>
     <string name="notif_type_shorts">Shorts</string>
+    <string name="about_notices">إشعارات المصادر المفتوحة</string>
+    <string name="about_notices_summary">قوائم الكلمات والأكواد من مشاريع أخرى</string>
+    <string name="taste_picks_header">اختياراتك</string>
+    <string name="taste_evidence_often">الأكثر مشاهدة</string>
+    <string name="taste_evidence_some">شاهدتها عدة مرات</string>
+    <string name="taste_evidence_once">شاهدتها مرة أو مرتين</string>
+    <string name="taste_evidence_none">لم تشاهدها بعد</string>
+    <string name="taste_starter_searches">عمليات بحث مقترحة</string>
+    <string name="taste_starter_searches_detail">%1$s. ستظل مستخدمة إلى أن يتعرّف Flow على ما تشاهده.</string>
+    <string name="details_related_to">مرتبط بـ</string>
+    <string name="home_theme_science">العلوم والتقنية</string>
+    <string name="home_theme_comedy">الكوميديا</string>
+    <string name="home_theme_film">الأفلام والرسوم المتحركة</string>
+    <string name="home_theme_autos">السيارات والمركبات</string>
+    <string name="home_theme_pets">الحيوانات الأليفة والحيوانات</string>
+    <string name="home_theme_travel">السفر</string>
+    <string name="home_theme_howto">الشروحات والأسلوب</string>
+    <string name="home_theme_nonprofits">المنظمات غير الربحية</string>
 </resources>
