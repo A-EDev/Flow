@@ -454,11 +454,13 @@ class HomeViewModel
                         persistentHomeFeedCache.loadLastFeed(cacheFilters())
                     }.getOrElse { emptyList() }
                 if (cached.isEmpty()) return@launch
-                val hydratedCached = repository.enrichLikelyCollabAvatarStacks(cached, limit = 8)
 
+                // Shown before any network call: the collaboration avatars fill in after (#1301).
+                var shownIds = emptyList<String>()
                 _uiState.update { state ->
                     if (state.videos.isNotEmpty()) return@update state
-                    val videos = hydratedCached.filterWatched(watchedVideoIds.value)
+                    val videos = cached.filterWatched(watchedVideoIds.value)
+                    shownIds = videos.map { it.id }
                     HomeFeedCache.update(videos, state.shorts)
                     state.copy(
                         videos = videos,
@@ -466,6 +468,15 @@ class HomeViewModel
                         error = null,
                         lastRefreshTime = System.currentTimeMillis(),
                     )
+                }
+                if (shownIds.isEmpty()) return@launch
+                val hydratedCached = repository.enrichLikelyCollabAvatarStacks(cached, limit = 8)
+                if (hydratedCached != cached) {
+                    val hydratedById = hydratedCached.associateBy { it.id }
+                    _uiState.update { state ->
+                        if (state.videos.map { it.id } != shownIds) return@update state
+                        state.copy(videos = state.videos.map { hydratedById[it.id] ?: it })
+                    }
                 }
                 enrichVisibleChannelMetadata(hydratedCached)?.let {
                     persistentHomeFeedCache.saveLastFeed(it)
