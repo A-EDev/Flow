@@ -1212,7 +1212,10 @@ class Media3MusicService : MediaLibraryService() {
         updateNotification()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
+        mediaLibrarySession.takeUnless {
+            controllerInfo.declinesMediaButtonStart(hasMediaItem = ::player.isInitialized && player.currentMediaItem != null)
+        }
 
     /**
      * Prevent aggressive OEM ROMs (Xiaomi MIUI, Samsung OneUI, Huawei EMUI, CRDroid)
