@@ -10,6 +10,7 @@ data class PlayerOverlayPreferences(
     val commentsEnabled: Boolean = true,
     /** Shows only while SponsorBlock is on and the video has segments, so it costs nothing by default. */
     val sponsorBlockEnabled: Boolean = true,
+    val nextPrevButtonsEnabled: Boolean = true,
     val showControlsWhileLoading: Boolean = false,
     val fullscreenSeekbarHorizontalPaddingDp: Int =
         resolveSeekbarHorizontalPaddingDp(

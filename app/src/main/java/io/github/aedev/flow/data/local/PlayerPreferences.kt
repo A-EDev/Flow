@@ -267,6 +267,7 @@ class PlayerPreferences(
         val OVERLAY_SPEED_INDICATOR_ENABLED = booleanPreferencesKey("overlay_speed_indicator_enabled")
         val OVERLAY_COMMENTS_ENABLED = booleanPreferencesKey("overlay_comments_enabled")
         val OVERLAY_SPONSORBLOCK_ENABLED = booleanPreferencesKey("overlay_sponsorblock_enabled")
+        val OVERLAY_NEXT_PREV_ENABLED = booleanPreferencesKey("overlay_next_prev_enabled")
 
         // Fullscreen Player
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
@@ -682,6 +683,7 @@ class PlayerPreferences(
                 this[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: overlayDefaults.speedIndicatorEnabled,
             commentsEnabled = this[Keys.OVERLAY_COMMENTS_ENABLED] ?: overlayDefaults.commentsEnabled,
             sponsorBlockEnabled = this[Keys.OVERLAY_SPONSORBLOCK_ENABLED] ?: overlayDefaults.sponsorBlockEnabled,
+            nextPrevButtonsEnabled = this[Keys.OVERLAY_NEXT_PREV_ENABLED] ?: overlayDefaults.nextPrevButtonsEnabled,
             showControlsWhileLoading =
                 this[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: overlayDefaults.showControlsWhileLoading,
             fullscreenSeekbarHorizontalPaddingDp =
@@ -1780,6 +1782,15 @@ class PlayerPreferences(
     suspend fun setOverlaySponsorBlockEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.OVERLAY_SPONSORBLOCK_ENABLED] = enabled
+        }
+    }
+
+    val overlayNextPrevEnabled: Flow<Boolean> =
+        overlayPreferences.map { it.nextPrevButtonsEnabled }.distinctUntilChanged()
+
+    suspend fun setOverlayNextPrevEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_NEXT_PREV_ENABLED] = enabled
         }
     }
 

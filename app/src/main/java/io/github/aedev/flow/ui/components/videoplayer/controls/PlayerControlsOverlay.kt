@@ -331,7 +331,7 @@ internal fun PlayerControlsOverlay(
                         showBufferingSpinner = state.isBuffering || isInitialLoading,
                         hasPrevious = state.hasPrevious,
                         hasNext = state.hasNext,
-                        showSkipButtons = !hideControlsForLoading,
+                        showSkipButtons = !hideControlsForLoading && overlayPreferences.nextPrevButtonsEnabled,
                         // Stepping a running player just fights playback, and a live edge has nothing
                         // to step through.
                         showFrameStep =
