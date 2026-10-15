@@ -205,6 +205,58 @@ class FeedItemParsersTest {
     }
 
     @Test
+    fun `a course lockup is a playlist with its lessons, not an upcoming video (#1299)`() {
+        val lessonsBadge =
+            """[ { "thumbnailOverlayBadgeViewModel": { "thumbnailBadges": [ { "thumbnailBadgeViewModel": {
+              "icon": { "sources": [ { "clientResource": { "imageName": "GRADUATION_CAP" } } ] },
+              "text": "124 lessons", "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT" } } ] } } ]"""
+        val parsed =
+            item(
+                lockup(
+                    "PLcourse",
+                    "LOCKUP_CONTENT_TYPE_COURSE",
+                    "Python for Beginners (Full Course)",
+                    rows = row("Telusko", "Course"),
+                    overlays = lessonsBadge,
+                ),
+            )
+
+        val playlist = (parsed as FeedItem.PlaylistItem).playlist
+        assertEquals("PLcourse", playlist.id)
+        assertEquals(124, playlist.videoCount)
+        assertTrue(playlist.isCourse)
+    }
+
+    @Test
+    fun `a playlist row with the course panel is a course`() {
+        val parsed =
+            item(
+                """
+                { "playlistRenderer": {
+                  "playlistId": "PLcourse",
+                  "title": { "simpleText": "Python for Beginners (Full Course)" },
+                  "videoCount": "124",
+                  "thumbnailOverlays": [
+                    { "thumbnailOverlayBottomPanelRenderer": { "text": { "simpleText": "124 lessons" }, "icon": { "iconType": "COURSE" } } },
+                    { "thumbnailOverlayHoverTextRenderer": { "text": { "runs": [ { "text": "Play all" } ] }, "icon": { "iconType": "PLAY_ALL" } } }
+                  ]
+                } }
+                """.trimIndent(),
+            )
+
+        val playlist = (parsed as FeedItem.PlaylistItem).playlist
+        assertEquals(124, playlist.videoCount)
+        assertTrue(playlist.isCourse)
+    }
+
+    @Test
+    fun `an ordinary playlist is not a course`() {
+        val parsed = item(lockup("PLxxxx", "LOCKUP_CONTENT_TYPE_PLAYLIST", "Scrapyard Wars", overlays = durationOverlay("12 videos")))
+
+        assertFalse((parsed as FeedItem.PlaylistItem).playlist.isCourse)
+    }
+
+    @Test
     fun `a podcast lockup is a playlist rather than a video`() {
         val parsed = item(lockup("PLpodcast", "LOCKUP_CONTENT_TYPE_PODCAST", "The WAN Show"))
 

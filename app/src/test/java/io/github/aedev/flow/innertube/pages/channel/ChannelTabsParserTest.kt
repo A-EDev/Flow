@@ -140,6 +140,11 @@ class ChannelTabsParserTest {
     }
 
     @Test
+    fun `a courses tab has its own kind (#1299)`() {
+        assertEquals(ChannelTabKind.Courses, "/@Telusko/courses".toChannelTabKind())
+    }
+
+    @Test
     fun `a channel-id landing url still resolves to Home`() {
         assertEquals(ChannelTabKind.Home, "/channel/UCXuqSBlHAE6Xw-yeJA0Tunw".toChannelTabKind())
     }

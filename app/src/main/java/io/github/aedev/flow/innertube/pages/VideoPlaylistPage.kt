@@ -19,6 +19,7 @@ data class VideoPlaylistPage(
     val thumbnailUrl: String? = null,
     val videos: List<Video> = emptyList(),
     val continuation: String? = null,
+    val isCourse: Boolean = false,
 )
 
 /**
@@ -27,10 +28,19 @@ data class VideoPlaylistPage(
  */
 internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
     val items = playlistItems()
-    val header = findRenderers("pageHeaderRenderer", "pageHeaderViewModel", "playlistSidebarPrimaryInfoRenderer")
+    val header =
+        findRenderers(
+            "pageHeaderRenderer",
+            "pageHeaderViewModel",
+            "playlistHeaderRenderer",
+            "playlistSidebarPrimaryInfoRenderer",
+            "courseProgressViewModel",
+        )
     val pageHeader = header["pageHeaderViewModel"]
+    // Courses still arrive with the older playlistHeaderRenderer.
+    val legacyHeader = header["playlistHeaderRenderer"]
     val sidebar = header["playlistSidebarPrimaryInfoRenderer"]
-    val owner = pageHeader?.headerOwner()
+    val owner = pageHeader?.headerOwner() ?: legacyHeader?.legacyOwner()
     return VideoPlaylistPage(
         title =
             (
@@ -42,6 +52,7 @@ internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
                         .objectOrNull()
                         ?.get("text")
                         .youtubeText()
+                    ?: legacyHeader?.get("title").youtubeText()
             )?.takeIf(String::isNotBlank),
         ownerName = owner?.name,
         ownerId = owner?.id,
@@ -69,6 +80,7 @@ internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
                 .map { it.video }
                 .distinctBy { it.id },
         continuation = items.lastOrNull().continuationToken(),
+        isCourse = header["courseProgressViewModel"] != null,
     )
 }
 
@@ -95,17 +107,44 @@ private fun JsonElement.playlistItems(): List<JsonElement> {
     return list
 }
 
-private fun JsonElement?.continuationToken(): String? =
-    objectOrNull()
-        ?.get("continuationItemRenderer")
-        .objectOrNull()
-        ?.get("continuationEndpoint")
+/** The next-page token, from the older `continuationItemRenderer` or the `continuationItemViewModel` that replaced it. */
+private fun JsonElement?.continuationToken(): String? {
+    val item = objectOrNull() ?: return null
+    val command =
+        item["continuationItemRenderer"].objectOrNull()?.get("continuationEndpoint")
+            ?: item["continuationItemViewModel"]
+                .objectOrNull()
+                ?.get("continuationCommand")
+                .objectOrNull()
+                ?.get("innertubeCommand")
+    return command
         .objectOrNull()
         ?.get("continuationCommand")
         .objectOrNull()
         ?.get("token")
         .stringOrNull()
         ?.takeIf(String::isNotBlank)
+}
+
+private fun JsonObject.legacyOwner(): FeedItemOwner? {
+    val run =
+        this["ownerText"]
+            .objectOrNull()
+            ?.get("runs")
+            .arrayOrNull()
+            ?.firstOrNull()
+            .objectOrNull() ?: return null
+    val name = run["text"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
+    val channelId =
+        run["navigationEndpoint"]
+            .objectOrNull()
+            ?.get("browseEndpoint")
+            .objectOrNull()
+            ?.get("browseId")
+            .stringOrNull()
+            .orEmpty()
+    return FeedItemOwner(id = channelId, name = name)
+}
 
 /** "by Name" in the header's avatar stack, linked to the owner's channel. */
 private fun JsonObject.headerOwner(): FeedItemOwner? {

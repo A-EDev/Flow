@@ -74,6 +74,7 @@ data class Playlist(
     val description: String = "",
     val videos: List<Video> = emptyList(),
     val isLocal: Boolean = true,
+    val isCourse: Boolean = false,
 )
 
 data class Comment(

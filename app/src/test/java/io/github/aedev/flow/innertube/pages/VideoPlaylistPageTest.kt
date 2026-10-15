@@ -68,6 +68,64 @@ class VideoPlaylistPageTest {
         assertThat(page.videos[0].uploadDate).isEqualTo("2 years ago")
         assertThat(page.videos[0].duration).isEqualTo(297)
         assertThat(page.continuation).isEqualTo("NEXT")
+        assertThat(page.isCourse).isFalse()
+    }
+
+    @Test
+    fun `reads the token from the view model that now closes a page of 100 (#1299)`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {"contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                      "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
+                        ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")},
+                        {"continuationItemViewModel": {
+                          "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+                          "continuationCommand": {"innertubeCommand": {
+                            "commandMetadata": {"webCommandMetadata": {"sendPost": true, "apiUrl": "/youtubei/v1/browse"}},
+                            "continuationCommand": {"token": "PAGE2", "request": "CONTINUATION_REQUEST_TYPE_BROWSE"}
+                          }}
+                        }}
+                      ]}}]}
+                    }}}]}}}
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.videos.map { it.id }).containsExactly("vid1")
+        assertThat(page.continuation).isEqualTo("PAGE2")
+    }
+
+    @Test
+    fun `a course page reads its title and channel from the older playlist header`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {
+                      "header": {"playlistHeaderRenderer": {
+                        "playlistId": "PLcourse",
+                        "title": {"simpleText": "Python for Beginners (Full Course)"},
+                        "ownerText": {"runs": [{"text": "Telusko",
+                          "navigationEndpoint": {"browseEndpoint": {"browseId": "UCtelusko", "canonicalBaseUrl": "/@Telusko"}}}]},
+                        "playlistBadges": [{"metadataBadgeRenderer": {"label": "Course"}}]
+                      }},
+                      "contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                        "sectionListRenderer": {"contents": [
+                          {"courseProgressViewModel": {"progressText": {"content": "0 of 124 lessons complete"}}},
+                          {"itemSectionRenderer": {"contents": [
+                            ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")}
+                          ]}}
+                        ]}
+                      }}}]}}
+                    }
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.title).isEqualTo("Python for Beginners (Full Course)")
+        assertThat(page.ownerName).isEqualTo("Telusko")
+        assertThat(page.ownerId).isEqualTo("UCtelusko")
+        assertThat(page.isCourse).isTrue()
     }
 
     @Test

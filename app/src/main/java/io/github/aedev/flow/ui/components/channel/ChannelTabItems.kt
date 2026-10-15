@@ -210,6 +210,6 @@ private fun ChannelTabKind.emptyLabel(): Int =
     when (this) {
         ChannelTabKind.Shorts -> R.string.error_no_shorts_found
         ChannelTabKind.Live -> R.string.error_no_live_videos_found
-        ChannelTabKind.Playlists, ChannelTabKind.Podcasts -> R.string.error_no_playlists_found
+        ChannelTabKind.Playlists, ChannelTabKind.Podcasts, ChannelTabKind.Courses -> R.string.error_no_playlists_found
         else -> R.string.error_no_videos_found
     }

@@ -81,6 +81,7 @@ data class PlaylistDetailUiState(
     val isWatchLater: Boolean = false,
     /** Liked videos: read from the likes, where removing a video unlikes it. */
     val isLikes: Boolean = false,
+    val isCourse: Boolean = false,
     val isLoading: Boolean = true,
     /** Later pages of a YouTube playlist are still arriving. */
     val isLoadingMore: Boolean = false,
@@ -461,6 +462,7 @@ class PlaylistDetailViewModel
                     it.copy(
                         playlistName = page.title,
                         ownerName = page.ownerName,
+                        isCourse = page.isCourse,
                         description = page.description,
                         isPrivate = false,
                         videos = page.videos,
