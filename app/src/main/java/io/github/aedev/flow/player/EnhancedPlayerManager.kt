@@ -3075,13 +3075,28 @@ class EnhancedPlayerManager private constructor() {
     fun switchToAudioOnly() {
         val p = player ?: return
         autoNextLog("switchToAudioOnly")
+        enterAudioOnly(p)
+        resumePlaybackIfStalled(p)
+        preload.schedule()
+    }
+
+    /**
+     * Turns video off with a pause on leaving the app, so Play from the notification resumes audio
+     * only, as background playback does (#1298). It neither resumes nor preloads: a pause fetches
+     * nothing. Coming back to the app restores video as it does after background playback.
+     */
+    fun parkVideoForBackground() {
+        val p = player ?: return
+        autoNextLog("parkVideoForBackground")
+        enterAudioOnly(p)
+    }
+
+    private fun enterAudioOnly(p: ExoPlayer) {
         audioOnlyMode.enter()
         setVideoTracksDisabled(true)
         p.setWakeMode(
             if (currentLocalFilePath != null) androidx.media3.common.C.WAKE_MODE_LOCAL else androidx.media3.common.C.WAKE_MODE_NETWORK,
         )
-        resumePlaybackIfStalled(p)
-        preload.schedule()
     }
 
     fun restoreVideoOutput() {
