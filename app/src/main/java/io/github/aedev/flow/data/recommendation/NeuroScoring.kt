@@ -139,11 +139,11 @@ internal object NeuroScoring {
     // Below this specificity-weighted overlap a video shares nothing but common words with the viewer (#907).
     const val UNRELATED_SIMILARITY = 0.002
 
+    // A channel the viewer has taken to more than once; one click on a padded card moves it to only 0.525 (#907).
+    const val KNOWN_CHANNEL_SCORE = 0.6
+
     /** A lane is never thinned below this many candidates by [LANE_RELEVANCE_FLOOR]. */
     const val MIN_RELEVANT_KEPT = 6
-
-    /** A channel's score before any watch; below it the viewer has turned away from the channel. */
-    private const val NEUTRAL_CHANNEL_SCORE = 0.5
 
     const val EXPLORATION_MIN_SCORE_RATIO = 0.30
 
@@ -1092,7 +1092,7 @@ internal object NeuroScoring {
      * Candidates that share a topic with [user] or come from a channel the viewer subscribes to or
      * watches without disliking, so a lane cannot fill its later slots with videos that have nothing
      * to do with the viewer (#907). When fewer than [MIN_RELEVANT_KEPT] pass, the most relevant of
-     * the rest make up the difference.
+     * the rest make up the difference, but never one that shares only common words with the viewer.
      */
     fun keepRelevant(
         candidates: List<Pair<Video, ContentVector>>,
@@ -1103,11 +1103,15 @@ internal object NeuroScoring {
         trace: RankTrace? = null,
         specificity: ((String) -> Double)? = null,
     ): List<Pair<Video, ContentVector>> {
-        fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= NEUTRAL_CHANNEL_SCORE
+        fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= KNOWN_CHANNEL_SCORE
         val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second, specificity) }
         val (kept, dropped) = scored.partition { (pair, relevance) -> relevance >= minRelevance || knownChannel(pair.first.channelId) }
         if (kept.size >= MIN_RELEVANT_KEPT || dropped.isEmpty()) return kept.map { it.first }
-        val topUp = dropped.sortedByDescending { it.second }.take(MIN_RELEVANT_KEPT - kept.size)
+        val topUp =
+            dropped
+                .filter { it.second >= UNRELATED_SIMILARITY }
+                .sortedByDescending { it.second }
+                .take(MIN_RELEVANT_KEPT - kept.size)
         trace?.toppedUp?.addAll(topUp.map { it.first.first.id })
         return (kept + topUp).map { it.first }
     }
@@ -1550,7 +1554,7 @@ internal object NeuroScoring {
                         NeuroVectorMath.calculateTitleSimilarity(tokens1, tokens2) >
                             TITLE_SIMILARITY_RELAXED
                     }
-            if (channelOk && titleOk) {
+            if (channelOk && titleOk && !isUnrelated(scored)) {
                 finalPlaylist.add(scored.video)
                 placed(scored, DiversityPhase.DEFERRED)
             }
@@ -1575,7 +1579,7 @@ internal object NeuroScoring {
                         NeuroVectorMath.calculateTitleSimilarity(tokens1, tokens2) >
                             TITLE_SIMILARITY_RELAXED
                     }
-            if (!channelSpam && !titleSimilar) {
+            if (!channelSpam && !titleSimilar && !isUnrelated(scored)) {
                 finalPlaylist.add(scored.video)
                 placed(scored, DiversityPhase.RELAXED)
             }

@@ -2212,11 +2212,16 @@ class FlowNeuroEngine internal constructor(
             // Apply diversity reranking
             val extraExploration = if (brain.consecutiveSkips >= NeuroScoring.BOREDOM_SKIPS) 1 else 0
             val viewer = NeuroVectorMath.PreparedVector(brain.interests)
+            // Every diversity phase asks, so each candidate is judged once.
+            val unrelated = HashMap<String, Boolean>()
             val isUnrelated = { candidate: ScoredVideo ->
-                brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
-                    candidate.video.channelId !in userSubs &&
-                    (brain.channelScores[candidate.video.channelId] ?: 0.0) < 0.5 &&
-                    NeuroVectorMath.topicSimilarity(viewer, candidate.vector, tokenizer::specificity) < NeuroScoring.UNRELATED_SIMILARITY
+                unrelated.getOrPut(candidate.video.id) {
+                    brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
+                        candidate.video.channelId !in userSubs &&
+                        (brain.channelScores[candidate.video.channelId] ?: 0.0) < NeuroScoring.KNOWN_CHANNEL_SCORE &&
+                        NeuroVectorMath.topicSimilarity(viewer, candidate.vector, tokenizer::specificity) <
+                        NeuroScoring.UNRELATED_SIMILARITY
+                }
             }
             return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated, trace)
         }

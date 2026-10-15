@@ -212,19 +212,32 @@ class NeuroScoringTest {
     }
 
     @Test
-    fun `a thin lane keeps its most relevant candidates`() {
+    fun `a thin lane is topped up only with videos that share something with the viewer`() {
         val user = NeuroVectorMath.PreparedVector(vec("comedy" to 0.8, "guitar" to 0.2))
         val onTopic = (0 until 2).map { video("comedy$it") to vec("comedy" to 1.0) }
         val drift = (0 until 6).map { video("drift$it") to vec("lottery" to 1.0) }
-        val faint = video("faint") to vec("lottery" to 1.0, "comedy" to 0.001)
+        val faint = video("faint") to vec("lottery" to 1.0, "comedy" to 0.01)
 
         val kept =
             NeuroScoring
                 .keepRelevant(onTopic + drift + faint, user, NeuroScoring.LANE_RELEVANCE_FLOOR, emptySet(), emptyMap())
                 .map { it.first.id }
 
-        assertThat(kept).hasSize(NeuroScoring.MIN_RELEVANT_KEPT)
-        assertThat(kept).containsAtLeast("comedy0", "comedy1", "faint")
+        assertThat(kept).containsExactly("comedy0", "comedy1", "faint")
+    }
+
+    @Test
+    fun `one click does not make a channel known`() {
+        val user = NeuroVectorMath.PreparedVector(vec("comedy" to 1.0))
+        val clickedOnce = video("drift", channelId = "clicked") to vec("lottery" to 1.0)
+        val onTopic = (0 until 6).map { video("comedy$it") to vec("comedy" to 1.0) }
+
+        val kept =
+            NeuroScoring
+                .keepRelevant(onTopic + clickedOnce, user, NeuroScoring.LANE_RELEVANCE_FLOOR, emptySet(), mapOf("clicked" to 0.525))
+                .map { it.first.id }
+
+        assertThat(kept).doesNotContain("drift")
     }
 
     @Test
