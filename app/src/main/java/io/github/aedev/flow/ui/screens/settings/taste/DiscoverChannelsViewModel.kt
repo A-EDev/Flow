@@ -35,6 +35,9 @@ import javax.inject.Inject
 private const val SEARCH_DEBOUNCE_MS = 400L
 private const val MAX_QUICK_SEARCHES = 6
 
+// Quick searches name a subject; a word every subject uses ("buy") finds channels of anything (#907).
+private const val QUICK_SEARCH_MIN_SPECIFICITY = 0.5
+
 private data class LocalSuggestions(
     val topics: List<String>,
     val remembered: List<RememberedChannel>,
@@ -83,7 +86,7 @@ internal class DiscoverChannelsViewModel
                             brain.globalVector.topics.entries
                                 .sortedByDescending { it.value }
                                 .map { it.key }
-                    ).filterNot { it in brain.blockedTopics }
+                    ).filterNot { it in brain.blockedTopics || FlowNeuroEngine.specificity(it) < QUICK_SEARCH_MIN_SPECIFICITY }
                         .distinct()
                         .take(MAX_QUICK_SEARCHES)
                 val followed = subscriptions.getAllSubscriptions().first().associate { it.channelId to it.channelName }

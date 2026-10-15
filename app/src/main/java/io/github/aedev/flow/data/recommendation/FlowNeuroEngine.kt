@@ -174,6 +174,9 @@ class FlowNeuroEngine internal constructor(
 
         internal suspend fun coWatchChannelNames(): Map<String, String> = requireInstance().coWatchChannelNames()
 
+        /** How specific [key] is in general language ([NeuroSpecificity]); 1 before the engine starts. */
+        fun specificity(key: String): Double = instance?.specificity(key) ?: 1.0
+
         suspend fun getSavedBrainSnapshot(): UserBrain = requireInstance().getSavedBrainSnapshot()
 
         suspend fun updateChannelMemory(
@@ -633,7 +636,7 @@ class FlowNeuroEngine internal constructor(
                     scheduleDebouncedSave(bookkeeping = true)
                 }
             }
-            InterestChips.chips(set, groups, brain.displayForms) { key ->
+            InterestChips.chips(set, groups, brain.displayForms, tokenizer::specificity) { key ->
                 brain.topicEvidence[key]?.let { it.watchSignals + it.explicitSignals } ?: 0
             }
         }
@@ -673,6 +676,8 @@ class FlowNeuroEngine internal constructor(
         if (isLearningPaused()) return
         withBrainLock { coWatchStore.record(video.id, video.channelId, related) }
     }
+
+    fun specificity(key: String): Double = tokenizer.specificity(key)
 
     /** The names co-watch has seen the channels of its related lists under. */
     suspend fun coWatchChannelNames(): Map<String, String> = withBrainLock { coWatchStore.channelNames() }

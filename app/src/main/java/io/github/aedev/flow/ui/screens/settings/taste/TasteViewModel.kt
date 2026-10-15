@@ -204,7 +204,7 @@ class TasteViewModel
                 profile = brain.globalVector.traits(),
                 now = (brain.timeVectors[TimeBucket.current()] ?: ContentVector()).traits(),
                 picks = tastePicks(brain, FlowNeuroEngine.pickKeysByLabel(brain)),
-                topics = tasteTopics(brain, TOPIC_COUNT, FlowNeuroEngine.pickKeys(brain)),
+                topics = tasteTopics(brain, TOPIC_COUNT, FlowNeuroEngine.pickKeys(brain), FlowNeuroEngine::specificity),
                 channels =
                     brain.channelScores.entries
                         .filter { it.key !in brain.blockedChannels }

@@ -4,6 +4,8 @@ import io.github.aedev.flow.data.recommendation.NeuroDisplayForms
 import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 
+private const val TASTE_MIN_SPECIFICITY = 0.3
+
 /** How often the viewer watched, liked or searched [key]: the evidence behind a topic. */
 internal fun evidenceOf(
     brain: UserBrain,
@@ -19,10 +21,13 @@ internal fun tasteTopics(
     brain: UserBrain,
     count: Int,
     pickKeys: Set<String>,
+    specificity: (String) -> Double = { 1.0 },
 ): List<TasteTopic> {
+    // A word every subject uses ("buy", "year") is no interest to show, however often titles had it (#907).
     val learned =
         brain.interests.topics.entries
             .filter { it.value > 0.0 && it.key !in brain.blockedTopics && NeuroScoring.stripDomainTag(it.key) !in pickKeys }
+            .filter { specificity(it.key) >= TASTE_MIN_SPECIFICITY }
             .sortedByDescending { it.value }
             .take(count)
     val strongest = learned.firstOrNull()?.value?.takeIf { it > 0.0 } ?: 1.0
