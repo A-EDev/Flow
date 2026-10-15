@@ -2734,6 +2734,8 @@
     <string name="player_settings_overlay_comments_subtitle">Open comments in a side panel in fullscreen</string>
     <string name="player_settings_overlay_sponsorblock">SponsorBlock Button</string>
     <string name="player_settings_overlay_sponsorblock_subtitle">Shown when SponsorBlock is on and the video has segments</string>
+    <string name="player_settings_overlay_next_prev">Previous and Next Buttons</string>
+    <string name="player_settings_overlay_next_prev_subtitle">Show previous and next video buttons on the video player overlay</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>
@@ -3657,6 +3659,7 @@
     <string name="settings_section_advanced">Advanced</string>
     <string name="settings_keywords_autoplay">next video, up next, continuous play</string>
     <string name="settings_keywords_captions">subtitles, cc, closed captions</string>
+    <string name="settings_keywords_next_prev">skip, previous video, next video, double tap</string>
     <string name="settings_keywords_gestures">swipe, double tap, touch</string>
     <string name="settings_speed_preset_hint">e.g. 1.35</string>
     <string name="settings_speed_preset_add">Add preset</string>

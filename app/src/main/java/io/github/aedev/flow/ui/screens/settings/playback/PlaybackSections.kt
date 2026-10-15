@@ -90,6 +90,7 @@ internal fun SettingsListScope.playbackSections(
         switch(PlaybackIndex.speedIndicator, viewModel.speedIndicator, viewModel::setSpeedIndicator)
         switch(PlaybackIndex.commentsButton, viewModel.commentsButton, viewModel::setCommentsButton)
         switch(PlaybackIndex.sponsorBlockButton, viewModel.sponsorBlockButton, viewModel::setSponsorBlockButton)
+        switch(PlaybackIndex.nextPrevButtons, viewModel.nextPrevButtons, viewModel::setNextPrevButtons)
     }
     group(key = "playback.pip", header = R.string.settings_section_pip) {
         switch(PlaybackIndex.autoPip, viewModel.autoPip, viewModel::setAutoPip)
