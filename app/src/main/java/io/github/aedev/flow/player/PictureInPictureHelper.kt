@@ -16,7 +16,6 @@ import android.os.Process
 import android.provider.Settings
 import android.util.Rational
 import androidx.annotation.RequiresApi
-import androidx.core.content.ContextCompat
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 import io.github.aedev.flow.service.VideoPlayerService
@@ -176,8 +175,9 @@ object PictureInPictureHelper {
             openOverlaySettings(activity)
             return false
         }
-        ContextCompat.startForegroundService(
-            activity,
+        // A plain start: the activity is still in the foreground here, and Media3 promotes the
+        // service itself once the popup plays. A foreground start would crash a paused popup (#1309).
+        activity.startService(
             Intent(activity, VideoPlayerService::class.java).setAction(VideoPlayerService.ACTION_SHOW_POPUP),
         )
         return true
