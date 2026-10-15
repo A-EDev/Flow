@@ -174,6 +174,9 @@ class FlowNeuroEngine internal constructor(
 
         internal suspend fun coWatchChannelNames(): Map<String, String> = requireInstance().coWatchChannelNames()
 
+        internal suspend fun interestClusters(brain: UserBrain): List<NeuroClusters.TopicCluster> =
+            requireInstance().interestClusters(brain)
+
         /** How specific [key] is in general language ([NeuroSpecificity]); 1 before the engine starts. */
         fun specificity(key: String): Double = instance?.specificity(key) ?: 1.0
 
@@ -678,6 +681,10 @@ class FlowNeuroEngine internal constructor(
     }
 
     fun specificity(key: String): Double = tokenizer.specificity(key)
+
+    /** The viewer's interests grouped as Home's chips and searches group them ([NeuroClusters]). */
+    internal suspend fun interestClusters(brain: UserBrain): List<NeuroClusters.TopicCluster> =
+        withContext(Dispatchers.Default) { clustersOf(brain) }
 
     /** The names co-watch has seen the channels of its related lists under. */
     suspend fun coWatchChannelNames(): Map<String, String> = withBrainLock { coWatchStore.channelNames() }

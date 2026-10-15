@@ -3897,6 +3897,7 @@
     <string name="taste_topic_boost">Show more like this</string>
     <string name="taste_topic_unboost">Stop boosting</string>
     <string name="taste_topic_block">Block topic</string>
+    <string name="taste_topic_block_named">Block %1$s</string>
     <string name="taste_channels_header">Channels it favours</string>
     <string name="taste_channel_block">Block channel</string>
     <string name="taste_item_actions">More options for %1$s</string>

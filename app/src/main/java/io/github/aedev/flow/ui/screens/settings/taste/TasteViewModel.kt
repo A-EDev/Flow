@@ -44,6 +44,17 @@ data class TasteTraits(
     val values: List<Float> get() = listOf(pacing, complexity, duration, live, breadth)
 }
 
+/** A group of learned interests that go together, named by its strongest words ([tasteGroups]). */
+@Immutable
+data class TasteGroup(
+    val id: String,
+    val label: String,
+    /** This group's weight relative to the strongest group, 0..1. */
+    val share: Float,
+    val evidence: Int,
+    val members: List<TasteTopic>,
+)
+
 @Immutable
 data class TasteTopic(
     val id: String,
@@ -94,6 +105,8 @@ data class TasteState(
     val now: TasteTraits? = null,
     val picks: List<TasteTopic> = emptyList(),
     val topics: List<TasteTopic> = emptyList(),
+    /** [topics] as the groups the engine reads them in, so an interest shows with the words it goes with (#907). */
+    val groups: List<TasteGroup> = emptyList(),
     val channels: List<TasteChannel> = emptyList(),
     val music: MusicTaste? = null,
     val hidden: HiddenContent = HiddenContent(),
@@ -205,6 +218,14 @@ class TasteViewModel
                 now = (brain.timeVectors[TimeBucket.current()] ?: ContentVector()).traits(),
                 picks = tastePicks(brain, FlowNeuroEngine.pickKeysByLabel(brain)),
                 topics = tasteTopics(brain, TOPIC_COUNT, FlowNeuroEngine.pickKeys(brain), FlowNeuroEngine::specificity),
+                groups =
+                    tasteGroups(
+                        brain,
+                        runCatching { FlowNeuroEngine.interestClusters(brain) }.getOrDefault(emptyList()),
+                        FlowNeuroEngine.pickKeys(brain),
+                        FlowNeuroEngine::specificity,
+                        GROUP_COUNT,
+                    ),
                 channels =
                     brain.channelScores.entries
                         .filter { it.key !in brain.blockedChannels }
@@ -271,6 +292,7 @@ class TasteViewModel
             const val MATURE_INTERACTIONS = 250f
             const val BREADTH_TOPICS = 50f
             const val TOPIC_COUNT = 12
+            const val GROUP_COUNT = 8
             const val CHANNEL_COUNT = 10
             const val GENRE_COUNT = 8
             const val NAME_LOOKUP_LIMIT = 2_000
