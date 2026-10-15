@@ -44,6 +44,10 @@ const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 const val DEFAULT_CONCURRENT_DOWNLOADS = 3
 const val MAX_CONCURRENT_DOWNLOADS = 5
+
+/** On until turned off, matching NewPipe's default and the Background button (#1298). */
+const val DEFAULT_BACKGROUND_PLAY_ENABLED = true
+
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
@@ -1513,7 +1517,7 @@ class PlayerPreferences(
     val backgroundPlayEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.BACKGROUND_PLAY_ENABLED] ?: false
+                preferences[Keys.BACKGROUND_PLAY_ENABLED] ?: DEFAULT_BACKGROUND_PLAY_ENABLED
             }
 
     suspend fun setBackgroundPlayEnabled(enabled: Boolean) {

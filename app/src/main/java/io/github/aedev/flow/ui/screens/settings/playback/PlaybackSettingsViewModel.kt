@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.playback
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.DEFAULT_BACKGROUND_PLAY_ENABLED
 import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -28,7 +29,7 @@ class PlaybackSettingsViewModel
         private val overlay = PlayerOverlayPreferences()
         private val lyricsRegistry = LyricsProviderRegistry.default()
 
-        val backgroundPlay = preferences.backgroundPlayEnabled.asState(false)
+        val backgroundPlay = preferences.backgroundPlayEnabled.asState(DEFAULT_BACKGROUND_PLAY_ENABLED)
         val autoplay = preferences.autoplayEnabled.asState(true)
         val startPaused = preferences.startVideosPaused.asState(false)
         val queueAutoplay = preferences.queueAutoplayEnabled.asState(true)
