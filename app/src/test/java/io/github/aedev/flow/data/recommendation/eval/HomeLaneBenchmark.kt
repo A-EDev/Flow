@@ -221,6 +221,7 @@ internal object HomeLaneBenchmark {
                     subAvatarMap = emptyMap(),
                     rank = { engine.rank(it, emptySet()) },
                     rankRelevant = { engine.rank(it, emptySet(), NeuroScoring.LANE_RELEVANCE_FLOOR) },
+                    share = engine::shareByInterest,
                 )
             val feed = assembleHomeFeed(lanes, emptySet(), subCount = 0, totalInteractions = brain.totalInteractions).videos
             engine.shutdown()
