@@ -2109,6 +2109,7 @@ class FlowNeuroEngine internal constructor(
                         userSubs,
                         brain.channelScores,
                         trace,
+                        tokenizer::specificity,
                     )
                 }
 
@@ -2215,7 +2216,7 @@ class FlowNeuroEngine internal constructor(
                 brain.totalInteractions >= NeuroScoring.COLD_START_THRESHOLD &&
                     candidate.video.channelId !in userSubs &&
                     (brain.channelScores[candidate.video.channelId] ?: 0.0) < 0.5 &&
-                    NeuroVectorMath.topicSimilarity(viewer, candidate.vector) <= 0.0
+                    NeuroVectorMath.topicSimilarity(viewer, candidate.vector, tokenizer::specificity) < NeuroScoring.UNRELATED_SIMILARITY
             }
             return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated, trace)
         }

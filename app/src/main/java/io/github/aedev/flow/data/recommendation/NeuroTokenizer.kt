@@ -835,6 +835,18 @@ internal class NeuroTokenizer {
     @Volatile
     var keyLanguage: String = "en"
 
+    @Volatile
+    private var specificityCache: Pair<String, NeuroSpecificity>? = null
+
+    /** How specific [key] is in general language ([NeuroSpecificity]), for English and this viewer's languages. */
+    fun specificity(key: String): Double {
+        val languages = "$keySpec|$keyLanguage|$languageProfile"
+        val cached = specificityCache?.takeIf { it.first == languages }?.second
+        val current =
+            cached ?: NeuroSpecificity(::keyOf, listOf("en", keyLanguage, languageProfile)).also { specificityCache = languages to it }
+        return current.of(key)
+    }
+
     /** The [NeuroKeySpec] keys are made by. Spec 1 keeps lemmas; migrations up to schema 18 read keys by it. */
     var keySpec: Int = NeuroKeySpec.VERSION
         private set

@@ -136,6 +136,9 @@ internal object NeuroScoring {
     /** Topic overlap a Home lane needs from a candidate: below it the video shares nothing with your taste. */
     const val LANE_RELEVANCE_FLOOR = 0.02
 
+    // Below this specificity-weighted overlap a video shares nothing but common words with the viewer (#907).
+    const val UNRELATED_SIMILARITY = 0.002
+
     /** A lane is never thinned below this many candidates by [LANE_RELEVANCE_FLOOR]. */
     const val MIN_RELEVANT_KEPT = 6
 
@@ -1098,9 +1101,10 @@ internal object NeuroScoring {
         userSubs: Set<String>,
         channelScores: Map<String, Double>,
         trace: RankTrace? = null,
+        specificity: ((String) -> Double)? = null,
     ): List<Pair<Video, ContentVector>> {
         fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= NEUTRAL_CHANNEL_SCORE
-        val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second) }
+        val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second, specificity) }
         val (kept, dropped) = scored.partition { (pair, relevance) -> relevance >= minRelevance || knownChannel(pair.first.channelId) }
         if (kept.size >= MIN_RELEVANT_KEPT || dropped.isEmpty()) return kept.map { it.first }
         val topUp = dropped.sortedByDescending { it.second }.take(MIN_RELEVANT_KEPT - kept.size)

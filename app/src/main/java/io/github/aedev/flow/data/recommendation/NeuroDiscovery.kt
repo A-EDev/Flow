@@ -40,6 +40,7 @@ internal class NeuroDiscovery(
         /** What Home searches before anything is learned or picked; never recorded as learned (#907). */
         val STARTER_QUERIES = listOf("Music", "Science", "Technology", "Education", "Nature")
         private const val SPECIFIC_QUERY_MAX_WORDS = 4
+        private const val QUERY_MIN_SPECIFICITY = 0.5
 
         /** How much a viewer must take to a format before searches ask for it. */
         private const val FORMAT_QUERY_MIN_AFFINITY = 0.2
@@ -1197,7 +1198,8 @@ internal class NeuroDiscovery(
         // Strip domain tags for checking: "metal:music" → "metal"
         val base = if (lower.contains(":")) lower.substringBefore(":") else lower
         if (!NeuroText.isTopicSized(base)) return false
-        return true
+        // A word every subject uses ("normal", "better", "buy") searches up any subject (#907).
+        return tokenizer.specificity(lower) >= QUERY_MIN_SPECIFICITY
     }
 
     // ═══════════════════════════════════════════════

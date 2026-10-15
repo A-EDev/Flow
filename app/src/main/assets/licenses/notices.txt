@@ -56,3 +56,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+FrequencyWords (github.com/hermitdave/FrequencyWords)
+Word frequency lists from OpenSubtitles 2018 (opus.nlpl.eu), by Hermit Dave.
+Used, trimmed to the most frequent words of each language, in resources/neuro/freq.
+Licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+License (https://creativecommons.org/licenses/by-sa/4.0/). The trimmed lists are
+shared under the same license.
