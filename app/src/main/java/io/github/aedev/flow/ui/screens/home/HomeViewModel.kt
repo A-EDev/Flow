@@ -369,6 +369,9 @@ class HomeViewModel
                     // few times — each attempt rotates queries and seeds — before giving up.
                     emptyPageAttempts++
                     if (emptyPageAttempts >= HOME_PREFETCH_EMPTY_PAGE_RETRIES) {
+                        // Out of videos on the viewer's subjects: Home ends with a refresh rather than
+                        // filling itself with unrelated ones (#907).
+                        _uiState.update { it.copy(hasMorePages = false) }
                         allowRestart = false
                         break
                     }
