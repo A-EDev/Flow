@@ -60,6 +60,7 @@ private fun SettingsListScope.suggestions(
     state: DiscoverChannelsState,
     viewModel: DiscoverChannelsViewModel,
 ) {
+    neighbours(state, viewModel)
     val suggestions = state.suggestions ?: return
     group(key = "discover.suggested", header = R.string.taste_remembered_header, footer = R.string.discover_channels_suggested_footer) {
         suggestions.forEach { channel ->
@@ -69,6 +70,51 @@ private fun SettingsListScope.suggestions(
                     name = channel.name.ifBlank { channel.channelId },
                     thumbnailUrl = avatar,
                     supportingText = null,
+                    subscribed = channel.channelId in state.subscribedIds,
+                    notifying = channel.channelId in state.notifyingIds,
+                    shape = shape,
+                    onToggle = { viewModel.toggleSubscription(channel.channelId, channel.name, avatar.orEmpty()) },
+                    onNotificationsChange = { viewModel.setNotifications(channel.channelId, it) },
+                )
+            }
+        }
+    }
+}
+
+private fun SettingsListScope.neighbours(
+    state: DiscoverChannelsState,
+    viewModel: DiscoverChannelsViewModel,
+) {
+    if (state.neighbours.isEmpty()) return
+    group(
+        key = "discover.neighbours",
+        header = R.string.discover_channels_like_yours,
+        footer = R.string.discover_channels_like_yours_footer,
+    ) {
+        state.neighbours.forEach { channel ->
+            row("discover.neighbours.${channel.channelId}") { shape ->
+                val avatar = state.suggestionAvatars[channel.channelId]
+                val pointers = channel.pointerNames
+                MediaChannelSubscribeRow(
+                    name = channel.name,
+                    thumbnailUrl = avatar,
+                    supportingText =
+                        when (pointers.size) {
+                            0 -> {
+                                null
+                            }
+
+                            1 -> {
+                                stringResource(R.string.home_origin_neighbour, pointers[0])
+                            }
+
+                            else -> {
+                                stringResource(
+                                    R.string.home_origin_neighbour,
+                                    stringResource(R.string.home_origin_neighbour_pair, pointers[0], pointers[1]),
+                                )
+                            }
+                        },
                     subscribed = channel.channelId in state.subscribedIds,
                     notifying = channel.channelId in state.notifyingIds,
                     shape = shape,

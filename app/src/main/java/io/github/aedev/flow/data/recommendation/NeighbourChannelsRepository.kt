@@ -62,6 +62,12 @@ class NeighbourChannelsRepository
                 }
         }
 
+        /** The neighbours whose uploads were fetched and found on the viewer's subjects, for Discover channels. */
+        suspend fun proven(subscribed: Map<String, String>): List<NeighbourChannel> {
+            val entries = store.entries()
+            return neighbours(subscribed).filter { (entries[it.channelId]?.fetchedAt ?: 0L) > 0L && it.name.isNotBlank() }
+        }
+
         /** The stored uploads of current neighbours from the last two weeks; local only, safe for the first paint. */
         suspend fun storedUploads(
             neighbours: List<NeighbourChannel>,
