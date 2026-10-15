@@ -36,6 +36,7 @@ class HomeReplayTest {
                 metrics.render(fixture.name) +
                     " | as recorded, top 20 ${"%.3f".format(HomeReplay.recordedOnTopicTop20(fixture.snapshot, fixture.labels))}",
             )
+            HomeReplay.renderShown(fixture.snapshot, fixture.labels)?.let { log("${fixture.name} $it") }
         }
     }
 

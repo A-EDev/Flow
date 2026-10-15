@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.recommendation.snapshot.SnapshotCard
 import io.github.aedev.flow.data.recommendation.snapshot.SnapshotRelated
 import io.github.aedev.flow.data.recommendation.snapshot.SnapshotSearch
 import io.github.aedev.flow.data.recommendation.snapshot.SnapshotSeed
+import io.github.aedev.flow.data.recommendation.snapshot.SnapshotShown
 import io.github.aedev.flow.data.recommendation.snapshot.SnapshotVideo
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -23,6 +24,8 @@ class HomeSnapshotRecorder
         private val store: HomeSnapshotStore,
         private val preferences: PlayerPreferences,
     ) {
+        private var current: HomeSnapshot? = null
+
         suspend fun isRecording(): Boolean = preferences.homeSnapshotRecording.first()
 
         internal suspend fun record(
@@ -38,7 +41,7 @@ class HomeSnapshotRecorder
             trace: RankTrace,
         ) {
             val state = runCatching { FlowNeuroEngine.diagnosticState() }.getOrNull() ?: return
-            store.save(
+            val snapshot =
                 HomeSnapshot(
                     appVersion = BuildConfig.VERSION_NAME,
                     keySpec = NeuroKeySpec.VERSION,
@@ -65,8 +68,22 @@ class HomeSnapshotRecorder
                     subscriptionFeed = subscriptionFeed.map(SnapshotVideo::of),
                     memory = memory.map(SnapshotVideo::of),
                     page = page.map { SnapshotCard(it.id, sourceOf(it.id)?.name, trace.isPadding(it.id)) },
-                ),
-            )
+                )
+            current = snapshot
+            store.save(snapshot)
+        }
+
+        /** Rewrites the current snapshot with the feed as it now stands. */
+        internal suspend fun recordShown(
+            videos: List<Video>,
+            origins: Map<String, HomeCardOrigin>,
+            trace: RankTrace,
+        ) {
+            val snapshot = current ?: return
+            if (!isRecording()) return
+            val shown = videos.map { SnapshotShown(SnapshotVideo.of(it), origins[it.id]?.kind?.name, trace.isPadding(it.id)) }
+            current = snapshot.copy(shown = shown)
+            store.save(snapshot.copy(shown = shown))
         }
 
         suspend fun clear() = store.clear()

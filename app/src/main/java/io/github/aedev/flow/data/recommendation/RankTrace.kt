@@ -10,24 +10,21 @@
 
 package io.github.aedev.flow.data.recommendation
 
+import java.util.concurrent.ConcurrentHashMap
+
 /** The step of [NeuroScoring.applySmartDiversity] that placed a video. */
 enum class DiversityPhase { STRICT, EXPLORATION, DEFERRED, RELAXED }
 
 /**
- * Why each candidate of one rank pass made it into the result, so a Home snapshot can tell a video
- * the viewer's taste chose from one that only filled a short lane.
+ * Why each candidate of the rank passes of one Home load made it into the result, so a Home
+ * snapshot can tell a video the viewer's taste chose from one that only filled a short lane. Lanes
+ * rank concurrently while the snapshot reads, hence the concurrent collections.
  */
 class RankTrace {
-    val toppedUp: MutableSet<String> = HashSet()
-    val unrelated: MutableSet<String> = HashSet()
-    val phases: MutableMap<String, DiversityPhase> = HashMap()
+    val toppedUp: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    val unrelated: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    val phases: MutableMap<String, DiversityPhase> = ConcurrentHashMap()
 
     /** Admitted although nothing about the viewer chose it: a top-up, or a video sharing nothing with the viewer. */
     fun isPadding(videoId: String): Boolean = videoId in toppedUp || videoId in unrelated
-
-    fun merge(other: RankTrace) {
-        toppedUp += other.toppedUp
-        unrelated += other.unrelated
-        phases += other.phases
-    }
 }

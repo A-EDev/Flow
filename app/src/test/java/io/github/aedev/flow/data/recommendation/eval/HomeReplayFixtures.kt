@@ -45,7 +45,7 @@ internal object HomeReplayFixtures {
     )
 
     /** Real snapshots: `<name>.json.gz` with `<name>.labels.json` beside it. */
-    val replayDirectory = File(System.getProperty("flow.replayDir") ?: "../notes/neuro/replay")
+    val replayDirectory = File("../notes/neuro/replay")
 
     private val labelJson = Json { ignoreUnknownKeys = true }
 

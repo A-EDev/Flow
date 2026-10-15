@@ -34,6 +34,7 @@ internal data class HomeSnapshot(
     val subscriptionFeed: List<SnapshotVideo>,
     val memory: List<SnapshotVideo>,
     val page: List<SnapshotCard>,
+    val shown: List<SnapshotShown> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "flow-home-snapshot/1"
@@ -68,6 +69,14 @@ internal data class SnapshotRelated(
 internal data class SnapshotCard(
     val id: String,
     val source: String?,
+    val padding: Boolean = false,
+)
+
+/** A card of the feed as the viewer scrolled it, load-more pages and late arrivals included. */
+@Serializable
+internal data class SnapshotShown(
+    val video: SnapshotVideo,
+    val origin: String?,
     val padding: Boolean = false,
 )
 

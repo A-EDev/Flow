@@ -169,4 +169,22 @@ internal object HomeReplay {
         val shown = snapshot.page.take(20).mapNotNull { videos[it.id]?.toVideo() }
         return if (shown.isEmpty()) 0.0 else shown.count(labels::isOnTopic).toDouble() / shown.size
     }
+
+    /** The whole feed as the viewer scrolled it when [snapshot] was recorded: load-more pages and late cards too. */
+    fun renderShown(
+        snapshot: HomeSnapshot,
+        labels: Labels,
+    ): String? {
+        if (snapshot.shown.isEmpty()) return null
+        val cards = snapshot.shown.map { it to labels.isOnTopic(it.video.toVideo()) }
+
+        fun share(part: List<Pair<*, Boolean>>) = if (part.isEmpty()) 0.0 else part.count { it.second }.toDouble() / part.size
+        val byOrigin =
+            cards
+                .groupBy { it.first.origin ?: "NONE" }
+                .entries
+                .joinToString { (origin, part) -> "$origin ${"%.3f".format(share(part))} of ${part.size}" }
+        return "shown ${cards.size}: on-topic 1-20 ${"%.3f".format(share(cards.take(20)))}, 1-50 ${"%.3f".format(share(cards.take(50)))}," +
+            " all ${"%.3f".format(share(cards))} | padding ${cards.count { it.first.padding }} | $byOrigin"
+    }
 }

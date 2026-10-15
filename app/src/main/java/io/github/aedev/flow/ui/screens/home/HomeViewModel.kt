@@ -37,6 +37,7 @@ import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -109,6 +111,7 @@ class HomeViewModel
 
             // Before the grid reports its viewport the first screen is still in view; never shift it.
             private const val LATE_SUBS_MIN_INDEX = 5
+            private const val SNAPSHOT_FEED_DEBOUNCE_MS = 2_000L
         }
 
         private val relatedPickIds = ConcurrentHashMap.newKeySet<String>()
@@ -144,6 +147,10 @@ class HomeViewModel
         private var feedJob: Job? = null
         private var subsTopUpJob: Job? = null
         private var channelMemoryJob: Job? = null
+
+        // Set while Diagnostics records Home snapshots: collects why each ranked card was admitted.
+        private var snapshotTrace: RankTrace? = null
+        private var snapshotFeedJob: Job? = null
 
         // The memory lane's share of the first page; late uploads and load-more pages stay within it.
         private var channelMemoryQuota = 0
@@ -578,6 +585,8 @@ class HomeViewModel
                         // Cached uploads only: the network refresh runs after first paint.
                         val rawMemory = runCatching { channelMemory.storedUploads(now) }.getOrDefault(emptyList())
                         val trace = if (snapshotRecorder.isRecording()) RankTrace() else null
+                        snapshotTrace = trace
+                        if (trace == null) snapshotFeedJob?.cancel()
                         val lanes =
                             buildHomeFeedLanes(
                                 rawSubs = storedFeed.storedSubscriptionVideos(now),
@@ -705,6 +714,7 @@ class HomeViewModel
                                 sourceOf = sourceById::get,
                                 trace = trace,
                             )
+                            recordShownFeed(trace)
                         }
                         enrichVisibleChannelMetadata(spacedMix)?.let {
                             persistentHomeFeedCache.saveLastFeed(it)
@@ -729,6 +739,20 @@ class HomeViewModel
                         }
                         settleWithoutFeed()
                     }
+                }
+        }
+
+        /** Keeps the recorded snapshot's shown feed current as wave 2, late uploads and load-more add to it. */
+        @OptIn(FlowPreview::class)
+        private fun recordShownFeed(trace: RankTrace) {
+            snapshotFeedJob?.cancel()
+            snapshotFeedJob =
+                viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                    _uiState
+                        .map { it.videos }
+                        .distinctUntilChanged()
+                        .debounce(SNAPSHOT_FEED_DEBOUNCE_MS)
+                        .collect { videos -> snapshotRecorder.recordShown(videos, _uiState.value.origins, trace) }
                 }
         }
 
@@ -778,7 +802,10 @@ class HomeViewModel
                             val wave2Ranked =
                                 FlowNeuroEngine
                                     .shareByInterest(
-                                        demoteByFit(FlowNeuroEngine.rank(wave2Valid, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste),
+                                        demoteByFit(
+                                            FlowNeuroEngine.rank(wave2Valid, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, snapshotTrace),
+                                            taste,
+                                        ),
                                     ).take(15)
 
                             if (wave2Ranked.isNotEmpty()) {
@@ -874,6 +901,7 @@ class HomeViewModel
                             .filterRecentHomeSuggestion(now),
                         userSubs,
                         NeuroScoring.LANE_RELEVANCE_FLOOR,
+                        snapshotTrace,
                     ),
                 )
             val start = page.size
@@ -924,7 +952,12 @@ class HomeViewModel
                 FlowNeuroEngine.shareByInterest(
                     demoteByFit(
                         applyGraphBoost(
-                            FlowNeuroEngine.rank(graphCandidates.map { it.video }, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR),
+                            FlowNeuroEngine.rank(
+                                graphCandidates.map { it.video },
+                                userSubs,
+                                NeuroScoring.LANE_RELEVANCE_FLOOR,
+                                snapshotTrace,
+                            ),
                             graphMetadata,
                         ),
                         taste,
@@ -1064,7 +1097,7 @@ class HomeViewModel
                 if (newVideos.isNotEmpty()) {
                     val rankedDiscovery =
                         FlowNeuroEngine.shareByInterest(
-                            demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR), taste),
+                            demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, snapshotTrace), taste),
                         )
                     addUniquePageVideos(
                         candidates = rankedDiscovery,
@@ -1117,6 +1150,7 @@ class HomeViewModel
                                             fallbackCandidates.map { it.video },
                                             userSubs,
                                             NeuroScoring.LANE_RELEVANCE_FLOOR,
+                                            snapshotTrace,
                                         ),
                                         fallbackMetadata,
                                     ),
@@ -1546,6 +1580,7 @@ class HomeViewModel
                                                     .filterNot { existing.contains(it.id) },
                                                 userSubs,
                                                 NeuroScoring.LANE_RELEVANCE_FLOOR,
+                                                snapshotTrace,
                                             ),
                                             relatedMetadata,
                                         ),
