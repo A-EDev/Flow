@@ -124,4 +124,35 @@ class VideoSurfacePolicyTest {
     fun `a player at the very start nudges forward instead of below zero`() {
         assertThat(VideoSurfacePolicy.resyncSeekTargetMs(0L)).isEqualTo(1L)
     }
+
+    @Test
+    fun `a surface that came back on a running video is watched for a stuck first frame`() {
+        assertThat(
+            VideoSurfacePolicy.shouldWatchFirstFrame(
+                wasSurfaceValid = false,
+                reenabledVideo = false,
+                isAudioOnly = false,
+                isLive = false,
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun `turning video back on after audio only is left to join without a flush`() {
+        assertThat(
+            VideoSurfacePolicy.shouldWatchFirstFrame(
+                wasSurfaceValid = false,
+                reenabledVideo = true,
+                isAudioOnly = false,
+                isLive = false,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun `audio only, live and an unchanged surface are never watched`() {
+        assertThat(VideoSurfacePolicy.shouldWatchFirstFrame(false, false, isAudioOnly = true, isLive = false)).isFalse()
+        assertThat(VideoSurfacePolicy.shouldWatchFirstFrame(false, false, isAudioOnly = false, isLive = true)).isFalse()
+        assertThat(VideoSurfacePolicy.shouldWatchFirstFrame(true, false, isAudioOnly = false, isLive = false)).isFalse()
+    }
 }

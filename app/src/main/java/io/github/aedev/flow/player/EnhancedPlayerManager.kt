@@ -2912,6 +2912,7 @@ class EnhancedPlayerManager private constructor() {
                 )
             }
             val p = player
+            val reenablesVideo = audioOnlyMode.isActive
             val resyncPausedVideo =
                 p != null && !wasSurfaceValid && !audioOnlyMode.isActive &&
                     p.currentMediaItem != null &&
@@ -2935,7 +2936,15 @@ class EnhancedPlayerManager private constructor() {
             }
             if (resyncPausedVideo && p != null) {
                 resyncAfterSurfaceReattach(p)
-            } else if (p != null && !wasSurfaceValid && !audioOnlyMode.isActive && !currentIsLiveStream) {
+            } else if (
+                p != null &&
+                VideoSurfacePolicy.shouldWatchFirstFrame(
+                    wasSurfaceValid = wasSurfaceValid,
+                    reenabledVideo = reenablesVideo,
+                    isAudioOnly = audioOnlyMode.isActive,
+                    isLive = currentIsLiveStream,
+                )
+            ) {
                 armSurfaceFirstFrameWatchdog(p)
             }
         }

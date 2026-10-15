@@ -42,4 +42,18 @@ object VideoSurfacePolicy {
      * it with exact seek parameters so it is not snapped to a sync frame seconds away.
      */
     fun resyncSeekTargetMs(positionMs: Long): Long = if (positionMs > 0L) positionMs - 1L else 1L
+
+    /**
+     * Whether a surface that came back is watched for a first frame that never draws (#1064).
+     *
+     * Not when this attach is what turned video back on after audio-only playback: the renderer is
+     * then new and decodes forward from the last keyframe, which can take seconds, while Media3
+     * keeps the audio going as it catches up. Flushing it there stops the audio to rebuffer (#1298).
+     */
+    fun shouldWatchFirstFrame(
+        wasSurfaceValid: Boolean,
+        reenabledVideo: Boolean,
+        isAudioOnly: Boolean,
+        isLive: Boolean,
+    ): Boolean = !wasSurfaceValid && !reenabledVideo && !isAudioOnly && !isLive
 }
