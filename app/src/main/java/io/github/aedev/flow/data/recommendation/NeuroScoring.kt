@@ -1390,7 +1390,8 @@ internal object NeuroScoring {
     }
 
     /**
-     * Smart diversity re-ranking across channels and topics.
+     * Smart diversity re-ranking across channels and topics. With [dropUnrelated] a video [isUnrelated]
+     * calls unrelated is left out; otherwise it waits for the relaxed fill.
      */
     fun applySmartDiversity(
         candidates: MutableList<ScoredVideo>,
@@ -1398,6 +1399,7 @@ internal object NeuroScoring {
         extraExplorationSlots: Int = 0,
         isUnrelated: (ScoredVideo) -> Boolean = { false },
         trace: RankTrace? = null,
+        dropUnrelated: Boolean = false,
     ): List<Video> {
         fun placed(
             scored: ScoredVideo,
@@ -1542,7 +1544,7 @@ internal object NeuroScoring {
                         NeuroVectorMath.calculateTitleSimilarity(tokens1, tokens2) >
                             TITLE_SIMILARITY_RELAXED
                     }
-            if (channelOk && titleOk && !isUnrelated(scored)) {
+            if (channelOk && titleOk && !(dropUnrelated && isUnrelated(scored))) {
                 finalPlaylist.add(scored.video)
                 placed(scored, DiversityPhase.DEFERRED)
             }
@@ -1567,7 +1569,7 @@ internal object NeuroScoring {
                         NeuroVectorMath.calculateTitleSimilarity(tokens1, tokens2) >
                             TITLE_SIMILARITY_RELAXED
                     }
-            if (!channelSpam && !titleSimilar && !isUnrelated(scored)) {
+            if (!channelSpam && !titleSimilar && !(dropUnrelated && isUnrelated(scored))) {
                 finalPlaylist.add(scored.video)
                 placed(scored, DiversityPhase.RELAXED)
             }

@@ -2292,7 +2292,16 @@ class FlowNeuroEngine internal constructor(
                         NeuroScoring.UNRELATED_SIMILARITY
                 }
             }
-            return@withContext NeuroScoring.applySmartDiversity(scored, tokenizer, extraExploration, isUnrelated, trace)
+            // A Home lane under the relevance floor never fills with them; the Shorts feed, chips and channel
+            // memory still place them last, as they always did.
+            return@withContext NeuroScoring.applySmartDiversity(
+                scored,
+                tokenizer,
+                extraExploration,
+                isUnrelated,
+                trace,
+                dropUnrelated = minRelevance > 0.0,
+            )
         }
 
     suspend fun recordFeedImpressions(ids: List<String>) {
