@@ -109,9 +109,14 @@ class VideoPlayerService : MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        EnhancedPlayerManager.getInstance().initialize(applicationContext)
+        val manager = EnhancedPlayerManager.getInstance()
+        manager.initialize(applicationContext)
         serviceLog("onGetSession controller=${controllerInfo.packageName}")
-        return EnhancedPlayerManager.getInstance().getVideoMediaSession()
+        if (controllerInfo.declinesMediaButtonStart(hasMediaItem = manager.getPlayer()?.currentMediaItem != null)) {
+            serviceLog("onGetSession declined: media button with nothing to play")
+            return null
+        }
+        return manager.getVideoMediaSession()
     }
 
     override fun onStartCommand(
