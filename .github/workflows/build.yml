@@ -247,6 +247,14 @@ jobs:
             echo '> GitHub and FOSS APKs are uploaded individually without compression. Nightly remains a compressed artifact on regular CI runs.'
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # IzzyOnDroid caps the FOSS APK at 30 MB; fail with a 0.5 MB margin so growth is seen before a release.
+          foss_limit=29500000
+          foss_bytes=$(stat --format='%s' app/build/outputs/apk/foss/release/app-foss-universal-release*.apk)
+          if (( foss_bytes > foss_limit )); then
+            printf 'flow-foss.apk is %d bytes, over the %d byte budget.\n' "$foss_bytes" "$foss_limit" >&2
+            exit 1
+          fi
+
       # The universal APKs are what IzzyOnDroid and the README link to.
       - name: Upload GitHub universal APK
         uses: actions/upload-artifact@v7

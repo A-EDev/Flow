@@ -93,11 +93,13 @@ internal object NeuroVectorMath {
 
     /**
      * How much [content]'s topics overlap [user]'s, from 0 to 1, without duration, pacing and
-     * complexity: two videos that share no topic score 0 however alike their length.
+     * complexity: two videos that share no topic score 0 however alike their length. A [specificity]
+     * scales each shared key by its square, so sharing "normal" or "top" counts for little (#907).
      */
     fun topicSimilarity(
         user: PreparedVector,
         content: ContentVector,
+        specificity: ((String) -> Double)? = null,
     ): Double {
         if (content.topics.isEmpty() || user.magnitudeSquared <= 0.0) return 0.0
         var dotProduct = 0.0
@@ -111,7 +113,10 @@ internal object NeuroVectorMath {
                     } else {
                         user.baseToTagged[key]?.second?.times(0.3)
                     }
-            if (match != null) dotProduct += value * match
+            if (match != null) {
+                val weight = specificity?.invoke(key) ?: 1.0
+                dotProduct += value * match * weight * weight
+            }
         }
         return if (dotProduct > 0.0 && magnitude > 0.0) dotProduct / (sqrt(user.magnitudeSquared) * sqrt(magnitude)) else 0.0
     }

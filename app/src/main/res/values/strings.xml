@@ -3776,6 +3776,14 @@
     <string name="settings_diagnostics_copy_summary">Device details, warnings and crash reports</string>
     <string name="settings_diagnostics_share_summary">Send the report to another app</string>
     <string name="settings_diagnostics_reset_summary">Try this if videos stop or won\'t play</string>
+    <string name="settings_section_home_snapshots">Home snapshots</string>
+    <string name="diagnostics_record_home_snapshots">Record Home snapshots</string>
+    <string name="settings_diagnostics_record_snapshots_summary">Keeps your last 3 Home loads on this device for a recommendation report</string>
+    <string name="diagnostics_export_home_snapshot">Export latest snapshot</string>
+    <string name="settings_diagnostics_export_snapshot_summary">Contains titles from your watch history</string>
+    <string name="diagnostics_no_home_snapshot">Open Home with recording on first</string>
+    <string name="diagnostics_snapshot_exported">Snapshot exported</string>
+    <string name="diagnostics_snapshot_export_failed">Couldn\'t export the snapshot</string>
     <string name="settings_keywords_diagnostics">logs, crash, bug report, debug, support, logcat</string>
     <string name="donation_currency_bitcoin" translatable="false">Bitcoin</string>
     <string name="donation_currency_ethereum" translatable="false">Ethereum</string>
@@ -3893,6 +3901,7 @@
     <string name="taste_topic_boost">Show more like this</string>
     <string name="taste_topic_unboost">Stop boosting</string>
     <string name="taste_topic_block">Block topic</string>
+    <string name="taste_topic_block_named">Block %1$s</string>
     <string name="taste_channels_header">Channels it favours</string>
     <string name="taste_channel_block">Block channel</string>
     <string name="taste_item_actions">More options for %1$s</string>
@@ -4151,7 +4160,16 @@
     <string name="save_as_playlist">Save as playlist</string>
     <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
     <string name="home_reason_channel_memory">From a channel you watch</string>
-    <string name="details_related_to">Related to</string>
+    <string name="details_why_shown">Why you see this</string>
+    <string name="home_origin_subscription">From a channel you follow</string>
+    <string name="home_origin_related">Related to %1$s</string>
+    <string name="home_origin_related_watched">Related to a video you watched</string>
+    <string name="home_origin_search">From a search for %1$s</string>
+    <string name="home_origin_search_unnamed">From a search for your interests</string>
+    <string name="home_origin_channel_memory">From a channel you often watch</string>
+    <string name="home_origin_neighbour">A channel like %1$s</string>
+    <string name="home_origin_neighbour_unnamed">A channel like the ones you follow</string>
+    <string name="home_origin_neighbour_pair">%1$s and %2$s</string>
     <string name="taste_remembered_header">Channels you keep watching</string>
     <string name="taste_remembered_footer">New uploads from these channels show up on Home now and then. Subscribing to a channel or removing it takes it off this list.</string>
     <string name="taste_remembered_empty">Watch a channel a few times without subscribing and it shows up here.</string>
@@ -4199,6 +4217,8 @@
     <string name="discover_channels_title">Discover channels</string>
     <string name="discover_channels_summary">Search channels and subscribe, as at setup</string>
     <string name="discover_channels_suggested_footer">Channels you have watched a few times without subscribing.</string>
+    <string name="discover_channels_like_yours">Channels like yours</string>
+    <string name="discover_channels_like_yours_footer">Channels YouTube lists next to several of the ones you follow or watch.</string>
     <string name="favourite_artists_search">Search artists</string>
     <string name="favourite_artists_picked">Your picks</string>
     <string name="favourite_artists_popular">Popular now</string>

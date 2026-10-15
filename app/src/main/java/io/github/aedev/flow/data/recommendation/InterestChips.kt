@@ -30,6 +30,9 @@ data class InterestChip(
 
 internal object InterestChips {
     const val MAX_CHIPS = 4
+
+    // Below this a word every subject uses names no chip ([NeuroSpecificity]).
+    const val LABEL_MIN_SPECIFICITY = 0.5
     const val MIN_MASS_SHARE = 0.08
     const val RECOMPUTE_AFTER_MS = 24L * 60L * 60L * 1000L
     const val MASS_CHANGE = 0.30
@@ -115,12 +118,20 @@ internal object InterestChips {
         set: InterestChipSet,
         groups: List<Group>,
         forms: Map<String, DisplayForm> = emptyMap(),
+        specificity: (String) -> Double = { 1.0 },
         evidenceOf: (String) -> Int = { 0 },
     ): List<InterestChip> {
         val byKey = groups.associateBy { it.key }
 
+        // A chip is named after a word of one subject: "Buy" or "Top" names no subject (#907).
+        fun nameable(topics: List<String>) = topics.filter { specificity(it) >= LABEL_MIN_SPECIFICITY }.ifEmpty { topics }
+
         fun chipOf(cluster: NeuroClusters.TopicCluster): InterestChip {
-            val named = cluster.topics.maxByOrNull(evidenceOf)?.takeIf { evidenceOf(it) > 0 } ?: cluster.representative
+            val candidates = nameable(cluster.topics)
+            val named =
+                candidates.maxByOrNull(evidenceOf)?.takeIf { evidenceOf(it) > 0 }
+                    ?: cluster.representative.takeIf { it in candidates }
+                    ?: candidates.first()
             return InterestChip(cluster.representative, NeuroDisplayForms.label(forms, named), cluster.topics)
         }
         return set.masses.keys.mapNotNull { key ->
@@ -130,7 +141,7 @@ internal object InterestChips {
             } else {
                 val parts =
                     group.members.flatMap(::distinctInterests).map { topics ->
-                        InterestChip(topics.first(), NeuroDisplayForms.label(forms, topics.first()), topics)
+                        InterestChip(topics.first(), NeuroDisplayForms.label(forms, nameable(topics).first()), topics)
                     }
                 val topics = group.members.flatMap { it.topics }
                 InterestChip(key, parts.first().label, topics, group.category, parts, group.members.map { it.representative })

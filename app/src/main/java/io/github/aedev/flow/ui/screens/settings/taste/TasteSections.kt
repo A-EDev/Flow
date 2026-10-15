@@ -65,7 +65,7 @@ internal fun SettingsListScope.tasteContent(
     state.persona?.let { persona -> item("taste.persona") { PersonaHeroCard(persona, state.maturity) } }
     if (state.profile != null && state.now != null) traits(state.profile, state.now)
     picks(state.picks, actions)
-    interests(state.topics, actions)
+    interests(state.groups, actions)
     channels(state.channels, actions)
     remembered(state.remembered, actions)
     state.music?.let(::music)
@@ -185,33 +185,31 @@ private fun SettingsListScope.picks(
 }
 
 private fun SettingsListScope.interests(
-    topics: List<TasteTopic>,
+    groups: List<TasteGroup>,
     actions: TasteActions,
 ) {
-    if (topics.isEmpty()) {
+    if (groups.isEmpty()) {
         header(TasteIndex.interests.key, R.string.taste_interests_header)
         item("taste.interests.empty") { TasteNote(stringResource(R.string.taste_interests_empty)) }
         return
     }
     group(key = TasteIndex.interests.key, header = R.string.taste_interests_header, footer = R.string.taste_interests_footer) {
-        topics.forEach { topic ->
-            row("taste.topic.${topic.id}") { shape ->
-                val label = topic.label
+        groups.forEach { group ->
+            row("taste.group.${group.id}") { shape ->
+                val named = group.members.take(GROUP_MENU_WORDS)
                 TasteMeterRow(
-                    title = label,
-                    value = topic.share,
+                    title = group.label,
+                    value = group.share,
                     shape = shape,
-                    detail = stringResource(evidenceLabel(topic.evidence)),
+                    detail = stringResource(evidenceLabel(group.evidence)),
                     trailing = {
                         ItemMenu(
-                            label = label,
+                            label = group.label,
                             options =
-                                listOf(
-                                    stringResource(if (topic.preferred) R.string.taste_topic_unboost else R.string.taste_topic_boost) to {
-                                        actions.onTopicPreferred(topic.id, !topic.preferred)
+                                listOf(stringResource(R.string.taste_topic_boost) to { actions.onTopicPreferred(named.first().id, true) }) +
+                                    named.map { topic ->
+                                        stringResource(R.string.taste_topic_block_named, topic.label) to { actions.onBlockTopic(topic.id) }
                                     },
-                                    stringResource(R.string.taste_topic_block) to { actions.onBlockTopic(topic.id) },
-                                ),
                         )
                     },
                 )
@@ -326,6 +324,9 @@ private fun SettingsListScope.data(actions: TasteActions) {
         nav(TasteIndex.resetMusic, onClick = actions.onResetMusic, showChevron = false, icon = Icons.Outlined.RestartAlt)
     }
 }
+
+// The words of a group its menu lets the viewer block one by one.
+private const val GROUP_MENU_WORDS = 3
 
 @Composable
 private fun ItemMenu(

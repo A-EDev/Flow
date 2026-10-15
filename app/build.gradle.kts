@@ -189,7 +189,6 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
-        getByName("nightly").baselineProfiles.directories.add("src/githubRelease/generated/baselineProfiles")
     }
 
     compileOptions {
@@ -221,6 +220,12 @@ android {
             isIncludeAndroidResources = true
         }
     }
+}
+
+// One profile for every shipped variant: foss, nightly and github run the same startup code, and
+// a per-variant profile left foss and nightly with library profiles only (#1301).
+baselineProfile {
+    mergeIntoMain = true
 }
 
 // CI nightlies are numbered by workflow run: versionCode = run, versionName = <next>-nightly.<run>+<sha>.
@@ -382,6 +387,8 @@ dependencies {
     // library AARs (Compose, RecyclerView, ...) at build time; this applies them at runtime,
     // which matters for sideloaded/F-Droid installs that bypass Play's cloud profiles.
     implementation(libs.androidx.profileinstaller)
+    // Trace sections the startup and Home benchmarks measure (#1301); already on the classpath through Compose.
+    implementation(libs.androidx.tracing)
     baselineProfile(project(":benchmark"))
 
     // Desugaring for older Android versions

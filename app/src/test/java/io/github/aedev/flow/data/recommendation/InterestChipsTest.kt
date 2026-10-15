@@ -102,6 +102,25 @@ class InterestChipsTest {
     }
 
     @Test
+    fun `a chip is never named after a word every subject uses`() {
+        val tech = cluster("buy", 2.0, listOf("buy", "laptop", "android"))
+        val set = InterestChips.stable(InterestChipSet(), groups(listOf(tech, cluster("gym", 0.5))), now)
+
+        val chips =
+            InterestChips.chips(set, groups(listOf(tech, cluster("gym", 0.5))), specificity = { if (it == "buy") 0.1 else 1.0 }) {
+                if (it == "buy") {
+                    12
+                } else if (it == "laptop") {
+                    3
+                } else {
+                    1
+                }
+            }
+
+        assertThat(chips.first().label).isEqualTo("Laptop")
+    }
+
+    @Test
     fun `a default category and a lone cluster stay plain interests`() {
         val categories = mapOf("claude" to "people", "android" to "people", "gym" to "sports")
 

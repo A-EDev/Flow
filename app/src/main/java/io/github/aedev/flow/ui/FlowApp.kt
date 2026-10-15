@@ -65,6 +65,7 @@ import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isMediumWidth
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
 @UnstableApi
@@ -138,10 +139,20 @@ fun FlowApp(
     var needsOnboarding by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
-        FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
         val bypass = activity?.intent?.getBooleanExtra(MainActivity.EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
-        needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
+        // A viewer who is past onboarding never waits for the engine here; everyone else asks it (#1301).
+        needsOnboarding =
+            when {
+                bypass || preferences.onboardingDone.first() -> {
+                    false
+                }
+
+                else -> {
+                    FlowNeuroEngine.initialize(context)
+                    FlowNeuroEngine.needsOnboarding().also { preferences.setOnboardingDone(!it) }
+                }
+            }
         onStartDestinationKnown()
     }
 

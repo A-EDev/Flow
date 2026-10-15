@@ -10,6 +10,8 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.paging.ChannelSearch
 import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.NeighbourChannel
+import io.github.aedev.flow.data.recommendation.NeighbourChannelsRepository
 import io.github.aedev.flow.data.recommendation.RememberedChannel
 import io.github.aedev.flow.data.repository.ChannelAvatarRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -32,11 +35,22 @@ import javax.inject.Inject
 private const val SEARCH_DEBOUNCE_MS = 400L
 private const val MAX_QUICK_SEARCHES = 6
 
+// Quick searches name a subject; a word every subject uses ("buy") finds channels of anything (#907).
+private const val QUICK_SEARCH_MIN_SPECIFICITY = 0.5
+
+private data class LocalSuggestions(
+    val topics: List<String>,
+    val remembered: List<RememberedChannel>,
+    val neighbours: List<NeighbourChannel>,
+)
+
 @Immutable
 internal data class DiscoverChannelsState(
     val quickSearches: List<String> = emptyList(),
     /** Channels watched without subscribing, read from the device only; null until read. */
     val suggestions: List<RememberedChannel>? = null,
+    /** Channels several of the viewer's own sit next to, read from the device only (#907). */
+    val neighbours: List<NeighbourChannel> = emptyList(),
     /** Avatars of the suggestions, local ones first and fetched ones as they arrive. */
     val suggestionAvatars: Map<String, String> = emptyMap(),
     /** Search results for the typed query; null while a search runs. */
@@ -57,6 +71,7 @@ internal class DiscoverChannelsViewModel
         private val channelSearch: ChannelSearch,
         private val subscriptions: SubscriptionRepository,
         private val channelMemory: ChannelMemoryRepository,
+        private val neighbourChannels: NeighbourChannelsRepository,
         private val avatars: ChannelAvatarRepository,
     ) : ViewModel() {
         private val _query = MutableStateFlow("")
@@ -71,15 +86,22 @@ internal class DiscoverChannelsViewModel
                             brain.globalVector.topics.entries
                                 .sortedByDescending { it.value }
                                 .map { it.key }
-                    ).filterNot { it in brain.blockedTopics }
+                    ).filterNot { it in brain.blockedTopics || FlowNeuroEngine.specificity(it) < QUICK_SEARCH_MIN_SPECIFICITY }
                         .distinct()
                         .take(MAX_QUICK_SEARCHES)
-                emit(topics to runCatching { channelMemory.remembered() }.getOrDefault(emptyList()))
+                val followed = subscriptions.getAllSubscriptions().first().associate { it.channelId to it.channelName }
+                emit(
+                    LocalSuggestions(
+                        topics,
+                        runCatching { channelMemory.remembered() }.getOrDefault(emptyList()),
+                        runCatching { neighbourChannels.proven(followed) }.getOrDefault(emptyList()),
+                    ),
+                )
             }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
         private val suggestionAvatars =
-            local.flatMapLatest { (_, remembered) ->
-                val ids = remembered.map { it.channelId }
+            local.flatMapLatest { local ->
+                val ids = local.remembered.map { it.channelId } + local.neighbours.map { it.channelId }
                 flow {
                     emit(avatars.local(ids))
                     emit(avatars.all(ids))
@@ -102,14 +124,15 @@ internal class DiscoverChannelsViewModel
 
         val state: StateFlow<DiscoverChannelsState> =
             combine(local, suggestionAvatars.onStart { emit(emptyMap()) }, results, subscriptions.getAllSubscriptions()) {
-                (topics, remembered),
+                local,
                 avatarsById,
                 found,
                 subscribed,
                 ->
                 DiscoverChannelsState(
-                    quickSearches = topics,
-                    suggestions = remembered,
+                    quickSearches = local.topics,
+                    suggestions = local.remembered,
+                    neighbours = local.neighbours,
                     suggestionAvatars = avatarsById,
                     results = found,
                     subscribedIds = subscribed.mapTo(HashSet()) { it.channelId },

@@ -31,6 +31,8 @@ class NeuroCoWatchTest {
         title: String = "Sourdough bread for beginners",
     ) = Video(id, title, "Channel $channelId", channelId, "", 900, 400_000, uploadDate = "3 days ago")
 
+    private fun uploadsOf(channels: List<String>) = channels.mapIndexed { i, channel -> video("r$i", channel) }
+
     @Test
     fun `one related list is noise, two different videos make a pair`() {
         val once = NeuroCoWatchStore.edges(listOf(source("bake", "pasta", "cars")), nobodyWatched, now)
@@ -71,8 +73,8 @@ class NeuroCoWatchTest {
     @Test
     fun `a source keeps ten other channels and the store two hundred sources`() {
         val store = NeuroCoWatchStore(mockk(relaxed = true))
-        store.record("v", "bake", listOf("bake") + (1..12).map { "ch$it" } + listOf("ch1", ""), now)
-        repeat(NeuroCoWatchStore.MAX_SOURCES) { store.record("s$it", "bake", listOf("pasta"), now + it + 1) }
+        store.record("v", "bake", uploadsOf(listOf("bake") + (1..12).map { "ch$it" } + listOf("ch1", "")), now)
+        repeat(NeuroCoWatchStore.MAX_SOURCES) { store.record("s$it", "bake", uploadsOf(listOf("pasta")), now + it + 1) }
 
         assertThat(store.sources()).hasSize(NeuroCoWatchStore.MAX_SOURCES)
         assertThat(store.sources().none { it.related.size > NeuroCoWatchStore.CHANNELS_PER_SOURCE }).isTrue()
@@ -96,7 +98,14 @@ class NeuroCoWatchTest {
 
             assertThat(
                 store.sources(),
-            ).containsExactly(NeuroCoWatchStore.Source("bake", listOf("pasta", "cars"), store.sources().single().at))
+            ).containsExactly(
+                NeuroCoWatchStore.Source(
+                    "bake",
+                    listOf("pasta", "cars"),
+                    store.sources().single().at,
+                    mapOf("pasta" to "Channel pasta", "cars" to "Channel cars"),
+                ),
+            )
         }
 
     @Test
@@ -120,8 +129,8 @@ class NeuroCoWatchTest {
     fun `a channel watched alongside the viewer's own ranks above an equal stranger, by a small prior`() =
         runBlocking<Unit> {
             val store = NeuroCoWatchStore(mockk(relaxed = true))
-            store.record("a", "bake", listOf("pasta"), System.currentTimeMillis())
-            store.record("b", "bake", listOf("pasta"), System.currentTimeMillis())
+            store.record("a", "bake", uploadsOf(listOf("pasta")), System.currentTimeMillis())
+            store.record("b", "bake", uploadsOf(listOf("pasta")), System.currentTimeMillis())
             val brain =
                 UserBrain(
                     globalVector = ContentVector(topics = mapOf("sourdough" to 0.5, "bread" to 0.4)),
@@ -146,5 +155,13 @@ class NeuroCoWatchTest {
 
         assertThat(clusters(emptyMap())).isEqualTo(2)
         assertThat(clusters(mapOf(NeuroCoWatchStore.pairKey("bake", "pasta") to 1.0))).isEqualTo(1)
+    }
+
+    @Test
+    fun `a source keeps the names of its related channels`() {
+        val store = NeuroCoWatchStore(mockk(relaxed = true))
+        store.record("v", "bake", uploadsOf(listOf("pasta", "cars")), now)
+
+        assertThat(store.channelNames()).containsExactly("pasta", "Channel pasta", "cars", "Channel cars")
     }
 }

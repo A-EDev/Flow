@@ -48,4 +48,24 @@ class NeuroDiscoveryQueryTest {
 
         assertThat(tiers).containsExactly(2, 2, 1, 1, 1, 0, 0).inOrder()
     }
+
+    @Test
+    fun `a word met mostly inside a phrase is searched as the phrase`() {
+        val brain =
+            UserBrain(
+                globalVector =
+                    ContentVector(
+                        topics =
+                            mapOf(
+                                "elit" to 0.084,
+                                "elit gen" to 0.086,
+                                "pixel" to 0.2,
+                                "pixel camera" to 0.05,
+                            ),
+                    ),
+            )
+
+        assertThat(discovery.enclosingPhrase("elit", brain)).isEqualTo("elit gen")
+        assertThat(discovery.enclosingPhrase("pixel", brain)).isNull()
+    }
 }

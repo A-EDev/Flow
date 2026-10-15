@@ -103,6 +103,13 @@ internal class NeuroCategoryStore(
 
     fun size(): Int = channels.size
 
+    fun index(): CategoryIndex = CategoryIndex(channels)
+
+    /** Replaces the in-memory index without persisting it, for replaying a recorded Home load. */
+    fun restore(index: CategoryIndex) {
+        channels = index.channels
+    }
+
     /** Records that [channelId] posted a video in [categoryId], keeping the most recently seen channels. */
     fun record(
         channelId: String,

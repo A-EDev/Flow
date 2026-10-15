@@ -33,7 +33,7 @@ gradlew     text eol=lf
 
 # Generated baseline profiles are large and machine-produced; keep them out
 # of diffs and out of language statistics.
-app/src/githubRelease/generated/baselineProfiles/** linguist-generated=true -diff
+app/src/main/generated/baselineProfiles/** linguist-generated=true -diff
 
 # Reference material vendored for comparison is not this project's code.
 LibreTube-master/**  linguist-vendored

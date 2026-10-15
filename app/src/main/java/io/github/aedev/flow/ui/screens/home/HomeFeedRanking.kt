@@ -128,7 +128,8 @@ internal fun rhythmBySource(
 }
 
 // Lanes take turns in this order; null holds videos whose lane is not known.
-private val OTHER_LANE_TURNS = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.SUBS, null)
+private val OTHER_LANE_TURNS =
+    listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.NEIGHBOURS, FeedSource.SUBS, null)
 private const val OTHER_RUN = 2
 private const val MAX_SUBS_RUN = 2
 
@@ -159,6 +160,28 @@ internal fun spaceByChannel(
         }
     }
     return out
+}
+
+/**
+ * Gives each search an even share of the first [limit] places before any search takes more, so one
+ * broad subject cannot fill the search lane on its own. Rank order holds within each share.
+ */
+internal fun spreadAcrossSearches(
+    videos: List<Video>,
+    queryOf: (videoId: String) -> String?,
+    limit: Int,
+): List<Video> {
+    val searches = videos.mapNotNullTo(HashSet()) { queryOf(it.id) }.size
+    if (searches < 2) return videos.take(limit)
+    val share = (limit + searches - 1) / searches
+    val placed = HashMap<String, Int>()
+    val (even, overflow) =
+        videos.partition { video ->
+            val query = queryOf(video.id) ?: return@partition true
+            val count = placed.getOrDefault(query, 0)
+            (count < share).also { within -> if (within) placed[query] = count + 1 }
+        }
+    return (even + overflow).take(limit)
 }
 
 internal fun Video.withChannelMetadataFrom(enriched: Video): Video {

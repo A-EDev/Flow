@@ -19,7 +19,8 @@ import org.junit.Test
  * Or on the managed emulator, which needs neither:
  *   ./gradlew :app:generateGithubReleaseBaselineProfile -PbaselineProfileEmulator=true
  *
- * Output lands in app/src/githubRelease/generated/baselineProfiles and should be committed.
+ * Output lands in app/src/main/generated/baselineProfiles, which every shipped variant reads, and
+ * should be committed.
  */
 class BaselineProfileGenerator {
     @get:Rule
@@ -32,7 +33,7 @@ class BaselineProfileGenerator {
     fun startup() =
         collectProfile(includeInStartupProfile = true) {
             pressHome()
-            startActivityAndWait()
+            startActivityAndWait { it.putExtra(BYPASS_ONBOARDING, true) }
         }
 
     /** The feed scroll journey, captured for the baseline profile only. */
@@ -40,7 +41,7 @@ class BaselineProfileGenerator {
     fun scrollFeed() =
         collectProfile(includeInStartupProfile = false) {
             pressHome()
-            startActivityAndWait()
+            startActivityAndWait { it.putExtra(BYPASS_ONBOARDING, true) }
             device.waitForIdle(UI_SETTLE_MS)
 
             flingFeed(Direction.DOWN, times = 3)
@@ -78,6 +79,8 @@ class BaselineProfileGenerator {
     }
 
     private companion object {
+        // Home is the journey: a fresh profiling install would otherwise open onboarding.
+        const val BYPASS_ONBOARDING = "io.github.aedev.flow.extra.BENCHMARK_BYPASS_ONBOARDING"
         const val UI_SETTLE_MS = 1_500L
         const val CONTENT_TIMEOUT_MS = 10_000L
     }

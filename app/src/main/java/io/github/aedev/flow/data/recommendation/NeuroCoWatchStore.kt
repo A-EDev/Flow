@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
+import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -92,6 +93,8 @@ internal class NeuroCoWatchStore(
         val channelId: String = "",
         val related: List<String> = emptyList(),
         val at: Long = 0L,
+        /** The related channels' names, so a neighbour channel can be fetched and named (#907). */
+        val names: Map<String, String> = emptyMap(),
     )
 
     @Serializable
@@ -146,20 +149,34 @@ internal class NeuroCoWatchStore(
 
     fun sources(): Collection<Source> = sources.values
 
-    /** Records the channels [relatedChannels] listed beside [videoId], a video of [channelId] the viewer took to. */
+    fun index(): CoWatchIndex = CoWatchIndex(sources)
+
+    fun channelNames(): Map<String, String> = sources.values.fold(HashMap()) { names, source -> names.apply { putAll(source.names) } }
+
+    /** Replaces the in-memory index without persisting it, for replaying a recorded Home load. */
+    fun restore(index: CoWatchIndex) {
+        sources = index.sources
+    }
+
+    /** Records the channels of [relatedVideos], the list beside [videoId], a video of [channelId] the viewer took to or follows. */
     fun record(
         videoId: String,
         channelId: String,
-        relatedChannels: List<String>,
+        relatedVideos: List<Video>,
         now: Long = System.currentTimeMillis(),
     ) {
         val related =
-            relatedChannels
+            relatedVideos
+                .map { it.channelId }
                 .filter { it.isNotBlank() && it != channelId }
                 .distinct()
                 .take(CHANNELS_PER_SOURCE)
         if (videoId.isBlank() || channelId.isBlank() || related.isEmpty()) return
-        val updated = sources + (videoId to Source(channelId, related, now))
+        val names =
+            relatedVideos
+                .filter { it.channelId in related && it.channelName.isNotBlank() }
+                .associate { it.channelId to it.channelName }
+        val updated = sources + (videoId to Source(channelId, related, now, names))
         sources =
             if (updated.size > MAX_SOURCES) {
                 updated.entries

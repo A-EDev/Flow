@@ -8,7 +8,7 @@ import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsB
 internal fun VideoCardSheets(
     state: VideoCardState,
     showChannel: Boolean,
-    relatedTo: String? = null,
+    whyShown: String? = null,
 ) {
     val sheets = state.sheets
     if (sheets.showQuickActions) {
@@ -17,7 +17,7 @@ internal fun VideoCardSheets(
             title = state.title,
             thumbnailUrl = state.thumbnailUrl,
             showChannel = showChannel,
-            relatedTo = relatedTo,
+            whyShown = whyShown,
             onDismiss = { sheets.showQuickActions = false },
         )
     }
