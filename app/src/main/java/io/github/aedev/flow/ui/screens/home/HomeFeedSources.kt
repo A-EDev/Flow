@@ -96,7 +96,7 @@ class HomeFeedSources
                     GraphSeedInput(
                         id = it.videoId,
                         title = it.title,
-                        channelId = "",
+                        channelId = it.channelId.orEmpty(),
                         source = GraphSeedSource.LIKED,
                         engagementWeight = 1.0,
                         timestamp = it.likedAt,
