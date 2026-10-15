@@ -765,7 +765,8 @@ class HomeViewModel
                         startWave2Discovery(finalMix, userSubs, taste)
                         startSubscriptionTopUp(userSubs, storedFeed)
                         startChannelMemoryRefresh(userSubs)
-                        startNeighbourRefresh(neighbours, storedFeed, userSubs)
+                        val offTopicNeighbours = rawNeighbours.map { it.channelId }.toSet() - lanes.relevantNeighbourChannels
+                        startNeighbourRefresh(neighbours, offTopicNeighbours, storedFeed, userSubs)
                         chipFeeds.refreshChips()
                     } catch (cancellation: CancellationException) {
                         throw cancellation
@@ -802,13 +803,15 @@ class HomeViewModel
          */
         private fun startNeighbourRefresh(
             neighbours: List<NeighbourChannel>,
+            offTopic: Set<String>,
             subscriptionFeed: List<Video>,
             followed: Set<String>,
         ) {
             neighbourJob?.cancel()
             neighbourJob =
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                    runCatching { neighbourChannels.refresh(neighbours) }
+                    runCatching { neighbourChannels.dropOffTopic(offTopic) }.onFailure { if (it is CancellationException) throw it }
+                    runCatching { neighbourChannels.refresh(neighbours.filter { it.channelId !in offTopic }) }
                         .onFailure { if (it is CancellationException) throw it else Log.d(TAG, "Neighbour refresh failed: ${it.message}") }
                     runCatching { feedSources.learnFromFollowed(subscriptionFeed, followed, ::cacheFilters) }
                         .onFailure { if (it is CancellationException) throw it else Log.d(TAG, "Followed co-watch failed: ${it.message}") }

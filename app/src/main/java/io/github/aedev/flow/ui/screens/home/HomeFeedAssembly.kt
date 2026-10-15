@@ -53,6 +53,8 @@ internal data class HomeFeedLanes(
     val bestDiscovery: List<Video>,
     val bestMemory: List<Video>,
     val bestNeighbours: List<Video>,
+    /** Neighbour channels with at least one upload on the viewer's subjects; the others are dropped. */
+    val relevantNeighbourChannels: Set<String>,
     val bestRelated: List<Video>,
     val relatedCandidates: List<GraphCandidate>,
     val relatedMetadata: Map<String, GraphCandidate>,
@@ -165,6 +167,9 @@ internal suspend fun buildHomeFeedLanes(
     val relatedPool = relatedCandidates.map { it.video }
     val relatedMetadata = relatedCandidates.associateBy { it.video.id }
 
+    // Neighbours are new to the viewer, so they meet the relevance floor like discovery does.
+    val relevantNeighbours = if (neighbourPool.isEmpty()) emptyList() else rankRelevant(neighbourPool)
+
     return HomeFeedLanes(
         // Only a couple of fresh subs are pinned to the very top; the rest ride the SUBS lane so
         // the first screen is a real source MIX instead of a wall of subscriptions.
@@ -178,11 +183,11 @@ internal suspend fun buildHomeFeedLanes(
             demoteByFit(rank(memoryPool), taste)
                 .distinctBy { it.channelId }
                 .take(BEST_MEMORY_LIMIT),
-        // Neighbours are new to the viewer, so they meet the relevance floor like discovery does.
         bestNeighbours =
-            demoteByFit(rankRelevant(neighbourPool), taste)
+            demoteByFit(relevantNeighbours, taste)
                 .distinctBy { it.channelId }
                 .take(BEST_NEIGHBOUR_LIMIT),
+        relevantNeighbourChannels = relevantNeighbours.mapTo(HashSet()) { it.channelId },
         bestRelated =
             share(
                 demoteByFit(

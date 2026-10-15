@@ -131,6 +131,15 @@ class NeighbourChannelsRepository
             }
         }
 
+        /** Drops neighbours none of whose fetched uploads is on the viewer's subjects: popular channels YouTube puts beside anything. */
+        suspend fun dropOffTopic(channelIds: Collection<String>) {
+            if (channelIds.isEmpty()) return
+            store.update { current ->
+                current +
+                    channelIds.map { channelId -> channelId to (current[channelId] ?: NeuroNeighbourStore.Entry()).copy(dropped = true) }
+            }
+        }
+
         suspend fun clear() = store.clear()
 
         private fun List<Video>.toStoredUploads(now: Long) =
