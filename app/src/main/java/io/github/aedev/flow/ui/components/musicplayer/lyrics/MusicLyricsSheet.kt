@@ -148,10 +148,11 @@ internal fun MusicLyricsSheet(
             }
             backProgress.animateTo(1f, tween(durationMillis = 160))
             onDismissState.value()
-        } catch (_: CancellationException) {
+        } catch (e: CancellationException) {
             scope.launch {
                 backProgress.animateTo(0f, tween(durationMillis = 250))
             }
+            throw e
         }
     }
 

@@ -194,10 +194,11 @@ internal fun UnifiedMusicPlayerSheet(
             motionController.snapTo(baseY, baseFraction)
             predictiveBackProgress.snapTo(0f)
             state.collapse()
-        } catch (_: CancellationException) {
+        } catch (e: CancellationException) {
             scope.launch {
                 predictiveBackProgress.animateTo(0f, tween(250))
             }
+            throw e
         }
     }
 
