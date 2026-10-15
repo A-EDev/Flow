@@ -102,7 +102,7 @@ internal fun LanguageRegionScreen(
                 selected = normalizedAppLanguage,
                 onSelect = { tag ->
                     viewModel.setAppLanguage(tag).invokeOnCompletion {
-                        AppLanguageManager.activityContext(context)?.recreate()
+                        if (!AppLanguageManager.systemStoresLanguage) AppLanguageManager.activityContext(context)?.recreate()
                     }
                 },
                 onDismiss = { dialog = null },

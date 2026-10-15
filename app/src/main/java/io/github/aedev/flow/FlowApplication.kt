@@ -38,6 +38,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -78,8 +79,7 @@ class FlowApplication :
     }
 
     override fun attachBaseContext(base: Context) {
-        val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(base)
-        super.attachBaseContext(AppLanguageManager.wrapContext(base, selectedLanguage))
+        super.attachBaseContext(AppLanguageManager.wrapContext(base, AppLanguageManager.resolveLanguageTag(base)))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -215,6 +215,10 @@ class FlowApplication :
             // otherwise wait on.
             io.github.aedev.flow.utils.cipher.CipherDeobfuscator
                 .ensureSignatureTimestamp()
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            AppLanguageManager.languageAdoptedFromSystem.filterNotNull().collect(playerPreferences::setAppLanguage)
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

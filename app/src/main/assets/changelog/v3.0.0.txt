@@ -1,5 +1,5 @@
 FLOW CHANGE LOG
-VERSION: 2.2.5
+VERSION: 3.0.0
 DATE: 2026-09-15
 STATUS: PRE-RELEASE
 
@@ -152,6 +152,9 @@ IMPROVEMENTS
 - Import from Google Takeout now brings in a whole export at once: pick every ZIP of a split export, and searches, YouTube Music watch history, watch history saved as JSON and your YouTube Music library come in with subscriptions, playlists and likes. Playlists keep the date YouTube made them, so Newest matches YouTube, and importing the same export again no longer duplicates them (#858)
 - Swiping the background mini bar up now grows it into the player under your finger, the way the music bar opens, and its queue has a seek bar with previous, play and next (#980)
 - A song played from music search now plays on its own and Endless radio fills Up Next with related songs, as in YouTube Music, instead of queueing every other result with the same title
+- Live chat on tablets and unfolded phones opens when you tap it rather than on its own, and a new Live chat switch in Settings, Playback turns it off completely (#1042)
+- YouTube Courses show as courses: "Course, 124 lessons" in search, on channel Home and in a channel's Courses tab, and they open as a playlist instead of an upcoming video (#1299)
+- The app language list now offers every translated language, Traditional Chinese (Taiwan) included, and Android 13 and later list the same languages in Settings, App languages. A language chosen there and one chosen in Flow are the same setting (#1300)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -164,6 +167,7 @@ PERFORMANCE
 - The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 - Feed ranking builds its lookups once per pass instead of once per video, impressions are recorded off the main thread, and scroll and rotation bookkeeping is saved to disk less often
 - Opening and collapsing the video player no longer jumps ahead after a slow frame, collapsing glides into the corner without a bounce, and a swipe's speed carries into the motion
+- Live streams use far less data: their playlists now download compressed, so a stream at 144p used about 20 KB/s instead of 116 KB/s in testing. Live chat waits as long as YouTube asks between updates and stops while Flow is in the background (#1042)
 
 FIXES AND STABILITY
 - Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
@@ -285,6 +289,7 @@ FIXES AND STABILITY
 - Your taste lists your picks apart from what it learned, each with how much you watch it, and interest chips are named after the topic you watch most (#907)
 - Home mixes its cards: two from related videos, searches or channels you watch, then one or two from channels you follow, and a channel never shows twice within 20 cards (#907)
 - Add Open source notices to About
+- YouTube playlists load past their first 100 videos again: YouTube moved the link to the next page, so every playlist and course stopped at 100 (#1299)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

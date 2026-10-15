@@ -45,13 +45,13 @@ class LanguageRegionViewModel
         }
 
         /**
-         * Saves the app language and returns whether the activity must be recreated to apply it.
-         * The recreate itself belongs to the screen, which owns the activity.
+         * Saves the app language. Below Android 13 the screen recreates the activity to apply it;
+         * from 13 the system does that itself.
          */
         fun setAppLanguage(tag: String) =
             write {
                 preferences.setAppLanguage(tag)
-                AppLanguageManager.saveLanguageTag(context, tag)
+                AppLanguageManager.applyLanguageTag(context, tag)
             }
 
         fun setContentLanguage(tag: String) = write { preferences.setContentLanguage(tag) }
