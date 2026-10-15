@@ -24,6 +24,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -469,46 +471,52 @@ class FlowNeuroEngine internal constructor(
         brainMutex.withLock {
             if (isInitialized) return
 
-            val loaded = storage.load()
-            if (loaded != null) {
-                currentUserBrain = loaded
-            } else if (!storage.hasSavedBrain()) {
-                // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
-                storage.migrateLegacy()?.let { migrated ->
-                    currentUserBrain = migrated
-                    Log.i(TAG, "Migrated an earlier brain")
+            // Off the caller's thread: a cold start calls this from the main thread too (#1301).
+            withContext(Dispatchers.Default) {
+                val stores = listOf(async { contentStore.load() }, async { categoryStore.load() }, async { coWatchStore.load() })
+                val loaded = storage.load()
+                if (loaded != null) {
+                    currentUserBrain = loaded
+                } else if (!storage.hasSavedBrain()) {
+                    // Only a first start migrates: once a brain is saved, an empty one is a reset one (#907).
+                    storage.migrateLegacy()?.let { migrated ->
+                        currentUserBrain = migrated
+                        Log.i(TAG, "Migrated an earlier brain")
+                    }
+                    storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                 }
-                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
-            }
-            storage.deleteOldBrainFiles()
+                storage.deleteOldBrainFiles()
 
-            currentUserBrain = withLanguageProfile(currentUserBrain)
-            val maintained = runMaintenanceIfNeeded(currentUserBrain)
-            if (maintained !== currentUserBrain) {
-                if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
-                    storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                currentUserBrain = withLanguageProfile(currentUserBrain)
+                val maintained = runMaintenanceIfNeeded(currentUserBrain)
+                if (maintained !== currentUserBrain) {
+                    if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
+                        storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                    }
+                    currentUserBrain = maintained
+                    storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
                 }
-                currentUserBrain = maintained
-                storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
+
+                idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
+                idfTotalDocuments = currentUserBrain.idfTotalDocuments
+
+                // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
+                val unspelled =
+                    currentUserBrain.preferredTopics.filter { label ->
+                        tokenizer.keysOf(label).any {
+                            it !in
+                                currentUserBrain.displayForms
+                        }
+                    }
+                if (unspelled.isNotEmpty()) {
+                    currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
+                }
+
+                currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
+                    watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+                }
+                stores.awaitAll()
             }
-
-            idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
-            idfTotalDocuments = currentUserBrain.idfTotalDocuments
-
-            // Picks made before spellings were kept still read as chosen ("R&B", never "Rnb").
-            val unspelled =
-                currentUserBrain.preferredTopics.filter { label -> tokenizer.keysOf(label).any { it !in currentUserBrain.displayForms } }
-            if (unspelled.isNotEmpty()) {
-                currentUserBrain = currentUserBrain.copy(displayForms = withPickSpellings(currentUserBrain.displayForms, unspelled))
-            }
-
-            currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
-                watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
-            }
-
-            contentStore.load()
-            categoryStore.load()
-            coWatchStore.load()
             appContext.registerComponentCallbacks(trimCallbacks)
 
             resetSessionInternal()
