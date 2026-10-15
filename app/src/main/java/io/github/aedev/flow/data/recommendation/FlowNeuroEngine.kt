@@ -2108,7 +2108,6 @@ class FlowNeuroEngine internal constructor(
                         minRelevance,
                         userSubs,
                         brain.channelScores,
-                        trace,
                         tokenizer::specificity,
                     )
                 }

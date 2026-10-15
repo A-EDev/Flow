@@ -142,9 +142,6 @@ internal object NeuroScoring {
     // A channel the viewer has taken to more than once; one click on a padded card moves it to only 0.525 (#907).
     const val KNOWN_CHANNEL_SCORE = 0.6
 
-    /** A lane is never thinned below this many candidates by [LANE_RELEVANCE_FLOOR]. */
-    const val MIN_RELEVANT_KEPT = 6
-
     const val EXPLORATION_MIN_SCORE_RATIO = 0.30
 
     // ── Feed History Constants ──
@@ -1090,9 +1087,8 @@ internal object NeuroScoring {
 
     /**
      * Candidates that share a topic with [user] or come from a channel the viewer subscribes to or
-     * watches without disliking, so a lane cannot fill its later slots with videos that have nothing
-     * to do with the viewer (#907). When fewer than [MIN_RELEVANT_KEPT] pass, the most relevant of
-     * the rest make up the difference, but never one that shares only common words with the viewer.
+     * has taken to, so a lane cannot fill its slots with videos that have nothing to do with the
+     * viewer (#907). A thin lane stays thin: Home looks for more on the viewer's subjects instead.
      */
     fun keepRelevant(
         candidates: List<Pair<Video, ContentVector>>,
@@ -1100,20 +1096,12 @@ internal object NeuroScoring {
         minRelevance: Double,
         userSubs: Set<String>,
         channelScores: Map<String, Double>,
-        trace: RankTrace? = null,
         specificity: ((String) -> Double)? = null,
     ): List<Pair<Video, ContentVector>> {
         fun knownChannel(channelId: String) = channelId in userSubs || (channelScores[channelId] ?: 0.0) >= KNOWN_CHANNEL_SCORE
-        val scored = candidates.map { it to NeuroVectorMath.topicSimilarity(user, it.second, specificity) }
-        val (kept, dropped) = scored.partition { (pair, relevance) -> relevance >= minRelevance || knownChannel(pair.first.channelId) }
-        if (kept.size >= MIN_RELEVANT_KEPT || dropped.isEmpty()) return kept.map { it.first }
-        val topUp =
-            dropped
-                .filter { it.second >= UNRELATED_SIMILARITY }
-                .sortedByDescending { it.second }
-                .take(MIN_RELEVANT_KEPT - kept.size)
-        trace?.toppedUp?.addAll(topUp.map { it.first.first.id })
-        return (kept + topUp).map { it.first }
+        return candidates.filter { (video, vector) ->
+            knownChannel(video.channelId) || NeuroVectorMath.topicSimilarity(user, vector, specificity) >= minRelevance
+        }
     }
 
     /**

@@ -21,10 +21,9 @@ enum class DiversityPhase { STRICT, EXPLORATION, DEFERRED, RELAXED }
  * rank concurrently while the snapshot reads, hence the concurrent collections.
  */
 class RankTrace {
-    val toppedUp: MutableSet<String> = ConcurrentHashMap.newKeySet()
     val unrelated: MutableSet<String> = ConcurrentHashMap.newKeySet()
     val phases: MutableMap<String, DiversityPhase> = ConcurrentHashMap()
 
-    /** Admitted although nothing about the viewer chose it: a top-up, or a video sharing nothing with the viewer. */
-    fun isPadding(videoId: String): Boolean = videoId in toppedUp || videoId in unrelated
+    /** Admitted although it shares nothing but common words with the viewer, by a rank pass without the lane floor. */
+    fun isPadding(videoId: String): Boolean = videoId in unrelated
 }

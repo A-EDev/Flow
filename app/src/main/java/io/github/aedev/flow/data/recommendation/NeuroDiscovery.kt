@@ -40,7 +40,7 @@ internal class NeuroDiscovery(
         /** What Home searches before anything is learned or picked; never recorded as learned (#907). */
         val STARTER_QUERIES = listOf("Music", "Science", "Technology", "Education", "Nature")
         private const val SPECIFIC_QUERY_MAX_WORDS = 4
-        private const val QUERY_MIN_SPECIFICITY = 0.5
+        private const val QUERY_MIN_SPECIFICITY = 0.65
 
         /** How much a viewer must take to a format before searches ask for it. */
         private const val FORMAT_QUERY_MIN_AFFINITY = 0.2

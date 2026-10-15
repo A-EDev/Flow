@@ -112,6 +112,9 @@ class HomeViewModel
             // Before the grid reports its viewport the first screen is still in view; never shift it.
             private const val LATE_SUBS_MIN_INDEX = 5
             private const val SNAPSHOT_FEED_DEBOUNCE_MS = 2_000L
+
+            // Next pages of earlier searches a short load-more page may fetch.
+            private const val DEEPER_SEARCH_PAGES = 2
         }
 
         private val relatedPickIds = ConcurrentHashMap.newKeySet<String>()
@@ -1059,17 +1062,7 @@ class HomeViewModel
                 }
 
                 // The next page of a search already filling Home takes one of the two searches.
-                val continued =
-                    withTimeoutOrNull(6_000L) {
-                        try {
-                            searchPages.nextPageOfProductive(_uiState.value.origins)
-                        } catch (cancellation: CancellationException) {
-                            throw cancellation
-                        } catch (error: Exception) {
-                            Log.d(TAG, "Next search page failed: ${error.message}")
-                            null
-                        }
-                    }
+                val continued = nextSearchPage { searchPages.nextPageOfProductive(_uiState.value.origins) }
                 val queryA = discoveryQueries.getOrNull(currentQueryIndex++)
                 val queryB = if (continued == null) discoveryQueries.getOrNull(currentQueryIndex++) else null
 
@@ -1117,13 +1110,13 @@ class HomeViewModel
                     }
                 }
 
-                val newVideos =
-                    rawVideos
-                        .filterValid()
-                        .filterWatched(watchedVideoIds.value)
-                        .filterRecentHomeSuggestion(now)
-
-                if (newVideos.isNotEmpty()) {
+                suspend fun addDiscovery(videos: List<Video>) {
+                    val newVideos =
+                        videos
+                            .filterValid()
+                            .filterWatched(watchedVideoIds.value)
+                            .filterRecentHomeSuggestion(now)
+                    if (newVideos.isEmpty()) return
                     val rankedDiscovery =
                         FlowNeuroEngine.shareByInterest(
                             demoteByFit(FlowNeuroEngine.rank(newVideos, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, snapshotTrace), taste),
@@ -1138,6 +1131,15 @@ class HomeViewModel
                     persistentHomeFeedCache.saveReserve(
                         cacheCandidates(FeedSource.DISCOVERY, rankedDiscovery, pageIds),
                     )
+                }
+                addDiscovery(rawVideos)
+
+                // Still short: the next pages of searches already made, before any wider related pass (#907).
+                repeat(DEEPER_SEARCH_PAGES) {
+                    if (page.size >= MIN_PAGE_SIZE || !homePrefetchQueue.isCurrent(generation)) return@repeat
+                    val (query, deeper) = nextSearchPage { searchPages.nextPageOfAny() } ?: return@repeat
+                    queries += queriesById(listOf(query to deeper))
+                    addDiscovery(deeper)
                 }
 
                 if (page.size < MIN_PAGE_SIZE && subsBacklog.isNotEmpty()) {
@@ -1217,6 +1219,18 @@ class HomeViewModel
                 return false
             }
         }
+
+        private suspend fun nextSearchPage(fetch: suspend () -> Pair<String, List<Video>>?): Pair<String, List<Video>>? =
+            withTimeoutOrNull(6_000L) {
+                try {
+                    fetch()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Log.d(TAG, "Next search page failed: ${error.message}")
+                    null
+                }
+            }
 
         private suspend fun appendLoadMorePage(
             page: List<Video>,

@@ -23,7 +23,9 @@ class HomeReplayTest {
         val fixture = HomeReplayFixtures.techViewer()
         val metrics = HomeReplay.replay(fixture.snapshot, fixture.labels)
         log(metrics.render(fixture.name))
-        assertThat(metrics.cards).isAtLeast(15)
+        assertThat(metrics.cards).isAtLeast(10)
+        // #907 target: at most one off-topic video among the first ten (0.8 on main at 9ed431dfa).
+        assertThat(metrics.onTopicTop10).isAtLeast(0.9)
     }
 
     @Test

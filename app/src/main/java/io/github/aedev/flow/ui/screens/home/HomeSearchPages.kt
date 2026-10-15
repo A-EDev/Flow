@@ -34,7 +34,7 @@ internal class HomeSearchPages(
         }
 
     // The continuation of the last page fetched for each query; spent when that page is fetched.
-    private val nextPage = HashMap<String, String>()
+    private val nextPage = LinkedHashMap<String, String>()
 
     suspend fun firstPage(query: String): List<Video> = fetch(query, null)
 
@@ -43,6 +43,16 @@ internal class HomeSearchPages(
         val (query, token) =
             mutex.withLock {
                 val query = productiveQuery(origins) ?: return@withLock null
+                nextPage.remove(query)?.let { query to it }
+            } ?: return null
+        return query to fetch(query, token)
+    }
+
+    /** The next page of the search whose next page was kept longest, or null when none is left. */
+    suspend fun nextPageOfAny(): Pair<String, List<Video>>? {
+        val (query, token) =
+            mutex.withLock {
+                val query = nextPage.keys.firstOrNull() ?: return@withLock null
                 nextPage.remove(query)?.let { query to it }
             } ?: return null
         return query to fetch(query, token)

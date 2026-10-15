@@ -65,4 +65,14 @@ class HomeSearchPagesTest {
 
             assertThat(pages.nextPageOfProductive(searchCards("pixel", 5))).isNull()
         }
+
+    @Test
+    fun `a short page takes the next page of the search asked longest ago`() =
+        runBlocking<Unit> {
+            pages.firstPage("pixel")
+            pages.firstPage("linux")
+
+            assertThat(pages.nextPageOfAny()?.first).isEqualTo("pixel")
+            assertThat(pages.nextPageOfAny()?.first).isEqualTo("linux")
+        }
 }
