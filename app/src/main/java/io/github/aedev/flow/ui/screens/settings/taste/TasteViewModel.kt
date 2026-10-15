@@ -116,7 +116,7 @@ class TasteViewModel
         private val backup: BackupCoordinator,
         private val channelMemory: ChannelMemoryRepository,
         private val homeSnapshots: HomeSnapshotStore,
-        playerPreferences: PlayerPreferences,
+        private val preferences: PlayerPreferences,
     ) : SettingsViewModel() {
         private val _state = MutableStateFlow(TasteState())
         val state: StateFlow<TasteState> = _state.asStateFlow()
@@ -124,9 +124,9 @@ class TasteViewModel
         /** Whether Deep Flow has learning paused, shown as a status; it is switched in Settings only. */
         val deepFlow: StateFlow<DeepFlowState> =
             combine(
-                playerPreferences.deepFlowActive,
-                playerPreferences.deepFlowActivatedAt,
-                playerPreferences.deepFlowExpireHours,
+                preferences.deepFlowActive,
+                preferences.deepFlowActivatedAt,
+                preferences.deepFlowExpireHours,
             ) { active, activatedAt, expireHours ->
                 DeepFlowState(active = active, activatedAt = activatedAt, expireHours = expireHours)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), DeepFlowState())
@@ -166,6 +166,7 @@ class TasteViewModel
         fun resetVideoProfile() =
             act {
                 FlowNeuroEngine.resetBrain(context)
+                preferences.setOnboardingDone(false)
                 homeSnapshots.clear()
             }
 
