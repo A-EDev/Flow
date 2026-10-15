@@ -142,6 +142,7 @@ class HomeViewModel
         private var subsBacklog: List<Video> = emptyList()
 
         private var currentQueryIndex = 0
+        private val searchPages = HomeSearchPages({ query, continuation -> repository.searchVideos(query, continuation) })
         private val discoveryQueries = mutableListOf<String>()
         private var wave2Job: Job? = null
         private var feedJob: Job? = null
@@ -497,6 +498,7 @@ class HomeViewModel
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     try {
                         discoveryQueries.clear()
+                        searchPages.reset()
                         // A refresh restarts the discovery tree at its roots (broad pass);
                         // load-more regenerations then dig deeper per cluster.
                         discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
@@ -520,7 +522,7 @@ class HomeViewModel
                                                 async {
                                                     query to
                                                         runCatching {
-                                                            repository.searchVideos(query).first
+                                                            searchPages.firstPage(query)
                                                         }.getOrElse { emptyList() }
                                                 }
                                             }.awaitAll()
@@ -694,8 +696,7 @@ class HomeViewModel
                             )
                         val reserveCandidates =
                             cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
-                                cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
-                                cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds)
+                                cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds)
                         var visibleFeed = emptyList<Video>()
                         _uiState.update { state ->
                             visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
@@ -774,6 +775,8 @@ class HomeViewModel
             taste: FeedTasteProfile,
         ) {
             val wave2Queries = discoveryQueries.drop(currentQueryIndex)
+            // Asked once whatever they return: load-more must not search them again (#907).
+            currentQueryIndex = discoveryQueries.size
             if (wave2Queries.isNotEmpty()) {
                 val wave2FinalMixIds = finalMix.map { it.id }.toHashSet()
                 wave2Job =
@@ -786,7 +789,7 @@ class HomeViewModel
                                             q to (
                                                 withTimeoutOrNull(6_000L) {
                                                     try {
-                                                        repository.searchVideos(q).first
+                                                        searchPages.firstPage(q)
                                                     } catch (cancellation: CancellationException) {
                                                         throw cancellation
                                                     } catch (error: Exception) {
@@ -840,7 +843,6 @@ class HomeViewModel
                                     )
                                 }
                                 updatedSnapshot?.let { persistentHomeFeedCache.saveLastFeed(it) }
-                                currentQueryIndex = discoveryQueries.size
                                 Log.d(TAG, "Wave 2 merged ${wave2Ranked.size} extra candidates")
                             }
                         } catch (cancellation: CancellationException) {
@@ -1053,31 +1055,44 @@ class HomeViewModel
                     discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
                 }
 
+                // The next page of a search already filling Home takes one of the two searches.
+                val continued =
+                    withTimeoutOrNull(6_000L) {
+                        try {
+                            searchPages.nextPageOfProductive(_uiState.value.origins)
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (error: Exception) {
+                            Log.d(TAG, "Next search page failed: ${error.message}")
+                            null
+                        }
+                    }
                 val queryA = discoveryQueries.getOrNull(currentQueryIndex++)
-                val queryB = discoveryQueries.getOrNull(currentQueryIndex++)
+                val queryB = if (continued == null) discoveryQueries.getOrNull(currentQueryIndex++) else null
 
                 val searchQueries = listOfNotNull(queryA, queryB)
 
                 val searches =
-                    coroutineScope {
-                        searchQueries
-                            .map { query ->
-                                async {
-                                    query to (
-                                        withTimeoutOrNull(6_000L) {
-                                            try {
-                                                repository.searchVideos(query).first
-                                            } catch (cancellation: CancellationException) {
-                                                throw cancellation
-                                            } catch (error: Exception) {
-                                                Log.d(TAG, "Prefetch query failed for $query: ${error.message}")
-                                                emptyList()
-                                            }
-                                        } ?: emptyList()
-                                    )
-                                }
-                            }.awaitAll()
-                    }
+                    listOfNotNull(continued) +
+                        coroutineScope {
+                            searchQueries
+                                .map { query ->
+                                    async {
+                                        query to (
+                                            withTimeoutOrNull(6_000L) {
+                                                try {
+                                                    searchPages.firstPage(query)
+                                                } catch (cancellation: CancellationException) {
+                                                    throw cancellation
+                                                } catch (error: Exception) {
+                                                    Log.d(TAG, "Prefetch query failed for $query: ${error.message}")
+                                                    emptyList()
+                                                }
+                                            } ?: emptyList()
+                                        )
+                                    }
+                                }.awaitAll()
+                        }
                 queries += queriesById(searches)
                 val rawVideos = searches.flatMap { it.second }
                 if (!homePrefetchQueue.isCurrent(generation)) return false
