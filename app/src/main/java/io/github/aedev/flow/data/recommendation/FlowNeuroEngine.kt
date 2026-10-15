@@ -18,9 +18,9 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
-import androidx.tracing.traceAsync
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.traced
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -75,9 +75,6 @@ class FlowNeuroEngine internal constructor(
         // Trace sections the startup and Home benchmarks read (#1301).
         const val TRACE_INIT = "neuro.init"
         const val TRACE_RANK = "neuro.rank"
-        private val traceCookies =
-            java.util.concurrent.atomic
-                .AtomicInteger()
 
         // A refresh ranks about 600 candidates; a smaller cache missed on every one of them.
         private const val FEATURE_CACHE_MAX = 700
@@ -491,7 +488,7 @@ class FlowNeuroEngine internal constructor(
             if (isInitialized) return
 
             // Off the caller's thread: a cold start calls this from the main thread too (#1301).
-            traceAsync(TRACE_INIT, traceCookies.incrementAndGet()) {
+            traced(TRACE_INIT) {
                 withContext(Dispatchers.Default) {
                     val stores = listOf(async { contentStore.load() }, async { categoryStore.load() }, async { coWatchStore.load() })
                     val loaded = storage.load()
@@ -2046,7 +2043,7 @@ class FlowNeuroEngine internal constructor(
         userSubs: Set<String>,
         minRelevance: Double = 0.0,
         trace: RankTrace? = null,
-    ): List<Video> = traceAsync(TRACE_RANK, traceCookies.incrementAndGet()) { rankTraced(candidates, userSubs, minRelevance, trace) }
+    ): List<Video> = traced(TRACE_RANK) { rankTraced(candidates, userSubs, minRelevance, trace) }
 
     private suspend fun rankTraced(
         candidates: List<Video>,

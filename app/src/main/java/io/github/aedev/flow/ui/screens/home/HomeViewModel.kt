@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tracing.traceAsync
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
@@ -38,6 +37,7 @@ import io.github.aedev.flow.ui.screens.home.chips.HomeChipFeeds
 import io.github.aedev.flow.ui.screens.home.chips.HomeChipsState
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.traced
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.FlowPreview
@@ -119,9 +119,6 @@ class HomeViewModel
 
             // Trace section the Home refresh benchmark reads (#1301).
             private const val TRACE_WAVE1 = "home.wave1"
-            private val traceCookies =
-                java.util.concurrent.atomic
-                    .AtomicInteger()
 
             // Next pages of earlier searches a short load-more page may fetch.
             private const val DEEPER_SEARCH_PAGES = 2
@@ -534,7 +531,7 @@ class HomeViewModel
                         currentQueryIndex = wave1QueryCount
 
                         val results =
-                            traceAsync(TRACE_WAVE1, traceCookies.incrementAndGet()) {
+                            traced(TRACE_WAVE1) {
                                 supervisorScope {
                                     val deferredDiscovery =
                                         async {
