@@ -319,6 +319,16 @@ jobs:
           retention-days: 14
           compression-level: 0
 
+      # Crash reports name the R8 map id in every frame; the matching mapping turns them back into
+      # source lines with retrace. Kept longer than the APKs because reports arrive weeks later.
+      - name: Upload R8 mappings
+        uses: actions/upload-artifact@v7
+        with:
+          name: flow-r8-mappings
+          path: app/build/outputs/mapping/*/mapping.txt
+          if-no-files-found: warn
+          retention-days: 90
+
   # A rolling prerelease under the tag "nightly". GitHub's "latest release"
   # never includes a prerelease, so stable builds never see it; nightly
   # builds read it by tag (UpdateRepository).
