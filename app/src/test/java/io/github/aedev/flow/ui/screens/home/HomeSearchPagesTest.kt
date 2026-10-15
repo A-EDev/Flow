@@ -50,6 +50,15 @@ class HomeSearchPagesTest {
         }
 
     @Test
+    fun `a cached page names the search a video came from`() =
+        runBlocking<Unit> {
+            pages.firstPage("pixel")
+
+            assertThat(pages.queryOf("pixel-1")).isEqualTo("pixel")
+            assertThat(pages.queryOf("unknown")).isNull()
+        }
+
+    @Test
     fun `a search with fewer than three cards on Home is not continued`() =
         runBlocking<Unit> {
             pages.firstPage("pixel")

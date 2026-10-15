@@ -4161,6 +4161,7 @@
     <string name="home_origin_related">Related to %1$s</string>
     <string name="home_origin_related_watched">Related to a video you watched</string>
     <string name="home_origin_search">From a search for %1$s</string>
+    <string name="home_origin_search_unnamed">From a search for your interests</string>
     <string name="home_origin_channel_memory">From a channel you often watch</string>
     <string name="home_origin_neighbour">A channel like %1$s</string>
     <string name="home_origin_neighbour_unnamed">A channel like the ones you follow</string>

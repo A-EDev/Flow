@@ -68,6 +68,15 @@ internal class HomeSearchPages(
             .maxByOrNull { it.value }
             ?.key
 
+    /** The search a cached page returned [videoId] in, or null once that page left the cache. */
+    suspend fun queryOf(videoId: String): String? =
+        mutex.withLock {
+            pages.entries
+                .firstOrNull { (_, page) -> page.videos.any { it.id == videoId } }
+                ?.key
+                ?.substringBefore('\u0000')
+        }
+
     /** A refresh starts the searches over: the next pages it had kept belong to the old feed. */
     suspend fun reset() = mutex.withLock { nextPage.clear() }
 

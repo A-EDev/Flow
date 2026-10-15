@@ -78,6 +78,7 @@ internal data class SnapshotShown(
     val video: SnapshotVideo,
     val origin: String?,
     val padding: Boolean = false,
+    val detail: String? = null,
 )
 
 @Serializable

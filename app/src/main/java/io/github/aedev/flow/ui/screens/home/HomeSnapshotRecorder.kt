@@ -81,7 +81,15 @@ class HomeSnapshotRecorder
         ) {
             val snapshot = current ?: return
             if (!isRecording()) return
-            val shown = videos.map { SnapshotShown(SnapshotVideo.of(it), origins[it.id]?.kind?.name, trace.isPadding(it.id)) }
+            val shown =
+                videos.map {
+                    SnapshotShown(
+                        SnapshotVideo.of(it),
+                        origins[it.id]?.kind?.name,
+                        trace.isPadding(it.id),
+                        origins[it.id]?.detail,
+                    )
+                }
             current = snapshot.copy(shown = shown)
             store.save(snapshot.copy(shown = shown))
         }

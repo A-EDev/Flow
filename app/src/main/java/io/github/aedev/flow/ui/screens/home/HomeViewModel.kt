@@ -942,6 +942,7 @@ class HomeViewModel
             pageIds: MutableSet<String>,
             userSubs: Set<String>,
             now: Long,
+            searchIds: MutableSet<String>,
         ): Int {
             val reserveRows =
                 try {
@@ -985,6 +986,7 @@ class HomeViewModel
             // Channel memory may already be on the page, so the served rows are the ones added here.
             val served = page.drop(start).map { it.id }
             served.filterTo(relatedPickIds) { it in relatedIds }
+            served.filterNotTo(searchIds) { it in relatedIds }
             if (served.isNotEmpty()) {
                 runCatching { persistentHomeFeedCache.consumeReserve(served) }
             }
@@ -1087,11 +1089,27 @@ class HomeViewModel
                 val relatedTo = HashMap<String, String>()
                 val queries = HashMap<String, String>()
 
-                fun origins() = pageOrigins(page, { if (it in relatedPickIds) FeedSource.RELATED else null }, relatedTo, queries, userSubs)
+                val reserveSearchIds = HashSet<String>()
+
+                fun origins() =
+                    pageOrigins(
+                        page,
+                        {
+                            when (it) {
+                                in relatedPickIds -> FeedSource.RELATED
+                                in reserveSearchIds -> FeedSource.DISCOVERY
+                                else -> null
+                            }
+                        },
+                        relatedTo,
+                        queries,
+                        userSubs,
+                    )
 
                 fillPageFromChannelMemory(page, channelCounts, pageIds, userSubs, now)
 
-                val reserveAdded = fillPageFromReserve(page, channelCounts, pageIds, userSubs, now)
+                val reserveAdded = fillPageFromReserve(page, channelCounts, pageIds, userSubs, now, reserveSearchIds)
+                reserveSearchIds.forEach { id -> searchPages.queryOf(id)?.let { queries[id] = it } }
                 if (page.size >= MIN_PAGE_SIZE) {
                     val appended = appendLoadMorePage(page, generation, origins())
                     appended?.let { persistentHomeFeedCache.saveLastFeed(it) }

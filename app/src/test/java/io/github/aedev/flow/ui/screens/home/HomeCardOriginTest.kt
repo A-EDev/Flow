@@ -42,6 +42,13 @@ class HomeCardOriginTest {
     }
 
     @Test
+    fun `a search card whose query is no longer known still says it came from a search`() {
+        val origins = pageOrigins(listOf(video("r")), { FeedSource.DISCOVERY }, emptyMap(), emptyMap(), emptySet())
+
+        assertThat(origins).containsExactly("r", HomeCardOrigin.search(null))
+    }
+
+    @Test
     fun `a video several searches returned keeps the first`() {
         val shared = video("x")
 

@@ -22,7 +22,7 @@ data class HomeCardOrigin(
 
         fun related(seedTitle: String?) = HomeCardOrigin(Kind.RELATED, seedTitle)
 
-        fun search(query: String) = HomeCardOrigin(Kind.SEARCH, query)
+        fun search(query: String?) = HomeCardOrigin(Kind.SEARCH, query)
 
         fun neighbour(pointers: String?) = HomeCardOrigin(Kind.NEIGHBOUR, pointers)
     }
@@ -41,7 +41,8 @@ internal fun HomeCardOrigin.label(): String =
         }
 
         HomeCardOrigin.Kind.SEARCH -> {
-            stringResource(R.string.home_origin_search, detail.orEmpty())
+            detail?.let { stringResource(R.string.home_origin_search, it) }
+                ?: stringResource(R.string.home_origin_search_unnamed)
         }
 
         HomeCardOrigin.Kind.CHANNEL_MEMORY -> {
@@ -79,7 +80,7 @@ internal fun pageOrigins(
                     }
 
                     FeedSource.DISCOVERY -> {
-                        queries[video.id]?.let(HomeCardOrigin::search)
+                        HomeCardOrigin.search(queries[video.id])
                     }
 
                     FeedSource.CHANNEL_MEMORY -> {
