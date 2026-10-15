@@ -64,8 +64,8 @@ private enum class VideoMenuPage { Actions, Details, Collaborators, Save }
  * A video's menu. [title] and [thumbnailUrl] are what the card shows, so a DeArrow title stays the
  * same in the menu. [showChannel] is false where the screen already is the channel. A playlist that
  * can drop the video passes [onRemoveFromCollection] with its [removeFromCollectionLabel] and icon;
- * it is the last row of the Options group. [relatedTo] names the video a feed found this one next to,
- * shown on the Details page.
+ * it is the last row of the Options group. [whyShown] says why a feed shows
+ * the video, on the Details page.
  */
 @Composable
 fun VideoQuickActionsBottomSheet(
@@ -74,7 +74,7 @@ fun VideoQuickActionsBottomSheet(
     title: String = video.title,
     thumbnailUrl: String = video.thumbnailUrl,
     showChannel: Boolean = true,
-    relatedTo: String? = null,
+    whyShown: String? = null,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
     removeFromCollectionIcon: ImageVector = Icons.Outlined.PlaylistRemove,
@@ -98,7 +98,7 @@ fun VideoQuickActionsBottomSheet(
         when (page) {
             VideoMenuPage.Details -> {
                 QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = close)
-                MediaDetailsPage(subject = video.toDetailsSubject(title, relatedTo))
+                MediaDetailsPage(subject = video.toDetailsSubject(title, whyShown))
             }
 
             VideoMenuPage.Collaborators -> {
@@ -388,7 +388,7 @@ internal fun actionRow(
 
 private fun Video.toDetailsSubject(
     displayTitle: String,
-    relatedTo: String?,
+    whyShown: String?,
 ) = MediaDetailsSubject(
     videoId = id,
     title = displayTitle,
@@ -400,5 +400,5 @@ private fun Video.toDetailsSubject(
     timestamp = timestamp,
     timestampIsExact = timestampIsExact,
     durationSeconds = duration,
-    relatedTo = relatedTo,
+    whyShown = whyShown,
 )
