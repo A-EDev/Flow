@@ -22,6 +22,8 @@ import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.NeighbourChannel
+import io.github.aedev.flow.data.recommendation.NeighbourChannelsRepository
 import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.RankTrace
 import io.github.aedev.flow.data.recommendation.UserBrain
@@ -83,6 +85,7 @@ class HomeViewModel
         private val channelMemory: ChannelMemoryRepository,
         private val chipFeeds: HomeChipFeeds,
         private val snapshotRecorder: HomeSnapshotRecorder,
+        private val neighbourChannels: NeighbourChannelsRepository,
         savedStateHandle: SavedStateHandle,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
@@ -151,6 +154,10 @@ class HomeViewModel
         private var feedJob: Job? = null
         private var subsTopUpJob: Job? = null
         private var channelMemoryJob: Job? = null
+        private var neighbourJob: Job? = null
+
+        // Neighbour cards already counted as shown; an ignored neighbour is dropped after a few.
+        private val shownNeighbourCards = ConcurrentHashMap.newKeySet<String>()
 
         // Set while Diagnostics records Home snapshots: collects why each ranked card was admitted.
         private var snapshotTrace: RankTrace? = null
@@ -603,6 +610,16 @@ class HomeViewModel
                         val watched = watchedVideoIds.value
                         // Cached uploads only: the network refresh runs after first paint.
                         val rawMemory = runCatching { channelMemory.storedUploads(now) }.getOrDefault(emptyList())
+                        val neighbours =
+                            runCatching {
+                                val followed =
+                                    subscriptionRepository.getAllSubscriptions().first().associate {
+                                        it.channelId to
+                                            it.channelName
+                                    }
+                                neighbourChannels.neighbours(followed, now)
+                            }.getOrDefault(emptyList())
+                        val rawNeighbours = runCatching { neighbourChannels.storedUploads(neighbours, now) }.getOrDefault(emptyList())
                         val trace = if (snapshotRecorder.isRecording()) RankTrace() else null
                         snapshotTrace = trace
                         if (trace == null) snapshotFeedJob?.cancel()
@@ -625,6 +642,7 @@ class HomeViewModel
                                     FlowNeuroEngine.rank(pool, userSubs, NeuroScoring.LANE_RELEVANCE_FLOOR, trace)
                                 },
                                 share = FlowNeuroEngine::shareByInterest,
+                                rawNeighbours = rawNeighbours,
                             )
 
                         Log.d(
@@ -699,6 +717,9 @@ class HomeViewModel
                                 relatedSeedTitles(lanes.relatedCandidates, relatedFetch.seedInputs, relatedPickIds),
                                 queriesById(discoveryPairs),
                                 userSubs,
+                                neighbourPointerTexts(
+                                    neighbours,
+                                ) { a, b -> appContext.getString(R.string.home_origin_neighbour_pair, a, b) },
                             )
                         val reserveCandidates =
                             cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
@@ -744,6 +765,7 @@ class HomeViewModel
                         startWave2Discovery(finalMix, userSubs, taste)
                         startSubscriptionTopUp(userSubs, storedFeed)
                         startChannelMemoryRefresh(userSubs)
+                        startNeighbourRefresh(neighbours, storedFeed, userSubs)
                         chipFeeds.refreshChips()
                     } catch (cancellation: CancellationException) {
                         throw cancellation
@@ -771,6 +793,25 @@ class HomeViewModel
                         .distinctUntilChanged()
                         .debounce(SNAPSHOT_FEED_DEBOUNCE_MS)
                         .collect { videos -> snapshotRecorder.recordShown(videos, _uiState.value.origins, trace) }
+                }
+        }
+
+        /**
+         * After paint: fetches the newest uploads of neighbour channels for the next load, and lets two
+         * recent uploads of followed channels teach which channels sit beside them (#907).
+         */
+        private fun startNeighbourRefresh(
+            neighbours: List<NeighbourChannel>,
+            subscriptionFeed: List<Video>,
+            followed: Set<String>,
+        ) {
+            neighbourJob?.cancel()
+            neighbourJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    runCatching { neighbourChannels.refresh(neighbours) }
+                        .onFailure { if (it is CancellationException) throw it else Log.d(TAG, "Neighbour refresh failed: ${it.message}") }
+                    runCatching { feedSources.learnFromFollowed(subscriptionFeed, followed, ::cacheFilters) }
+                        .onFailure { if (it is CancellationException) throw it else Log.d(TAG, "Followed co-watch failed: ${it.message}") }
                 }
         }
 
@@ -1671,5 +1712,11 @@ class HomeViewModel
             val ids = feedImpressionIds(visibleKeys, knownIds)
             if (ids.isEmpty()) return
             viewModelScope.launch { FlowNeuroEngine.recordFeedImpressions(ids) }
+            val state = _uiState.value
+            val neighbourChannelIds =
+                ids
+                    .filter { state.origins[it]?.kind == HomeCardOrigin.Kind.NEIGHBOUR && shownNeighbourCards.add(it) }
+                    .mapNotNull { id -> state.videos.firstOrNull { it.id == id }?.channelId }
+            if (neighbourChannelIds.isNotEmpty()) viewModelScope.launch { neighbourChannels.noteShown(neighbourChannelIds) }
         }
     }

@@ -23,6 +23,7 @@ private const val SHOWN_FRESH_AFTER_SUBS = 3
 private const val BEST_SUBS_LIMIT = 15
 private const val BEST_DISCOVERY_LIMIT = 15
 private const val BEST_MEMORY_LIMIT = 6
+private const val BEST_NEIGHBOUR_LIMIT = 4
 private const val BEST_RELATED_LIMIT = 12
 
 internal fun List<Video>.enrichAvatars(subAvatarMap: Map<String, String>): List<Video> =
@@ -51,6 +52,7 @@ internal data class HomeFeedLanes(
     val bestSubs: List<Video>,
     val bestDiscovery: List<Video>,
     val bestMemory: List<Video>,
+    val bestNeighbours: List<Video>,
     val bestRelated: List<Video>,
     val relatedCandidates: List<GraphCandidate>,
     val relatedMetadata: Map<String, GraphCandidate>,
@@ -62,7 +64,7 @@ internal data class HomeFeedLanes(
     val freshCandidates: Sequence<Video>
         get() =
             pinnedFresh.asSequence() + overflowFresh.asSequence() + bestSubs.asSequence() + shownFresh.asSequence() +
-                bestRelated.asSequence() + bestDiscovery.asSequence() + bestMemory.asSequence()
+                bestRelated.asSequence() + bestDiscovery.asSequence() + bestMemory.asSequence() + bestNeighbours.asSequence()
 }
 
 /**
@@ -89,6 +91,7 @@ internal suspend fun buildHomeFeedLanes(
     rank: suspend (List<Video>) -> List<Video>,
     rankRelevant: suspend (List<Video>) -> List<Video> = rank,
     share: suspend (List<Video>) -> List<Video> = { it },
+    rawNeighbours: List<Video> = emptyList(),
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
@@ -107,6 +110,12 @@ internal suspend fun buildHomeFeedLanes(
             .filterNot(exclusions::hidesFromRecommendations)
     val memoryPool =
         rawMemory
+            .filterValid()
+            .filterWatched(watched)
+            .filterRecentHomeSuggestion(now)
+            .filterNot(exclusions::hidesFromRecommendations)
+    val neighbourPool =
+        rawNeighbours
             .filterValid()
             .filterWatched(watched)
             .filterRecentHomeSuggestion(now)
@@ -169,6 +178,11 @@ internal suspend fun buildHomeFeedLanes(
             demoteByFit(rank(memoryPool), taste)
                 .distinctBy { it.channelId }
                 .take(BEST_MEMORY_LIMIT),
+        // Neighbours are new to the viewer, so they meet the relevance floor like discovery does.
+        bestNeighbours =
+            demoteByFit(rankRelevant(neighbourPool), taste)
+                .distinctBy { it.channelId }
+                .take(BEST_NEIGHBOUR_LIMIT),
         bestRelated =
             share(
                 demoteByFit(
@@ -224,7 +238,7 @@ internal fun assembleHomeFeed(
     }
 
     val remaining = (targetSize - finalMix.size).coerceAtLeast(0)
-    val quotas = homeFeedQuotas(remaining, subCount, totalInteractions)
+    val quotas = homeFeedQuotas(remaining, subCount, totalInteractions, hasNeighbours = lanes.bestNeighbours.isNotEmpty())
     val sourceMix =
         blendFeedSources(
             lanes =
@@ -235,12 +249,13 @@ internal fun assembleHomeFeed(
                     FeedSource.RELATED to lanes.bestRelated,
                     FeedSource.DISCOVERY to lanes.bestDiscovery,
                     FeedSource.CHANNEL_MEMORY to lanes.bestMemory,
+                    FeedSource.NEIGHBOURS to lanes.bestNeighbours,
                 ),
             quotas = quotas,
             targetSize = remaining,
             channelCounts = usedChannelCounts,
             usedVideoIds = usedVideoIds,
-            singleChannels = lanes.bestMemory.mapTo(HashSet()) { it.channelId },
+            singleChannels = (lanes.bestMemory + lanes.bestNeighbours).mapTo(HashSet()) { it.channelId },
         )
     finalMix += sourceMix.videos
 

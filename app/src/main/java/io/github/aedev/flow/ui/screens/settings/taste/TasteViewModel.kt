@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
+import io.github.aedev.flow.data.recommendation.NeighbourChannelsRepository
 import io.github.aedev.flow.data.recommendation.TimeBucket
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
@@ -116,6 +117,7 @@ class TasteViewModel
         private val backup: BackupCoordinator,
         private val channelMemory: ChannelMemoryRepository,
         private val homeSnapshots: HomeSnapshotStore,
+        private val neighbours: NeighbourChannelsRepository,
         private val preferences: PlayerPreferences,
     ) : SettingsViewModel() {
         private val _state = MutableStateFlow(TasteState())
@@ -168,6 +170,7 @@ class TasteViewModel
                 FlowNeuroEngine.resetBrain(context)
                 preferences.setOnboardingDone(false)
                 homeSnapshots.clear()
+                neighbours.clear()
             }
 
         fun resetMusicProfile() = act { musicBrain.resetBrain() }

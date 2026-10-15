@@ -4161,6 +4161,9 @@
     <string name="home_origin_related_watched">Related to a video you watched</string>
     <string name="home_origin_search">From a search for %1$s</string>
     <string name="home_origin_channel_memory">From a channel you often watch</string>
+    <string name="home_origin_neighbour">A channel like %1$s</string>
+    <string name="home_origin_neighbour_unnamed">A channel like the ones you follow</string>
+    <string name="home_origin_neighbour_pair">%1$s and %2$s</string>
     <string name="taste_remembered_header">Channels you keep watching</string>
     <string name="taste_remembered_footer">New uploads from these channels show up on Home now and then. Subscribing to a channel or removing it takes it off this list.</string>
     <string name="taste_remembered_empty">Watch a channel a few times without subscribing and it shows up here.</string>

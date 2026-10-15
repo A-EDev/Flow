@@ -10,6 +10,9 @@ internal enum class FeedSource {
 
     /** New uploads from channels the viewer keeps watching without subscribing; see ChannelMemory. */
     CHANNEL_MEMORY,
+
+    /** Uploads of channels several of the viewer's channels sit next to; see NeighbourChannels (#907). */
+    NEIGHBOURS,
 }
 
 internal data class FeedCandidate(
@@ -28,6 +31,7 @@ internal fun homeFeedQuotas(
     remaining: Int,
     subCount: Int,
     totalInteractions: Int,
+    hasNeighbours: Boolean = false,
 ): Map<FeedSource, Int> {
     val slots = remaining.coerceAtLeast(0)
     if (slots == 0) {
@@ -52,13 +56,16 @@ internal fun homeFeedQuotas(
             else -> (slots * 0.25).toInt()
         }.coerceAtLeast(0)
     // The remainder, about an eighth of the page: the share the retired trending lane used to get.
-    val channelMemory = (slots - subs - related - discovery).coerceAtLeast(0)
+    val remainder = (slots - subs - related - discovery).coerceAtLeast(0)
+    // Neighbours share it once the viewer has channels of their own to point at them.
+    val neighbours = if (hasNeighbours && totalInteractions > 50) minOf(remainder / 2, (slots * 0.10).toInt()) else 0
 
     return mapOf(
         FeedSource.SUBS to subs,
         FeedSource.RELATED to related,
         FeedSource.DISCOVERY to discovery,
-        FeedSource.CHANNEL_MEMORY to channelMemory,
+        FeedSource.CHANNEL_MEMORY to remainder - neighbours,
+        FeedSource.NEIGHBOURS to neighbours,
     )
 }
 
@@ -114,8 +121,8 @@ private fun addUniqueCandidate(
 
 /**
  * Round-robin over the lanes up to each quota, then lanes with leftovers fill what the others could
- * not. [CHANNEL_MEMORY] never takes more than its quota, and a channel in [singleChannels] (one the
- * memory lane serves) appears at most once.
+ * not. [CHANNEL_MEMORY] and [NEIGHBOURS] never take more than their quotas, and a channel in
+ * [singleChannels] (one those lanes serve) appears at most once.
  */
 internal fun blendFeedSources(
     lanes: Map<FeedSource, List<Video>>,
@@ -132,7 +139,7 @@ internal fun blendFeedSources(
         FeedSource.entries.associateWith { source ->
             java.util.ArrayDeque(lanes[source].orEmpty().map { FeedCandidate(it, source) })
         }
-    val quotaOrder = listOf(FeedSource.SUBS, FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY)
+    val quotaOrder = listOf(FeedSource.SUBS, FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.NEIGHBOURS)
     val scarcityOrder = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.SUBS)
     val addedBySource = mutableMapOf<FeedSource, Int>()
     val out = mutableListOf<FeedCandidate>()

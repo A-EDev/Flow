@@ -229,6 +229,15 @@ class HomeFeedLogicTest {
     }
 
     @Test
+    fun `a mature viewer's neighbours share the memory lane's remainder`() {
+        val quotas = homeFeedQuotas(40, subCount = 12, totalInteractions = 200, hasNeighbours = true)
+
+        assertThat(quotas[FeedSource.NEIGHBOURS]).isEqualTo(2)
+        assertThat(quotas[FeedSource.CHANNEL_MEMORY]).isEqualTo(2)
+        assertThat(quotas.values.sum()).isEqualTo(40)
+    }
+
+    @Test
     fun `home feed quotas adapt to no subscription maturing and mature profiles`() {
         assertThat(homeFeedQuotas(40, subCount = 0, totalInteractions = 200))
             .containsExactly(
@@ -240,6 +249,8 @@ class HomeFeedLogicTest {
                 18,
                 FeedSource.CHANNEL_MEMORY,
                 8,
+                FeedSource.NEIGHBOURS,
+                0,
             )
 
         assertThat(homeFeedQuotas(40, subCount = 12, totalInteractions = 20))
@@ -252,6 +263,8 @@ class HomeFeedLogicTest {
                 10,
                 FeedSource.CHANNEL_MEMORY,
                 4,
+                FeedSource.NEIGHBOURS,
+                0,
             )
 
         assertThat(homeFeedQuotas(40, subCount = 12, totalInteractions = 200))
@@ -264,6 +277,8 @@ class HomeFeedLogicTest {
                 10,
                 FeedSource.CHANNEL_MEMORY,
                 4,
+                FeedSource.NEIGHBOURS,
+                0,
             )
     }
 
@@ -299,6 +314,8 @@ class HomeFeedLogicTest {
                 1,
                 FeedSource.CHANNEL_MEMORY,
                 1,
+                FeedSource.NEIGHBOURS,
+                0,
             )
     }
 

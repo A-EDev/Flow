@@ -169,6 +169,11 @@ class FlowNeuroEngine internal constructor(
 
         internal suspend fun diagnosticState(): NeuroDiagnosticState = requireInstance().diagnosticState()
 
+        internal suspend fun neighbourChannels(subscribed: Set<String>): List<NeighbourChannels.Neighbour> =
+            requireInstance().neighbourChannels(subscribed)
+
+        internal suspend fun coWatchChannelNames(): Map<String, String> = requireInstance().coWatchChannelNames()
+
         suspend fun getSavedBrainSnapshot(): UserBrain = requireInstance().getSavedBrainSnapshot()
 
         suspend fun updateChannelMemory(
@@ -634,8 +639,8 @@ class FlowNeuroEngine internal constructor(
         }
 
     private val pendingRelated =
-        object : LinkedHashMap<String, List<String>>(PENDING_RELATED_MAX, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > PENDING_RELATED_MAX
+        object : LinkedHashMap<String, List<Video>>(PENDING_RELATED_MAX, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Video>>?): Boolean = size > PENDING_RELATED_MAX
         }
 
     /** Keeps [related], the list shown beside [videoId], until the viewer really watches or likes the video. */
@@ -644,7 +649,7 @@ class FlowNeuroEngine internal constructor(
         related: List<Video>,
     ) {
         if (videoId.isBlank() || related.isEmpty()) return
-        withBrainLock { pendingRelated[videoId] = related.map { it.channelId } }
+        withBrainLock { pendingRelated[videoId] = related }
     }
 
     /** Records [related] for a [seed] from the viewer's history or likes; feed seeds teach nothing. */
@@ -654,8 +659,47 @@ class FlowNeuroEngine internal constructor(
     ) {
         if (seed.source != GraphSeedSource.WATCH_HISTORY && seed.source != GraphSeedSource.LIKED) return
         if (isLearningPaused()) return
-        withBrainLock { coWatchStore.record(seed.id, seed.channelId, related.map { it.channelId }) }
+        withBrainLock { coWatchStore.record(seed.id, seed.channelId, related) }
     }
+
+    /**
+     * The related list of [video], an upload of a channel the viewer follows: which channels sit next
+     * to the viewer's own, for [neighbourChannels]. Nothing is learned about the viewer's taste.
+     */
+    suspend fun noteRelatedOfFollowed(
+        video: Video,
+        related: List<Video>,
+    ) {
+        if (isLearningPaused()) return
+        withBrainLock { coWatchStore.record(video.id, video.channelId, related) }
+    }
+
+    /** The names co-watch has seen the channels of its related lists under. */
+    suspend fun coWatchChannelNames(): Map<String, String> = withBrainLock { coWatchStore.channelNames() }
+
+    /** Videos whose related list co-watch already holds. */
+    suspend fun coWatchSourceIds(): Set<String> = withBrainLock { coWatchStore.index().sources.keys }
+
+    /** Channels several of the viewer's followed or watched channels sit next to ([NeighbourChannels]). */
+    internal suspend fun neighbourChannels(
+        subscribed: Set<String>,
+        now: Long = System.currentTimeMillis(),
+    ): List<NeighbourChannels.Neighbour> =
+        withBrainLock {
+            val brain = currentUserBrain
+            val suppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+            val anchors = subscribed + brain.channelScores.keys.filter { isWatchedChannel(brain, it) }
+            NeighbourChannels.neighbours(
+                coWatchStore.sources(),
+                anchors,
+                excluded = { channel ->
+                    channel in brain.blockedChannels ||
+                        (brain.suppressedChannels[channel] ?: 0L) > suppressionCutoff ||
+                        (brain.channelScores[channel] ?: NEUTRAL_CHANNEL_SCORE) < NEUTRAL_CHANNEL_SCORE
+                },
+                now,
+            )
+        }
 
     /** Confirmed pairs of channels watched together, a channel counting as watched once a watch raised its score. */
     private fun coWatchEdges(

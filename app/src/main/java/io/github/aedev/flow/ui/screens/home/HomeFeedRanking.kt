@@ -128,7 +128,8 @@ internal fun rhythmBySource(
 }
 
 // Lanes take turns in this order; null holds videos whose lane is not known.
-private val OTHER_LANE_TURNS = listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.SUBS, null)
+private val OTHER_LANE_TURNS =
+    listOf(FeedSource.RELATED, FeedSource.DISCOVERY, FeedSource.CHANNEL_MEMORY, FeedSource.NEIGHBOURS, FeedSource.SUBS, null)
 private const val OTHER_RUN = 2
 private const val MAX_SUBS_RUN = 2
 

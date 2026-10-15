@@ -4,13 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.NeighbourChannel
 
-/** Why a card is on Home, named on its Details page. [detail] is the seed video's title or the search. */
+/**
+ * Why a card is on Home, named on its Details page. [detail] is the seed video's title, the search,
+ * or the viewer's channels a neighbour channel sits next to.
+ */
 data class HomeCardOrigin(
     val kind: Kind,
     val detail: String? = null,
 ) {
-    enum class Kind { SUBSCRIPTION, RELATED, SEARCH, CHANNEL_MEMORY }
+    enum class Kind { SUBSCRIPTION, RELATED, SEARCH, CHANNEL_MEMORY, NEIGHBOUR }
 
     companion object {
         val subscription = HomeCardOrigin(Kind.SUBSCRIPTION)
@@ -19,6 +23,8 @@ data class HomeCardOrigin(
         fun related(seedTitle: String?) = HomeCardOrigin(Kind.RELATED, seedTitle)
 
         fun search(query: String) = HomeCardOrigin(Kind.SEARCH, query)
+
+        fun neighbour(pointers: String?) = HomeCardOrigin(Kind.NEIGHBOUR, pointers)
     }
 }
 
@@ -41,6 +47,11 @@ internal fun HomeCardOrigin.label(): String =
         HomeCardOrigin.Kind.CHANNEL_MEMORY -> {
             stringResource(R.string.home_origin_channel_memory)
         }
+
+        HomeCardOrigin.Kind.NEIGHBOUR -> {
+            detail?.let { stringResource(R.string.home_origin_neighbour, it) }
+                ?: stringResource(R.string.home_origin_neighbour_unnamed)
+        }
     }
 
 /** The search each video came from; a video several searches returned keeps the first. */
@@ -57,6 +68,7 @@ internal fun pageOrigins(
     seedTitles: Map<String, String>,
     queries: Map<String, String>,
     followed: Set<String>,
+    neighbourPointers: Map<String, String> = emptyMap(),
 ): Map<String, HomeCardOrigin> =
     videos
         .mapNotNull { video ->
@@ -78,6 +90,10 @@ internal fun pageOrigins(
                         HomeCardOrigin.subscription
                     }
 
+                    FeedSource.NEIGHBOURS -> {
+                        HomeCardOrigin.neighbour(neighbourPointers[video.channelId])
+                    }
+
                     null -> {
                         when {
                             video.id in seedTitles -> HomeCardOrigin.related(seedTitles[video.id])
@@ -88,4 +104,19 @@ internal fun pageOrigins(
                     }
                 }
             origin?.let { video.id to it }
+        }.toMap()
+
+/** What each neighbour's card says it is like: one or two of the viewer's channels pointing to it. */
+internal fun neighbourPointerTexts(
+    neighbours: List<NeighbourChannel>,
+    pair: (String, String) -> String,
+): Map<String, String> =
+    neighbours
+        .mapNotNull { neighbour ->
+            val names = neighbour.pointerNames
+            when {
+                names.isEmpty() -> null
+                names.size == 1 -> neighbour.channelId to names[0]
+                else -> neighbour.channelId to pair(names[0], names[1])
+            }
         }.toMap()
