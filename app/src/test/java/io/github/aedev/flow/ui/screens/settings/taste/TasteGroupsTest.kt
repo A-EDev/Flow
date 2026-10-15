@@ -22,9 +22,19 @@ class TasteGroupsTest {
 
     @Test
     fun `a group is named by its three strongest words of one subject`() {
-        val groups = tasteGroups(brain, clusters, emptySet(), { if (it == "buy") 0.1 else 1.0 }, count = 8)
+        val groups =
+            tasteGroups(brain, clusters, emptySet(), {
+                if (it == "buy") {
+                    0.1
+                } else if (it == "android") {
+                    0.4
+                } else {
+                    1.0
+                }
+            }, count = 8)
 
-        assertThat(groups.map { it.label }).containsExactly("Pixel · Android · Camera", "Gym · Mma").inOrder()
+        assertThat(groups.map { it.label }).containsExactly("Pixel · Camera", "Gym · Mma").inOrder()
+        assertThat(groups.first().members.map { it.id }).containsExactly("pixel", "android", "camera").inOrder()
         assertThat(groups.first().share).isEqualTo(1f)
     }
 

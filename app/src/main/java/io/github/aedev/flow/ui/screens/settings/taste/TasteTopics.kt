@@ -56,6 +56,9 @@ internal fun tastePicks(
 
 private const val GROUP_LABEL_WORDS = 3
 
+// A group is named by words of one subject; a commoner word still counts among its members.
+private const val GROUP_NAME_MIN_SPECIFICITY = 0.5
+
 /**
  * The learned interests in the groups the engine reads them in, strongest group first, each named
  * by its three strongest words: "Pixel · Android · Camera" says more than "Pixel" (#907). Picks and
@@ -103,7 +106,12 @@ internal fun tasteGroups(
             }
         TasteGroup(
             id = cluster.representative,
-            label = topics.take(GROUP_LABEL_WORDS).joinToString(" · ") { it.label },
+            label =
+                topics
+                    .filter { specificity(it.id) >= GROUP_NAME_MIN_SPECIFICITY }
+                    .ifEmpty { topics }
+                    .take(GROUP_LABEL_WORDS)
+                    .joinToString(" · ") { it.label },
             share = (cluster.mass / strongest).toFloat(),
             evidence = topics.maxOf { it.evidence },
             members = topics,
