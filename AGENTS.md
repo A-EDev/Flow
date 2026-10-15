@@ -224,7 +224,7 @@ hard constraints, not suggestions.
     what was measured or verified (frame counts, load times from logs, fetch counts, benchmark
     output) and what was not. Recommendation-engine changes require their offline benchmarks
     (`MusicBenchmarkTest` / `NeuroBenchmarkTest` regression floors) before and after; startup
-    changes require `StartupBenchmarks`, not baseline-profile size.
+    changes require `StartupBenchmark`, not baseline-profile size.
 15. Player-path changes (ExoPlayer/Media3 setup, buffering config, surface handling, track
     selection) must not introduce added latency, buffering stalls, or black-screen/flicker
     regressions. Follow the existing player architecture rather than re-inventing player wiring.
@@ -503,11 +503,11 @@ revision must pass the configured ktlint rules.
 
 ## Baseline profile — when to regenerate
 
-The app ships a generated baseline profile at `app/src/githubRelease/generated/baselineProfiles/`
+The app ships a generated baseline profile at `app/src/main/generated/baselineProfiles/`
 (`baseline-prof.txt` drives ART's AOT compilation; `startup-prof.txt` drives dex layout). It is
 generated on a real device by the `:benchmark` module, and the generated files **are committed**.
-The `nightly` build type reads the same files (`sourceSets.nightly.baselineProfiles`), so nightly
-startup matches release.
+`baselineProfile { mergeIntoMain = true }` makes every shipped variant (github, foss, nightly) read
+the same files, so foss and nightly startup match github release.
 
 ```bash
 ./gradlew :app:generateGithubReleaseBaselineProfile
@@ -537,4 +537,4 @@ run that occupies a physical device, and the resulting diff is thousands of line
   `classes.dex`. Keep `startup-prof.txt` a genuinely small subset of `baseline-prof.txt`.
 - Profile size is **not** a measure of startup work: it records everything executed during the
   journey on any thread, so moving work to a background thread keeps it in the profile. Use
-  `StartupBenchmarks` (`:benchmark:connectedBenchmarkReleaseAndroidTest`) to measure.
+  `StartupBenchmark` (`:benchmark:connectedBenchmarkReleaseAndroidTest`) to measure.
