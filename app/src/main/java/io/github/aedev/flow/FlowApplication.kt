@@ -18,6 +18,8 @@ import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.notification.BackgroundCheckScheduler
 import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.player.PlaybackShutdown
+import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.screens.home.HomeFeedLanguageReset
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -144,6 +146,7 @@ class FlowApplication :
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             BackgroundCheckScheduler.follow(this@FlowApplication, playerPreferences)
         }
+        SleepTimerManager.attachExitCallback { PlaybackShutdown.closeApp(this) }
 
         val warmups = StartupWarmups(this)
         warmups.startWithFirstActivity()
