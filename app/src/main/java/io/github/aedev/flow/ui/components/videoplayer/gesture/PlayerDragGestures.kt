@@ -14,6 +14,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -68,6 +69,10 @@ internal fun Modifier.playerDragGestures(
     volumeSwipeGesturesEnabled: State<Boolean>,
     seekSwipeGesturesEnabled: State<Boolean>,
     allowVolumeBoost: State<Boolean>,
+    speedSwipeSide: State<SpeedSwipeSide>,
+    speedSwipeStep: State<Float>,
+    onSpeedSwipe: State<(speed: Float) -> Unit>,
+    onSpeedSwipeEnd: State<(speed: Float) -> Unit>,
     sideEdgeIgnorePx: State<Float>,
     onExitFullscreen: State<((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)?>,
     onExitFullscreenDrag: State<(offsetPx: Float) -> Unit>,
@@ -93,6 +98,10 @@ internal fun Modifier.playerDragGestures(
     val currentVolumeSwipeGesturesEnabled by volumeSwipeGesturesEnabled
     val currentSeekSwipeGesturesEnabled by seekSwipeGesturesEnabled
     val currentAllowVolumeBoost by allowVolumeBoost
+    val currentSpeedSwipeSide by speedSwipeSide
+    val currentSpeedSwipeStep by speedSwipeStep
+    val currentOnSpeedSwipe by onSpeedSwipe
+    val currentOnSpeedSwipeEnd by onSpeedSwipeEnd
     val currentSideEdgeIgnorePx by sideEdgeIgnorePx
     val currentOnExitFullscreen by onExitFullscreen
     val currentOnExitFullscreenDrag by onExitFullscreenDrag
@@ -101,6 +110,19 @@ internal fun Modifier.playerDragGestures(
     // player sheet keeps them for minimising and entering fullscreen.
     return this.pointerInput(currentIsFullscreen) {
         var isCenterZone = false
+        var isSpeedDrag = false
+        val speedDrag =
+            SpeedSwipeDrag(
+                haptics = haptics,
+                step = { currentSpeedSwipeStep },
+                onSpeed = { currentOnSpeedSwipe(it) },
+                onEnd = { currentOnSpeedSwipeEnd(it) },
+            )
+
+        fun endSpeedDrag() {
+            speedDrag.end()
+            isSpeedDrag = false
+        }
         var exitDragTravel = 0f
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
@@ -351,6 +373,7 @@ internal fun Modifier.playerDragGestures(
                     brightnessGestureLevel = Float.NaN
                     lastBrightnessEdge = 0
                     seekDragStarted = false
+                    endSpeedDrag()
 
                     // The side dead zones belong to the system's back gesture and to nothing
                     // else: a swipe that starts there is on its way out of the app, and claiming
@@ -368,6 +391,8 @@ internal fun Modifier.playerDragGestures(
                     } else {
                         val width = size.width
                         isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
+                        isSpeedDrag = !isCenterZone && PlayerSpeedSwipe.ownsDrag(currentSpeedSwipeSide, offset.x, width.toFloat())
+                        if (isSpeedDrag) speedDrag.begin()
                         true
                     }
                 },
@@ -396,6 +421,10 @@ internal fun Modifier.playerDragGestures(
                                     applyExitDrag(delta.y)
                                 }
 
+                                isSpeedDrag -> {
+                                    speedDrag.drag(delta.y, SpeedSwipeStepTravel.toPx())
+                                }
+
                                 change.position.x < width / 2 -> {
                                     if (currentBrightnessSwipeGesturesEnabled) applyBrightnessDrag(delta.y)
                                 }
@@ -416,6 +445,7 @@ internal fun Modifier.playerDragGestures(
 
                         PlayerDragAxis.VERTICAL -> {
                             endExitDrag(commit = isCenterZone)
+                            endSpeedDrag()
                             scope.launch {
                                 delay(500) // Delay hiding controls
                                 currentOnShowBrightnessChange(false)
@@ -433,6 +463,7 @@ internal fun Modifier.playerDragGestures(
                         }
 
                         PlayerDragAxis.VERTICAL -> {
+                            endSpeedDrag()
                             scope.launch {
                                 currentOnShowBrightnessChange(false)
                                 currentOnShowVolumeChange(false)
@@ -448,6 +479,7 @@ internal fun Modifier.playerDragGestures(
             exitSettleJob?.cancel()
             currentOnExitFullscreenDrag(0f)
             if (seekDragStarted) currentOnSeekDragChange(false)
+            endSpeedDrag()
         }
     }
 }
