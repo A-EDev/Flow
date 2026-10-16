@@ -8,15 +8,12 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import dagger.hilt.android.HiltAndroidApp
-import io.github.aedev.flow.data.local.CONTENT_LANGUAGE_FOLLOW_APP
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeLocale
-import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.notification.NotificationHelper
@@ -25,9 +22,9 @@ import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
+import io.github.aedev.flow.utils.contentYouTubeLocale
 import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
-import io.github.aedev.flow.utils.normalizeYouTubeCountry
 import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
 import io.github.aedev.flow.utils.potoken.VisitorIdentityStore
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
@@ -218,18 +215,18 @@ class FlowApplication :
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            AppLanguageManager.languageAdoptedFromSystem.filterNotNull().collect(playerPreferences::setAppLanguage)
+            AppLanguageManager.appliedLanguage.filterNotNull().collect { tag ->
+                if (playerPreferences.appLanguage.first() != tag) playerPreferences.setAppLanguage(tag)
+            }
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             combine(
-                playerPreferences.appLanguage,
+                AppLanguageManager.appliedLanguage.filterNotNull(),
                 playerPreferences.contentLanguage,
                 playerPreferences.trendingRegion,
-            ) { appLanguage, contentLanguage, region ->
-                val language = if (contentLanguage == CONTENT_LANGUAGE_FOLLOW_APP) appLanguage else contentLanguage
-                YouTubeLocale(gl = normalizeYouTubeCountry(region), hl = normalizeYouTubeHostLanguage(language))
-            }.collectLatest { newLocale ->
+                ::contentYouTubeLocale,
+            ).distinctUntilChanged().collectLatest { newLocale ->
                 YouTube.locale = newLocale
                 NewPipe.setupLocalization(
                     newPipeLocalization(newLocale.hl),
