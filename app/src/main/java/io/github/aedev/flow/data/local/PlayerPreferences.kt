@@ -336,6 +336,8 @@ class PlayerPreferences(
         val CUSTOM_SPEED_PRESETS = stringPreferencesKey("custom_speed_presets")
         val SPEED_SLIDER_ENABLED = booleanPreferencesKey("speed_slider_enabled")
         val LONG_PRESS_PLAYBACK_SPEED = floatPreferencesKey("long_press_playback_speed")
+        val SPEED_SWIPE_SIDE = stringPreferencesKey("speed_swipe_side")
+        val SPEED_SWIPE_STEP = floatPreferencesKey("speed_swipe_step")
 
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
@@ -2265,6 +2267,32 @@ class PlayerPreferences(
         }
     }
 
+    val speedSwipeSide: Flow<SpeedSwipeSide> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SPEED_SWIPE_SIDE]
+                    ?.let { stored -> runCatching { SpeedSwipeSide.valueOf(stored) }.getOrNull() }
+                    ?: SpeedSwipeSide.OFF
+            }
+
+    suspend fun setSpeedSwipeSide(side: SpeedSwipeSide) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPEED_SWIPE_SIDE] = side.name
+        }
+    }
+
+    val speedSwipeStep: Flow<Float> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.SPEED_SWIPE_STEP]?.takeIf { it in SPEED_SWIPE_STEPS } ?: DEFAULT_SPEED_SWIPE_STEP
+            }
+
+    suspend fun setSpeedSwipeStep(step: Float) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPEED_SWIPE_STEP] = step.takeIf { it in SPEED_SWIPE_STEPS } ?: DEFAULT_SPEED_SWIPE_STEP
+        }
+    }
+
     // Subscriptions feed view mode
     val subsFullWidthView: Flow<Boolean> =
         context.playerPreferencesDataStore.data
@@ -3796,12 +3824,28 @@ enum class MusicPlayerBackgroundStyle {
     DEFAULT,
 }
 
-/** How much of the player's width each double-tap seek side takes. */
+/** Which side of the fullscreen player a vertical swipe changes the playback speed on, in place of brightness or volume. */
+enum class SpeedSwipeSide {
+    OFF,
+    LEFT,
+    RIGHT,
+}
+
+/** How much one step of a speed swipe changes the speed by. */
+val SPEED_SWIPE_STEPS = listOf(0.05f, 0.1f, 0.25f)
+const val DEFAULT_SPEED_SWIPE_STEP = 0.1f
+
+/**
+ * How much of the player's width each double-tap seek side takes. [reachesEdges] lets taps count right
+ * up to the screen edges instead of leaving them to the back gesture.
+ */
 enum class DoubleTapSeekZone(
     val sideFraction: Float,
+    val reachesEdges: Boolean = false,
 ) {
     NORMAL(1f / 3f),
     NARROW(1f / 4f),
+    EDGE_TO_EDGE(1f / 3f, reachesEdges = true),
 }
 
 /** A mini bar swipe. The music bar only acts on [CLOSE], [NEXT] and [PREVIOUS]; it closes on the rest. */

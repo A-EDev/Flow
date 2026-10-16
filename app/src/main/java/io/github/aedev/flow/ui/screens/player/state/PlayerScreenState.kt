@@ -43,6 +43,8 @@ class PlayerScreenState {
     var volumeLevel by mutableFloatStateOf(0.5f)
     var showBrightnessOverlay by mutableStateOf(false)
     var showVolumeOverlay by mutableStateOf(false)
+    var showSpeedSwipeOverlay by mutableStateOf(false)
+    var speedSwipeLevel by mutableFloatStateOf(1.0f)
 
     // Seek Animation States
     var showSeekForwardAnimation by mutableStateOf(false)
@@ -93,6 +95,7 @@ class PlayerScreenState {
         selectedTranscriptUrl = null
         showBrightnessOverlay = false
         showVolumeOverlay = false
+        showSpeedSwipeOverlay = false
         showSeekBackAnimation = false
         showSeekForwardAnimation = false
         hasShownShortsPrompt = false

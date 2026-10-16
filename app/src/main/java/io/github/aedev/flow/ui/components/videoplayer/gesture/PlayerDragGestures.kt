@@ -6,22 +6,15 @@ import android.os.SystemClock
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -76,6 +69,10 @@ internal fun Modifier.playerDragGestures(
     volumeSwipeGesturesEnabled: State<Boolean>,
     seekSwipeGesturesEnabled: State<Boolean>,
     allowVolumeBoost: State<Boolean>,
+    speedSwipeSide: State<SpeedSwipeSide>,
+    speedSwipeStep: State<Float>,
+    onSpeedSwipe: State<(speed: Float) -> Unit>,
+    onSpeedSwipeEnd: State<(speed: Float) -> Unit>,
     sideEdgeIgnorePx: State<Float>,
     onExitFullscreen: State<((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)?>,
     onExitFullscreenDrag: State<(offsetPx: Float) -> Unit>,
@@ -101,14 +98,31 @@ internal fun Modifier.playerDragGestures(
     val currentVolumeSwipeGesturesEnabled by volumeSwipeGesturesEnabled
     val currentSeekSwipeGesturesEnabled by seekSwipeGesturesEnabled
     val currentAllowVolumeBoost by allowVolumeBoost
+    val currentSpeedSwipeSide by speedSwipeSide
+    val currentSpeedSwipeStep by speedSwipeStep
+    val currentOnSpeedSwipe by onSpeedSwipe
+    val currentOnSpeedSwipeEnd by onSpeedSwipeEnd
     val currentSideEdgeIgnorePx by sideEdgeIgnorePx
     val currentOnExitFullscreen by onExitFullscreen
     val currentOnExitFullscreenDrag by onExitFullscreenDrag
 
+    // Outside fullscreen only the sideways seek is claimed: vertical drags stay unconsumed so the
+    // player sheet keeps them for minimising and entering fullscreen.
     return this.pointerInput(currentIsFullscreen) {
-        if (!currentIsFullscreen) return@pointerInput
-
         var isCenterZone = false
+        var isSpeedDrag = false
+        val speedDrag =
+            SpeedSwipeDrag(
+                haptics = haptics,
+                step = { currentSpeedSwipeStep },
+                onSpeed = { currentOnSpeedSwipe(it) },
+                onEnd = { currentOnSpeedSwipeEnd(it) },
+            )
+
+        fun endSpeedDrag() {
+            speedDrag.end()
+            isSpeedDrag = false
+        }
         var exitDragTravel = 0f
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
@@ -359,6 +373,7 @@ internal fun Modifier.playerDragGestures(
                     brightnessGestureLevel = Float.NaN
                     lastBrightnessEdge = 0
                     seekDragStarted = false
+                    endSpeedDrag()
 
                     // The side dead zones belong to the system's back gesture and to nothing
                     // else: a swipe that starts there is on its way out of the app, and claiming
@@ -376,13 +391,18 @@ internal fun Modifier.playerDragGestures(
                     } else {
                         val width = size.width
                         isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
+                        isSpeedDrag =
+                            currentIsFullscreen &&
+                            !isCenterZone &&
+                            PlayerSpeedSwipe.ownsDrag(currentSpeedSwipeSide, offset.x, width.toFloat())
+                        if (isSpeedDrag) speedDrag.begin()
                         true
                     }
                 },
                 onAxisAccepted = { axis ->
                     when (axis) {
                         PlayerDragAxis.HORIZONTAL -> currentSeekSwipeGesturesEnabled && currentDuration > 0L
-                        PlayerDragAxis.VERTICAL -> true
+                        PlayerDragAxis.VERTICAL -> currentIsFullscreen
                     }
                 },
                 onDrag = { change, delta, axis ->
@@ -402,6 +422,10 @@ internal fun Modifier.playerDragGestures(
                                     if (exitDragTravel == 0f) exitVelocity.resetTracking()
                                     exitVelocity.addPosition(change.uptimeMillis, change.position)
                                     applyExitDrag(delta.y)
+                                }
+
+                                isSpeedDrag -> {
+                                    speedDrag.drag(delta.y, SpeedSwipeStepTravel.toPx())
                                 }
 
                                 change.position.x < width / 2 -> {
@@ -424,6 +448,7 @@ internal fun Modifier.playerDragGestures(
 
                         PlayerDragAxis.VERTICAL -> {
                             endExitDrag(commit = isCenterZone)
+                            endSpeedDrag()
                             scope.launch {
                                 delay(500) // Delay hiding controls
                                 currentOnShowBrightnessChange(false)
@@ -441,6 +466,7 @@ internal fun Modifier.playerDragGestures(
                         }
 
                         PlayerDragAxis.VERTICAL -> {
+                            endSpeedDrag()
                             scope.launch {
                                 currentOnShowBrightnessChange(false)
                                 currentOnShowVolumeChange(false)
@@ -456,61 +482,7 @@ internal fun Modifier.playerDragGestures(
             exitSettleJob?.cancel()
             currentOnExitFullscreenDrag(0f)
             if (seekDragStarted) currentOnSeekDragChange(false)
+            endSpeedDrag()
         }
-    }
-}
-
-internal enum class PlayerDragAxis { HORIZONTAL, VERTICAL }
-
-/**
- * Axis-locked drag detection.
- *
- * `detectDragGestures` cannot express this: it consumes the pointer the moment any drag begins, so
- * it claimed horizontal movement the player had no use for, and it resolved the axis from a running
- * total that could flip mid-gesture. Here the axis is decided once, at the instant touch slop is
- * crossed, and the pointer is only consumed when [onAxisAccepted] wants that axis — a drag we do
- * not handle stays unconsumed and remains available to the parent (the draggable player sheet).
- *
- * [onDragStart] returns false to ignore the gesture entirely, which is how the edge exclusion zones
- * keep their hands off the controls sitting under them.
- */
-private suspend fun PointerInputScope.detectPlayerDrags(
-    onDragStart: (Offset) -> Boolean,
-    onAxisAccepted: (PlayerDragAxis) -> Boolean,
-    onDrag: (change: PointerInputChange, delta: Offset, axis: PlayerDragAxis) -> Unit,
-    onDragEnd: (PlayerDragAxis) -> Unit,
-    onDragCancel: (PlayerDragAxis) -> Unit,
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        if (!onDragStart(down.position)) return@awaitEachGesture
-
-        var axis: PlayerDragAxis? = null
-        val dragStart =
-            awaitTouchSlopOrCancellation(down.id) { change, overSlop ->
-                val candidate =
-                    if (abs(overSlop.x) > abs(overSlop.y)) {
-                        PlayerDragAxis.HORIZONTAL
-                    } else {
-                        PlayerDragAxis.VERTICAL
-                    }
-                // Consuming is what claims the gesture. Leaving it unconsumed makes
-                // awaitTouchSlopOrCancellation keep waiting, so a rejected axis neither steals the
-                // pointer nor ends the gesture.
-                if (onAxisAccepted(candidate)) {
-                    axis = candidate
-                    change.consume()
-                }
-            } ?: return@awaitEachGesture
-
-        val lockedAxis = axis ?: return@awaitEachGesture
-
-        val completed =
-            drag(dragStart.id) { change ->
-                onDrag(change, change.positionChange(), lockedAxis)
-                change.consume()
-            }
-
-        if (completed) onDragEnd(lockedAxis) else onDragCancel(lockedAxis)
     }
 }

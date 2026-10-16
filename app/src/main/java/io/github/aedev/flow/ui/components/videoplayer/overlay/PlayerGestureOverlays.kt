@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 
 private val HudSideInset = 16.dp
@@ -22,6 +23,7 @@ fun PlayerGestureOverlays(
     speedBoostSpeed: Float,
     style: GestureOverlayStyle,
     seekZoneFraction: Float,
+    speedSwipeSide: SpeedSwipeSide,
     modifier: Modifier = Modifier,
 ) {
     // Force LTR so CenterStart/CenterEnd always map to physical left/right,
@@ -73,6 +75,23 @@ fun PlayerGestureOverlays(
                     if (isVertical) {
                         Modifier
                             .align(Alignment.CenterStart)
+                            .padding(horizontal = edgeInset)
+                    } else {
+                        Modifier
+                            .align(centredAlignment)
+                            .padding(top = centredTopInset)
+                    },
+            )
+
+            // Like the level bars, the speed bar reads out opposite the thumb doing the swiping.
+            SpeedSwipeOverlay(
+                isVisible = screenState.showSpeedSwipeOverlay,
+                speed = { screenState.speedSwipeLevel },
+                style = style,
+                modifier =
+                    if (isVertical) {
+                        Modifier
+                            .align(if (speedSwipeSide == SpeedSwipeSide.RIGHT) Alignment.CenterStart else Alignment.CenterEnd)
                             .padding(horizontal = edgeInset)
                     } else {
                         Modifier

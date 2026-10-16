@@ -25,12 +25,12 @@ import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.settings.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.saveChosenPlaybackSpeed
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -102,13 +102,12 @@ internal fun PlayerSettingsSheetHost(
         onSpeedSelected = { speed ->
             EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
             screenState.normalSpeed = speed
-            val channelId = uiState.cachedVideo?.channelId
-            scope.launch {
-                if (rememberPlaybackSpeed) playerPreferences.setPlaybackSpeed(speed)
-                if (!channelId.isNullOrBlank() && playerPreferences.speedPerChannel.first()) {
-                    playerPreferences.setChannelPlaybackSpeed(channelId, speed)
-                }
-            }
+            scope.saveChosenPlaybackSpeed(
+                playerPreferences = playerPreferences,
+                speed = speed,
+                rememberPlaybackSpeed = rememberPlaybackSpeed,
+                channelId = uiState.cachedVideo?.channelId,
+            )
         },
         selectedSubtitleUrl = playerState.selectedSubtitleUrl,
         onSubtitleSelected = { index ->

@@ -180,6 +180,21 @@ internal object PlaybackIndex {
             section = R.string.player_appearance_gestures_header,
             destination = page,
         )
+    val speedSwipe =
+        SettingEntry(
+            key = "playback.speed_swipe",
+            title = R.string.player_settings_speed_swipe,
+            keywords = R.string.settings_keywords_gestures,
+            section = R.string.player_appearance_gestures_header,
+            destination = page,
+        )
+    val speedSwipeStep =
+        SettingEntry(
+            key = "playback.speed_swipe_step",
+            title = R.string.player_settings_speed_swipe_step,
+            section = R.string.player_appearance_gestures_header,
+            destination = page,
+        )
     val seekGesture =
         SettingEntry(
             key = "playback.seek_gesture",
@@ -494,6 +509,8 @@ internal object PlaybackIndex {
             rememberBrightness,
             volumeGesture,
             volumeBoost,
+            speedSwipe,
+            speedSwipeStep,
             seekGesture,
             haptics,
             controlsWhileLoading,

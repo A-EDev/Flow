@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.BrightnessLow
 import androidx.compose.material.icons.rounded.BrightnessMedium
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,9 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.ui.components.shared.MAX_SLIDER_PLAYBACK_SPEED
+import io.github.aedev.flow.ui.components.shared.MIN_PLAYBACK_SPEED
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
+import io.github.aedev.flow.utils.formatMultiplierLabel
 
 private val VerticalTrackLength = 168.dp
 private val VerticalHudWidth = 56.dp
@@ -126,6 +130,32 @@ internal fun VolumeOverlay(
             // the ceiling the bar stays full and turns to the error colour while the number climbs.
             progress = { animatedVolume.value.coerceIn(0f, 1f) },
             indicatorColor = indicatorColor,
+        )
+    }
+}
+
+/** The speed read-out shown mid speed swipe, on the same track as brightness and volume. */
+@Composable
+internal fun SpeedSwipeOverlay(
+    isVisible: Boolean,
+    speed: () -> Float,
+    style: GestureOverlayStyle,
+    modifier: Modifier = Modifier,
+) {
+    GestureLevelHud(isVisible = isVisible, modifier = modifier) {
+        val value = speed()
+        val animatedProgress =
+            animateFloatAsState(
+                targetValue = ((value - MIN_PLAYBACK_SPEED) / (MAX_SLIDER_PLAYBACK_SPEED - MIN_PLAYBACK_SPEED)).coerceIn(0f, 1f),
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                label = "speed",
+            )
+        GestureLevelHudContent(
+            style = style,
+            icon = Icons.Rounded.Speed,
+            valueLabel = formatMultiplierLabel(value, maxValue = MAX_SLIDER_PLAYBACK_SPEED),
+            progress = { animatedProgress.value },
+            indicatorColor = MaterialTheme.colorScheme.primary,
         )
     }
 }

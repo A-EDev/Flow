@@ -34,6 +34,8 @@ class PlayerScreenStateTest {
             "volumeLevel" to 0.5f,
             "showBrightnessOverlay" to false,
             "showVolumeOverlay" to false,
+            "showSpeedSwipeOverlay" to false,
+            "speedSwipeLevel" to 1.0f,
             "showSeekForwardAnimation" to false,
             "seekAccumulation" to 10,
             "showSeekBackAnimation" to false,
@@ -65,6 +67,7 @@ class PlayerScreenStateTest {
             "duration",
             "showBrightnessOverlay",
             "showVolumeOverlay",
+            "showSpeedSwipeOverlay",
             "showSeekBackAnimation",
             "showSeekForwardAnimation",
             "hasShownShortsPrompt",
@@ -88,6 +91,7 @@ class PlayerScreenStateTest {
             "commentSortFilter",
             "brightnessLevel",
             "volumeLevel",
+            "speedSwipeLevel",
             "seekAccumulation",
             "subtitleStyle",
             "resizeMode",
@@ -131,6 +135,8 @@ class PlayerScreenStateTest {
             "volumeLevel" to volumeLevel,
             "showBrightnessOverlay" to showBrightnessOverlay,
             "showVolumeOverlay" to showVolumeOverlay,
+            "showSpeedSwipeOverlay" to showSpeedSwipeOverlay,
+            "speedSwipeLevel" to speedSwipeLevel,
             "showSeekForwardAnimation" to showSeekForwardAnimation,
             "seekAccumulation" to seekAccumulation,
             "showSeekBackAnimation" to showSeekBackAnimation,
@@ -170,6 +176,8 @@ class PlayerScreenStateTest {
         volumeLevel = 0.1f
         showBrightnessOverlay = true
         showVolumeOverlay = true
+        showSpeedSwipeOverlay = true
+        speedSwipeLevel = 2.5f
         showSeekForwardAnimation = true
         seekAccumulation = 30
         showSeekBackAnimation = true

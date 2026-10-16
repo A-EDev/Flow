@@ -16,10 +16,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SPEED_SWIPE_STEPS
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.utils.LanguageCatalog
+import io.github.aedev.flow.utils.formatMultiplierLabel
 import kotlin.math.roundToInt
 
 private val SliderTopPadding = 8.dp
@@ -63,6 +66,30 @@ internal fun PlaybackDialogs(
                 options = DoubleTapSeekOptions.map { FlowChoice(it, doubleTapSeekLabel(it)) },
                 selected = seconds,
                 onSelect = viewModel::setDoubleTapSeek,
+                onDismiss = onDismiss,
+            )
+        }
+
+        PlaybackDialog.SPEED_SWIPE_SIDE -> {
+            val side by viewModel.speedSwipeSide.collectAsStateWithLifecycle()
+            FlowChoiceDialog(
+                title = stringResource(R.string.player_settings_speed_swipe),
+                description = stringResource(R.string.player_settings_speed_swipe_dialog_body),
+                options = SpeedSwipeSide.entries.map { FlowChoice(it, speedSwipeSideLabel(it)) },
+                selected = side,
+                onSelect = viewModel::setSpeedSwipeSide,
+                onDismiss = onDismiss,
+            )
+        }
+
+        PlaybackDialog.SPEED_SWIPE_STEP -> {
+            val step by viewModel.speedSwipeStep.collectAsStateWithLifecycle()
+            FlowChoiceDialog(
+                title = stringResource(R.string.player_settings_speed_swipe_step),
+                description = stringResource(R.string.player_settings_speed_swipe_step_dialog_body),
+                options = SPEED_SWIPE_STEPS.map { FlowChoice(it, formatMultiplierLabel(it)) },
+                selected = step,
+                onSelect = viewModel::setSpeedSwipeStep,
                 onDismiss = onDismiss,
             )
         }

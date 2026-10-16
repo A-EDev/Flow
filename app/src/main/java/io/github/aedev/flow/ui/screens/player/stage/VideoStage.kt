@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -16,6 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.videoplayer.MINI_PLAYER_CORNER_RADIUS_DP
@@ -24,6 +26,7 @@ import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerControl
 import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerZoom
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.screens.player.saveChosenPlaybackSpeed
 
 /**
  * The player's video slot: the surface itself, the gesture and zoom transforms wrapped around it,
@@ -58,6 +61,7 @@ internal fun VideoStage(
     val activity = session.activity
     val audioSystemInfo = session.audioSystemInfo
     val isLandscapeWindow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val playerPreferences = remember(session.context) { PlayerPreferences(session.context) }
 
     // ALWAYS use the same video surface
     val gestureModifier =
@@ -101,8 +105,24 @@ internal fun VideoStage(
                     volumeSwipeGesturesEnabled = prefs.volumeSwipeGesturesEnabled,
                     seekSwipeGesturesEnabled = prefs.seekSwipeGesturesEnabled,
                     allowVolumeBoost = prefs.allowVolumeBoost,
+                    speedSwipeSide = prefs.speedSwipeSide,
+                    speedSwipeStep = prefs.speedSwipeStep,
+                    onSpeedSwipe = { speed ->
+                        screenState.speedSwipeLevel = speed
+                        screenState.showSpeedSwipeOverlay = true
+                    },
+                    onSpeedSwipeEnd = { speed ->
+                        screenState.normalSpeed = speed
+                        scope.saveChosenPlaybackSpeed(
+                            playerPreferences = playerPreferences,
+                            speed = speed,
+                            rememberPlaybackSpeed = prefs.rememberPlaybackSpeed,
+                            channelId = playerUiState.cachedVideo?.channelId,
+                        )
+                    },
                     doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
                     seekZoneFraction = prefs.doubleTapSeekZone.sideFraction,
+                    seekZoneReachesEdges = prefs.doubleTapSeekZone.reachesEdges,
                     longPressPlaybackSpeed = prefs.longPressPlaybackSpeed,
                     onExitFullscreen = { releaseOffsetPx, releaseVelocityPx ->
                         if (!isLandscapeWindow) playerSheetState.exitPortraitFullscreenFrom(releaseOffsetPx, releaseVelocityPx)

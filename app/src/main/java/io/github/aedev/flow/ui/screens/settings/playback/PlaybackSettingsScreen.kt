@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 
@@ -18,6 +19,8 @@ internal enum class PlaybackDialog {
     LONG_PRESS_SPEED,
     DOUBLE_TAP_SEEK,
     SEEK_ZONE_WIDTH,
+    SPEED_SWIPE_SIDE,
+    SPEED_SWIPE_STEP,
     AUDIO_LANGUAGE,
     SUBTITLE_LANGUAGE,
     SHORTS_MODE,
@@ -38,6 +41,7 @@ internal fun PlaybackSettingsScreen(
     val loopAll by viewModel.loopAll.collectAsStateWithLifecycle()
     val customSpeeds by viewModel.customSpeeds.collectAsStateWithLifecycle()
     val doubleTapSeek by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
+    val speedSwipeSide by viewModel.speedSwipeSide.collectAsStateWithLifecycle()
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
     val disableShortsPlayer by viewModel.disableShortsPlayer.collectAsStateWithLifecycle()
@@ -50,7 +54,16 @@ internal fun PlaybackSettingsScreen(
     ) {
         playbackSections(
             viewModel = viewModel,
-            state = PlaybackStructure(loopAll, customSpeeds, doubleTapSeek > 0, comments, shortsContent, disableShortsPlayer),
+            state =
+                PlaybackStructure(
+                    loopAll,
+                    customSpeeds,
+                    doubleTapSeek > 0,
+                    speedSwipeSide,
+                    comments,
+                    shortsContent,
+                    disableShortsPlayer,
+                ),
             openDialog = { dialog = it },
             onNavigate = onNavigate,
         )
@@ -66,6 +79,7 @@ internal data class PlaybackStructure(
     val loopAll: Boolean,
     val customSpeeds: Boolean,
     val doubleTapSeek: Boolean,
+    val speedSwipeSide: SpeedSwipeSide,
     val comments: Boolean,
     val shortsContent: Boolean,
     val disableShortsPlayer: Boolean,

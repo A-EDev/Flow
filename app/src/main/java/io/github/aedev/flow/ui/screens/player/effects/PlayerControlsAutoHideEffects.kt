@@ -56,6 +56,16 @@ internal fun GestureOverlayAutoHideEffect(screenState: PlayerScreenState) {
             }
     }
 
+    LaunchedEffect(screenState) {
+        snapshotFlow { screenState.showSpeedSwipeOverlay to screenState.speedSwipeLevel }
+            .collectLatest { (visible, _) ->
+                if (visible) {
+                    delay(GESTURE_OVERLAY_HIDE_DELAY_MS)
+                    screenState.showSpeedSwipeOverlay = false
+                }
+            }
+    }
+
     LaunchedEffect(screenState.seekAccumulation, screenState.showSeekForwardAnimation) {
         if (screenState.showSeekForwardAnimation) {
             delay(DOUBLE_TAP_SEEK_WINDOW_MS)

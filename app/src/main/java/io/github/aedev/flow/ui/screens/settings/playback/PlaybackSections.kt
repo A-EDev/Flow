@@ -6,6 +6,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
@@ -72,10 +73,29 @@ internal fun SettingsListScope.playbackSections(
                 stringResource(zone.labelRes())
             }
         }
-        switch(PlaybackIndex.brightnessGesture, viewModel.brightnessGesture, viewModel::setBrightnessGesture)
+        switch(
+            PlaybackIndex.brightnessGesture,
+            viewModel.brightnessGesture,
+            viewModel::setBrightnessGesture,
+            enabled = state.speedSwipeSide != SpeedSwipeSide.LEFT,
+        )
         switch(PlaybackIndex.rememberBrightness, viewModel.rememberBrightness, viewModel::setRememberBrightness)
-        switch(PlaybackIndex.volumeGesture, viewModel.volumeGesture, viewModel::setVolumeGesture)
+        switch(
+            PlaybackIndex.volumeGesture,
+            viewModel.volumeGesture,
+            viewModel::setVolumeGesture,
+            enabled = state.speedSwipeSide != SpeedSwipeSide.RIGHT,
+        )
         switch(PlaybackIndex.volumeBoost, viewModel.volumeBoost, viewModel::setVolumeBoost)
+        choice(PlaybackIndex.speedSwipe, onClick = { openDialog(PlaybackDialog.SPEED_SWIPE_SIDE) }) {
+            speedSwipeSideLabel(state.speedSwipeSide)
+        }
+        if (state.speedSwipeSide != SpeedSwipeSide.OFF) {
+            choice(PlaybackIndex.speedSwipeStep, onClick = { openDialog(PlaybackDialog.SPEED_SWIPE_STEP) }) {
+                val step by viewModel.speedSwipeStep.collectAsStateWithLifecycle()
+                speedSwipeStepLabel(step)
+            }
+        }
         switch(PlaybackIndex.seekGesture, viewModel.seekGesture, viewModel::setSeekGesture)
         switch(PlaybackIndex.haptics, viewModel.haptics, viewModel::setHaptics)
         switch(PlaybackIndex.controlsWhileLoading, viewModel.controlsWhileLoading, viewModel::setControlsWhileLoading)

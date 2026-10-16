@@ -58,6 +58,7 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
         allowVolumeBoost = prefs.allowVolumeBoost,
         style = prefs.gestureOverlayStyle,
         seekZoneFraction = prefs.doubleTapSeekZone.sideFraction,
+        speedSwipeSide = prefs.speedSwipeSide,
         speedBoostSpeed =
             PlayerSpeedBoost.boostedPlaybackSpeed(
                 currentSpeed = screenState.normalSpeed,

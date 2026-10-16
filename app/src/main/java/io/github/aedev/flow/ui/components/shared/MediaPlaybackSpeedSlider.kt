@@ -35,9 +35,9 @@ import kotlin.math.abs
 import kotlin.math.round
 import kotlin.math.sqrt
 
-private const val MIN_PLAYBACK_SPEED = 0.1f
+internal const val MIN_PLAYBACK_SPEED = 0.1f
 internal const val NORMAL_PLAYBACK_SPEED = 1.0f
-private const val MAX_SLIDER_PLAYBACK_SPEED = 4.0f
+internal const val MAX_SLIDER_PLAYBACK_SPEED = 4.0f
 private const val PLAYBACK_SPEED_STEP = 0.05f
 
 private val defaultPlaybackSpeeds =

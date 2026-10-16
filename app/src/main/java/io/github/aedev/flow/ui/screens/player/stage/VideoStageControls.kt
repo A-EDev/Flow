@@ -135,7 +135,8 @@ internal fun VideoStageControls(
             isTouchLocked = screenState.isTouchLocked,
             lockModeEnabled = prefs.lockModeEnabled,
             lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
-            isGestureReadoutActive = screenState.isSpeedBoostActive || screenState.showZoomIndicator,
+            isGestureReadoutActive =
+                screenState.isSpeedBoostActive || screenState.showZoomIndicator || screenState.isSeekDragging,
             yieldsTapsToPlayer =
                 screenState.isTapWindowOpen || screenState.showSeekBackAnimation || screenState.showSeekForwardAnimation,
         )

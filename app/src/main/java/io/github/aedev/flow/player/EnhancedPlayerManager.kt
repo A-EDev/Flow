@@ -39,6 +39,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
+import io.github.aedev.flow.player.analytics.RenderedFirstFrameListener
 import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
@@ -713,6 +714,9 @@ class EnhancedPlayerManager private constructor() {
                 dataSourceFactory = cacheManager?.getDataSourceFactory(),
             )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
+        player?.addAnalyticsListener(
+            RenderedFirstFrameListener(currentVideoId = { currentVideoId }) { videoId -> _firstFrameVideoId.value = videoId },
+        )
         player?.let { announceAudioSession(effects, it.audioSessionId) }
 
         audioFeaturesManager?.setPlayer(player!!)
@@ -923,7 +927,6 @@ class EnhancedPlayerManager private constructor() {
 
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
-                    _firstFrameVideoId.value = currentVideoId
                     surfaceManager?.setSurfaceReady(true)
                     surfaceFirstFrameWatchdog?.cancel()
                     surfaceFirstFrameWatchdog = null
