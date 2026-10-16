@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.gesture
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import org.junit.Test
 
 class DoubleTapSeekZonesTest {
@@ -42,5 +43,27 @@ class DoubleTapSeekZonesTest {
     fun `edges hold even with double-tap seek turned off`() {
         assertThat(tapZoneOf(x = 10f, width = 1000f, sideFraction = 0f, edgePx = 66f)).isEqualTo(TapZone.EDGE)
         assertThat(tapZoneOf(x = 500f, width = 1000f, sideFraction = 0f, edgePx = 66f)).isEqualTo(TapZone.CENTER)
+    }
+
+    @Test
+    fun `edge to edge zones take taps right up to the edges`() {
+        val zone = DoubleTapSeekZone.EDGE_TO_EDGE
+        val edgePx = tapEdgePx(zone.reachesEdges, backGestureEdgePx = 66f)
+        assertThat(tapZoneOf(x = 5f, width = 1000f, sideFraction = zone.sideFraction, edgePx = edgePx)).isEqualTo(TapZone.BACK)
+        assertThat(tapZoneOf(x = 995f, width = 1000f, sideFraction = zone.sideFraction, edgePx = edgePx)).isEqualTo(TapZone.FORWARD)
+        assertThat(tapZoneOf(x = 500f, width = 1000f, sideFraction = zone.sideFraction, edgePx = edgePx)).isEqualTo(TapZone.CENTER)
+    }
+
+    @Test
+    fun `normal and narrow keep the back gesture strip`() {
+        listOf(DoubleTapSeekZone.NORMAL, DoubleTapSeekZone.NARROW).forEach { zone ->
+            val edgePx = tapEdgePx(zone.reachesEdges, backGestureEdgePx = 66f)
+            assertThat(tapZoneOf(x = 5f, width = 1000f, sideFraction = zone.sideFraction, edgePx = edgePx)).isEqualTo(TapZone.EDGE)
+        }
+    }
+
+    @Test
+    fun `edge to edge is as wide as normal`() {
+        assertThat(DoubleTapSeekZone.EDGE_TO_EDGE.sideFraction).isEqualTo(DoubleTapSeekZone.NORMAL.sideFraction)
     }
 }

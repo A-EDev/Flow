@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,6 +50,9 @@ import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 private const val DIAGRAM_ASPECT_RATIO = 16f / 9f
+
+/** The back-gesture strip on a 393 dp phone (24 dp), as a share of the diagram's width. */
+private const val EDGE_STRIP_FRACTION = 0.06f
 private val SectionSpacing = 12.dp
 private val OptionPadding = 8.dp
 private val OptionSpacing = 10.dp
@@ -108,6 +112,7 @@ internal fun DoubleTapSeekZone.labelRes(): Int =
     when (this) {
         DoubleTapSeekZone.NORMAL -> R.string.player_settings_seek_zone_normal
         DoubleTapSeekZone.NARROW -> R.string.player_settings_seek_zone_narrow
+        DoubleTapSeekZone.EDGE_TO_EDGE -> R.string.player_settings_seek_zone_edge_to_edge
     }
 
 @StringRes
@@ -115,6 +120,7 @@ private fun DoubleTapSeekZone.captionRes(): Int =
     when (this) {
         DoubleTapSeekZone.NORMAL -> R.string.player_settings_seek_zone_normal_desc
         DoubleTapSeekZone.NARROW -> R.string.player_settings_seek_zone_narrow_desc
+        DoubleTapSeekZone.EDGE_TO_EDGE -> R.string.player_settings_seek_zone_edge_to_edge_desc
     }
 
 @Composable
@@ -140,7 +146,7 @@ private fun SeekZoneOption(
             RadioButton(selected = selected, onClick = null)
             Text(text = stringResource(zone.labelRes()), style = MaterialTheme.typography.titleMedium)
         }
-        SeekZoneDiagram(sideFraction = zone.sideFraction, stepSeconds = stepSeconds)
+        SeekZoneDiagram(sideFraction = zone.sideFraction, reachesEdges = zone.reachesEdges, stepSeconds = stepSeconds)
         Text(
             text = stringResource(zone.captionRes()),
             style = MaterialTheme.typography.bodyMedium,
@@ -149,14 +155,19 @@ private fun SeekZoneOption(
     }
 }
 
-/** The player split into its tap zones, always left to right as the gesture layer reads them. */
+/**
+ * The player split into its tap zones, always left to right as the gesture layer reads them. Unless
+ * the zones [reachesEdges], a strip at each side shows where taps are left to the back gesture.
+ */
 @Composable
 private fun SeekZoneDiagram(
     sideFraction: Float,
+    reachesEdges: Boolean,
     stepSeconds: Int,
 ) {
     val colors = MaterialTheme.colorScheme
     val dividerColor = colors.outline
+    val edgeStripColor = colors.surfaceContainerHighest
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Row(
             modifier =
@@ -166,6 +177,11 @@ private fun SeekZoneDiagram(
                     .clip(MaterialTheme.shapes.large)
                     .drawWithContent {
                         drawContent()
+                        if (!reachesEdges) {
+                            val strip = Size(size.width * EDGE_STRIP_FRACTION, size.height)
+                            drawRect(color = edgeStripColor, size = strip)
+                            drawRect(color = edgeStripColor, topLeft = Offset(size.width - strip.width, 0f), size = strip)
+                        }
                         val dashes = PathEffect.dashPathEffect(floatArrayOf(DashLength.toPx(), DashGap.toPx()))
                         listOf(sideFraction, 1f - sideFraction).forEach { fraction ->
                             val x = size.width * fraction

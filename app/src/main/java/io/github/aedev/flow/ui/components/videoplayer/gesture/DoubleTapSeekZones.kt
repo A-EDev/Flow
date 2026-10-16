@@ -21,3 +21,9 @@ internal fun tapZoneOf(
         x > width * (1f - sideFraction) -> TapZone.FORWARD
         else -> TapZone.CENTER
     }
+
+/** The edge strip taps leave to the back gesture: none when the zones reach the edges. */
+internal fun tapEdgePx(
+    reachesEdges: Boolean,
+    backGestureEdgePx: Float,
+): Float = if (reachesEdges) 0f else backGestureEdgePx

@@ -103,6 +103,7 @@ internal fun VideoStage(
                     allowVolumeBoost = prefs.allowVolumeBoost,
                     doubleTapSeekMs = prefs.doubleTapSeekSeconds * 1000L,
                     seekZoneFraction = prefs.doubleTapSeekZone.sideFraction,
+                    seekZoneReachesEdges = prefs.doubleTapSeekZone.reachesEdges,
                     longPressPlaybackSpeed = prefs.longPressPlaybackSpeed,
                     onExitFullscreen = { releaseOffsetPx, releaseVelocityPx ->
                         if (!isLandscapeWindow) playerSheetState.exitPortraitFullscreenFrom(releaseOffsetPx, releaseVelocityPx)

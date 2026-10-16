@@ -48,6 +48,7 @@ fun Modifier.videoPlayerControls(
     allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
     seekZoneFraction: Float = DoubleTapSeekZone.NORMAL.sideFraction,
+    seekZoneReachesEdges: Boolean = false,
     longPressPlaybackSpeed: Float = 2.0f,
     onExitFullscreen: ((releaseOffsetPx: Float, releaseVelocityPx: Float) -> Unit)? = null,
     onExitFullscreenDrag: (offsetPx: Float) -> Unit = {},
@@ -82,6 +83,7 @@ fun Modifier.videoPlayerControls(
     val allowVolumeBoostState = rememberUpdatedState(allowVolumeBoost)
     val doubleTapSeekMsState = rememberUpdatedState(doubleTapSeekMs)
     val seekZoneFractionState = rememberUpdatedState(seekZoneFraction)
+    val seekZoneReachesEdgesState = rememberUpdatedState(seekZoneReachesEdges)
     val longPressPlaybackSpeedState = rememberUpdatedState(longPressPlaybackSpeed)
     val onSeekAccumulateState = rememberUpdatedState(onSeekAccumulate)
     val onExitFullscreenState = rememberUpdatedState(onExitFullscreen)
@@ -126,6 +128,7 @@ fun Modifier.videoPlayerControls(
             isFullscreen = isFullscreenState,
             doubleTapSeekMs = doubleTapSeekMsState,
             seekZoneFraction = seekZoneFractionState,
+            seekZoneReachesEdges = seekZoneReachesEdgesState,
             longPressPlaybackSpeed = longPressPlaybackSpeedState,
             isSeekForwardActive = isSeekForwardActiveState,
             isSeekBackActive = isSeekBackActiveState,

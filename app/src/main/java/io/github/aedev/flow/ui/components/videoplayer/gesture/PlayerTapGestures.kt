@@ -38,6 +38,7 @@ internal fun Modifier.playerTapGestures(
     isFullscreen: State<Boolean>,
     doubleTapSeekMs: State<Long>,
     seekZoneFraction: State<Float>,
+    seekZoneReachesEdges: State<Boolean>,
     longPressPlaybackSpeed: State<Float>,
     isSeekForwardActive: State<Boolean>,
     isSeekBackActive: State<Boolean>,
@@ -58,6 +59,7 @@ internal fun Modifier.playerTapGestures(
     val currentIsFullscreen by isFullscreen
     val currentDoubleTapSeekMs by doubleTapSeekMs
     val currentSeekZoneFraction by seekZoneFraction
+    val currentSeekZoneReachesEdges by seekZoneReachesEdges
     val currentLongPressPlaybackSpeed by longPressPlaybackSpeed
     val currentIsSeekForwardActive by isSeekForwardActive
     val currentIsSeekBackActive by isSeekBackActive
@@ -81,7 +83,7 @@ internal fun Modifier.playerTapGestures(
                 x = x,
                 width = size.width.toFloat(),
                 sideFraction = if (currentDoubleTapSeekMs > 0L) currentSeekZoneFraction else 0f,
-                edgePx = currentSideEdgeIgnorePx,
+                edgePx = tapEdgePx(currentSeekZoneReachesEdges, currentSideEdgeIgnorePx),
             )
 
         fun applyZoneSeek(forward: Boolean) {
@@ -141,6 +143,7 @@ internal fun Modifier.playerTapGestures(
 
         detectPlayerTaps(
             isEdge = { offset -> zoneOf(offset.x) == TapZone.EDGE },
+            isNearEdge = { offset -> offset.x < currentSideEdgeIgnorePx || offset.x > size.width - currentSideEdgeIgnorePx },
             onTapWindowChange = { open -> currentOnTapWindowChange(open) },
             onTapUp = { offset ->
                 if (!currentIsSpeedBoostActive) {
@@ -234,8 +237,10 @@ internal fun Modifier.playerTapGestures(
  * while [onSingleTapConfirmed] still fires only once the window closes with no second touch.
  *
  * A touch that starts on [isEdge] may belong to the system back gesture, whose down reaches the app
- * before the system cancels it: such a touch never long-presses, never opens the double-tap window
- * and never counts as a second tap. The double tap fires on the second up, which a cancel never is.
+ * before the system cancels it: such a touch never opens the double-tap window and never counts as a
+ * second tap. The double tap fires on the second up, which a cancel never is. [isNearEdge] is the
+ * same strip whatever the zone setting: a slow back swipe can outlast the long-press timeout before
+ * the system takes it, so a touch starting there never long-presses even where taps reach the edge.
  *
  * [onTapWindowChange] reports the double-tap window, so the controls the first tap revealed can
  * leave the second tap to this detector (#1308). It is closed in a finally: the modifier is removed
@@ -243,6 +248,7 @@ internal fun Modifier.playerTapGestures(
  */
 private suspend fun PointerInputScope.detectPlayerTaps(
     isEdge: (Offset) -> Boolean,
+    isNearEdge: (Offset) -> Boolean,
     onTapWindowChange: (Boolean) -> Unit,
     onTapUp: (Offset) -> Unit,
     onSingleTapConfirmed: () -> Unit,
@@ -255,7 +261,7 @@ private suspend fun PointerInputScope.detectPlayerTaps(
         val startsAtEdge = isEdge(down.position)
 
         val firstUp =
-            if (startsAtEdge) {
+            if (startsAtEdge || isNearEdge(down.position)) {
                 awaitStillUp(down)
             } else {
                 try {

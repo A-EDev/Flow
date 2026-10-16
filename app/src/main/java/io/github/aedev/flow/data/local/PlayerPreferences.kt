@@ -3797,11 +3797,14 @@ enum class MusicPlayerBackgroundStyle {
 }
 
 /** How much of the player's width each double-tap seek side takes. */
+/** [reachesEdges] lets taps count right up to the screen edges instead of leaving them to the back gesture. */
 enum class DoubleTapSeekZone(
     val sideFraction: Float,
+    val reachesEdges: Boolean = false,
 ) {
     NORMAL(1f / 3f),
     NARROW(1f / 4f),
+    EDGE_TO_EDGE(1f / 3f, reachesEdges = true),
 }
 
 /** A mini bar swipe. The music bar only acts on [CLOSE], [NEXT] and [PREVIOUS]; it closes on the rest. */

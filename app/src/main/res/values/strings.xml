@@ -1390,6 +1390,8 @@
     <string name="player_settings_seek_zone_normal_desc">Thirds on every width.</string>
     <string name="player_settings_seek_zone_narrow">Narrow</string>
     <string name="player_settings_seek_zone_narrow_desc">A quarter each side, so the center is half.</string>
+    <string name="player_settings_seek_zone_edge_to_edge">Edge to edge</string>
+    <string name="player_settings_seek_zone_edge_to_edge_desc">Thirds that reach the screen edges, so taps there count too.</string>
     <string name="player_settings_seek_zone_back">−%1$d s</string>
     <string name="player_settings_seek_zone_forward">+%1$d s</string>
     <string name="player_settings_seek_zone_play_pause">Play / pause</string>
