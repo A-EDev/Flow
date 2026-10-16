@@ -97,6 +97,7 @@ class PlayerPreferences(
         val TRENDING_REGION = stringPreferencesKey("trending_region")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val CONTENT_LANGUAGE = stringPreferencesKey("content_language")
+        val ORIGINAL_TITLES = booleanPreferencesKey("original_titles")
         val MUSIC_LOUDNESS_NORMALIZATION_ENABLED = booleanPreferencesKey("music_loudness_normalization_enabled")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
@@ -1372,6 +1373,18 @@ class PlayerPreferences(
     suspend fun setContentLanguage(languageTag: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.CONTENT_LANGUAGE] = languageTag
+        }
+    }
+
+    /** Titles and descriptions in the video's own language instead of YouTube's translation (#1230). */
+    val originalTitles: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.ORIGINAL_TITLES] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setOriginalTitles(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ORIGINAL_TITLES] = enabled
         }
     }
 

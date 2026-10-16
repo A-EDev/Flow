@@ -28,6 +28,7 @@ class LanguageRegionViewModel
         val appLanguage = preferences.appLanguage.asState(AppLanguageManager.SYSTEM_DEFAULT)
         val contentLanguage = preferences.contentLanguage.asState(CONTENT_LANGUAGE_FOLLOW_APP)
         val contentCountry = preferences.trendingRegion.asState(DEFAULT_COUNTRY)
+        val originalTitles = preferences.originalTitles.asState(false)
 
         /** The languages YouTube localizes content into, i.e. every value its `hl` accepts. */
         val contentLanguages: List<LanguageOption> by lazy {
@@ -57,6 +58,8 @@ class LanguageRegionViewModel
         fun setContentLanguage(tag: String) = write { preferences.setContentLanguage(tag) }
 
         fun setContentCountry(code: String) = write { preferences.setTrendingRegion(code) }
+
+        fun setOriginalTitles(enabled: Boolean) = write { preferences.setOriginalTitles(enabled) }
 
         private companion object {
             const val DEFAULT_COUNTRY = "US"
