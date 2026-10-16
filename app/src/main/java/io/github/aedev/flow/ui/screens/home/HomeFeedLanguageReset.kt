@@ -9,7 +9,7 @@ import javax.inject.Singleton
  * titles after a switch and would keep showing them until they expire (#1277).
  */
 @Singleton
-class HomeFeedLanguageReset
+internal class HomeFeedLanguageReset
     @Inject
     constructor(
         private val storedFeed: HomeFeedCacheRepository,

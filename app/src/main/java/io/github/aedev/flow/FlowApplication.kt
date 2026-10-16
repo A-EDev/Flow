@@ -69,7 +69,7 @@ class FlowApplication :
     lateinit var visitorIdentityStore: VisitorIdentityStore
 
     @Inject
-    lateinit var homeFeedLanguageReset: HomeFeedLanguageReset
+    internal lateinit var homeFeedLanguageReset: HomeFeedLanguageReset
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
