@@ -53,6 +53,9 @@ private const val DIAGRAM_ASPECT_RATIO = 16f / 9f
 
 /** The back-gesture strip on a 393 dp phone (24 dp), as a share of the diagram's width. */
 private const val EDGE_STRIP_FRACTION = 0.06f
+
+/** The strip is a state layer over the zone it sits in, so it reads on every palette. */
+private const val EDGE_STRIP_ALPHA = 0.32f
 private val SectionSpacing = 12.dp
 private val OptionPadding = 8.dp
 private val OptionSpacing = 10.dp
@@ -167,7 +170,7 @@ private fun SeekZoneDiagram(
 ) {
     val colors = MaterialTheme.colorScheme
     val dividerColor = colors.outline
-    val edgeStripColor = colors.surfaceContainerHighest
+    val edgeStripColor = colors.onSurfaceVariant.copy(alpha = EDGE_STRIP_ALPHA)
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Row(
             modifier =
@@ -183,7 +186,8 @@ private fun SeekZoneDiagram(
                             drawRect(color = edgeStripColor, topLeft = Offset(size.width - strip.width, 0f), size = strip)
                         }
                         val dashes = PathEffect.dashPathEffect(floatArrayOf(DashLength.toPx(), DashGap.toPx()))
-                        listOf(sideFraction, 1f - sideFraction).forEach { fraction ->
+                        val edges = if (reachesEdges) emptyList() else listOf(EDGE_STRIP_FRACTION, 1f - EDGE_STRIP_FRACTION)
+                        (listOf(sideFraction, 1f - sideFraction) + edges).forEach { fraction ->
                             val x = size.width * fraction
                             drawLine(
                                 color = dividerColor,
