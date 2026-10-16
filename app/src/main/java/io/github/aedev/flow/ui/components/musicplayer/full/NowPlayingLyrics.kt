@@ -105,6 +105,7 @@ private fun MusicPlayerUiState.lyricsDisplay() =
         showTranslation = lyricsShowTranslation,
         showRomanization = lyricsShowRomanization,
         autoRomanize = lyricsAutoRomanize,
+        keepScreenOn = lyricsKeepScreenOn,
     )
 
 private fun MusicPlayerViewModel.applyLyricsDisplay(
@@ -114,4 +115,5 @@ private fun MusicPlayerViewModel.applyLyricsDisplay(
     if (new.showTranslation != old.showTranslation) setLyricsShowTranslation(new.showTranslation)
     if (new.showRomanization != old.showRomanization) setLyricsShowRomanization(new.showRomanization)
     if (new.autoRomanize != old.autoRomanize) setLyricsAutoRomanize(new.autoRomanize)
+    if (new.keepScreenOn != old.keepScreenOn) setLyricsKeepScreenOn(new.keepScreenOn)
 }

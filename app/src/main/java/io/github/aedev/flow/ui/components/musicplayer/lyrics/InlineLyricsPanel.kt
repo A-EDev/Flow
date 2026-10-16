@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.keepScreenOn
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -125,7 +126,7 @@ internal fun InlineLyricsPanel(
 
     val state = remember { LyricsPanelState(positionProvider()) }
     val panelPosition = remember(state) { { state.currentPosition } }
-    val romanized by produceState<Pair<List<LyricsEntry>, List<String?>>?>(null, lines, display) {
+    val romanized by produceState<Pair<List<LyricsEntry>, List<String?>>?>(null, lines, display.showRomanization, display.autoRomanize) {
         value = lines to withContext(Dispatchers.Default) { lyricsRomanizations(lines, display) }
     }
     val romanizations = romanized?.takeIf { it.first === lines }?.second.orEmpty()
@@ -192,7 +193,10 @@ internal fun InlineLyricsPanel(
 
     BoxWithConstraints(
         contentAlignment = Alignment.TopCenter,
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .then(if (display.keepScreenOn && active && isPlaying) Modifier.keepScreenOn() else Modifier),
     ) {
         if (isLoading) {
             CircularProgressIndicator(

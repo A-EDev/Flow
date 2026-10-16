@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatAlignCenter
 import androidx.compose.material.icons.outlined.FormatAlignLeft
 import androidx.compose.material.icons.outlined.FormatAlignRight
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Timer
@@ -191,6 +192,14 @@ internal fun LyricsActionsSheet(
                             enabled = display.showRomanization,
                             onCheckedChange = { onDisplayChange(display.copy(autoRomanize = it)) },
                         ).takeIf { LyricsRomanizer.isAvailable },
+                    ) +
+                    lyricsSwitchRow(
+                        key = "keep_screen_on",
+                        icon = Icons.Outlined.LightMode,
+                        title = stringResource(R.string.lyrics_keep_screen_on),
+                        supporting = stringResource(R.string.lyrics_keep_screen_on_summary),
+                        checked = display.keepScreenOn,
+                        onCheckedChange = { onDisplayChange(display.copy(keepScreenOn = it)) },
                     ),
         )
         Spacer(modifier = Modifier.height(12.dp))
