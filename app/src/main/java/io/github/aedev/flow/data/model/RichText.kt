@@ -75,3 +75,33 @@ data class RichText(
 ) {
     val hasTimestamp: Boolean get() = spans.any { it.target is RichTextTarget.Timestamp }
 }
+
+private val PLAIN_URL = Regex("""https?://\S+""")
+private val PLAIN_TIMESTAMP = Regex("""\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\b""")
+private val PLAIN_HASHTAG = Regex("""(?<![\w#])#[\p{L}\p{N}_]+""")
+
+/**
+ * [text] with its links, timestamps and hashtags marked the way the server marks them, for text
+ * that came without spans: the original description `/player` sends is plain (#1230).
+ */
+fun plainRichText(text: String): RichText {
+    val spans = mutableListOf<RichTextSpan>()
+    val taken = mutableListOf<IntRange>()
+
+    fun add(
+        range: IntRange,
+        target: RichTextTarget,
+    ) {
+        if (taken.any { it.first <= range.last && range.first <= it.last }) return
+        taken += range
+        spans += RichTextSpan(range.first, range.last - range.first + 1, target)
+    }
+    PLAIN_URL.findAll(text).forEach { add(it.range, RichTextTarget.Url(it.value)) }
+    PLAIN_TIMESTAMP.findAll(text).forEach { match ->
+        val (hours, minutes, seconds) = match.destructured
+        val total = (hours.toLongOrNull() ?: 0L) * 3_600 + minutes.toLong() * 60 + seconds.toLong()
+        add(match.range, RichTextTarget.Timestamp(total))
+    }
+    PLAIN_HASHTAG.findAll(text).forEach { add(it.range, RichTextTarget.Hashtag(it.value.removePrefix("#"))) }
+    return RichText(text = text, spans = spans.sortedBy { it.start })
+}

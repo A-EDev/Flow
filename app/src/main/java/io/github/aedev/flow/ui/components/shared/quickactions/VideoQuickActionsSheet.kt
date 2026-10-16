@@ -50,6 +50,7 @@ import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
 import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.card.channelAvatarUrls
 import io.github.aedev.flow.ui.components.shared.card.isWatchedProgress
+import io.github.aedev.flow.ui.components.shared.card.rememberCardTitle
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorItems
 import io.github.aedev.flow.ui.components.shared.card.rememberWatchProgress
@@ -71,7 +72,7 @@ private enum class VideoMenuPage { Actions, Details, Collaborators, Save }
 fun VideoQuickActionsBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
-    title: String = video.title,
+    title: String = rememberCardTitle(video),
     thumbnailUrl: String = video.thumbnailUrl,
     showChannel: Boolean = true,
     whyShown: String? = null,

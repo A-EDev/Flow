@@ -15,6 +15,8 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.shared.card.LocalOriginalTitles
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.DateContext
@@ -40,7 +42,12 @@ internal fun rememberPlayerVideoMetadata(
     context: Context,
 ): PlayerVideoMetadata {
     val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled && !LocalMediaIds.isLocal(video.id))
-    val resolvedVideoTitle = deArrowResult?.title ?: video.title
+    // Only a title a card already fetched: the player's own response brings the original anyway.
+    val cachedOriginal =
+        LocalOriginalTitles.current
+            ?.takeIf { LocalVideoCardPreferences.current.originalTitlesEnabled }
+            ?.cached(video.id)
+    val resolvedVideoTitle = deArrowResult?.title ?: cachedOriginal ?: video.title
     val needsCollaboratorResolution = video.needsCollaboratorResolution()
     val resolvedCollaborators by produceState(
         initialValue = video.collaborators,
