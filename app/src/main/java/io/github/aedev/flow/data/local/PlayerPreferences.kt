@@ -14,6 +14,7 @@ import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleEdgeType
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
+import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
@@ -3684,6 +3685,11 @@ class PlayerPreferences(
             backup.floats.forEach { (k, v) -> prefs[floatPreferencesKey(k)] = v }
             backup.longs.forEach { (k, v) -> prefs[longPreferencesKey(k)] = v }
         }
+        // The UI language belongs to the language manager; written here alone it would never show,
+        // while YouTube's language follows what is shown (#1277).
+        backup.strings[Keys.APP_LANGUAGE.name]
+            ?.takeIf { AppLanguageManager.normalizeLanguageTag(it) != AppLanguageManager.appliedLanguage.value }
+            ?.let { tag -> withContext(Dispatchers.Main.immediate) { AppLanguageManager.applyLanguageTag(context, tag) } }
     }
 }
 
