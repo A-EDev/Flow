@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.video.SavedVideoQueue
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.service.MusicServiceState
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -41,7 +42,7 @@ internal class PlaybackPresenceController(
     fun restoreLastWatchedSession() {
         scope.launch {
             if (!playerPreferences.miniPlayerContinueWatchingEnabled.first()) return@launch
-            if (EnhancedMusicPlayerManager.currentTrack.value != null) return@launch
+            if (EnhancedMusicPlayerManager.currentTrack.value != null || MusicServiceState.isRunning) return@launch
             val lastVideo = withContext(ioDispatcher) { viewHistory.getLatestUnfinishedVideo() } ?: return@launch
             if (uiState.value.cachedVideo != null) return@launch
             uiState.update { it.copy(cachedVideo = lastVideo.toVideo(), isRestoredSession = true) }

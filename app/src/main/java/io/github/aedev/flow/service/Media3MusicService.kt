@@ -39,6 +39,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
@@ -46,6 +47,7 @@ import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.download.LegacySongDownloads
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.QueuePersistence
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -72,6 +74,7 @@ import io.github.aedev.flow.player.factory.LoadControlFactory
 import io.github.aedev.flow.player.musicvideo.MusicMediaSourceFactory
 import io.github.aedev.flow.player.musicvideo.MusicVideoFormats
 import io.github.aedev.flow.player.musicvideo.MusicVideoSwitch
+import io.github.aedev.flow.player.restoredMusicQueue
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
@@ -226,9 +229,13 @@ class Media3MusicService : MediaLibraryService() {
     @Inject
     lateinit var audioSessions: AudioSessionRegistry
 
+    @Inject
+    lateinit var queuePersistence: QueuePersistence
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        MusicServiceState.isRunning = true
 
         recordForegroundStartFailures("music-service")
 
@@ -1214,7 +1221,10 @@ class Media3MusicService : MediaLibraryService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
         mediaLibrarySession.takeUnless {
-            controllerInfo.declinesMediaButtonStart(hasMediaItem = ::player.isInitialized && player.currentMediaItem != null)
+            controllerInfo.declinesMediaButtonStart(
+                hasMediaItem = ::player.isInitialized && player.currentMediaItem != null,
+                canResume = queuePersistence.hasSavedQueueFile(),
+            )
         }
 
     /**
@@ -1238,6 +1248,7 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        MusicServiceState.isRunning = false
         // Flush the in-flight listen session before the player goes away.
         finalizeListenSession()
 
@@ -1598,6 +1609,24 @@ class Media3MusicService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class)
     private inner class LibrarySessionCallback : MediaLibrarySession.Callback {
+        @OptIn(UnstableApi::class)
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val result = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            lifecycleScope.launch {
+                val restored = withContext(Dispatchers.IO) { queuePersistence.restoreQueue() }?.let(::restoredMusicQueue)
+                if (restored == null) {
+                    result.setException(IllegalStateException("No saved music queue to resume"))
+                } else {
+                    result.set(musicResumptionItems(restored))
+                }
+            }
+            return result
+        }
+
         override fun onGetLibraryRoot(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,

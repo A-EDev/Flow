@@ -6,7 +6,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -491,28 +490,7 @@ object EnhancedMusicPlayerManager {
         track: MusicTrack,
         uri: Uri = streamUri(track.videoId),
         useCacheKey: Boolean = !LocalMediaIds.isLocal(track.videoId),
-    ): MediaItem {
-        val builder =
-            MediaItem
-                .Builder()
-                .setUri(uri)
-                .setMediaId(track.videoId)
-                .setMediaMetadata(
-                    MediaMetadata
-                        .Builder()
-                        .setTitle(track.title)
-                        .setArtist(track.artist)
-                        .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
-                        .build(),
-                )
-
-        if (useCacheKey) {
-            builder.setCustomCacheKey(track.videoId)
-        }
-
-        return builder
-            .build()
-    }
+    ): MediaItem = musicMediaItem(track, uri, useCacheKey)
 
     private fun clearPendingPlayNext() {
         pendingPlayNextMediaId = null
@@ -784,8 +762,11 @@ object EnhancedMusicPlayerManager {
     private suspend fun restoreSavedQueue() {
         try {
             val restored = queuePersistence?.restoreQueue()?.let(::restoredMusicQueue) ?: return
-
-            if ((player?.mediaItemCount ?: 0) > 0) return
+            val controller = player
+            val loadedItem = controller?.currentMediaItem
+            // The system media controls may already have resumed this queue in the service.
+            val resumedBySystem = loadedItem != null && restored.queue.any { it.videoId == loadedItem.mediaId }
+            if (loadedItem != null && !resumedBySystem) return
 
             Log.d("EnhancedMusicPlayer", "Restoring saved queue: ${restored.queue.size} tracks")
 
@@ -794,6 +775,13 @@ object EnhancedMusicPlayerManager {
             _shuffleEnabled.value = restored.shuffleEnabled
             _automixItems.value = restored.automix
 
+            if (controller != null && loadedItem != null) {
+                syncCurrentTrackFromMediaItem(controller, loadedItem)
+                // Already playing when this controller connected, so no change callback reports it.
+                updatePlayerState()
+                if (controller.isPlaying) startPositionUpdates()
+                return
+            }
             restored.track?.let {
                 _currentTrack.value = it
                 _currentPosition.value = restored.resumePositionMs
