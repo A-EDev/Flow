@@ -57,6 +57,7 @@ internal class PlayerCollaborators(
     isLoadCurrent: (Long) -> Boolean,
     currentLoadToken: () -> Long,
     shortsEnabled: () -> Boolean,
+    originalTitles: () -> Boolean,
     exclusions: () -> FeedExclusions,
 ) {
     val comments =
@@ -161,7 +162,7 @@ internal class PlayerCollaborators(
             uiState = uiState,
             isLoadCurrent = isLoadCurrent,
             playbackPreparer = playbackPreparer,
-            streamPreparer = PlaybackStreamPreparer(),
+            streamPreparer = PlaybackStreamPreparer(originalText = originalTitles),
             secondaryMetadata = secondaryMetadata,
             liveChat = liveChat,
             repository = repository,

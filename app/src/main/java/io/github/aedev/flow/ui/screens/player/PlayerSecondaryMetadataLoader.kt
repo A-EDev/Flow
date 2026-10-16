@@ -11,6 +11,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.utils.OriginalTextPolicy
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.CoroutineDispatcher
@@ -216,9 +217,10 @@ internal class PlayerSecondaryMetadataLoader(
             scope.launch(networkDispatcher) {
                 awaitPlaybackStarted(videoId)
                 if (!isPlaybackCurrent(loadToken)) return@launch
-                val enriched =
+                val merged =
                     withTimeoutOrNull(WATCH_INFO_TIMEOUT_MS) { repository.enrichFromWatchMetadata(video) }
                         ?: return@launch
+                val enriched = OriginalTextPolicy.keepOriginalText(merged, video, playerPreferences.originalTitles.first())
                 if (!isPlaybackCurrent(loadToken) || !watchInfoLoad.holds(videoId, loadToken)) return@launch
                 onResult(SecondaryMetadata.WatchInfo(videoId, loadToken, enriched))
             }

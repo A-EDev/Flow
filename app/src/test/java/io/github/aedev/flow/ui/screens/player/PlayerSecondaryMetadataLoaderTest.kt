@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -55,6 +56,7 @@ class PlayerSecondaryMetadataLoaderTest {
         Dispatchers.setMain(testDispatcher)
         every { playerManager.playerState } returns playerState
         every { playerManager.relatedCandidatesFor(any()) } returns emptyList()
+        every { playerPreferences.originalTitles } returns flowOf(false)
         coEvery { repository.getRelatedCandidates(any()) } returns emptyList()
     }
 

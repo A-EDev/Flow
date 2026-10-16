@@ -122,6 +122,7 @@ class VideoPlayerViewModel
                 isLoadCurrent = { loads.isCurrent(it) },
                 currentLoadToken = { loads.token },
                 shortsEnabled = { loads.shortsEnabled },
+                originalTitles = { loads.originalTitles },
                 exclusions = { loads.exclusions },
             )
 

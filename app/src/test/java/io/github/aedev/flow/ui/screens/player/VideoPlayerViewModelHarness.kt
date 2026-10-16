@@ -152,6 +152,7 @@ internal class VideoPlayerViewModelHarness(
         every { context.getString(any(), *anyVararg()) } answers { "res:${firstArg<Int>()}" }
 
         every { playerPreferences.shortsContentEnabled } returns flowOf(true)
+        every { playerPreferences.originalTitles } returns flowOf(false)
         every { playerPreferences.effectiveVideoNotesEnabled } returns flowOf(false)
         every { playerPreferences.miniPlayerContinueWatchingEnabled } returns continueWatchingEnabled
         every { playerPreferences.autoplayEnabled } returns autoplayEnabled

@@ -78,6 +78,10 @@ internal class PlaybackLoadController(
     var shortsEnabled: Boolean = true
         private set
 
+    @Volatile
+    var originalTitles: Boolean = false
+        private set
+
     /**
      * What the viewer hid, so the related list and autoplay drop it the way search and the home
      * feed do. The engine publishes no change signal, so this is re-read when a video loads —
@@ -111,6 +115,9 @@ internal class PlaybackLoadController(
         refreshFeedExclusions()
         playerPreferences.shortsContentEnabled
             .onEach { shortsEnabled = it }
+            .launchIn(scope)
+        playerPreferences.originalTitles
+            .onEach { originalTitles = it }
             .launchIn(scope)
     }
 
