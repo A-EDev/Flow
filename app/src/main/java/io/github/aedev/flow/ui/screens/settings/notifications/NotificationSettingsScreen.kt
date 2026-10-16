@@ -68,10 +68,10 @@ internal fun NotificationSettingsScreen(
         IntervalOptions.firstOrNull { it.first == interval }?.let { stringResource(it.second) }
             ?: stringResource(R.string.duration_minutes_short, interval)
     val intervalSummary =
-        if (enabled) {
-            stringResource(R.string.notif_check_interval_subtitle_template, intervalLabel)
-        } else {
-            stringResource(R.string.notif_check_interval_disabled)
+        when {
+            !enabled -> stringResource(R.string.notif_check_interval_disabled)
+            !newVideosOn -> stringResource(R.string.notif_check_interval_off_new_videos)
+            else -> stringResource(R.string.notif_check_interval_subtitle_template, intervalLabel)
         }
     val restrictedTitle = stringResource(R.string.notif_background_restricted_title)
     val restrictedBody = stringResource(R.string.notif_background_restricted_subtitle)
@@ -106,7 +106,7 @@ internal fun NotificationSettingsScreen(
             nav(
                 NotificationsIndex.interval,
                 value = intervalSummary,
-                enabled = enabled,
+                enabled = enabled && newVideosOn,
                 showChevron = false,
                 icon = Icons.Outlined.Schedule,
                 onClick = { showIntervalDialog = true },
