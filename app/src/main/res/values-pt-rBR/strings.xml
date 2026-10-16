@@ -2278,7 +2278,7 @@
     <string name="notification_video_live">Vídeo é ao vivo</string>
     <string name="topic_score_prefix">Escore</string>
     <string name="player_appearance_seek_gesture_title">Gesto de Deslocamento</string>
-    <string name="player_appearance_seek_gesture_subtitle">Deslize de um lado para o outro em tela cheia para se deslocar pela barra de progresso</string>
+    <string name="player_appearance_seek_gesture_subtitle">Deslize de um lado para o outro no vídeo para se deslocar pela barra de progresso</string>
     <string name="player_settings_subtitle_language">Idioma de legenda preferido</string>
     <string name="player_settings_subtitle_language_dialog_title">Idioma da Legenda</string>
     <string name="player_settings_subtitle_language_dialog_body">As legendas abrem neste idioma quando disponíveis. Se não estiverem disponíveis o Flow traduzirá uma faixa existente.</string>
@@ -3452,7 +3452,7 @@
         <item quantity="other">%d pesquisas</item>
     </plurals>
     <string name="sync_error_qr_not_local">Esse código leva para fora da sua rede local, então Flow não se conecta a ela. Use apenas códigos mostrados por seus próprios dispositivos.</string>
-    <string name="sync_error_no_peer">Nenhum dispositivo conectado antes do código expirar. Verifique se ambos os dispositivos estão no mesmo Wi-Fi e tente novamente.</string>
+    <string name="sync_error_no_peer">Nenhum dispositivo se conectou antes do código expirar. Verifique se ambos os dispositivos estão no mesmo Wi-Fi e tente novamente.</string>
     <string name="music_home_lastfm_discover_subtitle">Selecionadas pelos ouvintes do Last.fm entre as suas músicas mais ouvidas</string>
     <string name="music_home_lastfm_discover">Descubra com o Last.fm</string>
     <string name="scrobbling_import_failed">Não consegui ler sua lista de artistas mais populares</string>
@@ -3713,4 +3713,16 @@
     <string name="settings_section_video_player">Reprodutor de vídeo</string>
     <string name="settings_section_mini_player">Mini reprodutor</string>
     <string name="settings_seekbar_custom_width">Largura customizada</string>
+    <plurals name="course_lessons_count">
+        <item quantity="one">Curso · %d lição</item>
+        <item quantity="many">Curso · %d de lições</item>
+        <item quantity="other">Curso · %d lições</item>
+    </plurals>
+    <string name="player_settings_seek_zone_width">Largura da Barra de Progresso</string>
+    <string name="player_settings_seek_zone_edge_to_edge">De borda à borda</string>
+    <string name="player_settings_speed_swipe">Deslize de velocidade</string>
+    <string name="player_settings_speed_swipe_dialog_body">Deslize o dedo para cima ou para baixo deste lado em tela cheia para alterar a velocidade, em vez do brilho ou volume.</string>
+    <string name="player_settings_speed_swipe_off">Desativado</string>
+    <string name="player_settings_speed_swipe_left">Lado esquerdo</string>
+    <string name="player_settings_speed_swipe_right">Lado direito</string>
 </resources>
