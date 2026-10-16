@@ -51,4 +51,6 @@ internal data class PlayerControlsUiState(
     val lockOverlayRevealSignal: Int = 0,
     /** A gesture read-out — the speed badge, the zoom scale — currently owns the picture. */
     val isGestureReadoutActive: Boolean = false,
+    /** A double tap is still open or a double-tap seek is running, so the next touch is the player's. */
+    val yieldsTapsToPlayer: Boolean = false,
 )

@@ -49,6 +49,9 @@ class PlayerScreenState {
     var seekAccumulation by mutableIntStateOf(10)
     var showSeekBackAnimation by mutableStateOf(false)
 
+    /** A tap just lifted and the double-tap timeout is still running. */
+    var isTapWindowOpen by mutableStateOf(false)
+
     // Subtitle States
     var subtitleStyle by mutableStateOf(SubtitleStyle())
 
@@ -144,6 +147,8 @@ class PlayerScreenState {
     fun revealLockOverlay() {
         lockOverlayRevealSignal++
     }
+
+    fun playbackFraction(): Float = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
 }
 
 @Composable

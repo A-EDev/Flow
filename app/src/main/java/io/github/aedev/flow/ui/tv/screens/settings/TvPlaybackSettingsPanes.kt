@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.DEFAULT_BACKGROUND_PLAY_ENABLED
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
@@ -25,7 +26,9 @@ fun TvPlaybackSettingsPane(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
-    val backgroundPlay by playerPreferences.backgroundPlayEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val backgroundPlay by playerPreferences.backgroundPlayEnabled.collectAsStateWithLifecycle(
+        initialValue = DEFAULT_BACKGROUND_PLAY_ENABLED,
+    )
     val autoplay by playerPreferences.autoplayEnabled.collectAsStateWithLifecycle(initialValue = true)
     val skipSilence by playerPreferences.skipSilenceEnabled.collectAsStateWithLifecycle(initialValue = false)
     val stableVolume by playerPreferences.stableVolumeEnabled.collectAsStateWithLifecycle(initialValue = false)

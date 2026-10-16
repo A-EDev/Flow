@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.player
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -40,7 +39,6 @@ import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * VideoPlayerHost - The main video player overlay that sits above everything.
@@ -162,16 +160,7 @@ fun VideoPlayerHost(
         lockModeEnabled = prefs.lockModeEnabled,
     )
 
-    val progressProvider =
-        remember {
-            {
-                if (screenState.duration > 0) {
-                    (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
-            }
-        }
+    val progressProvider = remember(screenState) { { screenState.playbackFraction() } }
     PlayerSheetCollapseSyncEffects(
         playerSheetState = playerSheetState,
         screenState = screenState,
@@ -213,12 +202,6 @@ fun VideoPlayerHost(
 
     AutoplayCommentsHoldEffect(screenState = screenState, viewModel = playerViewModel)
 
-    // Handle Back press in Fullscreen
-    BackHandler(enabled = screenState.isFullscreen) {
-        screenState.isFullscreen = false
-        screenState.isFullscreenPortrait = false
-    }
-
     // ===== EFFECTS =====
     PlayerSheetSessionEffects(
         playerSheetState = playerSheetState,
@@ -228,31 +211,11 @@ fun VideoPlayerHost(
         onMinimize = onMinimize,
     )
 
-    // Stays enabled for the whole scrub: the sheet's currentValue flips to Collapsed halfway
-    // through, and disabling the handler mid-gesture would cancel it as if the user had backed out.
-    var backScrubInFlight by remember { mutableStateOf(false) }
-    PredictiveBackHandler(
-        enabled =
-            (playerSheetState.currentValue == PlayerSheetValue.Expanded || backScrubInFlight) &&
-                !localIsInPipMode &&
-                !screenState.isFullscreen,
-    ) { progress ->
-        backScrubInFlight = true
-        try {
-            playerSheetState.beginBackScrub()
-            progress.collect { event -> playerSheetState.scrubBack(event.progress) }
-            playerSheetState.collapse()
-        } catch (_: CancellationException) {
-            playerSheetState.expand()
-        } finally {
-            backScrubInFlight = false
-        }
-    }
-
-    BackHandler(enabled = screenState.isTouchLocked && !localIsInPipMode) {
-        screenState.revealLockOverlay()
-        screenState.onInteraction()
-    }
+    PlayerBackEffects(
+        playerSheetState = playerSheetState,
+        screenState = screenState,
+        isInPipMode = localIsInPipMode,
+    )
 
     val isMinimized by remember(playerSheetState) {
         derivedStateOf { playerSheetState.fraction > 0.5f }

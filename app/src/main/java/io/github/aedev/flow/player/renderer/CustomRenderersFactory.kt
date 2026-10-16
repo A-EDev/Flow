@@ -24,8 +24,8 @@ import io.github.aedev.flow.player.subtitle.SubtitleDelay
 import java.util.ArrayList
 
 /**
- * A [DefaultRenderersFactory] that uses [CustomMediaCodecVideoRenderer] for video rendering
- * and optionally installs custom [AudioProcessor]s (e.g. the parametric EQ) into the audio sink.
+ * A [DefaultRenderersFactory] that builds the video renderer itself and optionally installs custom
+ * [AudioProcessor]s (e.g. the parametric EQ) into the audio sink.
  */
 open class CustomRenderersFactory(
     context: Context,
@@ -85,22 +85,21 @@ open class CustomRenderersFactory(
         allowedVideoJoiningTimeMs: Long,
         out: ArrayList<Renderer>,
     ) {
-        // Mirrors DefaultRenderersFactory.buildVideoRenderers so the custom renderer keeps the same
-        // configuration; this override is the reason setEnableMediaCodecVideoRendererDurationToProgressUs
-        // on the factory does nothing for us, so the flag is applied here instead.
+        // Mirrors DefaultRenderersFactory.buildVideoRenderers for the MediaCodec renderer alone; this
+        // override is the reason setEnableMediaCodecVideoRendererDurationToProgressUs on the factory
+        // does nothing for us, so the flag is applied here instead.
         out.add(
-            CustomMediaCodecVideoRenderer(
-                MediaCodecVideoRenderer
-                    .Builder(context)
-                    .setCodecAdapterFactory(codecAdapterFactory)
-                    .setMediaCodecSelector(mediaCodecSelector)
-                    .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
-                    .setEnableDecoderFallback(enableDecoderFallback)
-                    .setEventHandler(eventHandler)
-                    .setEventListener(eventListener)
-                    .setMaxDroppedFramesToNotify(MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY)
-                    .setEnableDurationToProgressUs(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING),
-            ),
+            MediaCodecVideoRenderer
+                .Builder(context)
+                .setCodecAdapterFactory(codecAdapterFactory)
+                .setMediaCodecSelector(mediaCodecSelector)
+                .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
+                .setEnableDecoderFallback(enableDecoderFallback)
+                .setEventHandler(eventHandler)
+                .setEventListener(eventListener)
+                .setMaxDroppedFramesToNotify(MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY)
+                .setEnableDurationToProgressUs(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING)
+                .build(),
         )
     }
 

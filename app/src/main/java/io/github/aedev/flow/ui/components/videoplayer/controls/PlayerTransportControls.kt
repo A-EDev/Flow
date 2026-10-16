@@ -58,8 +58,9 @@ private val TransportEdgeInset = 8.dp
 /**
  * Previous / play-pause / next.
  *
- * [showSkipButtons] is false during the initial load, when the queue is not yet known well enough
- * for skipping to mean anything — the play button stays so the loading spinner has a home.
+ * [showSkipButtons] is false when the setting hides them, and during the initial load, when the
+ * queue is not yet known well enough for skipping to mean anything. The play button always stays,
+ * so the loading spinner has a home.
  *
  * [isLayerVisible] gates the buffering indicator: the controls stay composed behind the video while
  * hidden, and a morphing indicator nobody can see still costs a frame every frame.

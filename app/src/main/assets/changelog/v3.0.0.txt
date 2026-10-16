@@ -92,6 +92,7 @@ NEW FEATURES
 - A video playing in the background keeps a mini bar in the music bar's place, with play and pause, its queue, and a tap or a swipe up to bring the video back (#980)
 - Choose what swiping a mini bar left or right does in Player appearance: close, next or previous with a peek at that video, save to Watch later, like, download, not interested or remove from queue (#980)
 - Related videos on Home say which of your videos they came from in Details, in the video's menu (#907)
+- The Previous and Next buttons on the video player can be hidden in Player buttons (#1308)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -155,6 +156,8 @@ IMPROVEMENTS
 - Live chat on tablets and unfolded phones opens when you tap it rather than on its own, and a new Live chat switch in Settings, Playback turns it off completely (#1042)
 - YouTube Courses show as courses: "Course, 124 lessons" in search, on channel Home and in a channel's Courses tab, and they open as a playlist instead of an upcoming video (#1299)
 - The app language list now offers every translated language, Traditional Chinese (Taiwan) included, and Android 13 and later list the same languages in Settings, App languages. A language chosen there and one chosen in Flow are the same setting (#1300)
+- Videos keep playing as audio when you leave the app or turn the screen off; Background Play is now on unless you turn it off (#1298)
+- The video decoder is reused when the picture moves to a new surface, instead of being rebuilt every time (#1298)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -290,6 +293,11 @@ FIXES AND STABILITY
 - Home mixes its cards: two from related videos, searches or channels you watch, then one or two from channels you follow, and a channel never shows twice within 20 cards (#907)
 - Add Open source notices to About
 - YouTube playlists load past their first 100 videos again: YouTube moved the link to the next page, so every playlist and course stopped at 100 (#1299)
+- A double tap on the side of the video seeks instead of landing on the Previous or Next button the first tap revealed (#1308)
+- Fix a crash when a back swipe on the video player was cancelled while the player was still moving (#1307)
+- Fix a crash when a media button or a leftover notification started Flow with nothing to play (#1309)
+- With Background Play off, Play in the notification resumes audio only instead of decoding video nobody can see (#1298)
+- Coming back to a video that played in the background no longer forces a rebuffer while the picture returns (#1298)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
@@ -298,3 +306,4 @@ BUILD AND CI
 - Search, channel and player parsing are now covered by tests against real captured API responses
 - Limit concurrent Kotlin compilations so CI stops running out of memory
 - Add #907 scenario tests that measure off-topic drift, junk interests, recency and reset behaviour on the real recommendation engine, and a Home benchmark through the real ranker
+- Keep the R8 mapping with every CI build, so crash reports can be traced back to source lines

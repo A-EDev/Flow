@@ -765,6 +765,7 @@ class MainActivity : ComponentActivity() {
         } else {
             videoLifecycleLog("handleBackgroundPlaybackOnStop pause")
             playerManager.pause()
+            playerManager.parkVideoForBackground()
             playerManager.stopBackgroundService()
         }
     }

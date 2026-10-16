@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player
 
+import io.github.aedev.flow.data.local.DEFAULT_BACKGROUND_PLAY_ENABLED
 import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +15,7 @@ import javax.inject.Singleton
  */
 data class LifecyclePlaybackSettings(
     val autoPipEnabled: Boolean = false,
-    val backgroundPlayEnabled: Boolean = false,
+    val backgroundPlayEnabled: Boolean = DEFAULT_BACKGROUND_PLAY_ENABLED,
     val shortsBackgroundPlay: Boolean = false,
     val shortsPipEnabled: Boolean = false,
     val startVideosPaused: Boolean = false,

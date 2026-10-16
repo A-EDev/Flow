@@ -12,12 +12,20 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class LifecyclePlaybackPreferencesTest {
     @Test
-    fun `settings default to disabled before the preferences load`() =
+    fun `settings hold their defaults before the preferences load`() =
         runTest {
             val preferences = LifecyclePlaybackPreferences(MutableStateFlow(LifecyclePlaybackSettings()))
 
             assertThat(preferences.settings).isEqualTo(LifecyclePlaybackSettings())
         }
+
+    @Test
+    fun `background play is on before the preferences load`() {
+        // The #817 relaunch reads these cold values in onStop; they must match the stored default,
+        // or a user who never touched the switch would be paused by that relaunch alone (#1298).
+        assertThat(LifecyclePlaybackSettings().backgroundPlayEnabled).isTrue()
+        assertThat(LifecyclePlaybackSettings().shortsBackgroundPlay).isFalse()
+    }
 
     @Test
     fun `loaded settings outlive the observing scope`() =

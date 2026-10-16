@@ -331,7 +331,7 @@ internal fun PlayerControlsOverlay(
                         showBufferingSpinner = state.isBuffering || isInitialLoading,
                         hasPrevious = state.hasPrevious,
                         hasNext = state.hasNext,
-                        showSkipButtons = !hideControlsForLoading,
+                        showSkipButtons = !hideControlsForLoading && overlayPreferences.nextPrevButtonsEnabled,
                         // Stepping a running player just fights playback, and a live edge has nothing
                         // to step through.
                         showFrameStep =
@@ -369,6 +369,12 @@ internal fun PlayerControlsOverlay(
                         isLayerVisible = isLayerOnScreen,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
+                }
+
+                // The second tap of a double tap, a tap during a double-tap seek and a tap on a
+                // fading-out button all belong to the player, not to the button under the finger.
+                if (!isVisible || state.yieldsTapsToPlayer) {
+                    PlayerTapShield(modifier = Modifier.matchParentSize())
                 }
             }
         }
