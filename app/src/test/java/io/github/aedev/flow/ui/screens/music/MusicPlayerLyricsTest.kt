@@ -39,6 +39,7 @@ class MusicPlayerLyricsTest {
             every { lyricsShowTranslation } returns flowOf(false)
             every { lyricsShowRomanization } returns flowOf(false)
             every { lyricsAutoRomanize } returns flowOf(false)
+            every { lyricsKeepScreenOn } returns flowOf(false)
         }
     private val reader =
         mockk<LocalLyricsReader> {
