@@ -4578,4 +4578,17 @@
         <item quantity="many">دورة · %d درس</item>
         <item quantity="other">دورة · %d درس</item>
     </plurals>
+    <string name="player_settings_seek_zone_edge_to_edge">من الحافة إلى الحافة</string>
+    <string name="player_settings_speed_swipe">سرعة التمرير</string>
+    <string name="player_settings_speed_swipe_dialog_body">اسحب لأعلى أو لأسفل على هذا الجانب في وضع ملء الشاشة لتغيير السرعة بدلًا من السطوع أو مستوى الصوت.</string>
+    <string name="player_settings_speed_swipe_off">معطل</string>
+    <string name="player_settings_speed_swipe_left">الجانب الأيسر</string>
+    <string name="player_settings_speed_swipe_right">الجانب الأيمن</string>
+    <string name="player_settings_speed_swipe_step">مقدار تغيير السرعة</string>
+    <string name="player_settings_speed_swipe_step_dialog_body">مقدار تغيير السرعة في كل خطوة من التمرير.</string>
+    <string name="player_settings_speed_swipe_step_value">%1$s لكل خطوة</string>
+    <string name="player_settings_seek_zone_edge_to_edge_desc">‎أثلاث تمتد إلى حواف الشاشة، بحيث تُحتسب النقرات عليها أيضًا.</string>
+    <string name="player_settings_overlay_next_prev">زر السابق و التالي</string>
+    <string name="player_settings_overlay_next_prev_subtitle">إظهار زري الفيديو السابق والتالي على مشغّل الفيديو</string>
+    <string name="settings_keywords_next_prev">تخطي، الفيديو السابق، الفيديو التالي، النقر المزدوج</string>
 </resources>
