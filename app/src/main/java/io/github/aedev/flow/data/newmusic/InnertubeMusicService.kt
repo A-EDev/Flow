@@ -350,7 +350,29 @@ object InnertubeMusicService {
                 singlesParams = singles?.moreEndpoint?.params,
                 topTracksBrowseId = topSongs?.moreEndpoint?.browseId,
                 topTracksParams = topSongs?.moreEndpoint?.params,
+                shufflePlaylistId = artistItem.shuffleEndpoint?.playlistId,
+                shuffleParams = artistItem.shuffleEndpoint?.params,
+                radioPlaylistId = artistItem.radioEndpoint?.playlistId,
+                radioParams = artistItem.radioEndpoint?.params,
             )
+        }
+
+    /**
+     * The songs of a watch playlist such as an artist's shuffle or mix. Sent without a video id:
+     * with one, `next` answers these playlists with an empty queue.
+     */
+    suspend fun fetchWatchPlaylist(
+        playlistId: String,
+        params: String?,
+    ): List<MusicTrack> =
+        withContext(Dispatchers.IO) {
+            YouTube
+                .next(WatchEndpoint(playlistId = playlistId, params = params))
+                .getOrNull()
+                ?.items
+                .orEmpty()
+                .mapNotNull { convertToMusicTrack(it) }
+                .distinctBy { it.videoId }
         }
 
     /**

@@ -147,6 +147,12 @@ data class ArtistDetails(
     val singlesParams: String? = null,
     val topTracksBrowseId: String? = null,
     val topTracksParams: String? = null,
+    /** The header's shuffle of the artist's whole catalogue, played through `next`. */
+    val shufflePlaylistId: String? = null,
+    val shuffleParams: String? = null,
+    /** The header's artist mix. */
+    val radioPlaylistId: String? = null,
+    val radioParams: String? = null,
 )
 
 data class MusicCharts(
