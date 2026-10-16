@@ -416,7 +416,7 @@ internal class PlayerSecondaryMetadataLoader(
                     } else {
                         null
                     }
-                val enriched =
+                val refreshed =
                     fallbackVideo.copy(
                         title = meta.title?.takeIf { it.isNotBlank() } ?: fallbackVideo.title,
                         channelName = meta.channelName?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelName,
@@ -427,6 +427,7 @@ internal class PlayerSecondaryMetadataLoader(
                         likeCount = likes ?: fallbackVideo.likeCount,
                         isLive = true,
                     )
+                val enriched = OriginalTextPolicy.keepOriginalText(refreshed, fallbackVideo, playerPreferences.originalTitles.first())
                 val metadataRelated =
                     PlayerRelatedVideosPolicy.sanitize(
                         videoId = videoId,
