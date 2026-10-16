@@ -60,16 +60,40 @@ class PlaylistSortingTest {
         assertThat(playlist.idsSortedBy(PlaylistSortOrder.DATE_ADDED_OLDEST)).containsExactly("untimed-a", "untimed-b", "timed").inOrder()
     }
 
+    @Test
+    fun `every playlist can sort by length`() {
+        listOf(
+            PlaylistSortOrder.availableFor(isLocalPlaylist = false),
+            PlaylistSortOrder.availableFor(isLocalPlaylist = true),
+            PlaylistSortOrder.availableFor(isLocalPlaylist = true, isLikes = true),
+        ).forEach { assertThat(it).containsAtLeast(PlaylistSortOrder.LONGEST, PlaylistSortOrder.SHORTEST) }
+    }
+
+    @Test
+    fun `length orders put videos without a duration last and keep ties in place`() {
+        val playlist =
+            listOf(
+                video("live", duration = 0),
+                video("short-a", duration = 60),
+                video("long", duration = 3_600),
+                video("short-b", duration = 60),
+            )
+
+        assertThat(playlist.idsSortedBy(PlaylistSortOrder.LONGEST)).containsExactly("long", "short-a", "short-b", "live").inOrder()
+        assertThat(playlist.idsSortedBy(PlaylistSortOrder.SHORTEST)).containsExactly("short-a", "short-b", "long", "live").inOrder()
+    }
+
     private fun video(
         id: String,
         addedAt: Long? = null,
+        duration: Int = 0,
     ) = Video(
         id = id,
         title = id,
         channelName = "",
         channelId = "",
         thumbnailUrl = "",
-        duration = 0,
+        duration = duration,
         viewCount = 0,
         uploadDate = "",
         addedAtInPlaylist = addedAt,
