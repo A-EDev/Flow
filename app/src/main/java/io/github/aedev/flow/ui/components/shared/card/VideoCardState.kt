@@ -20,6 +20,7 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.repository.OriginalTitleRepository
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.LocalThumbnailQuality
@@ -45,6 +46,7 @@ data class VideoCardPreferences(
     val markWatchedEnabled: Boolean = false,
     val upcomingReminderIds: Set<String> = emptySet(),
     val showWatchProgress: Boolean = true,
+    val originalTitlesEnabled: Boolean = false,
 )
 
 /**
@@ -115,6 +117,7 @@ val LocalVideoCardActions = staticCompositionLocalOf { VideoCardActions.None }
  */
 @Composable
 fun ProvideVideoCardState(
+    originalTitles: OriginalTitleRepository?,
     quickActions: QuickActionsViewModel = sharedQuickActionsViewModel(),
     content: @Composable () -> Unit,
 ) {
@@ -141,6 +144,8 @@ fun ProvideVideoCardState(
                 VideoCardPreferences(deArrow, deArrowBadge, actions, markWatched, reminders)
             }.combine(playerPreferences.showWatchProgress) { cardPreferences, showWatchProgress ->
                 cardPreferences.copy(showWatchProgress = showWatchProgress)
+            }.combine(playerPreferences.originalTitles) { cardPreferences, originalTitles ->
+                cardPreferences.copy(originalTitlesEnabled = originalTitles)
             }.distinctUntilChanged()
         }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(VideoCardPreferences())
@@ -171,6 +176,7 @@ fun ProvideVideoCardState(
         LocalVideoWatchProgress provides progressStore,
         LocalVideoCardActions provides actions,
         LocalThumbnailQuality provides thumbnailQuality,
+        LocalOriginalTitles provides originalTitles,
         content = content,
     )
 }
@@ -228,13 +234,14 @@ internal class VideoCardState(
 internal fun rememberVideoCardState(video: Video): VideoCardState {
     val preferences = LocalVideoCardPreferences.current
     val deArrow = rememberDeArrowResult(video.id, preferences.deArrowEnabled)
+    val originalTitle = rememberOriginalTitle(video.id, preferences.originalTitlesEnabled && deArrow?.title == null)
     val collaborators = rememberCollaboratorItems(video)
     val channelName = rememberCollaboratorChannelDisplayName(video.channelName, collaborators)
     val watchProgress = rememberWatchProgress(video.id)
     val sheets = remember { VideoCardSheetState() }
     return VideoCardState(
         video = video,
-        title = deArrow?.title ?: video.title,
+        title = deArrow?.title ?: originalTitle ?: video.title,
         thumbnailUrl = deArrow?.thumbnailUrl ?: video.thumbnailUrl,
         showDeArrowBadge = deArrow != null && preferences.deArrowBadgeEnabled,
         channelName = channelName,

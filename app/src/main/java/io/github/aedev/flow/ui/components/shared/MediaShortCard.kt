@@ -33,6 +33,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
+import io.github.aedev.flow.ui.components.shared.card.rememberCardTitle
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -103,7 +104,7 @@ fun MediaShortCard(
         }
         Spacer(modifier = Modifier.height(TitleSpacing))
         Text(
-            text = video.title,
+            text = rememberCardTitle(video),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
