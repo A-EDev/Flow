@@ -230,6 +230,16 @@
             </intent-filter>
         </service>
 
+        <!-- Media3 playback resumption: a headset's Play after Flow was killed reaches the music
+             service (the only MediaLibraryService), which resumes the saved queue. -->
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- The download queue runs as WorkManager work; its foreground service carries dataSync. -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

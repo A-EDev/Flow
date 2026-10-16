@@ -50,12 +50,11 @@ import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.player.PipQueueNavigation
 import io.github.aedev.flow.ui.FlowApp
-import io.github.aedev.flow.ui.LinkDestination
+import io.github.aedev.flow.ui.IncomingLinks
 import io.github.aedev.flow.ui.components.library.message
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
-import io.github.aedev.flow.ui.linkDestination
 import io.github.aedev.flow.ui.linkTextOf
 import io.github.aedev.flow.ui.musicCollectionRoute
 import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
@@ -72,7 +71,6 @@ import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
-import io.github.aedev.flow.utils.parseYouTubeLink
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,17 +83,7 @@ private const val PORTRAIT_REEL_ASPECT_RATIO = 9f / 16f
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val _deeplinkVideoId = mutableStateOf<String?>(null)
-    val deeplinkVideoId: State<String?> = _deeplinkVideoId
-
-    private val _isDeeplinkShort = mutableStateOf(false)
-    val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
-
-    private val _openMusicPlayerRequest = mutableIntStateOf(0)
-    val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
-
-    private val _pendingRoute = mutableStateOf<String?>(null)
-    val pendingRoute: State<String?> = _pendingRoute
+    private val links = IncomingLinks()
 
     @Inject
     lateinit var originalTitles: OriginalTitleRepository
@@ -285,17 +273,18 @@ class MainActivity : ComponentActivity() {
                                 // 1. MAIN APP (Home/NavHost)
                                 // This loads *behind* the splash screen immediately.
                                 // By the time splash fades, this is ready.
-                                val deeplinkVideoId by this@MainActivity.deeplinkVideoId
-                                val isDeeplinkShort by this@MainActivity.isDeeplinkShort
-                                val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
-                                val pendingRoute by this@MainActivity.pendingRoute
+                                val deeplinkVideoId by links.videoId
+                                val isDeeplinkShort by links.isShort
+                                val isDeeplinkShared by links.isShared
+                                val openMusicPlayerRequest by links.musicPlayerRequest
+                                val pendingRoute by links.route
 
                                 if (appUiRoot == AppUiRoot.TV) {
                                     SideEffect { splashController.contentReady = true }
                                     FlowTvApp(
                                         deeplinkVideoId = deeplinkVideoId,
                                         isShort = isDeeplinkShort,
-                                        onDeeplinkConsumed = { consumeDeeplink() },
+                                        onDeeplinkConsumed = links::consumeVideo,
                                     )
                                 } else {
                                     ProvideChannelGroupLabels {
@@ -306,14 +295,11 @@ class MainActivity : ComponentActivity() {
                                             systemDarkThemeMode = theme.systemDarkThemeMode,
                                             deeplinkVideoId = deeplinkVideoId,
                                             isShort = isDeeplinkShort,
+                                            isSharedLink = isDeeplinkShared,
                                             openMusicPlayerRequest = openMusicPlayerRequest,
-                                            onDeeplinkConsumed = {
-                                                consumeDeeplink()
-                                            },
+                                            onDeeplinkConsumed = links::consumeVideo,
                                             pendingRoute = pendingRoute,
-                                            onPendingRouteConsumed = {
-                                                _pendingRoute.value = null
-                                            },
+                                            onPendingRouteConsumed = links::consumeRoute,
                                             onStartDestinationKnown = { splashController.contentReady = true },
                                         )
                                     }
@@ -377,7 +363,7 @@ class MainActivity : ComponentActivity() {
             val result = playlistTransfer.get().import(file, getString(R.string.imported_playlist_default_name))
             Toast.makeText(this@MainActivity, result.message(this@MainActivity), Toast.LENGTH_LONG).show()
             if (result is PlaylistImport.Imported) {
-                _pendingRoute.value = if (result.isMusic) musicCollectionRoute(result.playlistId) else "playlist/${result.playlistId}"
+                links.openRoute(if (result.isMusic) musicCollectionRoute(result.playlistId) else "playlist/${result.playlistId}")
             }
         }
     }
@@ -385,7 +371,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
             intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
-            _pendingRoute.value = UPDATE_ROUTE
+            links.openRoute(UPDATE_ROUTE)
             return
         }
         val playlistFile = playlistFileIn(intent)
@@ -401,20 +387,19 @@ class MainActivity : ComponentActivity() {
             )
         if (widgetRoute != null) {
             intent.removeExtra(io.github.aedev.flow.widget.core.action.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
-            _pendingRoute.value = widgetRoute
+            links.openRoute(widgetRoute)
             return
         }
 
         val linkText = linkTextOf(intent)
         if (linkText != null) {
-            openLink(linkText)
+            val understood = links.openLink(linkText, isShared = intent.action == Intent.ACTION_SEND, isRestoring = isRestoringState)
+            if (!understood && !isRestoringState) Toast.makeText(this, R.string.link_not_supported, Toast.LENGTH_LONG).show()
             return
         }
 
         if (intent.getBooleanExtra("open_music_player", false)) {
-            _deeplinkVideoId.value = null
-            _isDeeplinkShort.value = false
-            _openMusicPlayerRequest.intValue += 1
+            links.openMusicPlayer()
             intent.removeExtra("notification_video_id")
             intent.removeExtra("video_id")
             return
@@ -423,47 +408,12 @@ class MainActivity : ComponentActivity() {
         if (intent.getBooleanExtra("open_video_player", false)) {
             intent.removeExtra("open_video_player")
             val currentVideoId = GlobalPlayerState.currentVideo.value?.id
-            if (currentVideoId != null) {
-                _isDeeplinkShort.value = false
-                _deeplinkVideoId.value = currentVideoId
-            }
+            if (currentVideoId != null) links.openVideo(currentVideoId)
             return
         }
 
         val isShort = intent.getBooleanExtra("is_short", false) || intent.getBooleanExtra("is_shorts", false)
-        _isDeeplinkShort.value = isShort && notificationVideoId != null
-        notificationVideoId?.let { _deeplinkVideoId.value = it }
-    }
-
-    /**
-     * A link from another app. A recreated activity gets its intent again, and its restored back
-     * stack already holds the page the link opened, so only playback is re-requested then.
-     */
-    private fun openLink(text: String) {
-        when (val destination = parseYouTubeLink(text)?.let(::linkDestination)) {
-            is LinkDestination.Video -> {
-                _isDeeplinkShort.value = false
-                _deeplinkVideoId.value = destination.videoId
-            }
-
-            is LinkDestination.Short -> {
-                _isDeeplinkShort.value = true
-                _deeplinkVideoId.value = destination.videoId
-            }
-
-            is LinkDestination.Page -> {
-                if (!isRestoringState) _pendingRoute.value = destination.route
-            }
-
-            null -> {
-                if (!isRestoringState) Toast.makeText(this, R.string.link_not_supported, Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    fun consumeDeeplink() {
-        _deeplinkVideoId.value = null
-        _isDeeplinkShort.value = false
+        notificationVideoId?.let { links.openVideo(it, isShort = isShort) }
     }
 
     override fun onPictureInPictureModeChanged(

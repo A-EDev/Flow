@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SharedLinkAction
 import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -44,6 +45,7 @@ internal fun ContentSettingsScreen(
     val context = LocalContext.current
     val linkHandlingLabel = rememberLinkHandlingLabel()
     var showThresholdDialog by rememberSaveable { mutableStateOf(false) }
+    var showSharedLinksDialog by rememberSaveable { mutableStateOf(false) }
 
     SettingsPage(
         title = stringResource(R.string.settings_content_title),
@@ -110,6 +112,10 @@ internal fun ContentSettingsScreen(
         }
         group(key = "content.links", header = R.string.settings_section_links) {
             nav(ContentIndex.openLinks, onClick = { openLinkSettings(context) }, value = linkHandlingLabel)
+            choice(ContentIndex.sharedLinks, onClick = { showSharedLinksDialog = true }) {
+                val action by viewModel.sharedLinkAction.collectAsStateWithLifecycle()
+                sharedLinkActionLabel(action)
+            }
         }
     }
 
@@ -130,7 +136,27 @@ internal fun ContentSettingsScreen(
             onDismiss = { showThresholdDialog = false },
         )
     }
+
+    if (showSharedLinksDialog) {
+        val action by viewModel.sharedLinkAction.collectAsStateWithLifecycle()
+        FlowChoiceDialog(
+            title = stringResource(R.string.content_settings_shared_links_title),
+            description = stringResource(R.string.content_settings_shared_links_dialog_body),
+            options = SharedLinkAction.entries.map { FlowChoice(it, sharedLinkActionLabel(it)) },
+            selected = action,
+            onSelect = viewModel::setSharedLinkAction,
+            onDismiss = { showSharedLinksDialog = false },
+        )
+    }
 }
+
+@Composable
+private fun sharedLinkActionLabel(action: SharedLinkAction): String =
+    when (action) {
+        SharedLinkAction.PLAY -> stringResource(R.string.content_settings_shared_links_play)
+        SharedLinkAction.ASK_WHILE_PLAYING -> stringResource(R.string.content_settings_shared_links_ask_while_playing)
+        SharedLinkAction.ALWAYS_ASK -> stringResource(R.string.content_settings_shared_links_always_ask)
+    }
 
 @Composable
 private fun watchedThresholdLabel(threshold: WatchedThreshold): String =

@@ -3,16 +3,13 @@ package io.github.aedev.flow.ui.screens.settings.notifications
 import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.notification.BackgroundWorkPolicy
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
-import io.github.aedev.flow.notification.UpdateCheckWorker
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,27 +38,9 @@ class NotificationSettingsViewModel
             _backgroundAllowed.value = allowed
         }
 
-        fun setEnabled(value: Boolean) =
-            write {
-                preferences.setNotificationsEnabled(value)
-                if (value) {
-                    SubscriptionCheckWorker.schedulePeriodicCheck(
-                        context,
-                        intervalMinutes = preferences.subscriptionCheckIntervalMinutes.first().toLong(),
-                        reschedule = true,
-                    )
-                    if (BuildConfig.UPDATER_ENABLED) UpdateCheckWorker.schedulePeriodicCheck(context, reschedule = true)
-                } else {
-                    SubscriptionCheckWorker.cancelScheduledChecks(context)
-                    UpdateCheckWorker.cancelScheduledChecks(context)
-                }
-            }
+        fun setEnabled(value: Boolean) = write { preferences.setNotificationsEnabled(value) }
 
-        fun setInterval(minutes: Int) =
-            write {
-                preferences.setSubscriptionCheckIntervalMinutes(minutes)
-                SubscriptionCheckWorker.schedulePeriodicCheck(context, intervalMinutes = minutes.toLong(), reschedule = true)
-            }
+        fun setInterval(minutes: Int) = write { preferences.setSubscriptionCheckIntervalMinutes(minutes) }
 
         fun setNewVideos(value: Boolean) = write { preferences.setNotifNewVideosEnabled(value) }
 

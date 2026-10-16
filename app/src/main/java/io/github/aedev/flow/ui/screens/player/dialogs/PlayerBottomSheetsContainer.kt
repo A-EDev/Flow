@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
-import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.Icon
@@ -18,7 +17,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
@@ -50,7 +48,6 @@ internal fun PlayerBottomSheetsContainer(
     onSelectCommentSort: (CommentSortFilter) -> Unit = {},
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
-    context: Context,
     onPlayAsShort: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
@@ -70,14 +67,6 @@ internal fun PlayerBottomSheetsContainer(
             player = EnhancedPlayerManager.getInstance().getPlayer(),
         ) {
             EnhancedPlayerManager.getInstance().pause()
-        }
-        SleepTimerManager.attachExitCallback {
-            EnhancedPlayerManager.getInstance().pause()
-            EnhancedMusicPlayerManager.stop()
-            context.stopService(
-                android.content.Intent(context, io.github.aedev.flow.service.VideoPlayerService::class.java),
-            )
-            (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
 

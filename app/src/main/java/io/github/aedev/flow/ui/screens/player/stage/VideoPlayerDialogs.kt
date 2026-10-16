@@ -35,7 +35,6 @@ internal fun VideoPlayerDialogs(
     onClose: () -> Unit,
 ) {
     val video = session.video
-    val context = session.context
     val screenState = session.screenState
     val playerState = session.playerState
     val playerUiState = session.uiState
@@ -98,7 +97,6 @@ internal fun VideoPlayerDialogs(
         },
         mediaSheetExpandedHeight = mediaSheetHeights.expanded,
         mediaSheetCollapsedHeight = mediaSheetHeights.collapsed,
-        context = context,
         onPlayAsShort = { videoId ->
             onClose()
             onNavigateToShorts(videoId)

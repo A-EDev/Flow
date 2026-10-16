@@ -720,6 +720,7 @@
     <string name="notif_check_interval">New Video Check Interval</string>
     <string name="notif_check_interval_subtitle_template">Check every %s</string>
     <string name="notif_check_interval_disabled">Background notification checks are disabled</string>
+    <string name="notif_check_interval_off_new_videos">Off while New Videos is off</string>
     <string name="notif_check_interval_dialog_title">Check Interval</string>
     <string name="notif_check_interval_dialog_body">How often Flow checks your subscriptions for new videos.</string>
     <string name="notif_interval_15m">15 minutes</string>
@@ -3716,6 +3717,14 @@
     <string name="content_settings_open_links_some">On for %1$d of %2$d addresses</string>
     <string name="content_settings_open_links_off">Off. Links open in another app</string>
     <string name="content_settings_open_links_system_asks">Android asks which app to use</string>
+    <string name="content_settings_shared_links_title">Shared links</string>
+    <string name="content_settings_shared_links_subtitle">What a video shared to Flow does</string>
+    <string name="content_settings_shared_links_dialog_body">Links you tap in other apps always play.</string>
+    <string name="content_settings_shared_links_play">Play right away</string>
+    <string name="content_settings_shared_links_ask_while_playing">Ask while something plays</string>
+    <string name="content_settings_shared_links_always_ask">Always ask</string>
+    <string name="shared_link_play_now">Play now</string>
+    <string name="shared_link_play_now_desc">Replaces what is playing</string>
     <string name="settings_keywords_hide_watched">seen, already watched, filter</string>
     <string-array name="settings_block_suggestions">
         <item>ASMR</item>

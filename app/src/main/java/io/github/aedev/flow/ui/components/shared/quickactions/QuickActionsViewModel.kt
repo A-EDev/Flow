@@ -224,6 +224,12 @@ class QuickActionsViewModel
             emit(R.string.play_next_toast)
         }
 
+        /**
+         * [video], known only by its id as a shared link brings it, filled in from the watch response.
+         * That response is cached, so playing the video afterwards does not fetch it again.
+         */
+        suspend fun loadLinkedVideo(video: Video): Video? = repository.enrichFromWatchMetadata(video)
+
         fun addVideoToQueue(video: Video) {
             playerManager.get().addVideoToQueue(video)
             emit(R.string.added_to_queue_toast)

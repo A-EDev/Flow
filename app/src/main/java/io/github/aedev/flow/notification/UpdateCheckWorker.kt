@@ -31,17 +31,11 @@ class UpdateCheckWorker(
         const val WORK_NAME = "update_check_work"
         private const val TAG = "UpdateCheckWorker"
 
-        suspend fun schedulePeriodicCheck(
+        /** Schedules the 12-hour check; [BackgroundCheckScheduler] decides whether it should run at all. */
+        fun schedulePeriodicCheck(
             context: Context,
-            reschedule: Boolean = false,
+            reschedule: Boolean,
         ) {
-            val notificationsEnabled = PlayerPreferences(context).notificationsEnabled.first()
-            if (!notificationsEnabled) {
-                cancelScheduledChecks(context)
-                Log.d(TAG, "Skipping update check scheduling because notifications are disabled")
-                return
-            }
-
             val constraints =
                 Constraints
                     .Builder()
@@ -77,8 +71,13 @@ class UpdateCheckWorker(
     override suspend fun doWork(): Result =
         withContext(Dispatchers.IO) {
             if (!BuildConfig.UPDATER_ENABLED || BuildConfig.DEBUG) return@withContext Result.success()
-            if (!PlayerPreferences(applicationContext).notificationsEnabled.first()) {
-                Log.d(TAG, "Notifications disabled, skipping update check")
+            val preferences = PlayerPreferences(applicationContext)
+            if (!BackgroundCheckScheduler.updateCheckWanted(
+                    preferences.notificationsEnabled.first(),
+                    preferences.notifUpdatesEnabled.first(),
+                )
+            ) {
+                Log.d(TAG, "Update notifications are off, skipping update check")
                 return@withContext Result.success()
             }
             val updates = EntryPointAccessors.fromApplication(applicationContext, UpdateEntryPoint::class.java).updateRepository()

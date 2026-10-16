@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
  *   4. Observe [isActive], [pauseAtEndOfMedia], and [triggerTimeMs] in the UI.
  */
 object SleepTimerManager {
-
     // ── Compose-observable state ──────────────────────────────────────────────
 
     var isActive by mutableStateOf(false)
@@ -57,19 +56,23 @@ object SleepTimerManager {
     private var exitCallback: (() -> Unit)? = null
     private var currentPlayer: Player? = null
 
-    private val playerListener = object : Player.Listener {
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (pauseAtEndOfMedia && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                firePause()
+    private val playerListener =
+        object : Player.Listener {
+            override fun onMediaItemTransition(
+                mediaItem: MediaItem?,
+                reason: Int,
+            ) {
+                if (pauseAtEndOfMedia && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    firePause()
+                }
             }
-        }
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_ENDED && pauseAtEndOfMedia) {
-                firePause()
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && pauseAtEndOfMedia) {
+                    firePause()
+                }
             }
         }
-    }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -80,7 +83,10 @@ object SleepTimerManager {
      * @param player   The Media3 [Player] for listening to playback events.
      * @param pauseFn  Lambda that pauses the correct player (music or video).
      */
-    fun attachToPlayer(player: Player?, pauseFn: () -> Unit) {
+    fun attachToPlayer(
+        player: Player?,
+        pauseFn: () -> Unit,
+    ) {
         currentPlayer?.removeListener(playerListener)
         currentPlayer = player
         pauseCallback = pauseFn
@@ -93,10 +99,7 @@ object SleepTimerManager {
         currentPlayer = null
     }
 
-    /**
-     * Register a callback invoked instead of pausing when [closeAppOnExpiry] is true.
-     * Call this alongside [attachToPlayer] wherever the timer is set up.
-     */
+    /** Register the callback invoked instead of pausing when [closeAppOnExpiry] is true; the app sets it once. */
     fun attachExitCallback(fn: () -> Unit) {
         exitCallback = fn
     }
@@ -106,16 +109,20 @@ object SleepTimerManager {
      *
      * @param minutes  Duration in minutes, must be > 0.
      */
-    fun start(minutes: Int, closeApp: Boolean = false) {
+    fun start(
+        minutes: Int,
+        closeApp: Boolean = false,
+    ) {
         require(minutes > 0) { "minutes must be positive" }
         clearState()
         closeAppOnExpiry = closeApp
         triggerTimeMs = System.currentTimeMillis() + minutes * 60_000L
         isActive = true
-        timerJob = scope.launch {
-            delay(minutes * 60_000L)
-            firePause()
-        }
+        timerJob =
+            scope.launch {
+                delay(minutes * 60_000L)
+                firePause()
+            }
     }
 
     /** Start end-of-media mode — player pauses (or closes the app) when the current item ends. */

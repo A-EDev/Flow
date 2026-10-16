@@ -251,7 +251,7 @@ fun HomeScreen(
                             FeedGridSkeleton(
                                 layout = feedLayout,
                                 listMode = isListView,
-                                stackedInset = !feedLayout.isCompact,
+                                stackedInset = !feedLayout.cardsBleed,
                                 placeholderCount = SKELETON_CARD_COUNT,
                                 compactRowSpacing = if (isListView) 0.dp else feedLayout.cardSpacing,
                             )

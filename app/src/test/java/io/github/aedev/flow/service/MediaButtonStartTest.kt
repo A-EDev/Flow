@@ -19,4 +19,19 @@ class MediaButtonStartTest {
     fun `an ordinary controller always gets the session`() {
         assertThat(shouldDeclineMediaButtonStart(null, hasMediaItem = false)).isFalse()
     }
+
+    @Test
+    fun `a play press with a saved queue gets the session so resumption can start it`() {
+        assertThat(shouldDeclineMediaButtonStart(Intent.ACTION_MEDIA_BUTTON, hasMediaItem = false, resumesOnPlay = true)).isFalse()
+    }
+
+    @Test
+    fun `only the keys that begin playback can resume`() {
+        assertThat(isPlayKey(android.view.KeyEvent.KEYCODE_MEDIA_PLAY)).isTrue()
+        assertThat(isPlayKey(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)).isTrue()
+        assertThat(isPlayKey(android.view.KeyEvent.KEYCODE_HEADSETHOOK)).isTrue()
+        assertThat(isPlayKey(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)).isFalse()
+        assertThat(isPlayKey(android.view.KeyEvent.KEYCODE_MEDIA_NEXT)).isFalse()
+        assertThat(isPlayKey(null)).isFalse()
+    }
 }

@@ -23,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -72,7 +71,6 @@ internal fun FullMusicPlayerContent(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val positionState = viewModel.currentPositionMs.collectAsState()
-    val context = LocalContext.current
     val density = LocalDensity.current
     val colorScheme = MaterialTheme.colorScheme
     val navigator = LocalMediaNavigator.current
@@ -117,13 +115,6 @@ internal fun FullMusicPlayerContent(
             player = musicPlayer,
         ) {
             EnhancedMusicPlayerManager.player?.pause()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        SleepTimerManager.attachExitCallback {
-            EnhancedMusicPlayerManager.stop()
-            (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
 

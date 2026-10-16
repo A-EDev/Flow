@@ -66,6 +66,15 @@ object RepositoryModule {
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
 
+    /** Transitional: the music player manager still reaches the queue store through getInstance, so this hands injected consumers the same instance. */
+    @Provides
+    @Singleton
+    fun provideQueuePersistence(
+        @ApplicationContext context: Context,
+    ): io.github.aedev.flow.data.local.QueuePersistence =
+        io.github.aedev.flow.data.local.QueuePersistence
+            .getInstance(context)
+
     /**
      * Transitional: [io.github.aedev.flow.data.local.BackupRepository] still builds its own
      * collaborators, so it is provided here rather than injected through its constructor. One

@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import io.github.aedev.flow.R
@@ -49,15 +50,24 @@ fun HandlePendingRoute(
     }
 }
 
+/** [asksFirst] turns a video into a question instead: [onAsk] gets it and nothing plays yet. */
 @Composable
 fun HandleDeepLinks(
     deeplinkVideoId: String?,
     isShort: Boolean,
     navController: NavController,
     onDeeplinkConsumed: () -> Unit,
+    asksFirst: suspend () -> Boolean = { false },
+    onAsk: (videoId: String) -> Unit = {},
 ) {
+    val currentAsksFirst by rememberUpdatedState(asksFirst)
     LaunchedEffect(deeplinkVideoId, isShort) {
         val videoId = deeplinkVideoId ?: return@LaunchedEffect
+        if (!isShort && currentAsksFirst()) {
+            onAsk(videoId)
+            onDeeplinkConsumed()
+            return@LaunchedEffect
+        }
         navController.awaitGraph()
         if (isShort) {
             // Every Shorts queue shares one route, so single-top would reuse whichever Shorts screen

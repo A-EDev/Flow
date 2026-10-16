@@ -126,6 +126,16 @@ class FeedGridLayoutTest {
     }
 
     @Test
+    fun `only a single compact column bleeds its cards to the edge`() {
+        assertThat(feedGridLayoutFor(360.dp).cardsBleed).isTrue()
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.ONE).cardsBleed).isTrue()
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.TWO).cardsBleed).isFalse()
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.THREE).cardsBleed).isFalse()
+        assertThat(feedGridLayoutFor(745.dp).cardsBleed).isFalse()
+        assertThat(feedGridLayoutFor(1400.dp, HomeFeedColumns.ONE).cardsBleed).isFalse()
+    }
+
+    @Test
     fun `cells sit edge to edge and a thumbnail is a cell less both insets`() {
         listOf(745.dp, 1184.dp, 1824.dp).forEach { width ->
             val layout = feedGridLayoutFor(width)

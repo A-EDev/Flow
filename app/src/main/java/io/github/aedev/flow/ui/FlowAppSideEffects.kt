@@ -14,7 +14,9 @@ import io.github.aedev.flow.data.subscriptions.refreshSubscriptionsAtStartup
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
+import io.github.aedev.flow.service.MusicServiceState
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
+import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 /** App-wide effects with no UI of their own: preference propagation and the global snackbar feeds. */
@@ -25,6 +27,10 @@ internal fun FlowAppSideEffects(
     subscriptionRefreshOnStartup: Boolean,
 ) {
     val context = LocalContext.current
+
+    // Music the system media controls resumed plays before any music screen exists; the player
+    // manager starts with its ViewModel, so start it now for the mini player and queue to show.
+    if (remember { MusicServiceState.isRunning }) sharedMusicPlayerViewModel()
 
     LaunchedEffect(sleepTimerCloseAppOnExpiry) {
         SleepTimerManager.updatePreferredCloseAppOnExpiry(sleepTimerCloseAppOnExpiry)

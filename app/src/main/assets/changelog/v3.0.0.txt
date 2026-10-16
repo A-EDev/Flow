@@ -97,6 +97,9 @@ NEW FEATURES
 - Swipe sideways on the video to seek outside fullscreen too (#1312)
 - A new Edge to edge seek zone lets double taps reach the screen edges (#1314)
 - Original titles, in Language and region, keeps titles and descriptions in the video's own language instead of YouTube's automatic translation, on cards, Shorts and the watch page (#1230)
+- Share a video to Flow while something plays to choose Play now, Play next, Add to queue, Save or Download instead of losing your queue; Content, Links, Shared links sets when Flow asks (#1116)
+- Music comes back after Flow was closed: the system media controls and a headset's Play button resume your queue where it stopped (#1280)
+- Related videos on the watch page follow Cards per row (#1281)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -163,6 +166,8 @@ IMPROVEMENTS
 - Videos keep playing as audio when you leave the app or turn the screen off; Background Play is now on unless you turn it off (#1298)
 - The video decoder is reused when the picture moves to a new surface, instead of being rebuilt every time (#1298)
 - The player controls step aside while you drag to seek, so the time read-out is not covered
+- A restored music queue picks the song up where it stopped instead of from the start (#1280)
+- Music keeps playing when you clear Flow from recents while a song is loading (#1280)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -176,6 +181,7 @@ PERFORMANCE
 - Feed ranking builds its lookups once per pass instead of once per video, impressions are recorded off the main thread, and scroll and rotation bookkeeping is saved to disk less often
 - Opening and collapsing the video player no longer jumps ahead after a slow frame, collapsing glides into the corner without a bounce, and a swipe's speed carries into the motion
 - Live streams use far less data: their playlists now download compressed, so a stream at 144p used about 20 KB/s instead of 116 KB/s in testing. Live chat waits as long as YouTube asks between updates and stops while Flow is in the background (#1042)
+- Flow no longer warms up playback when it only wakes in the background for a check, a widget or the media controls; that work waits until you open it (#1272)
 
 FIXES AND STABILITY
 - Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
@@ -306,6 +312,11 @@ FIXES AND STABILITY
 - The next video in a queue no longer stays hidden behind its thumbnail while it plays (#1313)
 - Fix titles in the wrong language after restoring a backup or syncing with another device: YouTube now always gets the language Flow is shown in, and Home drops titles cached in the previous language (#1277)
 - The watch page title no longer shows the original title for a moment before switching to the translated one (#1230)
+- Fix the new video check running in the background with New Videos turned off; the check interval shows Off while it is (#1272)
+- Fix the update check running with Updates notifications turned off (#1272)
+- Fix a paused video staying in the notification after clearing Flow from recents (#1272)
+- Fix the sleep timer's Close app leaving the players and their notifications running (#1272)
+- Fix videos touching each other when Cards per row is two or three on a phone; cards that narrow leave out the channel picture so the title fits (#1281)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

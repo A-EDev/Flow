@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.settings.content
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SharedLinkAction
 import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import javax.inject.Inject
@@ -35,6 +36,7 @@ class ContentSettingsViewModel
         val hideWatchedShorts = preferences.hideWatchedShorts.asState(true)
         val removeWatchedWatchLater = preferences.removeWatchedFromWatchLater.asState(false)
         val watchedThreshold = preferences.watchedThreshold.asState(WatchedThreshold.ALMOST_FINISHED)
+        val sharedLinkAction = preferences.sharedLinkAction.asState(SharedLinkAction.ASK_WHILE_PLAYING)
 
         val notes = preferences.notesEnabled.asState(true)
         val channelNotes = preferences.channelNotesEnabled.asState(true)
@@ -80,6 +82,8 @@ class ContentSettingsViewModel
         fun setRemoveWatchedWatchLater(value: Boolean) = write { preferences.setRemoveWatchedFromWatchLater(value) }
 
         fun setWatchedThreshold(value: WatchedThreshold) = write { preferences.setWatchedThreshold(value) }
+
+        fun setSharedLinkAction(value: SharedLinkAction) = write { preferences.setSharedLinkAction(value) }
 
         fun setNotes(value: Boolean) = write { preferences.setNotesEnabled(value) }
 
