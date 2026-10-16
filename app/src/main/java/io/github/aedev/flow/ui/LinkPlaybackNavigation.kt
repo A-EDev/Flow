@@ -133,7 +133,7 @@ internal fun linkedPlaylistRoute(
 ): String = "linkedPlaylist/${Uri.encode(playlistId)}/${Uri.encode(videoId)}"
 
 /** A video known only by the id a link carries; the player fills in the rest as it loads. */
-private fun linkedVideo(videoId: String) =
+internal fun linkedVideo(videoId: String) =
     Video(
         id = videoId,
         title = "",
