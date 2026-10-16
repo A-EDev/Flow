@@ -347,6 +347,7 @@ class PlayerPreferences(
         val HIDE_WATCHED_SUBSCRIPTIONS = booleanPreferencesKey("hide_watched_subscriptions")
         val HIDE_WATCHED_SHORTS = booleanPreferencesKey("hide_watched_shorts")
         val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
+        val SHARED_LINK_ACTION = stringPreferencesKey("shared_link_action")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
@@ -2595,6 +2596,20 @@ class PlayerPreferences(
         }
     }
 
+    /** What a video link shared to Flow from another app does; links tapped elsewhere always play. */
+    val sharedLinkAction: Flow<SharedLinkAction> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                runCatching { SharedLinkAction.valueOf(preferences[Keys.SHARED_LINK_ACTION] ?: SharedLinkAction.ASK_WHILE_PLAYING.name) }
+                    .getOrDefault(SharedLinkAction.ASK_WHILE_PLAYING)
+            }
+
+    suspend fun setSharedLinkAction(action: SharedLinkAction) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHARED_LINK_ACTION] = action.name
+        }
+    }
+
     /** When ON, sharing a video link sends only the bare URL, without the "Check out this video" text. */
     val shareWithoutText: Flow<Boolean> =
         context.playerPreferencesDataStore.data
@@ -3966,6 +3981,17 @@ enum class HomeFeedColumns(
 enum class PlayerRelatedCardStyle {
     COMPACT,
     FULL_WIDTH,
+}
+
+enum class SharedLinkAction {
+    /** Play the video straight away, replacing what plays. */
+    PLAY,
+
+    /** Offer the video's menu while something plays, so the queue is not lost; otherwise play it. */
+    ASK_WHILE_PLAYING,
+
+    /** Always offer the video's menu. */
+    ALWAYS_ASK,
 }
 
 const val LYRICS_ALIGN_LEFT = "left"

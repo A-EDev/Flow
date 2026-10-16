@@ -211,6 +211,14 @@ internal object ContentIndex {
             section = R.string.settings_section_links,
             destination = page,
         )
+    val sharedLinks =
+        SettingEntry(
+            key = "content.links.shared",
+            title = R.string.content_settings_shared_links_title,
+            summary = R.string.content_settings_shared_links_subtitle,
+            section = R.string.settings_section_links,
+            destination = page,
+        )
 
     val all =
         listOf(
@@ -239,5 +247,6 @@ internal object ContentIndex {
             videoNotes,
             shareWithoutText,
             openLinks,
+            sharedLinks,
         )
 }
