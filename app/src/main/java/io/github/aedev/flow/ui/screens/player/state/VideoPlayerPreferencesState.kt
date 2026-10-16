@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.DEFAULT_SPEED_SWIPE_STEP
 import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.SpeedSwipeSide
@@ -52,6 +53,7 @@ internal class VideoPlayerPreferencesState(
     val commentsPreviewEnabled: Boolean,
     val showRelatedVideos: Boolean,
     val relatedCardStyle: PlayerRelatedCardStyle,
+    val feedColumns: HomeFeedColumns,
     val deArrowEnabled: Boolean,
     val downloadDialogStyle: DownloadDialogStyle?,
 )
@@ -89,6 +91,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val commentsPreviewEnabled by playerPreferences.commentsPreviewEnabled.collectAsState(initial = true)
     val showRelatedVideos by playerPreferences.showRelatedVideos.collectAsState(initial = true)
     val relatedCardStyle by playerPreferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
+    val feedColumns by playerPreferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
     val deArrowEnabled by playerPreferences.deArrowEnabled.collectAsState(initial = false)
     val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
 
@@ -122,6 +125,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         commentsPreviewEnabled = commentsPreviewEnabled,
         showRelatedVideos = showRelatedVideos,
         relatedCardStyle = relatedCardStyle,
+        feedColumns = feedColumns,
         deArrowEnabled = deArrowEnabled,
         downloadDialogStyle = downloadDialogStyle,
     )

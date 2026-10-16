@@ -31,6 +31,7 @@ import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDockDef
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueuePaneCard
 import io.github.aedev.flow.ui.screens.player.content.PlayerDetailSideColumn
 import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
+import io.github.aedev.flow.ui.screens.player.content.relatedListUsesGrid
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
@@ -202,7 +203,7 @@ internal fun EnhancedVideoPlayerScreen(
             )
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val relatedLayout = rememberFeedGridLayout(maxWidth)
+                val relatedLayout = rememberFeedGridLayout(maxWidth, prefs.feedColumns)
                 // Kept through fullscreen: the layout hides the page there, and keeping the list
                 // means leaving fullscreen, or waiting for the turn into it, never shows it empty.
                 if (!isInPipMode) {
@@ -227,7 +228,7 @@ internal fun EnhancedVideoPlayerScreen(
                             )
                         }
                         if (showRelatedVideos) {
-                            if (isMediumLayout) {
+                            if (relatedListUsesGrid(isMediumLayout, relatedCardStyle, relatedLayout)) {
                                 relatedVideosGridContent(
                                     relatedVideos = uiState.relatedVideos,
                                     layout = relatedLayout,

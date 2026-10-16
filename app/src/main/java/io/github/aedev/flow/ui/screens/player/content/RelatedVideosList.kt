@@ -96,6 +96,16 @@ internal fun LazyListScope.relatedVideosGridContent(
     }
 }
 
+/**
+ * Whether the related list lays out as [relatedVideosGridContent]: always on the medium layout, and on
+ * a phone once Cards per row asks for more than one full-width card.
+ */
+internal fun relatedListUsesGrid(
+    isMediumLayout: Boolean,
+    cardStyle: PlayerRelatedCardStyle,
+    layout: FeedGridLayout,
+): Boolean = isMediumLayout || (cardStyle == PlayerRelatedCardStyle.FULL_WIDTH && layout.columns > 1)
+
 /** Full rows of [columns] indices, then each index a full row cannot hold on a row of its own. */
 internal fun relatedGridRows(
     count: Int,
