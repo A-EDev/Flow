@@ -3659,6 +3659,9 @@
     <string name="settings_content_country_summary">Country used for trending, charts and recommendations</string>
     <string name="settings_keywords_region">trending region, country, location, charts</string>
     <string name="settings_keywords_language">locale, translation, titles</string>
+    <string name="settings_original_titles">Original titles</string>
+    <string name="settings_original_titles_summary">Show titles and descriptions in the video\'s own language</string>
+    <string name="settings_keywords_original_titles">untranslated, auto-translated, translation, original language, titles, descriptions</string>
     <string name="settings_section_speed">Speed</string>
     <string name="settings_section_player_buttons">Player buttons</string>
     <string name="settings_section_pip">Picture-in-picture and mini player</string>

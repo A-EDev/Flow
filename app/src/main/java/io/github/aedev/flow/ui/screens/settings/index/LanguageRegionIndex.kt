@@ -31,5 +31,14 @@ internal object LanguageRegionIndex {
             destination = page,
         )
 
-    val all = listOf(appLanguage, contentLanguage, contentCountry)
+    val originalTitles =
+        SettingEntry(
+            key = "language_region.original_titles",
+            title = R.string.settings_original_titles,
+            summary = R.string.settings_original_titles_summary,
+            keywords = R.string.settings_keywords_original_titles,
+            destination = page,
+        )
+
+    val all = listOf(appLanguage, contentLanguage, contentCountry, originalTitles)
 }

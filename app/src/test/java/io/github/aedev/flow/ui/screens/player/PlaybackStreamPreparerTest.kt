@@ -52,17 +52,42 @@ class PlaybackStreamPreparerTest {
     }
 
     @Test
-    fun `the identity prefers what InnerTube reported over what the screen already knew`() {
+    fun `the identity prefers what InnerTube reported for the channel, art and length`() {
         val cached = cachedVideo()
 
         val identity = preparer.assembleVod(VIDEO_ID, cached, vodStep()).identity
 
-        assertThat(identity.title).isEqualTo("InnerTube title")
         assertThat(identity.channel).isEqualTo("InnerTube channel")
         assertThat(identity.channelId).isEqualTo("UC_innertube")
         assertThat(identity.thumbnail).isEqualTo("https://example.invalid/innertube.jpg")
         assertThat(identity.enrichedVideo.duration).isEqualTo(300)
         assertThat(identity.enrichedVideo.id).isEqualTo(VIDEO_ID)
+    }
+
+    @Test
+    fun `a title the screen already shows stays, so it does not flash the original (#1230)`() {
+        val identity = preparer.assembleVod(VIDEO_ID, cachedVideo(), vodStep(description = "Original description")).identity
+
+        assertThat(identity.title).isEqualTo("Cached title")
+        assertThat(identity.enrichedVideo.description).isEqualTo(cachedVideo().description)
+    }
+
+    @Test
+    fun `with original titles on the player's own title and description win (#1230)`() {
+        val original = PlaybackStreamPreparer(originalText = { true })
+
+        val identity = original.assembleVod(VIDEO_ID, cachedVideo(), vodStep(description = "Original description")).identity
+
+        assertThat(identity.title).isEqualTo("InnerTube title")
+        assertThat(identity.enrichedVideo.title).isEqualTo("InnerTube title")
+        assertThat(identity.enrichedVideo.description).isEqualTo("Original description")
+    }
+
+    @Test
+    fun `a deep link with no known title starts on the player's title`() {
+        val identity = preparer.assembleVod(VIDEO_ID, cached = null, step = vodStep()).identity
+
+        assertThat(identity.title).isEqualTo("InnerTube title")
     }
 
     @Test
@@ -201,11 +226,12 @@ class PlaybackStreamPreparerTest {
         thumbnailUrl: String? = "https://example.invalid/innertube.jpg",
         keywords: List<String>? = null,
         category: String? = null,
+        description: String? = null,
     ): ResolvedPlayback.VodFromInnerTube =
         ResolvedPlayback.VodFromInnerTube(
             result =
                 extraction(
-                    playerResponse(title, author, channelId, lengthSeconds, thumbnailUrl, keywords, category),
+                    playerResponse(title, author, channelId, lengthSeconds, thumbnailUrl, keywords, category, description),
                 ),
             relatedVideos = emptyList(),
             preferredQuality = preferredQuality,
@@ -240,6 +266,7 @@ class PlaybackStreamPreparerTest {
         thumbnailUrl: String?,
         keywords: List<String>? = null,
         category: String? = null,
+        description: String? = null,
     ): PlayerResponse =
         PlayerResponse(
             responseContext = ResponseContext(visitorData = null, serviceTrackingParams = null),
@@ -252,6 +279,7 @@ class PlaybackStreamPreparerTest {
                     title = title,
                     author = author,
                     channelId = channelId,
+                    shortDescription = description,
                     lengthSeconds = lengthSeconds,
                     thumbnail = thumbnailUrl?.let { Thumbnails(listOf(Thumbnail(url = it, width = 1280, height = 720))) },
                     keywords = keywords,

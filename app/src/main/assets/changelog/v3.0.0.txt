@@ -96,6 +96,7 @@ NEW FEATURES
 - Swipe up or down on one side of the fullscreen player to change the playback speed, in steps of 0.05x, 0.1x or 0.25x, with a read-out while you swipe (#1159)
 - Swipe sideways on the video to seek outside fullscreen too (#1312)
 - A new Edge to edge seek zone lets double taps reach the screen edges (#1314)
+- Original titles, in Language and region, keeps titles and descriptions in the video's own language instead of YouTube's automatic translation, on cards, Shorts and the watch page (#1230)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -303,6 +304,8 @@ FIXES AND STABILITY
 - With Background Play off, Play in the notification resumes audio only instead of decoding video nobody can see (#1298)
 - Coming back to a video that played in the background no longer forces a rebuffer while the picture returns (#1298)
 - The next video in a queue no longer stays hidden behind its thumbnail while it plays (#1313)
+- Fix titles in the wrong language after restoring a backup or syncing with another device: YouTube now always gets the language Flow is shown in, and Home drops titles cached in the previous language (#1277)
+- The watch page title no longer shows the original title for a moment before switching to the translated one (#1230)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

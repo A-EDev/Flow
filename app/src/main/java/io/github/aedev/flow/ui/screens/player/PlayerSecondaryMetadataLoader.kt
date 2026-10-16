@@ -11,6 +11,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.utils.OriginalTextPolicy
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.CoroutineDispatcher
@@ -216,9 +217,10 @@ internal class PlayerSecondaryMetadataLoader(
             scope.launch(networkDispatcher) {
                 awaitPlaybackStarted(videoId)
                 if (!isPlaybackCurrent(loadToken)) return@launch
-                val enriched =
+                val merged =
                     withTimeoutOrNull(WATCH_INFO_TIMEOUT_MS) { repository.enrichFromWatchMetadata(video) }
                         ?: return@launch
+                val enriched = OriginalTextPolicy.keepOriginalText(merged, video, playerPreferences.originalTitles.first())
                 if (!isPlaybackCurrent(loadToken) || !watchInfoLoad.holds(videoId, loadToken)) return@launch
                 onResult(SecondaryMetadata.WatchInfo(videoId, loadToken, enriched))
             }
@@ -414,7 +416,7 @@ internal class PlayerSecondaryMetadataLoader(
                     } else {
                         null
                     }
-                val enriched =
+                val refreshed =
                     fallbackVideo.copy(
                         title = meta.title?.takeIf { it.isNotBlank() } ?: fallbackVideo.title,
                         channelName = meta.channelName?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelName,
@@ -425,6 +427,7 @@ internal class PlayerSecondaryMetadataLoader(
                         likeCount = likes ?: fallbackVideo.likeCount,
                         isLive = true,
                     )
+                val enriched = OriginalTextPolicy.keepOriginalText(refreshed, fallbackVideo, playerPreferences.originalTitles.first())
                 val metadataRelated =
                     PlayerRelatedVideosPolicy.sanitize(
                         videoId = videoId,

@@ -43,6 +43,7 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
+import io.github.aedev.flow.utils.OriginalTextPolicy
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -305,7 +306,8 @@ class ShortsViewModel
         fun loadShortDetails(videoId: String) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val overlay = runCatching { metadata.overlayFor(videoId) }.getOrNull() ?: return@launch
-                enrich(videoId) { it.withOverlay(overlay) }
+                val preferOriginal = playerPreferences.originalTitles.first()
+                enrich(videoId) { it.withOverlay(overlay, preferOriginal) }
             }
         }
 
@@ -342,9 +344,10 @@ class ShortsViewModel
                 publishQueue()
                 return
             }
+            val preferOriginal = playerPreferences.originalTitles.first()
             enrich(videoId) { short ->
                 short.copy(
-                    title = details.title.ifBlank { short.title },
+                    title = OriginalTextPolicy.streamTitle(details.title, short.title, preferOriginal).orEmpty(),
                     channelName = details.channelName.ifBlank { short.channelName },
                     channelId = details.channelId.ifBlank { short.channelId },
                     viewCount = details.viewCount ?: short.viewCount,
@@ -353,9 +356,13 @@ class ShortsViewModel
             }
         }
 
-        private fun ShortVideo.withOverlay(overlay: ReelOverlay): ShortVideo =
+        /** The overlay is translated like any list, `/player` is not, and the switch picks one (#1230). */
+        private fun ShortVideo.withOverlay(
+            overlay: ReelOverlay,
+            preferOriginal: Boolean,
+        ): ShortVideo =
             copy(
-                title = title.ifBlank { overlay.title.orEmpty() },
+                title = OriginalTextPolicy.streamTitle(title, overlay.title, preferOriginal).orEmpty(),
                 channelName = channelName.ifBlank { overlay.channelName.orEmpty() },
                 channelId = channelId.ifBlank { overlay.channelId.orEmpty() },
                 channelThumbnailUrl = overlay.channelAvatarUrl ?: channelThumbnailUrl,

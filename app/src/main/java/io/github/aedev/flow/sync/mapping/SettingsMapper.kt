@@ -23,10 +23,12 @@ import kotlinx.serialization.json.longOrNull
 object SettingsMapper {
     enum class Ty { BOOL, STRING, FLOAT, INT, LONG }
 
+    /** [applied] false: sent so other devices see it, never taken from them. */
     data class Entry(
         val canonical: String,
         val android: String,
         val type: Ty,
+        val applied: Boolean = true,
     )
 
     val WHITELIST: List<Entry> =
@@ -50,7 +52,8 @@ object SettingsMapper {
             Entry("dearrow_enabled", "dearrow_enabled", Ty.BOOL),
             Entry("dearrow_badge_enabled", "dearrow_badge_enabled", Ty.BOOL),
             Entry("subtitles_enabled", "subtitles_enabled", Ty.BOOL),
-            Entry("app_language", "app_language", Ty.STRING),
+            // Another device must not switch this phone's UI language (#1277).
+            Entry("app_language", "app_language", Ty.STRING, applied = false),
             Entry("trending_region", "trending_region", Ty.STRING),
             Entry("hide_watched_videos", "hide_watched_videos", Ty.BOOL),
             Entry("show_shorts_player_prompt", "show_shorts_player_prompt", Ty.BOOL),
@@ -103,7 +106,7 @@ object SettingsMapper {
         val floats = HashMap<String, Float>()
         val longs = HashMap<String, Long>()
         for (s in settings) {
-            val e = byCanonical[s.key] ?: continue // ignore unknown/non-whitelisted keys
+            val e = byCanonical[s.key]?.takeIf { it.applied } ?: continue // ignore unknown/non-whitelisted keys
             val prim = runCatching { s.value.jsonPrimitive }.getOrNull() ?: continue
             when (e.type) {
                 Ty.BOOL -> prim.booleanOrNull?.let { booleans[e.android] = it }

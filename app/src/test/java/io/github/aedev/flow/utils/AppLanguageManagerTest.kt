@@ -42,4 +42,21 @@ class AppLanguageManagerTest {
         assertEquals(true, app.resources.configuration.isNight())
         assertEquals(true, wrapped.resources.configuration.isNight())
     }
+
+    @Test
+    fun `a saved language is the one YouTube follows (#1277)`() {
+        AppLanguageManager.saveLanguageTag(app, "ru")
+        assertEquals("ru", AppLanguageManager.appliedLanguage.value)
+
+        AppLanguageManager.saveLanguageTag(app, "pt_br")
+        assertEquals("pt-BR", AppLanguageManager.appliedLanguage.value)
+    }
+
+    @Test
+    fun `resolving at start publishes the language the UI uses`() {
+        AppLanguageManager.saveLanguageTag(app, "de")
+        AppLanguageManager.saveLanguageTag(app, AppLanguageManager.SYSTEM_DEFAULT)
+
+        assertEquals(AppLanguageManager.resolveLanguageTag(app), AppLanguageManager.appliedLanguage.value)
+    }
 }

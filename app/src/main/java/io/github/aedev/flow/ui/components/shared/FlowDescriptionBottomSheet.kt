@@ -30,11 +30,13 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.RichTextTarget
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.plainRichText
 import io.github.aedev.flow.innertube.pages.VideoDescriptionFactoid
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
@@ -81,7 +83,10 @@ fun FlowDescriptionBottomSheet(
     val linkColor = tint.accent
     val textColor = MaterialTheme.colorScheme.onSurface
 
-    val richDescription = descriptionPage?.description
+    // With original titles on, the description the player sent wins over the translated one (#1230).
+    val showOriginal = LocalVideoCardPreferences.current.originalTitlesEnabled && video.description.isNotBlank()
+    val richDescription =
+        if (showOriginal) remember(video.description) { plainRichText(video.description) } else descriptionPage?.description
     val descriptionEmoji = rememberRichTextInlineContent(richDescription)
     val descriptionText =
         remember(richDescription, video.description, linkColor, textColor) {

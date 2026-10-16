@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.playlist.PlaylistImport
 import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.repository.OriginalTitleRepository
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.platform.AppIconController
@@ -95,6 +96,9 @@ class MainActivity : ComponentActivity() {
 
     private val _pendingRoute = mutableStateOf<String?>(null)
     val pendingRoute: State<String?> = _pendingRoute
+
+    @Inject
+    lateinit var originalTitles: OriginalTitleRepository
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
@@ -271,7 +275,7 @@ class MainActivity : ComponentActivity() {
                         // Card preferences and watch progress are collected once here. Cards used to
                         // collect them individually, so a feed of ten opened ten Room observers and
                         // fifty DataStore collectors.
-                        ProvideVideoCardState {
+                        ProvideVideoCardState(originalTitles) {
                             Box(
                                 modifier =
                                     Modifier

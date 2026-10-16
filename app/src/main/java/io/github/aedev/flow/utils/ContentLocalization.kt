@@ -1,5 +1,7 @@
 package io.github.aedev.flow.utils
 
+import io.github.aedev.flow.data.local.CONTENT_LANGUAGE_FOLLOW_APP
+import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
@@ -42,6 +44,17 @@ fun normalizeYouTubeCountry(region: String): String {
         .uppercase(Locale.US)
         .takeIf { it.matches(COUNTRY_CODE) }
         ?: "US"
+}
+
+/** The locale every InnerTube request carries: the content language, else the language the UI is shown in. */
+fun contentYouTubeLocale(
+    appliedAppLanguage: String,
+    contentLanguage: String,
+    region: String,
+    deviceLocale: Locale,
+): YouTubeLocale {
+    val language = if (contentLanguage == CONTENT_LANGUAGE_FOLLOW_APP) appliedAppLanguage else contentLanguage
+    return YouTubeLocale(gl = normalizeYouTubeCountry(region), hl = normalizeYouTubeHostLanguage(language, deviceLocale))
 }
 
 fun newPipeContentCountry(region: String): ContentCountry = ContentCountry(normalizeYouTubeCountry(region))

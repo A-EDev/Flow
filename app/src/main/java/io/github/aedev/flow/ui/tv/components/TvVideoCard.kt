@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
+import io.github.aedev.flow.ui.components.shared.card.rememberCardTitle
 import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
 import io.github.aedev.flow.ui.tv.focus.tvFocusScale
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
@@ -150,7 +151,7 @@ fun TvVideoCard(
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = video.title,
+                    text = rememberCardTitle(video),
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     minLines = 2,

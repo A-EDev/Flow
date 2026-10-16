@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
 import androidx.annotation.RequiresApi
+import androidx.core.app.LocaleManagerCompat
 import io.github.aedev.flow.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,10 +28,19 @@ object AppLanguageManager {
 
     private val supportedLanguageTags = BuildConfig.APP_LANGUAGE_TAGS.split(',')
 
-    private val adoptedFromSystem = MutableStateFlow<String?>(null)
+    private val applied = MutableStateFlow<String?>(null)
 
-    /** A language chosen in Settings › App languages, for the preferences that mirror the picker. */
-    val languageAdoptedFromSystem: StateFlow<String?> = adoptedFromSystem.asStateFlow()
+    /**
+     * The language the UI is shown in, once resolved at start or saved. YouTube's `hl` follows this,
+     * not the preference that mirrors it: a restored or synced preference never reached the UI.
+     */
+    val appliedLanguage: StateFlow<String?> = applied.asStateFlow()
+
+    /**
+     * The device's language. [Locale.getDefault] and even `Resources.getSystem()` carry the app's
+     * language instead, still the old one right after choosing "System default".
+     */
+    fun deviceLocale(context: Context): Locale = LocaleManagerCompat.getSystemLocales(context)[0] ?: Locale.getDefault()
 
     /** Android 13+ keeps the per-app language itself, shared with Settings › App languages. */
     val systemStoresLanguage: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -49,6 +59,7 @@ object AppLanguageManager {
             .edit()
             .putString(PREFS_KEY, tag)
             .apply()
+        applied.value = normalizeLanguageTag(tag)
     }
 
     /** Saves [tag] and, on Android 13+, hands it to the system, which then restarts the activities itself. */
@@ -66,7 +77,7 @@ object AppLanguageManager {
      */
     fun resolveLanguageTag(context: Context): String {
         val stored = loadSelectedLanguageTag(context)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return stored
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return stored.also { applied.value = normalizeLanguageTag(it) }
         val prefs = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         val resolution =
             resolveAgainstSystem(
@@ -76,10 +87,8 @@ object AppLanguageManager {
             )
         if (resolution.pushToSystem) setSystemLanguageTag(context, resolution.tag)
         if (!prefs.getBoolean(HANDED_OVER_KEY, false)) prefs.edit().putBoolean(HANDED_OVER_KEY, true).apply()
-        if (resolution.tag != stored) {
-            saveLanguageTag(context, resolution.tag)
-            adoptedFromSystem.value = resolution.tag
-        }
+        if (resolution.tag != stored) saveLanguageTag(context, resolution.tag)
+        applied.value = resolution.tag
         return resolution.tag
     }
 
