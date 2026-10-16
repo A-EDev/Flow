@@ -3725,4 +3725,5 @@
     <string name="player_settings_speed_swipe_off">Desativado</string>
     <string name="player_settings_speed_swipe_left">Lado esquerdo</string>
     <string name="player_settings_speed_swipe_right">Lado direito</string>
+    <string name="content_settings_live_chat_enabled_subtitle">Mostrar chat em transmissões ao vivo</string>
 </resources>
