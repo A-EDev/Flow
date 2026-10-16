@@ -1,6 +1,10 @@
 package io.github.aedev.flow.ui.screens.player.content
 
+import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.ui.components.feedGridLayoutFor
 import org.junit.Test
 
 class RelatedGridRowsTest {
@@ -23,5 +27,29 @@ class RelatedGridRowsTest {
     @Test
     fun `no items make no rows`() {
         assertThat(relatedGridRows(0, 3)).isEmpty()
+    }
+
+    @Test
+    fun `a phone keeps the plain list until cards per row asks for more than one`() {
+        val auto = feedGridLayoutFor(360.dp)
+        val two = feedGridLayoutFor(360.dp, HomeFeedColumns.TWO)
+        val three = feedGridLayoutFor(360.dp, HomeFeedColumns.THREE)
+
+        assertThat(relatedListUsesGrid(false, PlayerRelatedCardStyle.FULL_WIDTH, auto)).isFalse()
+        assertThat(relatedListUsesGrid(false, PlayerRelatedCardStyle.FULL_WIDTH, two)).isTrue()
+        assertThat(relatedListUsesGrid(false, PlayerRelatedCardStyle.FULL_WIDTH, three)).isTrue()
+    }
+
+    @Test
+    fun `the compact related style stays one row per video on a phone`() {
+        val two = feedGridLayoutFor(360.dp, HomeFeedColumns.TWO)
+
+        assertThat(relatedListUsesGrid(false, PlayerRelatedCardStyle.COMPACT, two)).isFalse()
+    }
+
+    @Test
+    fun `the medium layout always lays out as a grid`() {
+        assertThat(relatedListUsesGrid(true, PlayerRelatedCardStyle.COMPACT, feedGridLayoutFor(745.dp))).isTrue()
+        assertThat(relatedListUsesGrid(true, PlayerRelatedCardStyle.FULL_WIDTH, feedGridLayoutFor(745.dp))).isTrue()
     }
 }
