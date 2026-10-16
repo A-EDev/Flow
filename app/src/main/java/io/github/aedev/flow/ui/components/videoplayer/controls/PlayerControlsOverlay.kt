@@ -204,7 +204,7 @@ internal fun PlayerControlsOverlay(
         )
 
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    // A scrub, a speed boost or a pinch each clear the overlay down to the bar and what sits on it:
+    // A scrub, a seek swipe, a speed boost or a pinch each clear the overlay down to the bar and what sits on it:
     // whatever the gesture is showing has the picture to itself for as long as it lasts.
     val isCleared = isScrubbing || state.isGestureReadoutActive
     // Held as State and read in the draw lambda below so the backdrop fades without recomposing the
