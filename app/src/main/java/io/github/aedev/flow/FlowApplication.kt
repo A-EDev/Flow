@@ -16,8 +16,8 @@ import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
+import io.github.aedev.flow.notification.BackgroundCheckScheduler
 import io.github.aedev.flow.notification.NotificationHelper
-import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.ui.screens.home.HomeFeedLanguageReset
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -141,22 +141,9 @@ class FlowApplication :
         }
          */
 
-        // Schedule periodic subscription checks for new videos
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val savedIntervalMinutes = playerPreferences.subscriptionCheckIntervalMinutes.first()
-            SubscriptionCheckWorker.schedulePeriodicCheck(
-                this@FlowApplication,
-                intervalMinutes = savedIntervalMinutes.toLong(),
-            )
-
-            // Schedule periodic update checks (every 12 hours) — github flavor only
-            if (BuildConfig.UPDATER_ENABLED) {
-                io.github.aedev.flow.notification.UpdateCheckWorker
-                    .schedulePeriodicCheck(this@FlowApplication)
-            }
+            BackgroundCheckScheduler.follow(this@FlowApplication, playerPreferences)
         }
-
-        Log.d(TAG, "Workers scheduled successfully")
 
         // Fetch and cache visitor data for the lifetime of the install.
         // The X-Goog-Visitor-Id header prevents YouTube from returning empty

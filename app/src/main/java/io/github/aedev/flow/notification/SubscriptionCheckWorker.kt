@@ -70,23 +70,12 @@ class SubscriptionCheckWorker(
         /** How many channels are polled concurrently. */
         private const val CHANNEL_CHUNK_SIZE = 10
 
-        /**
-         * Schedule periodic subscription checks
-         * @param context Application context
-         * @param intervalMinutes How often to check (default: 360 minutes / 6 hours)
-         */
-        suspend fun schedulePeriodicCheck(
+        /** Schedules the periodic check; [BackgroundCheckScheduler] decides whether it should run at all. */
+        fun schedulePeriodicCheck(
             context: Context,
-            intervalMinutes: Long = 360,
-            reschedule: Boolean = false,
+            intervalMinutes: Long,
+            reschedule: Boolean,
         ) {
-            val notificationsEnabled = PlayerPreferences(context).notificationsEnabled.first()
-            if (!notificationsEnabled) {
-                cancelScheduledChecks(context)
-                Log.d(TAG, "Skipping subscription check scheduling because notifications are disabled")
-                return
-            }
-
             val constraints =
                 Constraints
                     .Builder()
@@ -157,8 +146,13 @@ class SubscriptionCheckWorker(
         withContext(Dispatchers.IO) {
             Log.d(TAG, "Starting subscription check via RSS...")
 
-            if (!dependencies.playerPreferences().notificationsEnabled.first()) {
-                Log.d(TAG, "Notifications disabled, skipping subscription check")
+            val preferences = dependencies.playerPreferences()
+            if (!BackgroundCheckScheduler.subscriptionCheckWanted(
+                    preferences.notificationsEnabled.first(),
+                    preferences.notifNewVideosEnabled.first(),
+                )
+            ) {
+                Log.d(TAG, "New video notifications are off, skipping subscription check")
                 return@withContext Result.success()
             }
 
@@ -177,9 +171,8 @@ class SubscriptionCheckWorker(
 
                 Log.d(TAG, "Checking ${subscriptions.size} subscriptions")
 
-                val prefs = dependencies.playerPreferences()
-                val announceReels = prefs.effectiveSubscriptionShowShorts.first()
-                val notifyShorts = prefs.notifShortsEnabled.first()
+                val announceReels = preferences.effectiveSubscriptionShowShorts.first()
+                val notifyShorts = preferences.notifShortsEnabled.first()
 
                 val newVideos = mutableListOf<NotificationHelper.NewVideoEntry>()
                 subscriptions.chunked(CHANNEL_CHUNK_SIZE).forEach { chunk ->
