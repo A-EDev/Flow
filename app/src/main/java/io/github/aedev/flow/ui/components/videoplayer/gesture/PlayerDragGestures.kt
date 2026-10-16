@@ -6,20 +6,12 @@ import android.os.SystemClock
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -457,60 +449,5 @@ internal fun Modifier.playerDragGestures(
             currentOnExitFullscreenDrag(0f)
             if (seekDragStarted) currentOnSeekDragChange(false)
         }
-    }
-}
-
-internal enum class PlayerDragAxis { HORIZONTAL, VERTICAL }
-
-/**
- * Axis-locked drag detection.
- *
- * `detectDragGestures` cannot express this: it consumes the pointer the moment any drag begins, so
- * it claimed horizontal movement the player had no use for, and it resolved the axis from a running
- * total that could flip mid-gesture. Here the axis is decided once, at the instant touch slop is
- * crossed, and the pointer is only consumed when [onAxisAccepted] wants that axis — a drag we do
- * not handle stays unconsumed and remains available to the parent (the draggable player sheet).
- *
- * [onDragStart] returns false to ignore the gesture entirely, which is how the edge exclusion zones
- * keep their hands off the controls sitting under them.
- */
-private suspend fun PointerInputScope.detectPlayerDrags(
-    onDragStart: (Offset) -> Boolean,
-    onAxisAccepted: (PlayerDragAxis) -> Boolean,
-    onDrag: (change: PointerInputChange, delta: Offset, axis: PlayerDragAxis) -> Unit,
-    onDragEnd: (PlayerDragAxis) -> Unit,
-    onDragCancel: (PlayerDragAxis) -> Unit,
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        if (!onDragStart(down.position)) return@awaitEachGesture
-
-        var axis: PlayerDragAxis? = null
-        val dragStart =
-            awaitTouchSlopOrCancellation(down.id) { change, overSlop ->
-                val candidate =
-                    if (abs(overSlop.x) > abs(overSlop.y)) {
-                        PlayerDragAxis.HORIZONTAL
-                    } else {
-                        PlayerDragAxis.VERTICAL
-                    }
-                // Consuming is what claims the gesture. Leaving it unconsumed makes
-                // awaitTouchSlopOrCancellation keep waiting, so a rejected axis neither steals the
-                // pointer nor ends the gesture.
-                if (onAxisAccepted(candidate)) {
-                    axis = candidate
-                    change.consume()
-                }
-            } ?: return@awaitEachGesture
-
-        val lockedAxis = axis ?: return@awaitEachGesture
-
-        val completed =
-            drag(dragStart.id) { change ->
-                onDrag(change, change.positionChange(), lockedAxis)
-                change.consume()
-            }
-
-        if (completed) onDragEnd(lockedAxis) else onDragCancel(lockedAxis)
     }
 }
