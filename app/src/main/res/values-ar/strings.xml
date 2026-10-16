@@ -4547,4 +4547,35 @@
     <string name="home_theme_travel">السفر</string>
     <string name="home_theme_howto">الشروحات والأسلوب</string>
     <string name="home_theme_nonprofits">المنظمات غير الربحية</string>
+    <string name="content_settings_live_chat_enabled_title">الدردشة المباشرة</string>
+    <string name="content_settings_live_chat_enabled_subtitle">عرض الدردشة على البث المباشر</string>
+    <string name="settings_section_home_snapshots">لقطات الصفحة الرئيسية</string>
+    <string name="diagnostics_record_home_snapshots">تسجيل لقطات الصفحة الرئيسية</string>
+    <string name="settings_diagnostics_record_snapshots_summary">يحتفظ بآخر 3 عمليات تحميل للصفحة الرئيسية على هذا الجهاز لتقرير التوصيات</string>
+    <string name="diagnostics_export_home_snapshot">تصدير أحدث لقطة</string>
+    <string name="settings_diagnostics_export_snapshot_summary">‎يحتوي على عناوين من سجل المشاهدة الخاص بك</string>
+    <string name="diagnostics_no_home_snapshot">افتح الصفحة الرئيسية مع تشغيل التسجيل أولاً</string>
+    <string name="diagnostics_snapshot_exported">تم تصدير اللقطة</string>
+    <string name="diagnostics_snapshot_export_failed">تعذّر تصدير اللقطة</string>
+    <string name="taste_topic_block_named">حظر %1$s</string>
+    <string name="details_why_shown">لماذا ترى هذا</string>
+    <string name="home_origin_subscription">من قناة تتابعها</string>
+    <string name="home_origin_related">مرتبط بـ %1$s</string>
+    <string name="home_origin_related_watched">مرتبط بفيديو شاهدته</string>
+    <string name="home_origin_search">من بحث عن %1$s</string>
+    <string name="home_origin_search_unnamed">من بحث عن اهتماماتك</string>
+    <string name="home_origin_channel_memory">من قناة تشاهدها غالبًا</string>
+    <string name="home_origin_neighbour">قناة مثل %1$s</string>
+    <string name="home_origin_neighbour_unnamed">قناة مثل القنوات التي تتابعها</string>
+    <string name="home_origin_neighbour_pair">%1$s و %2$s</string>
+    <string name="discover_channels_like_yours">قنوات مشابهة لما تتابعه</string>
+    <string name="discover_channels_like_yours_footer">‎القنوات التي يعرضها YouTube بجوار بعض القنوات التي تتابعها أو تشاهدها.</string>
+    <plurals name="course_lessons_count">
+        <item quantity="zero">دورة · %d درس</item>
+        <item quantity="one">دورة · %d درس</item>
+        <item quantity="two">دورة · %d درس</item>
+        <item quantity="few">دورة · %d دروس</item>
+        <item quantity="many">دورة · %d درس</item>
+        <item quantity="other">دورة · %d درس</item>
+    </plurals>
 </resources>
