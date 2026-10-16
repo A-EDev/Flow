@@ -21,6 +21,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -53,6 +54,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
+import kotlinx.coroutines.launch
 
 private const val TOP_TRACKS_SHOWN = 5
 private val VideoCardHeight = 124.dp
@@ -93,10 +95,35 @@ fun ArtistPage(
     insights: MusicArtistInsights? = null,
     knownRelatedArtistIds: Set<String> = emptySet(),
     onSeeAllClick: (String, String?) -> Unit = { _, _ -> },
+    onPlayWatchPlaylist: suspend (playlistId: String, params: String?) -> Boolean = { _, _ -> false },
+    onStartRadio: (MusicTrack) -> Unit = {},
 ) {
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    var isStartingQueue by remember { mutableStateOf(false) }
+
+    // The artist's own shuffle and mix are fetched first; a missing or empty one falls back to
+    // what the page already holds.
+    fun playWatchPlaylist(
+        playlistId: String?,
+        params: String?,
+        fallback: () -> Unit,
+    ) {
+        if (isStartingQueue) return
+        if (playlistId == null) return fallback()
+        scope.launch {
+            isStartingQueue = true
+            val played =
+                try {
+                    onPlayWatchPlaylist(playlistId, params)
+                } finally {
+                    isStartingQueue = false
+                }
+            if (!played) fallback()
+        }
+    }
 
     val showBarTitle by remember {
         derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
@@ -139,19 +166,31 @@ fun ArtistPage(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item(key = "hero") {
+                    val topTracks = artistDetails.topTracks
                     ArtistHero(
                         artist = artistDetails,
+                        isStartingQueue = isStartingQueue,
                         onFollowClick = onFollowClick,
-                        onShuffleClick = {
-                            if (artistDetails.topTracks.isNotEmpty()) {
-                                onTrackClick(artistDetails.topTracks.random(), artistDetails.topTracks.shuffled())
-                            }
-                        },
                         onPlayClick = {
-                            if (artistDetails.topTracks.isNotEmpty()) {
-                                onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks)
+                            if (topTracks.isNotEmpty()) onTrackClick(topTracks.first(), topTracks)
+                        },
+                        onShuffleClick = {
+                            playWatchPlaylist(artistDetails.shufflePlaylistId, artistDetails.shuffleParams) {
+                                if (topTracks.isNotEmpty()) onTrackClick(topTracks.random(), topTracks.shuffled())
                             }
                         },
+                        onRadioClick =
+                            artistDetails.radioPlaylistId?.let { radioId ->
+                                {
+                                    playWatchPlaylist(radioId, artistDetails.radioParams) {
+                                        topTracks.firstOrNull()?.let(onStartRadio)
+                                    }
+                                }
+                            },
+                        onVideosClick =
+                            artistDetails.videos.takeIf { it.isNotEmpty() }?.let { videos ->
+                                { onTrackClick(videos.first(), videos) }
+                            },
                     )
                 }
 
