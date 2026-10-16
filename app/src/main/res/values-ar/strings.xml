@@ -2291,7 +2291,7 @@
     <string name="subscriptions_failed_channels_body">أحدث فيديوهاتهم غير موجودة في هذه الصفحة: %1$s</string>
     <string name="subscriptions_failed_channels_more">%1$s و %2$d أخرين</string>
     <string name="player_appearance_seek_gesture_title">إيماءة التمرير الزمني</string>
-    <string name="player_appearance_seek_gesture_subtitle">اسحب جانبيًا في وضع ملء الشاشة للتقديم أو الترجيع</string>
+    <string name="player_appearance_seek_gesture_subtitle">اسحب أفقيًا على الفيديو للتقديم أو الترجيع</string>
     <string name="player_settings_subtitle_language">لغة الترجمة المفضلة</string>
     <string name="player_settings_subtitle_language_dialog_title">لغة الترجمة</string>
     <string name="player_settings_subtitle_language_dialog_body">تُفتح الترجمة بهذا اللغة عند توفرها. وإلا يترجم Flow مسارًا موجودًا.</string>
@@ -4591,4 +4591,7 @@
     <string name="player_settings_overlay_next_prev">زر السابق و التالي</string>
     <string name="player_settings_overlay_next_prev_subtitle">إظهار زري الفيديو السابق والتالي على مشغّل الفيديو</string>
     <string name="settings_keywords_next_prev">تخطي، الفيديو السابق، الفيديو التالي، النقر المزدوج</string>
+    <string name="settings_original_titles">العناوين الأصلية</string>
+    <string name="settings_original_titles_summary">عرض العناوين والأوصاف بلغة الفيديو الأصلية</string>
+    <string name="settings_keywords_original_titles">غير مترجم، مترجم تلقائيًا، الترجمة، اللغة الأصلية، العناوين، الأوصاف</string>
 </resources>
