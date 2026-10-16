@@ -97,9 +97,9 @@ internal fun Modifier.playerDragGestures(
     val currentOnExitFullscreen by onExitFullscreen
     val currentOnExitFullscreenDrag by onExitFullscreenDrag
 
+    // Outside fullscreen only the sideways seek is claimed: vertical drags stay unconsumed so the
+    // player sheet keeps them for minimising and entering fullscreen.
     return this.pointerInput(currentIsFullscreen) {
-        if (!currentIsFullscreen) return@pointerInput
-
         var isCenterZone = false
         var exitDragTravel = 0f
         var exitDragPastCommit = false
@@ -374,7 +374,7 @@ internal fun Modifier.playerDragGestures(
                 onAxisAccepted = { axis ->
                     when (axis) {
                         PlayerDragAxis.HORIZONTAL -> currentSeekSwipeGesturesEnabled && currentDuration > 0L
-                        PlayerDragAxis.VERTICAL -> true
+                        PlayerDragAxis.VERTICAL -> currentIsFullscreen
                     }
                 },
                 onDrag = { change, delta, axis ->
