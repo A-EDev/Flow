@@ -18,6 +18,7 @@ import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
+import io.github.aedev.flow.ui.screens.home.HomeFeedLanguageReset
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -66,6 +67,9 @@ class FlowApplication :
 
     @Inject
     lateinit var visitorIdentityStore: VisitorIdentityStore
+
+    @Inject
+    lateinit var homeFeedLanguageReset: HomeFeedLanguageReset
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
@@ -233,6 +237,7 @@ class FlowApplication :
                     ContentCountry(newLocale.gl),
                 )
                 Log.d(TAG, "Dynamic YouTube Locale updated: gl=${newLocale.gl}, hl=${newLocale.hl}")
+                homeFeedLanguageReset.onContentLanguage(newLocale.hl)
             }
         }
 
