@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
 import androidx.annotation.RequiresApi
+import androidx.core.app.LocaleManagerCompat
 import io.github.aedev.flow.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,12 @@ object AppLanguageManager {
      * not the preference that mirrors it: a restored or synced preference never reached the UI.
      */
     val appliedLanguage: StateFlow<String?> = applied.asStateFlow()
+
+    /**
+     * The device's language. [Locale.getDefault] and even `Resources.getSystem()` carry the app's
+     * language instead, still the old one right after choosing "System default".
+     */
+    fun deviceLocale(context: Context): Locale = LocaleManagerCompat.getSystemLocales(context)[0] ?: Locale.getDefault()
 
     /** Android 13+ keeps the per-app language itself, shared with Settings › App languages. */
     val systemStoresLanguage: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU

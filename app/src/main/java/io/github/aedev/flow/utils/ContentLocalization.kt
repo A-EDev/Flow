@@ -51,9 +51,10 @@ fun contentYouTubeLocale(
     appliedAppLanguage: String,
     contentLanguage: String,
     region: String,
+    deviceLocale: Locale,
 ): YouTubeLocale {
     val language = if (contentLanguage == CONTENT_LANGUAGE_FOLLOW_APP) appliedAppLanguage else contentLanguage
-    return YouTubeLocale(gl = normalizeYouTubeCountry(region), hl = normalizeYouTubeHostLanguage(language))
+    return YouTubeLocale(gl = normalizeYouTubeCountry(region), hl = normalizeYouTubeHostLanguage(language, deviceLocale))
 }
 
 fun newPipeContentCountry(region: String): ContentCountry = ContentCountry(normalizeYouTubeCountry(region))

@@ -229,8 +229,9 @@ class FlowApplication :
                 AppLanguageManager.appliedLanguage.filterNotNull(),
                 playerPreferences.contentLanguage,
                 playerPreferences.trendingRegion,
-                ::contentYouTubeLocale,
-            ).distinctUntilChanged().collectLatest { newLocale ->
+            ) { appLanguage, contentLanguage, region ->
+                contentYouTubeLocale(appLanguage, contentLanguage, region, AppLanguageManager.deviceLocale(this@FlowApplication))
+            }.distinctUntilChanged().collectLatest { newLocale ->
                 YouTube.locale = newLocale
                 NewPipe.setupLocalization(
                     newPipeLocalization(newLocale.hl),
