@@ -4,7 +4,11 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -67,6 +71,21 @@ class OriginalTitleRepositoryTest {
             titles.originalTitle("abc123def45")
 
             assertThat(asked).isEqualTo("https://www.youtube.com/watch?v=abc123def45")
+        }
+
+    @Test
+    fun `a page watching the cache sees a lookup started elsewhere`() =
+        runBlocking {
+            val titles = repository { 200 to """{"title":"Нагиев – пенсии, стих в Кремле / вДудь"}""" }
+            val seen = async { titles.cachedUpdates("8sWj1Q2SQGQ").take(2).toList() }
+            yield()
+
+            titles.originalTitle("8sWj1Q2SQGQ")
+
+            assertThat(withTimeout(5_000) { seen.await() })
+                .containsExactly(null, "Нагиев – пенсии, стих в Кремле / вДудь")
+                .inOrder()
+            assertThat(requests.get()).isEqualTo(1)
         }
 
     @Test

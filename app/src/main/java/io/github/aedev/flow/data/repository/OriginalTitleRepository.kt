@@ -4,6 +4,12 @@ import io.github.aedev.flow.di.NetworkIoDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -35,9 +41,18 @@ class OriginalTitleRepository
         private val answers = BoundedCache(CAPACITY)
         private val inFlight = ConcurrentHashMap<String, CompletableDeferred<String?>>()
         private val permits = Semaphore(MAX_PARALLEL)
+        private val answered =
+            MutableSharedFlow<String>(extraBufferCapacity = ANSWER_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
         /** What a request already answered, for a card's first frame. */
         fun cached(videoId: String): String? = answers[videoId]?.ifEmpty { null }
+
+        /** [cached], updated when a lookup started elsewhere answers; never requests anything itself. */
+        fun cachedUpdates(videoId: String): Flow<String?> =
+            answered
+                .filter { it == videoId }
+                .map { cached(videoId) }
+                .onStart { emit(cached(videoId)) }
 
         suspend fun originalTitle(videoId: String): String? {
             answers[videoId]?.let { return it.ifEmpty { null } }
@@ -69,7 +84,7 @@ class OriginalTitleRepository
                         when {
                             // Embedding turned off, or the video is gone: both are final answers.
                             response.code == 401 || response.code == 404 -> {
-                                answers[videoId] = ""
+                                store(videoId, "")
                                 null
                             }
 
@@ -78,7 +93,7 @@ class OriginalTitleRepository
                             }
 
                             else -> {
-                                parseTitle(response.body.string()).also { answers[videoId] = it.orEmpty() }
+                                parseTitle(response.body.string()).also { store(videoId, it.orEmpty()) }
                             }
                         }
                     }
@@ -86,6 +101,14 @@ class OriginalTitleRepository
                     null
                 }
             }
+
+        private fun store(
+            videoId: String,
+            title: String,
+        ) {
+            answers[videoId] = title
+            answered.tryEmit(videoId)
+        }
 
         private class BoundedCache(
             private val capacity: Int,
@@ -111,6 +134,7 @@ class OriginalTitleRepository
             const val OEMBED_URL = "https://www.youtube.com/oembed"
             const val CAPACITY = 1_000
             const val MAX_PARALLEL = 4
+            private const val ANSWER_BUFFER = 64
 
             private val json = Json { ignoreUnknownKeys = true }
 

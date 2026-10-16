@@ -29,6 +29,25 @@ fun rememberOriginalTitle(
     }
 }
 
+/**
+ * A title some card already looked up, picked up when that lookup lands. Never requests one: a
+ * page loaded with the switch on already carries the original, so this only covers flipping the
+ * switch while a page is open.
+ */
+@Composable
+fun rememberKnownOriginalTitle(
+    videoId: String,
+    enabled: Boolean,
+): String? {
+    val titles = LocalOriginalTitles.current
+    val active = enabled && titles != null && !LocalMediaIds.isLocal(videoId)
+    return key(videoId, active) {
+        produceState(initialValue = if (active) titles?.cached(videoId) else null, videoId, active) {
+            if (active) titles?.cachedUpdates(videoId)?.collect { value = it }
+        }.value
+    }
+}
+
 /** The title a card without DeArrow shows: the original when the switch asks for it. */
 @Composable
 fun rememberCardTitle(video: Video): String =
