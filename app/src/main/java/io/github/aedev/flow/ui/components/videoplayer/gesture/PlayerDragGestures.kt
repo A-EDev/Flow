@@ -391,7 +391,10 @@ internal fun Modifier.playerDragGestures(
                     } else {
                         val width = size.width
                         isCenterZone = offset.x > width * 0.33f && offset.x < width * 0.67f
-                        isSpeedDrag = !isCenterZone && PlayerSpeedSwipe.ownsDrag(currentSpeedSwipeSide, offset.x, width.toFloat())
+                        isSpeedDrag =
+                            currentIsFullscreen &&
+                            !isCenterZone &&
+                            PlayerSpeedSwipe.ownsDrag(currentSpeedSwipeSide, offset.x, width.toFloat())
                         if (isSpeedDrag) speedDrag.begin()
                         true
                     }
