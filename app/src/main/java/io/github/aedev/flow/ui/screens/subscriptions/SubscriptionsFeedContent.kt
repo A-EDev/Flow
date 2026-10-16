@@ -212,7 +212,7 @@ internal fun SubscriptionsFeedContent(
                         video = video,
                         layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                         onClick = { onVideoClick(video) },
-                        useInternalPadding = !feedLayout.isCompact,
+                        useInternalPadding = !feedLayout.cardsBleed,
                         thumbnailWidth = plan.listThumbnailWidth,
                     )
                 }
