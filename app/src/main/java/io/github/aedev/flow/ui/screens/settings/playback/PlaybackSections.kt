@@ -5,8 +5,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsTarget

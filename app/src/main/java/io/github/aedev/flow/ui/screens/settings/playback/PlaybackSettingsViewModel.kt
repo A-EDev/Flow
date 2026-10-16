@@ -6,8 +6,8 @@ import io.github.aedev.flow.data.local.DEFAULT_SPEED_SWIPE_STEP
 import io.github.aedev.flow.data.local.DoubleTapSeekZone
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
+import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel

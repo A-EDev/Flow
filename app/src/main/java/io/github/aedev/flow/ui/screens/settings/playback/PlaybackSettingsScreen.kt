@@ -54,7 +54,16 @@ internal fun PlaybackSettingsScreen(
     ) {
         playbackSections(
             viewModel = viewModel,
-            state = PlaybackStructure(loopAll, customSpeeds, doubleTapSeek > 0, speedSwipeSide, comments, shortsContent, disableShortsPlayer),
+            state =
+                PlaybackStructure(
+                    loopAll,
+                    customSpeeds,
+                    doubleTapSeek > 0,
+                    speedSwipeSide,
+                    comments,
+                    shortsContent,
+                    disableShortsPlayer,
+                ),
             openDialog = { dialog = it },
             onNavigate = onNavigate,
         )

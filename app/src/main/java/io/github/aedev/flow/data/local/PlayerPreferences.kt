@@ -3824,7 +3824,6 @@ enum class MusicPlayerBackgroundStyle {
     DEFAULT,
 }
 
-/** How much of the player's width each double-tap seek side takes. */
 /** Which side of the fullscreen player a vertical swipe changes the playback speed on, in place of brightness or volume. */
 enum class SpeedSwipeSide {
     OFF,
@@ -3836,7 +3835,10 @@ enum class SpeedSwipeSide {
 val SPEED_SWIPE_STEPS = listOf(0.05f, 0.1f, 0.25f)
 const val DEFAULT_SPEED_SWIPE_STEP = 0.1f
 
-/** [reachesEdges] lets taps count right up to the screen edges instead of leaving them to the back gesture. */
+/**
+ * How much of the player's width each double-tap seek side takes. [reachesEdges] lets taps count right
+ * up to the screen edges instead of leaving them to the back gesture.
+ */
 enum class DoubleTapSeekZone(
     val sideFraction: Float,
     val reachesEdges: Boolean = false,
