@@ -1223,7 +1223,7 @@ class Media3MusicService : MediaLibraryService() {
      *
      * Without this override Android calls stopSelf() via the default onTaskRemoved,
      * which destroys the foreground service and stops background music playback.
-     * Overriding without calling super keeps the service alive.
+     * Overriding without calling super keeps the service alive, also while a song is still loading.
      *
      * When nothing is playing it stops the way Media3's default does: a raw stopSelf() leaves the
      * user-engaged timeout armed, so the notification update for that pause can put the stopped
@@ -1231,7 +1231,7 @@ class Media3MusicService : MediaLibraryService() {
      */
     @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (::player.isInitialized && player.isPlaying) {
+        if (::player.isInitialized && player.keepsPlayingOnTaskRemoved(isPlaybackOngoing())) {
             return
         }
         pauseAllPlayersAndStopSelf()
