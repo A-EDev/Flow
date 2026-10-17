@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.subscriptions
 import android.util.Log
 import androidx.room.withTransaction
 import io.github.aedev.flow.data.innertube.RssSubscriptionService
+import io.github.aedev.flow.data.innertube.SubscriptionRefreshStage
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
@@ -13,10 +14,14 @@ import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedMerger.preservingEnrichedMetadata
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -30,6 +35,9 @@ data class SubscriptionFeedRefreshProgress(
     val failedChannelReasons: Map<String, String>,
     val processedChannels: Int,
     val totalChannels: Int,
+    val stage: SubscriptionRefreshStage = SubscriptionRefreshStage.RSS,
+    /** The feed is stored and the counters are done; anything after this only adds collaborations. */
+    val finished: Boolean = false,
 )
 
 /**
@@ -56,168 +64,213 @@ class SubscriptionFeedRepository
          */
         private val refreshLock = Mutex()
 
-        fun observeFeed(): Flow<List<Video>> =
-            combine(cacheDao.getSubscriptionFeed(), playerPreferences.subscriptionCollaborationsEnabled) { rows, collaborations ->
-                rows.filter { collaborations || it.feedChannelId.isEmpty() }.map { it.toVideo() }
-            }
+        private val collaborationsLock = Mutex()
 
-        /** Which channels are due a refresh right now; empty when everything is still fresh. */
-        suspend fun planRefresh(force: Boolean): SubscriptionRefreshPlan {
+        /** The refresh holding [refreshLock], for a caller that arrives while it runs. */
+        private val running = MutableStateFlow<SubscriptionFeedRefreshProgress?>(null)
+
+        /**
+         * The stored feed. With a group's [scope], that group's rows are read on their own as well,
+         * so its older uploads are not cut off by the newest rows of every other channel.
+         */
+        fun observeFeed(scope: Set<String>? = null): Flow<List<Video>> {
+            val all = cacheDao.getSubscriptionFeed()
+            val rows =
+                if (scope.isNullOrEmpty() || scope.size > SCOPED_READ_MAX_CHANNELS) {
+                    all
+                } else {
+                    combine(cacheDao.observeSubscriptionFeedForChannels(scope.toList()), all) { group, everything ->
+                        (group + everything).distinctBy { it.videoId }
+                    }
+                }
+            return combine(rows, playerPreferences.subscriptionCollaborationsEnabled) { entities, collaborations ->
+                entities.filter { collaborations || it.feedChannelId.isEmpty() }.map { it.toVideo() }
+            }
+        }
+
+        /**
+         * Which channels are due a refresh right now; empty when everything is still fresh. With a
+         * group's [scope], only that group's channels are considered.
+         */
+        suspend fun planRefresh(
+            force: Boolean,
+            scope: Set<String>? = null,
+        ): SubscriptionRefreshPlan {
             val subscriptions = subscriptionRepository.getAllSubscriptions().first()
-            return SubscriptionRefreshPlanner.plan(
-                subscriptions = subscriptions,
-                now = System.currentTimeMillis(),
-                force = force,
-            )
+            val now = System.currentTimeMillis()
+            return if (scope == null) {
+                SubscriptionRefreshPlanner.plan(subscriptions = subscriptions, now = now, force = force)
+            } else {
+                SubscriptionRefreshPlanner.planForGroup(subscriptions, scope, now, force)
+            }
         }
 
         /**
          * Runs [plan] and writes the result. Emits a progressively more complete feed so the caller
-         * can render partial results; the cache is written once, when the fetch finishes.
+         * can render partial results. The channels RSS settles on its own are stored as soon as the
+         * RSS stage ends; the rest are stored when the checks finish.
          *
-         * Emits nothing at all when the plan is empty or another refresh already holds the lock.
+         * Emits nothing when the plan is empty. When another refresh already holds the lock, follows
+         * that one's progress instead of starting a second sweep.
          */
         fun refresh(plan: SubscriptionRefreshPlan): Flow<SubscriptionFeedRefreshProgress> =
             flow {
                 if (plan.isEmpty) return@flow
                 if (!refreshLock.tryLock()) {
-                    Log.d(TAG, "Skip refresh: another subscription refresh is running")
+                    Log.d(TAG, "A subscription refresh is already running; following it")
+                    emitAll(running.takeWhile { it != null }.filterNotNull().transformWhile { emit(it); !it.finished })
                     return@flow
                 }
 
-                try {
-                    val cachedRows = withContext(PerformanceDispatcher.diskIO) { cacheDao.getSubscriptionFeed().first() }
-                    val allCached = cachedRows.map { it.toVideo() }
-                    val lastFeedFetchAt =
-                        withContext(PerformanceDispatcher.diskIO) {
-                            subscriptionRepository.getAllSubscriptions().first().associate { it.channelId to it.lastFeedFetchAt }
+                val done =
+                    try {
+                        runRefresh(plan) { progress ->
+                            running.value = progress
+                            emit(progress)
                         }
-                    val plannedChannelIds = plan.channelIds.toHashSet()
-                    val sliceCached =
-                        if (plan.isFullRefresh) {
-                            allCached
-                        } else {
-                            allCached.filter { it.channelId in plannedChannelIds }
-                        }
-
-                    var previewVideos = allCached
-                    var latestChunkVideos = emptyList<Video>()
-                    var failedChannelIds = emptySet<String>()
-                    var failedChannelReasons = emptyMap<String, String>()
-                    var incompleteChannelIds = emptySet<String>()
-                    var processed = 0
-
-                    rssSubscriptionService
-                        .fetchSubscriptionVideos(
-                            channelIds = plan.channelIds,
-                            maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
-                            knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
-                            storedReelVerdicts = trustedReelVerdicts(cachedRows, lastFeedFetchAt),
-                            onProgress = { done, _ -> processed = done },
-                        ).collect { chunk ->
-                            failedChannelIds = chunk.failedChannelIds
-                            failedChannelReasons = chunk.failedChannelReasons
-                            incompleteChannelIds = chunk.incompleteChannelIds
-                            if (chunk.videos.isNotEmpty()) {
-                                latestChunkVideos = chunk.videos
-                                previewVideos =
-                                    SubscriptionFeedMerger
-                                        .mergeSubscriptionFeed(
-                                            freshVideos = chunk.videos,
-                                            cachedVideos = previewVideos,
-                                            now = System.currentTimeMillis(),
-                                            windowMs = SUBSCRIPTION_CACHE_WINDOW_MS,
-                                            maxItems = MAX_SUBSCRIPTION_CACHE_ITEMS,
-                                        ).withHighQualityThumbnails()
-                            }
-                            emit(
-                                SubscriptionFeedRefreshProgress(
-                                    videos = previewVideos,
-                                    failedChannelIds = failedChannelIds,
-                                    failedChannelReasons = failedChannelReasons,
-                                    processedChannels = processed,
-                                    totalChannels = plan.channelIds.size,
-                                ),
-                            )
-                        }
-
-                    val refreshTime = System.currentTimeMillis()
-                    if (latestChunkVideos.isNotEmpty() || plan.isFullRefresh) {
-                        val persisted =
-                            persist(
-                                plan = plan,
-                                freshVideos = latestChunkVideos,
-                                sliceCached = sliceCached,
-                                failedChannelIds = failedChannelIds + incompleteChannelIds,
-                                refreshTime = refreshTime,
-                            )
-                        emit(
-                            SubscriptionFeedRefreshProgress(
-                                videos = persisted,
-                                failedChannelIds = failedChannelIds,
-                                failedChannelReasons = failedChannelReasons,
-                                processedChannels = plan.channelIds.size,
-                                totalChannels = plan.channelIds.size,
-                            ),
-                        )
-                    } else if (allCached.isNotEmpty()) {
-                        withContext(PerformanceDispatcher.diskIO) {
-                            playerPreferences.setSubscriptionLastRefresh(refreshTime, allCached.size)
-                        }
+                    } finally {
+                        running.value = null
+                        refreshLock.unlock()
                     }
-                    if (refreshCollaborations()) {
-                        emit(
-                            SubscriptionFeedRefreshProgress(
-                                videos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() },
-                                failedChannelIds = failedChannelIds,
-                                failedChannelReasons = failedChannelReasons,
-                                processedChannels = plan.channelIds.size,
-                                totalChannels = plan.channelIds.size,
-                            ),
-                        )
-                    }
-                } finally {
-                    refreshLock.unlock()
+                if (refreshCollaborations()) {
+                    emit(done.copy(videos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed(plan.scope) }))
                 }
             }
 
+        private suspend fun runRefresh(
+            plan: SubscriptionRefreshPlan,
+            publish: suspend (SubscriptionFeedRefreshProgress) -> Unit,
+        ): SubscriptionFeedRefreshProgress {
+            val cachedRows =
+                withContext(PerformanceDispatcher.diskIO) {
+                    plan.channelIds.chunked(SQLITE_VARIABLE_LIMIT).flatMap { cacheDao.getSubscriptionFeedForChannels(it) }
+                }
+            val sliceCached = cachedRows.map { it.toVideo() }
+            val lastFeedFetchAt =
+                withContext(PerformanceDispatcher.diskIO) {
+                    subscriptionRepository.getAllSubscriptions().first().associate { it.channelId to it.lastFeedFetchAt }
+                }
+
+            var previewVideos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed(plan.scope) }
+            var latestChunkVideos = emptyList<Video>()
+            var failedChannelIds = emptySet<String>()
+            var failedChannelReasons = emptyMap<String, String>()
+            var incompleteChannelIds = emptySet<String>()
+            val writtenChannelIds = HashSet<String>()
+
+            rssSubscriptionService
+                .fetchSubscriptionVideos(
+                    channelIds = plan.channelIds,
+                    knownVideoIds = if (plan.isFullRefresh) emptySet() else sliceCached.mapTo(HashSet()) { it.id },
+                    storedReelVerdicts = trustedReelVerdicts(cachedRows, lastFeedFetchAt),
+                    readAllTabs = plan.readAllTabs,
+                ).collect { chunk ->
+                    failedChannelIds = chunk.failedChannelIds
+                    failedChannelReasons = chunk.failedChannelReasons
+                    incompleteChannelIds = chunk.incompleteChannelIds
+                    if (chunk.videos.isNotEmpty()) {
+                        latestChunkVideos = chunk.videos
+                        previewVideos =
+                            SubscriptionFeedMerger
+                                .mergeSubscriptionFeed(
+                                    freshVideos = chunk.videos,
+                                    cachedVideos = previewVideos,
+                                    now = System.currentTimeMillis(),
+                                    windowMs = SUBSCRIPTION_CACHE_WINDOW_MS,
+                                    maxItems = Int.MAX_VALUE,
+                                ).withHighQualityThumbnails()
+                    }
+                    val settled = chunk.rssSettledChannelIds.orEmpty()
+                    if (settled.isNotEmpty()) {
+                        persist(
+                            channelIds = plan.channelIds.filter { it in settled },
+                            freshVideos = latestChunkVideos,
+                            sliceCached = sliceCached,
+                            failedChannelIds = emptySet(),
+                            refreshTime = System.currentTimeMillis(),
+                            dropUnfollowed = false,
+                        )
+                        writtenChannelIds += settled
+                        previewVideos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed(plan.scope) }
+                    }
+                    publish(
+                        SubscriptionFeedRefreshProgress(
+                            videos = previewVideos,
+                            failedChannelIds = failedChannelIds,
+                            failedChannelReasons = failedChannelReasons,
+                            processedChannels = chunk.processedChannels,
+                            totalChannels = chunk.totalChannels,
+                            stage = chunk.stage,
+                        ),
+                    )
+                }
+
+            val remaining = plan.channelIds.filterNot { it in writtenChannelIds }
+            if (remaining.isNotEmpty() || plan.isFullRefresh) {
+                persist(
+                    channelIds = remaining,
+                    freshVideos = latestChunkVideos,
+                    sliceCached = sliceCached,
+                    failedChannelIds = failedChannelIds + incompleteChannelIds,
+                    refreshTime = System.currentTimeMillis(),
+                    dropUnfollowed = plan.isFullRefresh,
+                )
+            }
+            val done =
+                SubscriptionFeedRefreshProgress(
+                    videos = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed(plan.scope) },
+                    failedChannelIds = failedChannelIds,
+                    failedChannelReasons = failedChannelReasons,
+                    processedChannels = 0,
+                    totalChannels = 0,
+                    stage = SubscriptionRefreshStage.CHECKS,
+                    finished = true,
+                )
+            publish(done)
+            return done
+        }
+
         /**
-         * Splices the fetched channels back into the cache. A full refresh still replaces the table
-         * outright; an incremental one only touches the rows of the channels it actually fetched, so
-         * an unrelated channel's items are never dropped by a partial run.
+         * Replaces the rows of [channelIds] with their fetched and earlier rows together, and stamps
+         * the ones that answered. Every other channel's rows are left as they are. [dropUnfollowed]
+         * also removes the uploads of channels no longer followed, which only a full refresh may do.
          */
         private suspend fun persist(
-            plan: SubscriptionRefreshPlan,
+            channelIds: List<String>,
             freshVideos: List<Video>,
             sliceCached: List<Video>,
             failedChannelIds: Set<String>,
             refreshTime: Long,
-        ): List<Video> {
+            dropUnfollowed: Boolean,
+        ) {
+            val written = channelIds.toHashSet()
             val subscribedChannelIds =
                 withContext(PerformanceDispatcher.diskIO) {
                     subscriptionRepository.getAllSubscriptions().first().mapTo(HashSet()) { it.channelId }
                 }
             val write =
                 subscriptionFeedWrite(
-                    plan = plan,
-                    freshVideos = freshVideos,
-                    cachedSlice = sliceCached,
+                    channelIds = channelIds,
+                    freshVideos = freshVideos.filter { it.channelId in written },
+                    cachedSlice = sliceCached.filter { it.channelId in written },
                     failedChannelIds = failedChannelIds,
                     subscribedChannelIds = subscribedChannelIds,
                     now = refreshTime,
                     windowMs = SUBSCRIPTION_CACHE_WINDOW_MS,
-                    maxItems = MAX_SUBSCRIPTION_CACHE_ITEMS,
+                    maxPerChannel = MAX_ROWS_PER_CHANNEL,
                 )
 
             val entities = write.rows.map { it.toEntity(refreshTime) }
             withContext(PerformanceDispatcher.diskIO) {
                 database.withTransaction {
-                    if (plan.isFullRefresh) {
-                        cacheDao.clearSubscriptionUploads()
-                    } else {
-                        plan.channelIds.chunked(SQLITE_VARIABLE_LIMIT).forEach { ids ->
-                            cacheDao.deleteSubscriptionFeedForChannels(ids)
+                    val deleted =
+                        if (dropUnfollowed) {
+                            channelIds + cacheDao.subscriptionUploadChannelIds().filterNot { it in subscribedChannelIds }
+                        } else {
+                            channelIds
                         }
+                    deleted.chunked(SQLITE_VARIABLE_LIMIT).forEach { ids ->
+                        cacheDao.deleteSubscriptionFeedForChannels(ids)
                     }
                     cacheDao.insertSubscriptionFeed(entities)
                     cacheDao.pruneSubscriptionFeedOlderThan(refreshTime - SUBSCRIPTION_CACHE_WINDOW_MS)
@@ -228,11 +281,9 @@ class SubscriptionFeedRepository
             }
             Log.i(
                 TAG,
-                "Persisted ${entities.size} rows for ${plan.channelIds.size} channels " +
-                    "(full=${plan.isFullRefresh}, failed=${failedChannelIds.size})",
+                "Persisted ${entities.size} rows for ${channelIds.size} channels " +
+                    "(dropUnfollowed=$dropUnfollowed, failed=${failedChannelIds.size})",
             )
-
-            return if (plan.isFullRefresh) write.rows else loadCachedFeed()
         }
 
         /**
@@ -317,14 +368,24 @@ class SubscriptionFeedRepository
             updateEnrichedMetadata(updates)
         }
 
-        private suspend fun loadCachedFeed(): List<Video> = observeFeed().first()
+        private suspend fun loadCachedFeed(scope: Set<String>? = null): List<Video> = observeFeed(scope).first()
 
         /**
          * Looks a few followed channels over for collaborations someone else uploaded and stores what
          * each one shows, replacing that channel's earlier set. With the setting off, drops them all.
-         * True when the stored feed changed.
+         * True when the stored feed changed. Runs after the refresh has released its lock and ended
+         * its progress, so the screen does not wait on it.
          */
         private suspend fun refreshCollaborations(): Boolean {
+            if (!collaborationsLock.tryLock()) return false
+            return try {
+                scanCollaborations()
+            } finally {
+                collaborationsLock.unlock()
+            }
+        }
+
+        private suspend fun scanCollaborations(): Boolean {
             if (!playerPreferences.subscriptionCollaborationsEnabled.first()) {
                 withContext(PerformanceDispatcher.diskIO) { cacheDao.deleteCollaborations() }
                 return false
@@ -350,7 +411,10 @@ class SubscriptionFeedRepository
             const val TAG = "SubsFeedRepo"
             const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
             const val SUBSCRIPTION_CACHE_WINDOW_MS = SUBSCRIPTION_FEED_LOOKBACK_DAYS * 24L * 60L * 60L * 1000L
-            const val MAX_SUBSCRIPTION_CACHE_ITEMS = 1500
+            const val MAX_ROWS_PER_CHANNEL = 60
+
+            /** A group read binds every id twice; this keeps it inside SQLite's 999 variables. */
+            const val SCOPED_READ_MAX_CHANNELS = 400
 
             /** SQLite allows 999 bound variables per statement; stay comfortably below it. */
             const val SQLITE_VARIABLE_LIMIT = 500

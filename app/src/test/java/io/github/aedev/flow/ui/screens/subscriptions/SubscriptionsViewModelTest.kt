@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelStore
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.ChannelSubscription
+import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
@@ -26,6 +27,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -77,8 +79,8 @@ class SubscriptionsViewModelTest {
         coEvery { playerPreferences.unplayableVideoIds } returns flowOf(emptySet())
         coEvery { playerPreferences.hideUnplayableVideosFromSubscriptions } returns flowOf(false)
         coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
-        coEvery { subscriptionFeedRepository.observeFeed() } returns flowOf(emptyList())
-        coEvery { subscriptionFeedRepository.planRefresh(any()) } returns SubscriptionRefreshPlan.NOTHING_TO_DO
+        coEvery { subscriptionFeedRepository.observeFeed(any()) } returns flowOf(emptyList())
+        coEvery { subscriptionFeedRepository.planRefresh(any(), any()) } returns SubscriptionRefreshPlan.NOTHING_TO_DO
         coEvery { neuroEngine.feedExclusions(any()) } returns FeedExclusions.NONE
 
         viewModel =
@@ -113,7 +115,7 @@ class SubscriptionsViewModelTest {
 
             coVerify(exactly = 0) { subscriptionRepository.getAllSubscriptions() }
             coVerify(exactly = 0) { subscriptionGroupDao.getAllGroups() }
-            coVerify(exactly = 0) { subscriptionFeedRepository.observeFeed() }
+            coVerify(exactly = 0) { subscriptionFeedRepository.observeFeed(any()) }
         }
 
     @Test
@@ -301,7 +303,7 @@ class SubscriptionsViewModelTest {
                     uploadDate = "",
                 )
             val preview = cached.copy(id = "preview", title = "New video")
-            coEvery { subscriptionFeedRepository.observeFeed() } returns flowOf(listOf(cached))
+            coEvery { subscriptionFeedRepository.observeFeed(any()) } returns flowOf(listOf(cached))
             coEvery { subscriptionFeedRepository.refresh(any()) } returns
                 flow {
                     refreshStarted.complete(Unit)
@@ -338,11 +340,34 @@ class SubscriptionsViewModelTest {
             coVerify(exactly = 1) { subscriptionFeedRepository.refresh(any()) }
         }
 
+    @Test
+    fun `with a group selected a pull refreshes only that group's channels (1099)`() =
+        runTest {
+            coEvery { subscriptionGroupDao.getAllGroups() } returns
+                flowOf(listOf(SubscriptionGroupEntity(name = "Gym", channelIds = "a,b")))
+            coEvery { playerPreferences.selectedSubscriptionGroup } returns flowOf("Gym")
+            viewModel.ensureStarted()
+            awaitState { it.groups.isNotEmpty() && it.selectedGroupName == "Gym" }
+
+            viewModel.refreshFeed()
+
+            withContext(Dispatchers.Default) {
+                withTimeout(VERIFY_TIMEOUT_MS) {
+                    while (true) {
+                        val asked = runCatching { coVerify { subscriptionFeedRepository.planRefresh(true, setOf("a", "b")) } }
+                        if (asked.isSuccess) break
+                        delay(20)
+                    }
+                }
+            }
+            coVerify(exactly = 0) { subscriptionFeedRepository.planRefresh(true, null) }
+        }
+
     private fun stallRefresh(subscriptions: MutableStateFlow<List<ChannelSubscription>>): CompletableDeferred<Unit> {
         val started = CompletableDeferred<Unit>()
         val plan = SubscriptionRefreshPlan(subscriptions.value.map { it.channelId }, isFullRefresh = true)
         coEvery { subscriptionRepository.getAllSubscriptions() } returns subscriptions
-        coEvery { subscriptionFeedRepository.planRefresh(false) } returns plan
+        coEvery { subscriptionFeedRepository.planRefresh(false, null) } returns plan
         coEvery { subscriptionFeedRepository.refresh(plan) } returns
             flow {
                 started.complete(Unit)

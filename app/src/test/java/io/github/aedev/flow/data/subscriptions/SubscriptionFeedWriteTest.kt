@@ -27,42 +27,43 @@ class SubscriptionFeedWriteTest {
     )
 
     private fun write(
-        plan: SubscriptionRefreshPlan,
+        channels: List<String>,
         fresh: List<Video>,
         cached: List<Video>,
         failed: Set<String> = emptySet(),
         subscribed: Set<String> = setOf("UCa", "UCb", "UCc"),
+        maxPerChannel: Int = 60,
     ) = subscriptionFeedWrite(
-        plan = plan,
+        channelIds = channels,
         freshVideos = fresh,
         cachedSlice = cached,
         failedChannelIds = failed,
         subscribedChannelIds = subscribed,
         now = now,
         windowMs = 60L * 24L * hour,
-        maxItems = 1500,
+        maxPerChannel = maxPerChannel,
     )
 
-    private val fullPlan = SubscriptionRefreshPlan(listOf("UCa", "UCb"), isFullRefresh = true)
+    private val both = listOf("UCa", "UCb")
 
     @Test
-    fun `a full refresh keeps the rows of a channel that failed`() {
+    fun `a channel that failed keeps its rows`() {
         val result =
             write(
-                plan = fullPlan,
+                channels = both,
                 fresh = listOf(video("a2", "UCa")),
                 cached = listOf(video("a1", "UCa", ageHours = 5), video("b1", "UCb", ageHours = 3)),
                 failed = setOf("UCb"),
             )
 
-        assertThat(result.rows.map { it.id }).containsExactly("a2", "b1")
+        assertThat(result.rows.map { it.id }).containsExactly("a2", "b1", "a1").inOrder()
     }
 
     @Test
     fun `a channel only RSS answered for keeps its fresh rows and its earlier ones (1186)`() {
         val result =
             write(
-                plan = fullPlan,
+                channels = both,
                 fresh = listOf(video("b2", "UCb")),
                 cached = listOf(video("b1", "UCb", ageHours = 30)),
                 failed = setOf("UCb"),
@@ -73,20 +74,45 @@ class SubscriptionFeedWriteTest {
     }
 
     @Test
-    fun `a full refresh still drops stale rows of a channel that answered`() {
+    fun `a channel that answered keeps the uploads RSS no longer lists (1099)`() {
         val result =
             write(
-                plan = fullPlan,
+                channels = both,
                 fresh = listOf(video("a2", "UCa")),
-                cached = listOf(video("a1", "UCa", ageHours = 5)),
+                cached = listOf(video("a1", "UCa", ageHours = 24 * 20)),
+            )
+
+        assertThat(result.rows.map { it.id }).containsExactly("a2", "a1").inOrder()
+    }
+
+    @Test
+    fun `rows past the lookback window still age out`() {
+        val result =
+            write(
+                channels = both,
+                fresh = listOf(video("a2", "UCa")),
+                cached = listOf(video("a1", "UCa", ageHours = 24 * 61)),
             )
 
         assertThat(result.rows.map { it.id }).containsExactly("a2")
     }
 
     @Test
+    fun `each channel keeps only its newest rows`() {
+        val result =
+            write(
+                channels = both,
+                fresh = listOf(video("a3", "UCa", ageHours = 1), video("b1", "UCb", ageHours = 9)),
+                cached = listOf(video("a2", "UCa", ageHours = 2), video("a1", "UCa", ageHours = 3)),
+                maxPerChannel = 2,
+            )
+
+        assertThat(result.rows.map { it.id }).containsExactly("a3", "a2", "b1").inOrder()
+    }
+
+    @Test
     fun `a failed channel is not stamped fresh`() {
-        val result = write(plan = fullPlan, fresh = emptyList(), cached = emptyList(), failed = setOf("UCb"))
+        val result = write(channels = both, fresh = emptyList(), cached = emptyList(), failed = setOf("UCb"))
 
         assertThat(result.fetchedChannelIds).containsExactly("UCa")
     }
@@ -95,7 +121,7 @@ class SubscriptionFeedWriteTest {
     fun `an incremental refresh keeps the fetched channels' earlier rows`() {
         val result =
             write(
-                plan = SubscriptionRefreshPlan(listOf("UCa"), isFullRefresh = false),
+                channels = listOf("UCa"),
                 fresh = listOf(video("a2", "UCa")),
                 cached = listOf(video("a1", "UCa", ageHours = 5)),
             )
@@ -108,7 +134,7 @@ class SubscriptionFeedWriteTest {
     fun `a channel unsubscribed during the refresh is not written back`() {
         val result =
             write(
-                plan = fullPlan,
+                channels = both,
                 fresh = listOf(video("a2", "UCa"), video("b2", "UCb")),
                 cached = emptyList(),
                 subscribed = setOf("UCa"),
@@ -121,7 +147,7 @@ class SubscriptionFeedWriteTest {
     fun `an enriched duration survives the refresh that re-reads the row from RSS`() {
         val result =
             write(
-                plan = fullPlan,
+                channels = both,
                 fresh = listOf(video("a1", "UCa")),
                 cached = listOf(video("a1", "UCa", duration = 321)),
             )

@@ -12,6 +12,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.innertube.SubscriptionRefreshStage
 
 private val StatusHorizontalPadding = 12.dp
 private val ProgressVerticalPadding = 4.dp
@@ -20,6 +21,7 @@ private val TextVerticalPadding = 2.dp
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SubscriptionsRefreshStatus(
+    stage: SubscriptionRefreshStage,
     processedChannels: Int,
     totalChannels: Int,
     lastRefreshText: String?,
@@ -39,7 +41,7 @@ internal fun SubscriptionsRefreshStatus(
         Text(
             text =
                 pluralStringResource(
-                    R.plurals.subscriptions_refresh_progress_template,
+                    stage.progressTemplate(),
                     totalChannels,
                     processedChannels,
                     totalChannels,

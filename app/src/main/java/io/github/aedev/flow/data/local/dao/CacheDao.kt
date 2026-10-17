@@ -24,6 +24,20 @@ interface CacheDao {
     @Query("SELECT MAX(cachedAt) FROM subscription_feed_cache")
     suspend fun getLatestCachedAt(): Long?
 
+    /**
+     * A subscription group's rows, newest first, together with the collaborations found through its
+     * channels, so busy channels outside the group never push its rows past the feed's row limit.
+     */
+    @Query(
+        "SELECT * FROM subscription_feed_cache WHERE channelId IN (:channelIds) OR feedChannelId IN (:channelIds) " +
+            "ORDER BY timestamp DESC",
+    )
+    fun observeSubscriptionFeedForChannels(channelIds: List<String>): Flow<List<SubscriptionFeedEntity>>
+
+    /** Every channel with uploads stored, so a full refresh can drop the ones no longer followed. */
+    @Query("SELECT DISTINCT channelId FROM subscription_feed_cache WHERE feedChannelId = ''")
+    suspend fun subscriptionUploadChannelIds(): List<String>
+
     /** Rows for the given channels only, so an incremental refresh can merge against them. */
     @Query("SELECT * FROM subscription_feed_cache WHERE channelId IN (:channelIds)")
     suspend fun getSubscriptionFeedForChannels(channelIds: List<String>): List<SubscriptionFeedEntity>
@@ -84,9 +98,6 @@ interface CacheDao {
     @Query("DELETE FROM subscription_feed_cache WHERE channelId IN (:channelIds) AND feedChannelId = ''")
     suspend fun deleteSubscriptionFeedForChannels(channelIds: List<String>)
 
-    /** Every upload row, ahead of a full refresh; collaborations stay until their own scan. */
-    @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId = ''")
-    suspend fun clearSubscriptionUploads()
 
     @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId = :feedChannelId")
     suspend fun deleteCollaborationsFrom(feedChannelId: String)

@@ -21,6 +21,10 @@
         <item quantity="one">Refreshing %1$d of %2$d channel</item>
         <item quantity="other">Refreshing %1$d of %2$d channels</item>
     </plurals>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Checking %1$d of %2$d channel for Shorts and live</item>
+        <item quantity="other">Checking %1$d of %2$d channels for Shorts and live</item>
+    </plurals>
     <plurals name="subscriptions_last_refreshed_template">
         <item quantity="one">Last refreshed %1$s - %2$d video checked</item>
         <item quantity="other">Last refreshed %1$s - %2$d videos checked</item>

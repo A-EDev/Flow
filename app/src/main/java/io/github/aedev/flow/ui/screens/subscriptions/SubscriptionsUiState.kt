@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.innertube.SubscriptionRefreshStage
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.SubscriptionGroup
@@ -29,6 +31,38 @@ internal fun List<ChannelSubscription>.toSubscribedChannels(): List<Channel> =
         )
     }
 
+/** The counter line for a refresh in [this] stage. */
+internal fun SubscriptionRefreshStage.progressTemplate(): Int =
+    when (this) {
+        SubscriptionRefreshStage.RSS -> R.plurals.subscriptions_refresh_progress_template
+        SubscriptionRefreshStage.CHECKS -> R.plurals.subscriptions_refresh_checks_template
+    }
+
+internal fun List<Video>.withSubscriptionAvatars(channels: List<Channel>): List<Video> {
+    val avatarByChannelId =
+        channels
+            .asSequence()
+            .filter { it.thumbnailUrl.isNotBlank() }
+            .associate { it.id to ThumbnailUrlResolver.resolveChannelAvatar(it.thumbnailUrl) }
+    if (avatarByChannelId.isEmpty()) return this
+
+    return map { video ->
+        val normalizedExistingAvatar = ThumbnailUrlResolver.resolveChannelAvatar(video.channelThumbnailUrl)
+        if (video.channelThumbnailUrl.isBlank()) {
+            avatarByChannelId[video.channelId]?.let { avatar ->
+                video.copy(
+                    channelThumbnailUrl = avatar,
+                    channelThumbnailUrls = video.channelThumbnailUrls.ifEmpty { listOf(avatar) },
+                )
+            } ?: video
+        } else if (normalizedExistingAvatar != video.channelThumbnailUrl) {
+            video.copy(channelThumbnailUrl = normalizedExistingAvatar)
+        } else {
+            video
+        }
+    }
+}
+
 data class SubscriptionsUiState(
     val subscribedChannels: List<Channel> = emptyList(),
     val recentVideos: List<Video> = emptyList(),
@@ -41,6 +75,7 @@ data class SubscriptionsUiState(
     val notificationStates: Map<String, Boolean> = emptyMap(),
     val groups: List<SubscriptionGroup> = emptyList(),
     val selectedGroupName: String? = null,
+    val refreshStage: SubscriptionRefreshStage = SubscriptionRefreshStage.RSS,
     val refreshProcessedChannels: Int = 0,
     val refreshTotalChannels: Int = 0,
     val lastRefreshTime: Long = 0L,
@@ -55,6 +90,10 @@ data class SubscriptionsUiState(
     val failedChannelIds: Set<String> = emptySet(),
     val failedChannelReasons: Map<String, String> = emptyMap(),
 ) {
+    /** The selected group's channels, which scope its refreshes and reads; null for every subscription. */
+    fun selectedGroupScope(): Set<String>? =
+        selectedGroupName?.let { name -> groups.find { it.name == name }?.channelIds?.toSet() }
+
     /** Display names for [failedChannelIds], falling back to the raw id for an unknown channel. */
     val failedChannelNames: List<String>
         get() {

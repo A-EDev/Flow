@@ -29,6 +29,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
+import io.github.aedev.flow.ui.screens.subscriptions.progressTemplate
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvChannelCard
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
@@ -87,7 +88,7 @@ fun TvSubscriptionsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(bottom = dimens.overscanVertical),
                 ) {
-                    if (state.isLoading && state.refreshTotalChannels > 0) {
+                    if (state.refreshTotalChannels > 0) {
                         item(key = "refresh-progress") {
                             Column(
                                 modifier =
@@ -107,7 +108,7 @@ fun TvSubscriptionsScreen(
                                 Text(
                                     text =
                                         pluralStringResource(
-                                            R.plurals.subscriptions_refresh_progress_template,
+                                            state.refreshStage.progressTemplate(),
                                             state.refreshTotalChannels,
                                             state.refreshProcessedChannels,
                                             state.refreshTotalChannels,

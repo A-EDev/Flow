@@ -4,11 +4,9 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedMerger.preservingEnrichedMetadata
 
 /**
- * What one refresh writes back to the feed cache.
- *
- * [rows] replaces the whole table on a full refresh and the [SubscriptionRefreshPlan.channelIds]
- * slice otherwise. [fetchedChannelIds] are the channels that actually answered, the only ones that
- * may be stamped fresh.
+ * What one write of a refresh puts back in the feed cache: [rows] replace the rows of the channels
+ * written. [fetchedChannelIds] are the channels that actually answered, the only ones that may be
+ * stamped fresh.
  */
 internal data class SubscriptionFeedWrite(
     val rows: List<Video>,
@@ -16,43 +14,53 @@ internal data class SubscriptionFeedWrite(
 )
 
 /**
- * A channel that failed this pass keeps its earlier rows, even on a full refresh, and is not
- * stamped fresh, so the next pass retries it instead of showing it empty for the whole TTL (#1094).
- * A channel unsubscribed while the refresh ran is dropped, fetched rows and all.
+ * A channel keeps its earlier rows when it is written again: RSS lists only its last fifteen
+ * uploads, so replacing a channel with what one pass saw would cut a quiet channel down to a week or
+ * two (#1099). The lookback window still ages rows out, and each channel keeps its newest
+ * [maxPerChannel].
+ *
+ * A channel that failed this pass is not stamped fresh, so the next pass retries it instead of
+ * showing it empty for the whole TTL (#1094). A channel unsubscribed while the refresh ran is
+ * dropped, fetched rows and all.
  */
 internal fun subscriptionFeedWrite(
-    plan: SubscriptionRefreshPlan,
+    channelIds: List<String>,
     freshVideos: List<Video>,
     cachedSlice: List<Video>,
     failedChannelIds: Set<String>,
     subscribedChannelIds: Set<String>,
     now: Long,
     windowMs: Long,
-    maxItems: Int,
+    maxPerChannel: Int,
 ): SubscriptionFeedWrite {
     val priorById =
         cachedSlice
             .filter { it.id.isNotBlank() }
             .groupBy { it.id }
             .mapValues { (_, candidates) -> SubscriptionFeedMerger.mergeDuplicates(candidates, now) }
-    val carried =
-        if (plan.isFullRefresh) {
-            cachedSlice.filter { it.channelId in failedChannelIds }
-        } else {
-            cachedSlice
-        }
     val rows =
         SubscriptionFeedMerger
             .mergeSubscriptionFeed(
                 freshVideos = freshVideos.map { fresh -> fresh.preservingEnrichedMetadata(priorById[fresh.id]) },
-                cachedVideos = carried,
+                cachedVideos = cachedSlice,
                 now = now,
                 windowMs = windowMs,
-                maxItems = maxItems,
+                maxItems = Int.MAX_VALUE,
             ).filter { it.channelId.isBlank() || it.channelId in subscribedChannelIds }
+            .newestPerChannel(maxPerChannel)
             .withHighQualityThumbnails()
     return SubscriptionFeedWrite(
         rows = rows,
-        fetchedChannelIds = plan.channelIds.filter { it !in failedChannelIds },
+        fetchedChannelIds = channelIds.filter { it !in failedChannelIds },
     )
+}
+
+/** Keeps the first [max] rows of each channel, in the order given, which is newest first. */
+private fun List<Video>.newestPerChannel(max: Int): List<Video> {
+    val kept = HashMap<String, Int>()
+    return filter { video ->
+        val count = kept.getOrDefault(video.channelId, 0)
+        kept[video.channelId] = count + 1
+        count < max
+    }
 }
