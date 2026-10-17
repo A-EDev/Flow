@@ -2546,4 +2546,7 @@
         <item quantity="other">Последнее обновление %1$s - %2$d видео проверено</item>
     </plurals>
     <string name="streamed_date_template">Эфир: %1$s</string>
+    <string name="home_load_more_failed">Не удалось загрузить больше видео</string>
+    <string name="home_load_more_failed_body">Проверьте свое соединение</string>
+    <string name="home_refresh_failed">Не удалось обновить вашу ленту</string>
 </resources>
