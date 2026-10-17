@@ -171,6 +171,7 @@ IMPROVEMENTS
 - A restored music queue picks the song up where it stopped instead of from the start (#1280)
 - Music keeps playing when you clear Flow from recents while a song is loading (#1280)
 - Artist pages play, shuffle or start the artist's radio in one tap, with the subscriber and audience figures under the buttons, and the Videos shelf plays all of them
+- The artist photo now runs up under the status bar, and the bar turns solid once the photo scrolls away
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
