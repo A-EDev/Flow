@@ -12,6 +12,9 @@ interface VideoDao {
     @Query("SELECT DISTINCT channelId, channelThumbnailUrl FROM videos WHERE channelId IN (:channelIds) AND channelThumbnailUrl != ''")
     suspend fun channelAvatars(channelIds: List<String>): List<ChannelAvatarRow>
 
+    @Query("SELECT DISTINCT channelId, channelName FROM videos WHERE channelId IN (:channelIds) AND channelName != ''")
+    suspend fun channelNames(channelIds: List<String>): List<ChannelNameRow>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVideo(video: VideoEntity)
 

@@ -54,6 +54,7 @@ class BackupRulesTest {
             "flow_neuro_categories_v1.json",
             "flow_neuro_cowatch_v1.json",
             "flow_neuro_neighbours_v1.json",
+            "flow_blocked_channel_names_v1.json",
             "flow_music_brain_v1.json",
             "sync_identity",
             "sync_brain_crdt",

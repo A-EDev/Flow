@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.WatchLaterCleanup
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.BlockedChannelNames
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -34,6 +35,7 @@ class VideoFeedbackUseCase
         private val viewHistory: ViewHistory,
         private val videoStats: VideoStatsRecorder,
         private val watchLaterCleanup: WatchLaterCleanup,
+        private val blockedNames: BlockedChannelNames,
     ) {
         /** Adds [video] to Watch later, or takes it out; returns whether it is saved afterwards. */
         suspend fun toggleWatchLater(video: Video): Boolean {
@@ -62,14 +64,17 @@ class VideoFeedbackUseCase
             val metadata = if (video.channelId.startsWith("UC")) null else repository.getLiveWatchMetadata(video.id)
             val channelId = metadata?.channelId.orEmpty().ifBlank { video.channelId }
             check(channelId.isNotBlank()) { "No channel id for ${video.id}" }
+            val channelName = metadata?.channelName.orEmpty().ifBlank { video.channelName }
             FlowNeuroEngine.blockChannel(context, channelId)
+            blockedNames.remember(channelId, channelName)
             videoStats.onAction(LedgerAction.BLOCK_CHANNEL)
             FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(channelId, video.id))
-            return BlockedChannel(channelId, metadata?.channelName.orEmpty().ifBlank { video.channelName })
+            return BlockedChannel(channelId, channelName)
         }
 
         suspend fun unblockChannel(channelId: String) {
             FlowNeuroEngine.unblockChannel(context, channelId)
+            blockedNames.forget(channelId)
         }
 
         suspend fun markNotInterested(video: Video) {

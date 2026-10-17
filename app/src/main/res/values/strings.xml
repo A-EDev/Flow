@@ -3955,6 +3955,7 @@
     <string name="taste_hidden_artists">Artists</string>
     <string name="taste_unblock">Unblock</string>
     <string name="taste_unblock_item">Unblock %1$s</string>
+    <string name="taste_unknown_channel">Unknown channel</string>
     <string name="taste_data_header">Your data</string>
     <string name="taste_export_video">Export video profile</string>
     <string name="taste_import_video">Import video profile</string>
