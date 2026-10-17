@@ -18,6 +18,7 @@
   <a href="https://github.com/Flow-Tube/Flow/releases"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/downloads-dark.svg"><img alt="Downloads" src="https://assets.flow-tube.org/v1/badges/split/downloads-light.svg" height="32"></picture></a>
   <a href="License"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/license-dark.svg"><img alt="License: GPL-3.0" src="https://assets.flow-tube.org/v1/badges/split/license-light.svg" height="32"></picture></a>
   <a href="#cert"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/signed-dark.svg"><img alt="Signed: SHA-256 certificate" src="https://assets.flow-tube.org/v1/badges/split/signed-light.svg" height="32"></picture></a>
+  <a href="https://opencollective.com/flow-tube"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/split/opencollective-dark.svg"><img alt="Open Collective backers" src="https://assets.flow-tube.org/v1/badges/split/opencollective-light.svg" height="32"></picture></a>
   </p>
 
   <p>
@@ -108,20 +109,25 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
     <tr>
       <td align="center"><b>Home Feed</b><br><img src="Assets/Home.jpeg" width="240"></td>
       <td align="center"><b>Video Player</b><br><img src="Assets/VideoPlayer.jpeg" width="240"></td>
-      <td align="center"><b>Personality Screen</b><br><img src="Assets/Personality.jpeg" width="240"></td>
-    </tr>
-    <tr>
-      <td align="center"><b>Music Player</b><br><img src="Assets/MusicPlayer.jpeg" width="240"></td>
-      <td align="center"><b>Music Hub</b><br><img src="Assets/Music.jpeg" width="240"></td>
-      <td align="center"><b>Your Library</b><br><img src="Assets/Library.jpeg" width="240"></td>
-    </tr>
-    <tr>
       <td align="center"><b>Shorts</b><br><img src="Assets/Shorts.jpeg" width="240"></td>
+    </tr>
+    <tr>
       <td align="center"><b>Subscriptions</b><br><img src="Assets/Subscriptions.jpeg" width="240"></td>
       <td align="center"><b>Channel View</b><br><img src="Assets/Channel.jpeg" width="240"></td>
+      <td align="center"><b>Playlist</b><br><img src="Assets/Playlist.jpeg" width="240"></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Music Hub</b><br><img src="Assets/Music.jpeg" width="240"></td>
+      <td align="center"><b>Music Player</b><br><img src="Assets/MusicPlayer.jpeg" width="240"></td>
+      <td align="center"><b>Lyrics</b><br><img src="Assets/Lyrics.jpeg" width="240"></td>
     </tr>
     <tr>
       <td align="center"><b>Artist Page</b><br><img src="Assets/Artist.jpeg" width="240"></td>
+      <td align="center"><b>Album</b><br><img src="Assets/Album.jpeg" width="240"></td>
+      <td align="center"><b>Your Library</b><br><img src="Assets/Library.jpeg" width="240"></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Your Taste</b><br><img src="Assets/YourTaste.jpeg" width="240"></td>
       <td align="center"></td>
       <td align="center"></td>
     </tr>
@@ -179,9 +185,10 @@ To ensure the authenticity of the APK and verify it has not been tampered with, 
 
 Flow is a free and open-source project. As an independent developer without traditional banking access, keeping this project alive relies entirely on community support. 
 
-**You can now easily support the project using a Credit Card, Apple Pay, or PayPal via Patreon!** (You can choose to support monthly, or just leave a simple one-time tip in the shop).
+**The easiest way to support Flow is [Open Collective](https://opencollective.com/flow-tube)**, where every contribution and expense is public. Patreon is also available for card, PayPal or Apple Pay, monthly or as a one-time tip.
 
-<a href="https://patreon.com/A_EDev"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/support-patreon-dark.svg"><img alt="Support Flow on Patreon" src="https://assets.flow-tube.org/v1/badges/pill/support-patreon-light.svg" height="60"></picture></a>
+<a href="https://opencollective.com/flow-tube"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/support-opencollective-dark.svg"><img alt="Support Flow on Open Collective" src="https://assets.flow-tube.org/v1/badges/pill/support-opencollective-light.svg" height="60"></picture></a>
+<a href="https://patreon.com/A_EDev"><picture><source media="(prefers-color-scheme: dark)" srcset="https://assets.flow-tube.org/v1/badges/pill/support-patreon-tonal-dark.svg"><img alt="Support Flow on Patreon" src="https://assets.flow-tube.org/v1/badges/pill/support-patreon-tonal-light.svg" height="60"></picture></a>
 
 <br>
 

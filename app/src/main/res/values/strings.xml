@@ -1792,7 +1792,8 @@
     <!-- Donations Screen -->
     <string name="support_donations_title">Support &amp; Donations</string>
     <string name="support_flow_dev_title">Support Flow Development</string>
-    <string name="support_flow_dev_desc">If Flow is useful to you, you can support it on Patreon or with crypto below. Thank you!</string>
+    <string name="support_flow_dev_desc">If Flow is useful to you, you can support it on Open Collective, Patreon or with crypto below. Thank you!</string>
+    <string name="support_flow_open_collective">Support Flow on Open Collective</string>
     <string name="support_flow_patreon">Support Flow on Patreon</string>
     <string name="thank_you_support_message">Thank you for your support! ❤️</string>
     <string name="address_copied_toast">Address copied to clipboard</string>
@@ -1800,8 +1801,9 @@
     <!-- One-time support prompt -->
     <string name="donation_prompt_title">Enjoying Flow?</string>
     <string name="donation_prompt_message">Flow is free, open source and ad-free. If it earned a spot on your phone, a little support keeps it going.</string>
+    <string name="donation_method_open_collective" translatable="false">Open Collective</string>
     <string name="donation_method_patreon" translatable="false">Patreon</string>
-    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_methods">Open Collective · Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">Support development</string>
     <string name="donation_prompt_later">Maybe later</string>
     <string name="donation_prompt_never">Don\'t show again</string>

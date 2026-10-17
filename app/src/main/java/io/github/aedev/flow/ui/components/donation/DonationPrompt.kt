@@ -56,9 +56,8 @@ fun DonationPromptHost(
     if (!visible) return
 
     var dontAskAgain by rememberSaveable { mutableStateOf(false) }
-    val methods =
-        (listOf(stringResource(R.string.donation_method_patreon)) + DonationWallets.map { stringResource(it.name) })
-            .joinToString(METHOD_SEPARATOR)
+    val platforms = listOf(stringResource(R.string.donation_method_open_collective), stringResource(R.string.donation_method_patreon))
+    val methods = (platforms + DonationWallets.map { stringResource(it.name) }).joinToString(METHOD_SEPARATOR)
     FlowAlertDialog(
         onDismissRequest = { viewModel.dismiss(dontAskAgain) },
         icon = { Heart() },
