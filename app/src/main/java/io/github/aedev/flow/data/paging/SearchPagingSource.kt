@@ -22,6 +22,8 @@ import io.github.aedev.flow.innertube.pages.search.SearchSection
  * and already ordered; the avatars, badges and verification the old path fetched per video are read
  * out of the same response. The watched filter is the exception: it is applied here, so a page it
  * thins out reads on, up to [MAX_REQUESTS_PER_LOAD] requests, rather than reaching the grid nearly empty.
+ * Paging asks again while the list is short, so after [MAX_EMPTY_LOADS] loads in a row that kept
+ * nothing the search ends there instead of walking every page YouTube has.
  */
 class SearchPagingSource(
     private val query: String,
@@ -35,6 +37,7 @@ class SearchPagingSource(
     override fun getRefreshKey(state: PagingState<String, SearchResultItem>): String? = null
 
     private val loadedItemKeys = DistinctKeyTracker()
+    private var emptyLoadsInARow = 0
 
     private val watchState =
         filter.watchState.takeIf { filter.contentType.supportsVideoFilters() } ?: WatchState.ANY
@@ -58,7 +61,9 @@ class SearchPagingSource(
                 continuation != null &&
                 requests < MAX_REQUESTS_PER_LOAD
             )
-            LoadResult.Page(data = results, prevKey = null, nextKey = continuation)
+            emptyLoadsInARow = if (results.isEmpty()) emptyLoadsInARow + 1 else 0
+            val exhausted = watchState != WatchState.ANY && emptyLoadsInARow >= MAX_EMPTY_LOADS
+            LoadResult.Page(data = results, prevKey = null, nextKey = continuation.takeUnless { exhausted })
         } catch (e: Exception) {
             LoadResult.Error(e)
         }
@@ -71,6 +76,7 @@ class SearchPagingSource(
     private companion object {
         const val MIN_FILTERED_PAGE = 6
         const val MAX_REQUESTS_PER_LOAD = 3
+        const val MAX_EMPTY_LOADS = 2
     }
 }
 

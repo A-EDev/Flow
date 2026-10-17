@@ -314,6 +314,33 @@ class SearchPagingSourceTest {
         }
 
     @Test
+    fun `a watch filter that keeps finding nothing ends the search after two loads`() =
+        runTest {
+            val loader = RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK, SearchFixture.ALL_CONTINUATION))
+            val paging = source(loader, SearchFilter(watchState = WatchState.WATCHED))
+
+            val first = paging.loadPage()
+            val second = paging.loadPage(first.nextKey)
+
+            assertThat(first.nextKey).isNotNull()
+            assertThat(second.nextKey).isNull()
+            assertThat(loader.calls).hasSize(6)
+        }
+
+    @Test
+    fun `a load that finds a match keeps the search going`() =
+        runTest {
+            val loader = RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK, SearchFixture.ALL_CONTINUATION))
+            val paging = source(loader, SearchFilter(watchState = WatchState.UNWATCHED))
+
+            val first = paging.loadPage()
+            val second = paging.loadPage(first.nextKey)
+
+            assertThat(first.data).isNotEmpty()
+            assertThat(second.nextKey).isNotNull()
+        }
+
+    @Test
     fun `channel and playlist searches ignore the watch filter`() =
         runTest {
             val loader = RecordingLoader(listOf(SearchFixture.TYPE_CHANNELS))
