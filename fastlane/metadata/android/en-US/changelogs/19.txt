@@ -1,0 +1,7 @@
+- Redesigned on Material 3 Expressive, with tablet and foldable layouts
+- Native InnerTube client everywhere, the NewPipe extractor is gone
+- On-device music engine: Quick Picks, Daily Mixes and endless radio
+- Home recommendations rebuilt to learn from what you watch
+- Flow Recap, a new Equalizer, word by word lyrics and a new queue
+- Big upgrades to Downloads, Local media and subtitles
+- In-app updates, private notes and an Android Auto library

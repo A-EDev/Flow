@@ -1,7 +1,7 @@
 FLOW CHANGE LOG
 VERSION: 3.0.0
-DATE: 2026-10-16
-STATUS: pre-release
+DATE: 2026-10-18
+STATUS: stable
 
 HIGHLIGHTS
 - The whole app is redesigned on Material 3 Expressive, with real tablet and foldable layouts
