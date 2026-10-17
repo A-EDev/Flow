@@ -40,11 +40,13 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.WatchState
 import io.github.aedev.flow.data.local.availableWith
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
+import io.github.aedev.flow.data.paging.supportsVideoFilters
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.OnTabReselected
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
@@ -196,14 +198,16 @@ fun SearchScreen(
                     onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
                     onDeleteHistoryItem = state::deleteHistoryItem,
                     onClearHistory = state::clearHistory,
+                    deepFlow = state.deepFlow,
+                    onDeepFlowChange = state::setDeepFlowEnabled,
                 )
                 return@Column
             }
 
             SearchFilterBar(
-                selected = uiState.filters.contentType,
+                filter = uiState.filters,
                 shortsEnabled = state.shortsContentEnabled,
-                onContentTypeSelected = { viewModel.updateFilters(uiState.filters.copy(contentType = it)) },
+                onFilterChange = viewModel::updateFilters,
                 modifier = Modifier.padding(vertical = FilterBarVerticalPadding),
             )
 
@@ -241,7 +245,7 @@ fun SearchScreen(
 
                     pagingItems.itemCount == 0 -> {
                         FlowEmptyState(
-                            title = stringResource(R.string.no_results_found),
+                            title = stringResource(uiState.filters.emptyResultsRes()),
                             icon = Icons.Rounded.Search,
                         )
                     }
@@ -285,5 +289,13 @@ private fun launchVoiceSearch(
     } catch (_: ActivityNotFoundException) {
     }
 }
+
+private fun SearchFilter.emptyResultsRes(): Int =
+    when {
+        !contentType.supportsVideoFilters() -> R.string.no_results_found
+        watchState == WatchState.WATCHED -> R.string.search_watch_empty_watched
+        watchState == WatchState.UNWATCHED -> R.string.search_watch_empty_unwatched
+        else -> R.string.no_results_found
+    }
 
 private val FilterBarVerticalPadding = 4.dp

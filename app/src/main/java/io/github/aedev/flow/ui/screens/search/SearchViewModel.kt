@@ -11,11 +11,15 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SearchHistoryRepository
+import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
+import io.github.aedev.flow.data.paging.WatchedVideoLookup
+import io.github.aedev.flow.data.paging.watchedVideoIds
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
@@ -32,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -54,6 +59,8 @@ class SearchViewModel
         private val searchHistory: SearchHistoryRepository,
         private val videoStats: VideoStatsRecorder,
         private val neuroEngine: FlowNeuroEngine,
+        private val watchHistoryDao: WatchHistoryDao,
+        private val preferences: PlayerPreferences,
     ) : ViewModel() {
         // Signal each distinct submitted query once — typing and filter churn stay silent.
         private var lastSignaledQuery: String? = null
@@ -87,11 +94,19 @@ class SearchViewModel
                                 filter = key.filter,
                                 shortsEnabled = shortsEnabled,
                                 onHeader = ::onHeader,
+                                watchedVideos = watchedVideos,
                                 exclusions = { neuroEngine.feedExclusions() },
                             )
                         },
                     ).flow
                 }.cachedIn(viewModelScope)
+
+        private val watchedVideos =
+            WatchedVideoLookup { videos ->
+                if (videos.isEmpty()) return@WatchedVideoLookup emptySet()
+                val progress = watchHistoryDao.getProgressFor(videos.map { it.id }.distinct())
+                watchedVideoIds(videos, progress, preferences.watchedThreshold.first())
+            }
 
         fun shortsShelfSource(
             shelf: List<Video>,

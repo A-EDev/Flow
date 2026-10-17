@@ -18,9 +18,12 @@ import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.local.SearchHistoryScope
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.components.search.matchingTyped
+import io.github.aedev.flow.ui.components.shared.DeepFlowState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -44,6 +47,8 @@ class SearchScreenState(
     private val gridModeState: State<Boolean>,
     private val shortsEnabledState: State<Boolean>,
     private val feedColumnsState: State<HomeFeedColumns>,
+    private val deepFlowState: State<DeepFlowState>,
+    private val setDeepFlow: suspend (Boolean) -> Unit,
     private val fetchSuggestions: suspend (String) -> List<SearchSuggestion>,
     private val onHistoryCleared: () -> Unit = {},
 ) {
@@ -57,6 +62,7 @@ class SearchScreenState(
     val isGridMode: Boolean get() = gridModeState.value
     val shortsContentEnabled: Boolean get() = shortsEnabledState.value
     val feedColumns: HomeFeedColumns get() = feedColumnsState.value
+    val deepFlow: DeepFlowState get() = deepFlowState.value
 
     val query: String
         get() = textFieldState.text.toString()
@@ -93,6 +99,11 @@ class SearchScreenState(
         onHistoryCleared()
     }
 
+    /** The same switch as Home's long-press: the snackbar, the timer and the video pause come with it. */
+    fun setDeepFlowEnabled(enabled: Boolean) {
+        scope.launch { setDeepFlow(enabled) }
+    }
+
     fun toggleGridMode() {
         scope.launch { preferences.setSearchIsGridMode(!isGridMode) }
     }
@@ -124,6 +135,17 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
     val gridMode = preferences.searchIsGridMode.collectAsStateWithLifecycle(false)
     val shortsEnabled = preferences.shortsContentEnabled.collectAsStateWithLifecycle(true)
     val feedColumns = preferences.homeFeedColumns.collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
+    val deepFlow =
+        remember(preferences) {
+            combine(
+                preferences.deepFlowOnSearch,
+                preferences.deepFlowActive,
+                preferences.deepFlowActivatedAt,
+                preferences.deepFlowExpireHours,
+            ) { onSearch, active, activatedAt, expireHours ->
+                DeepFlowState(active = active, activatedAt = activatedAt, expireHours = expireHours, showOnSearch = onSearch)
+            }
+        }.collectAsStateWithLifecycle(DeepFlowState())
 
     // Coming back from a result recreates this composable while the ViewModel keeps the query, so the
     // field and the typing mode are seeded from it rather than starting empty.
@@ -145,6 +167,8 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
                 gridModeState = gridMode,
                 shortsEnabledState = shortsEnabled,
                 feedColumnsState = feedColumns,
+                deepFlowState = deepFlow,
+                setDeepFlow = { DeepFlowManager.setEnabled(context, it) },
                 fetchSuggestions = viewModel::getSearchSuggestions,
                 onHistoryCleared = viewModel::onSearchHistoryCleared,
             )

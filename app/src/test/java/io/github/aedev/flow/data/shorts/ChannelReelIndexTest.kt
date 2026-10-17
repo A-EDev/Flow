@@ -117,7 +117,7 @@ class ChannelReelIndexTest {
         }
 
     @Test
-    fun `at most two Shorts tab lookups run at once, so the sweep leaves room for everything else`() =
+    fun `at most four Shorts tab lookups run at once, so the sweep leaves room for everything else`() =
         runTest {
             mockkObject(YouTube)
             var running = 0
@@ -131,9 +131,9 @@ class ChannelReelIndexTest {
             }
             val index = ChannelReelIndex()
 
-            coroutineScope { (1..6).map { n -> async { index.reelIds("UC$n") } }.awaitAll() }
+            coroutineScope { (1..10).map { n -> async { index.reelIds("UC$n") } }.awaitAll() }
 
-            assertEquals(2, peak)
+            assertEquals(4, peak)
         }
 
     @Test
@@ -146,5 +146,39 @@ class ChannelReelIndexTest {
             }
 
             assertEquals(null, ChannelReelIndex().reelIds(channelId))
+        }
+
+    @Test
+    fun `waiting for a slot counts against the timeout`() =
+        runTest {
+            mockkObject(YouTube)
+            var calls = 0
+            coEvery { YouTube.channelShorts(any()) } coAnswers {
+                calls++
+                delay(60_000)
+                Result.success(page("reel"))
+            }
+            val index = ChannelReelIndex()
+
+            val results = coroutineScope { (1..5).map { n -> async { index.reelIds("UC$n") } }.awaitAll() }
+
+            assertEquals(List(5) { null }, results)
+            assertEquals(4, calls)
+        }
+
+    @Test
+    fun `a cached Shorts tab answers without a lookup`() =
+        runTest {
+            mockkObject(YouTube)
+            coEvery { YouTube.channelShorts(channelId) } returns Result.success(page("reel"))
+            val index = ChannelReelIndex()
+            val videos = listOf(video("reel"), video("long"))
+
+            assertEquals(null, index.markReelsIfCached(channelId, videos))
+            index.reelIds(channelId)
+            val marked = index.markReelsIfCached(channelId, videos)
+
+            assertEquals(listOf(true, false), marked?.map { it.isShort })
+            coVerify(exactly = 1) { YouTube.channelShorts(channelId) }
         }
 }

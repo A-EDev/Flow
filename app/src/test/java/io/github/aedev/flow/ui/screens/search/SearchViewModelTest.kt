@@ -47,6 +47,8 @@ class SearchViewModelTest {
             history,
             mockk(relaxed = true),
             mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
         )
 
     @Before

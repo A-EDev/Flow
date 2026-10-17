@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.home
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.CloudUpload
@@ -59,6 +60,7 @@ internal object HomeRowIcons {
     val DeepFlowDuration: ImageVector = Icons.Outlined.Timer
     val DeepFlowHistory: ImageVector = Icons.Outlined.WorkHistory
     val DeepFlowScrobble: ImageVector = Icons.Outlined.CloudUpload
+    val DeepFlowOnSearch: ImageVector = Icons.AutoMirrored.Outlined.ManageSearch
     val Updates: ImageVector = Icons.Outlined.Update
     val Support: ImageVector = Icons.Outlined.VolunteerActivism
 }

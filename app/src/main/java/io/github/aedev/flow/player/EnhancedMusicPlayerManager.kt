@@ -372,6 +372,8 @@ object EnhancedMusicPlayerManager {
                 }
             _currentTrack.value = track
             _currentQueueIndex.value = resolvedIndex.coerceAtLeast(0)
+        } else {
+            adoptPlayerQueue(controller)
         }
         if (
             pendingPlayNextMediaId == trackId &&
@@ -382,6 +384,22 @@ object EnhancedMusicPlayerManager {
         ) {
             clearPendingPlayNext()
         }
+    }
+
+    /**
+     * The app sets its queue before it hands the player any item, so an item it does not know was
+     * loaded by someone else, such as the car (#1221). The player's items become the queue, so the
+     * app shows, saves and extends what is actually playing.
+     */
+    private fun adoptPlayerQueue(controller: Player) {
+        val adopted = adoptedQueue((0 until controller.mediaItemCount).map(controller::getMediaItemAt))
+        if (adopted.isEmpty()) return
+        val index = controller.currentMediaItemIndex.coerceIn(0, adopted.lastIndex)
+        Log.d("EnhancedMusicPlayer", "Adopting a queue of ${adopted.size} the app did not set")
+        _queue.value = adopted
+        _currentQueueIndex.value = index
+        _currentTrack.value = adopted[index]
+        triggerQueueSave()
     }
 
     private fun enforcePendingPlayNext(

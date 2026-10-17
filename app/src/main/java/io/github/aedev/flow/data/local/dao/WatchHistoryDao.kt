@@ -147,6 +147,13 @@ interface WatchHistoryDao {
     @Query("SELECT videoId, position, duration, timestamp FROM watch_history WHERE videoId = :videoId")
     suspend fun getProgress(videoId: String): WatchProgress?
 
+    /** Progress for just [videoIds], so a search page asks about its own results and nothing else. */
+    @Query(
+        "SELECT videoId, position, duration, timestamp FROM watch_history " +
+            "WHERE isMusic = 0 AND isLocal = 0 AND videoId IN (:videoIds)",
+    )
+    suspend fun getProgressFor(videoIds: List<String>): List<WatchProgress>
+
     /**
      * Returns the most recently watched non-music, non-Short video **only if that specific video
      * is still in progress**.  By restricting to the maximum timestamp we avoid the

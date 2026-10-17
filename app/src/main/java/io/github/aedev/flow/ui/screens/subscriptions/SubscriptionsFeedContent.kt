@@ -176,6 +176,7 @@ internal fun SubscriptionsFeedContent(
                         )
 
                         SubscriptionsRefreshStatus(
+                            stage = state.refreshStage,
                             processedChannels = state.refreshProcessedChannels,
                             totalChannels = state.refreshTotalChannels,
                             lastRefreshText = state.lastRefreshText,

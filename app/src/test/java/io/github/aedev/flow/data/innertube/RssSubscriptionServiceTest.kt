@@ -17,6 +17,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -47,6 +48,7 @@ class RssSubscriptionServiceTest {
         coEvery { reelIndex.markReels(any(), any(), any()) } coAnswers {
             secondArg<List<Video>>().map { if (it.id in reelIds) it.copy(isShort = true) else it }
         }
+        coEvery { reelIndex.markReelsIfCached(any(), any(), any()) } returns null
     }
 
     private fun entry(
@@ -261,6 +263,80 @@ class RssSubscriptionServiceTest {
                 )
 
             assertThat(sweep("UCa").videos.map { it.id }).containsExactly("public")
+        }
+
+    @Test
+    fun `an entry waiting for its Shorts check is never shown as a video during the RSS stage`() =
+        runTest {
+            reelIds = setOf("r1")
+            rss("UCa", entry("r1"), entry("v1"))
+
+            val chunks = service.fetchSubscriptionVideos(listOf("UCa")).toList()
+            val rssStage = chunks.filter { it.stage == SubscriptionRefreshStage.RSS }
+
+            assertThat(rssStage.flatMap { it.videos }).isEmpty()
+            assertThat(
+                chunks
+                    .last()
+                    .videos
+                    .single { it.id == "r1" }
+                    .isShort,
+            ).isTrue()
+        }
+
+    @Test
+    fun `a cached Shorts verdict settles the channel in the RSS stage`() =
+        runTest {
+            rss("UCa", entry("r1"), entry("v1"))
+            coEvery { reelIndex.markReelsIfCached("UCa", any(), any()) } coAnswers {
+                secondArg<List<Video>>().map { if (it.id == "r1") it.copy(isShort = true) else it }
+            }
+
+            val chunks = service.fetchSubscriptionVideos(listOf("UCa")).toList()
+            val opening = chunks.first { it.stage == SubscriptionRefreshStage.CHECKS }
+
+            assertThat(opening.rssSettledChannelIds).containsExactly("UCa")
+            assertThat(opening.totalChannels).isEqualTo(0)
+            coVerify(exactly = 0) { reelIndex.markReels(any(), any(), any()) }
+        }
+
+    @Test
+    fun `the checks counter starts at zero and counts only the channels it checks`() =
+        runTest {
+            rss("UCa", entry("a1"))
+            rss("UCb", entry("b1"))
+            rss("UCc", entry("c1"))
+            coEvery { reelIndex.markReelsIfCached("UCa", any(), any()) } coAnswers { secondArg() }
+
+            val chunks = service.fetchSubscriptionVideos(listOf("UCa", "UCb", "UCc")).toList()
+            val rss = chunks.filter { it.stage == SubscriptionRefreshStage.RSS }
+            val checks = chunks.filter { it.stage == SubscriptionRefreshStage.CHECKS }
+
+            assertThat(rss.last().processedChannels).isEqualTo(3)
+            assertThat(checks.first().processedChannels).isEqualTo(0)
+            assertThat(checks.map { it.totalChannels }.distinct()).containsExactly(2)
+            assertThat(checks.map { it.processedChannels }).isInOrder()
+            assertThat(checks.last().processedChannels).isEqualTo(2)
+            assertThat(checks.first().rssSettledChannelIds).containsExactly("UCa")
+        }
+
+    @Test
+    fun `a small group reads every channel's tabs and dates them from RSS`() =
+        runTest {
+            rss("UCa", entry("v1"))
+            coEvery { uploads.fetch("UCa", any(), any()) } returns
+                Result.success(
+                    ChannelUploads(
+                        owner = FeedItemOwner("UCa", "Channel"),
+                        videos = listOf(upload("v1", "UCa"), upload("older", "UCa", ageHours = 24 * 20)),
+                    ),
+                )
+
+            val chunk = service.fetchSubscriptionVideos(listOf("UCa"), readAllTabs = true).last()
+
+            coVerify(exactly = 1) { uploads.fetch("UCa", any(), any()) }
+            coVerify(exactly = 0) { reelIndex.markReels(any(), any(), any()) }
+            assertThat(chunk.videos.map { it.id }).containsExactly("v1", "older")
         }
 
     private companion object {

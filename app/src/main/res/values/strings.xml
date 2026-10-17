@@ -21,6 +21,10 @@
         <item quantity="one">Refreshing %1$d of %2$d channel</item>
         <item quantity="other">Refreshing %1$d of %2$d channels</item>
     </plurals>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Checking %1$d of %2$d channel for Shorts and live</item>
+        <item quantity="other">Checking %1$d of %2$d channels for Shorts and live</item>
+    </plurals>
     <plurals name="subscriptions_last_refreshed_template">
         <item quantity="one">Last refreshed %1$s - %2$d video checked</item>
         <item quantity="other">Last refreshed %1$s - %2$d videos checked</item>
@@ -509,6 +513,13 @@
     <string name="search_filter_group_upload_date">Upload date</string>
     <string name="search_filter_group_features">Features</string>
     <string name="search_filter_group_sort">Sort by</string>
+    <string name="search_filter_group_watched">Watched</string>
+    <string name="search_filter_recently_uploaded">Recently uploaded</string>
+    <string name="search_filter_watch_any">Watched or not</string>
+    <string name="search_filter_unwatched">Unwatched</string>
+    <string name="search_filter_watched">Watched</string>
+    <string name="search_watch_empty_watched">No watched videos here</string>
+    <string name="search_watch_empty_unwatched">No unwatched videos here</string>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
@@ -681,6 +692,8 @@
     <string name="deep_flow_scrobble_title">Scrobble during Deep Flow</string>
     <string name="taste_learning_paused">Deep Flow is on, learning is paused</string>
     <string name="deep_flow_scrobble_subtitle">Keep sending listens to Last.fm, Libre.fm and ListenBrainz</string>
+    <string name="deep_flow_on_search_title">Show on search</string>
+    <string name="deep_flow_on_search_subtitle">A Deep Flow switch above recent searches</string>
     <string name="deep_flow_dialog_title">Pause Duration</string>
     <string name="deep_flow_dialog_body">How long should learning stay paused?</string>
     <string name="deep_flow_enabled_message">Deep Flow enabled</string>
@@ -2173,6 +2186,8 @@
     <string name="daily_discover_for_fans_of">For fans of %1$s</string>
     <string name="section_recommended">Recommended</string>
     <string name="section_recently_played">Recently played</string>
+    <string name="auto_tab_for_you">For you</string>
+    <string name="auto_tab_queue">Queue</string>
     <string name="section_music_videos">Music videos</string>
     <string name="section_music_videos_for_you">Music videos for you</string>
     <string name="section_live_performances">Live performances</string>

@@ -11,8 +11,10 @@ import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
+import io.github.aedev.flow.ui.components.shared.DeepFlowState
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
+import io.github.aedev.flow.ui.components.shared.deepFlowStatus
 import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.HomeIndex
 
@@ -32,6 +34,7 @@ internal class SettingsHomeActions(
     val onDurationClick: () -> Unit,
     val onSaveHistoryChange: (Boolean) -> Unit,
     val onScrobbleChange: (Boolean) -> Unit,
+    val onShowOnSearchChange: (Boolean) -> Unit,
     val onCheckForUpdates: () -> Unit,
 )
 
@@ -88,6 +91,12 @@ internal fun SettingsListScope.homeContent(
             checked = state.deepFlow.scrobble,
             onCheckedChange = actions.onScrobbleChange,
             icon = HomeRowIcons.DeepFlowScrobble,
+        )
+        switch(
+            HomeIndex.deepFlowOnSearch,
+            checked = state.deepFlow.showOnSearch,
+            onCheckedChange = actions.onShowOnSearchChange,
+            icon = HomeRowIcons.DeepFlowOnSearch,
         )
         page(SettingsDestination.TOPICS)
     }

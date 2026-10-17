@@ -131,7 +131,7 @@ fun LazyListScope.musicHomeFeed(
     if (shown(MusicHomeShelf.ROTATION) && uiState.rotationTracks.isNotEmpty() && rotationBucket != null) {
         item(key = "rotation") {
             BrainShelf(
-                title = stringResource(rotationTitleRes(rotationBucket)),
+                title = stringResource(rotationBucket.rotationTitleRes()),
                 tracks = uiState.rotationTracks,
                 playFrom = "rotation",
                 onSongClick = onSongClick,
@@ -349,8 +349,9 @@ fun LazyListScope.musicHomeFeed(
     }
 }
 
-private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
-    when (bucket) {
+/** The time-of-day rotation's title, on the Music page and in the car. */
+internal fun MusicTimeBucket.rotationTitleRes(): Int =
+    when (this) {
         MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
         MusicTimeBucket.WEEKDAY_AFTERNOON, MusicTimeBucket.WEEKEND_AFTERNOON -> R.string.section_rotation_afternoon
         MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
