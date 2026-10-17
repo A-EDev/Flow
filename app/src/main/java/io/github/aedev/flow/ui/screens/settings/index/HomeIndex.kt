@@ -48,6 +48,14 @@ internal object HomeIndex {
             section = R.string.settings_flow_engine_header,
             destination = home,
         )
+    val deepFlowOnSearch =
+        SettingEntry(
+            key = "home.deep_flow_on_search",
+            title = R.string.deep_flow_on_search_title,
+            summary = R.string.deep_flow_on_search_subtitle,
+            section = R.string.settings_flow_engine_header,
+            destination = home,
+        )
     val checkForUpdates =
         SettingEntry(
             key = "home.updates",
@@ -67,5 +75,5 @@ internal object HomeIndex {
         )
 
     /** The persona card is found through Your taste's own destination entry, not listed twice. */
-    val all = listOf(deepFlow, deepFlowDuration, deepFlowHistory, deepFlowScrobble, checkForUpdates, support)
+    val all = listOf(deepFlow, deepFlowDuration, deepFlowHistory, deepFlowScrobble, deepFlowOnSearch, checkForUpdates, support)
 }

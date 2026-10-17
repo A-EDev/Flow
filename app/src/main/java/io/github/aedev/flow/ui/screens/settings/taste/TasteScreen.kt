@@ -28,7 +28,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
-import io.github.aedev.flow.ui.screens.settings.home.deepFlowStatus
+import io.github.aedev.flow.ui.components.shared.deepFlowStatus
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 

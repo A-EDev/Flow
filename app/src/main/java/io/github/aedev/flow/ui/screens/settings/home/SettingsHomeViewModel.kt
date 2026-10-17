@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.update.AppRelease
 import io.github.aedev.flow.data.update.UpdateRepository
 import io.github.aedev.flow.player.DeepFlowManager
+import io.github.aedev.flow.ui.components.shared.DeepFlowState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,18 +22,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class DeepFlowState(
-    val active: Boolean = false,
-    val activatedAt: Long = 0L,
-    val expireHours: Int = DeepFlowDefaults.EXPIRE_HOURS,
-    val saveToHistory: Boolean = false,
-    val scrobble: Boolean = false,
-)
-
-private object DeepFlowDefaults {
-    const val EXPIRE_HOURS = 4
-}
 
 /** The update check the settings list runs on request; github builds only. */
 sealed interface UpdateCheckState {
@@ -66,6 +55,8 @@ class SettingsHomeViewModel
                 playerPreferences.deepFlowScrobble,
             ) { active, activatedAt, expireHours, saveToHistory, scrobble ->
                 DeepFlowState(active, activatedAt, expireHours, saveToHistory, scrobble)
+            }.combine(playerPreferences.deepFlowOnSearch) { state, onSearch ->
+                state.copy(showOnSearch = onSearch)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), DeepFlowState())
 
         private val _persona = MutableStateFlow<FlowPersona?>(null)
@@ -99,6 +90,10 @@ class SettingsHomeViewModel
 
         fun setDeepFlowScrobble(enabled: Boolean) {
             viewModelScope.launch { playerPreferences.setDeepFlowScrobble(enabled) }
+        }
+
+        fun setDeepFlowOnSearch(enabled: Boolean) {
+            viewModelScope.launch { playerPreferences.setDeepFlowOnSearch(enabled) }
         }
 
         fun checkForUpdates() {

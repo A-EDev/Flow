@@ -198,6 +198,8 @@ fun SearchScreen(
                     onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
                     onDeleteHistoryItem = state::deleteHistoryItem,
                     onClearHistory = state::clearHistory,
+                    deepFlow = state.deepFlow,
+                    onDeepFlowChange = state::setDeepFlowEnabled,
                 )
                 return@Column
             }
@@ -288,7 +290,6 @@ private fun launchVoiceSearch(
     }
 }
 
-private val FilterBarVerticalPadding = 4.dp
 private fun SearchFilter.emptyResultsRes(): Int =
     when {
         !contentType.supportsVideoFilters() -> R.string.no_results_found
@@ -297,3 +298,4 @@ private fun SearchFilter.emptyResultsRes(): Int =
         else -> R.string.no_results_found
     }
 
+private val FilterBarVerticalPadding = 4.dp

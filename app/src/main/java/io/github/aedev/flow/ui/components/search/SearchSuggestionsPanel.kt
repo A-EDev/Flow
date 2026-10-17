@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
@@ -28,11 +29,15 @@ import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.SearchType
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.shared.DeepFlowState
 import io.github.aedev.flow.ui.components.shared.FlowSuggestionRow
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
+import io.github.aedev.flow.ui.components.shared.deepFlowStatus
 
 /**
  * What the search screen shows before a query is submitted: the user's own history first, then
- * what YouTube suggests, on the screen's own background rather than a raised surface.
+ * what YouTube suggests, on the screen's own background rather than a raised surface. When the
+ * user turned it on in Settings, a Deep Flow switch leads the list until they start typing.
  */
 @Composable
 fun SearchSuggestionsPanel(
@@ -45,11 +50,27 @@ fun SearchSuggestionsPanel(
     onDeleteHistoryItem: (SearchHistoryItem) -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
+    deepFlow: DeepFlowState = DeepFlowState(),
+    onDeepFlowChange: (Boolean) -> Unit = {},
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
     ) {
+        if (deepFlow.showOnSearch && query.isBlank()) {
+            item(key = "deepflow") {
+                FlowSwitchRow(
+                    title = stringResource(R.string.deep_flow_mode_title),
+                    supportingText = deepFlowStatus(deepFlow) ?: stringResource(R.string.deep_flow_mode_subtitle),
+                    checked = deepFlow.active,
+                    onCheckedChange = onDeepFlowChange,
+                    leadingIcon = Icons.Outlined.VisibilityOff,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.padding(horizontal = DeepFlowHorizontalPadding, vertical = DeepFlowVerticalPadding),
+                )
+            }
+        }
+
         searchHistoryItems(
             query = query,
             history = history,
@@ -113,5 +134,7 @@ fun LazyListScope.searchHistoryItems(
     }
 }
 
+private val DeepFlowHorizontalPadding = 12.dp
+private val DeepFlowVerticalPadding = 4.dp
 private val HeaderStartPadding = 16.dp
 private val HeaderEndPadding = 4.dp

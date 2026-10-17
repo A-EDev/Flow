@@ -21,7 +21,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.snapshot.HomeSnapshotStore
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
-import io.github.aedev.flow.ui.screens.settings.home.DeepFlowState
+import io.github.aedev.flow.ui.components.shared.DeepFlowState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
