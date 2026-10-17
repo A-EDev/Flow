@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,8 +37,9 @@ import io.github.aedev.flow.ui.theme.ArtworkScrimAffordance
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 
 /**
- * The bar over a full-bleed hero: transparent with scrim-backed icons while the hero is on screen,
- * the page's surface with the title once it scrolls away. [actions] receive the icon colours for
+ * The bar over a full-bleed hero that runs under the status bar: transparent with scrim-backed
+ * icons while the hero is on screen, the page's surface (status bar included) with the title once
+ * it scrolls away. [actions] receive the icon colours for
  * the current state so every action reads on both backgrounds.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -87,7 +89,7 @@ fun MusicHeroTopBar(
                 scrolledContainerColor = containerColor,
                 titleContentColor = scheme.onBackground,
             ),
-        windowInsets = WindowInsets(0, 0, 0, 0),
+        windowInsets = WindowInsets.statusBars,
         modifier = modifier,
     )
 }

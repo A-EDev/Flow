@@ -133,6 +133,7 @@ data class ArtistDetails(
     val subscriberCount: Long,
     val monthlyListenersText: String? = null,
     val description: String = "",
+    val descriptionLinks: List<MusicTextLink> = emptyList(),
     val bannerUrl: String = "",
     val topTracks: List<MusicTrack> = emptyList(),
     val albums: List<MusicPlaylist> = emptyList(),
@@ -153,6 +154,13 @@ data class ArtistDetails(
     /** The header's artist mix. */
     val radioPlaylistId: String? = null,
     val radioParams: String? = null,
+)
+
+/** A link over the characters of a text from [start] up to [end]. */
+data class MusicTextLink(
+    val start: Int,
+    val end: Int,
+    val url: String,
 )
 
 data class MusicCharts(

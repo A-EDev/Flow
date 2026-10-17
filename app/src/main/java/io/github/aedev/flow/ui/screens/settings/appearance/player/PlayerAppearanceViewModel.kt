@@ -33,10 +33,12 @@ class PlayerAppearanceViewModel
         val frameStepButtons = preferences.frameStepButtonsEnabled.asState(overlayDefaults.frameStepButtonsEnabled)
         val musicBackground = preferences.musicPlayerBackgroundStyle.asState(MusicPlayerBackgroundStyle.BLUR_GRADIENT)
         val hideMusicArtwork = preferences.hideMusicPlayerArtwork.asState(false)
+        val followLightTheme = preferences.musicPlayerFollowLightTheme.asState(false)
         val artworkControlColors = preferences.musicArtworkControlColors.asState(true)
         val animatedArtwork = preferences.animatedArtwork.asState(false)
         val animatedArtworkWifiOnly = preferences.animatedArtworkWifiOnly.asState(true)
         val plainControlColors = preferences.musicPlainControlColors.asState(MusicPlainControlColors.MONOCHROME)
+        val sleepTimerButton = preferences.musicSleepTimerButton.asState(false)
         val adaptivePlayerSize = preferences.adaptivePlayerSizeEnabled.asState(true)
         val ambientMode = preferences.videoAmbientModeEnabled.asState(false)
         val groupedQualitySelector = preferences.groupedQualitySelectorEnabled.asState(false)
@@ -66,6 +68,8 @@ class PlayerAppearanceViewModel
 
         fun setHideMusicArtwork(value: Boolean) = write { preferences.setHideMusicPlayerArtwork(value) }
 
+        fun setFollowLightTheme(value: Boolean) = write { preferences.setMusicPlayerFollowLightTheme(value) }
+
         fun setArtworkControlColors(value: Boolean) = write { preferences.setMusicArtworkControlColors(value) }
 
         fun setAnimatedArtwork(value: Boolean) = write { preferences.setAnimatedArtwork(value) }
@@ -73,6 +77,8 @@ class PlayerAppearanceViewModel
         fun setAnimatedArtworkWifiOnly(value: Boolean) = write { preferences.setAnimatedArtworkWifiOnly(value) }
 
         fun setPlainControlColors(value: MusicPlainControlColors) = write { preferences.setMusicPlainControlColors(value) }
+
+        fun setSleepTimerButton(value: Boolean) = write { preferences.setMusicSleepTimerButton(value) }
 
         fun setAdaptivePlayerSize(value: Boolean) = write { preferences.setAdaptivePlayerSizeEnabled(value) }
 

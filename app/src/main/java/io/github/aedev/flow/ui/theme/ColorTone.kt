@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
+import kotlin.math.hypot
 
 private const val TONE_STEP = 4.0
 private const val LIGHTEST_TONE = 98.0
@@ -20,6 +21,18 @@ internal fun Color.withTone(tone: Double): Color {
     val lab = DoubleArray(3)
     ColorUtils.colorToLAB(toArgb(), lab)
     return Color(ColorUtils.LABToColor(tone.coerceIn(0.0, 100.0), lab[1], lab[2]))
+}
+
+/** [withTone], with the colourfulness held to at most [maxChroma] (CIELAB a*b* distance). */
+internal fun Color.withTone(
+    tone: Double,
+    maxChroma: Double,
+): Color {
+    val lab = DoubleArray(3)
+    ColorUtils.colorToLAB(toArgb(), lab)
+    val chroma = hypot(lab[1], lab[2])
+    val scale = if (chroma > maxChroma) maxChroma / chroma else 1.0
+    return Color(ColorUtils.LABToColor(tone.coerceIn(0.0, 100.0), lab[1] * scale, lab[2] * scale))
 }
 
 /** WCAG contrast ratio between two opaque colors. */

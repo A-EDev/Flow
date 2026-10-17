@@ -25,21 +25,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.ui.components.musicplayer.common.PlayerBackdropColors
 
 @Composable
 fun PlayerBackground(
     thumbnailUrl: String?,
     style: MusicPlayerBackgroundStyle,
-    paletteBaseColor: Color,
-    paletteAccentColor: Color,
+    backdrop: PlayerBackdropColors,
     modifier: Modifier = Modifier,
     // Landscape layouts put the immersive art on the start side, where the controls are not.
     artworkAtStart: Boolean = false,
     // Immersive only: the album's motion artwork, playing where the still art is.
     animatedArtwork: (@Composable () -> Unit)? = null,
 ) {
-    val baseColor = paletteBaseColor.copy(alpha = 0.78f)
-    val accentColor = paletteAccentColor.copy(alpha = 0.72f)
+    val baseColor = backdrop.base.copy(alpha = 0.78f)
+    val accentColor = backdrop.accent.copy(alpha = 0.72f)
+    val ground = backdrop.ground
 
     Box(
         modifier =
@@ -49,7 +50,7 @@ fun PlayerBackground(
                     if (style == MusicPlayerBackgroundStyle.DEFAULT) {
                         MaterialTheme.colorScheme.surface
                     } else {
-                        Color.Black
+                        ground
                     },
                 ),
     ) {
@@ -64,7 +65,7 @@ fun PlayerBackground(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.58f)),
+                            .background(ground.copy(alpha = 0.58f)),
                 )
             }
 
@@ -79,8 +80,8 @@ fun PlayerBackground(
                                         arrayOf(
                                             0.00f to accentColor,
                                             0.38f to baseColor,
-                                            0.72f to Color.Black.copy(alpha = 0.88f),
-                                            1.00f to Color.Black,
+                                            0.72f to ground.copy(alpha = 0.88f),
+                                            1.00f to ground,
                                         ),
                                 ),
                             ),
@@ -119,11 +120,11 @@ fun PlayerBackground(
                                 Brush.verticalGradient(
                                     colorStops =
                                         arrayOf(
-                                            0.00f to Color.Black.copy(alpha = 0.40f),
+                                            0.00f to ground.copy(alpha = 0.40f),
                                             0.30f to accentColor.copy(alpha = 0.22f),
                                             0.55f to baseColor.copy(alpha = 0.34f),
-                                            0.80f to Color.Black.copy(alpha = 0.80f),
-                                            1.00f to Color.Black.copy(alpha = 0.95f),
+                                            0.80f to ground.copy(alpha = 0.80f),
+                                            1.00f to ground.copy(alpha = 0.95f),
                                         ),
                                 ),
                             ),

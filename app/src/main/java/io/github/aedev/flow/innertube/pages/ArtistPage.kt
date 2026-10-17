@@ -10,6 +10,7 @@ import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
 import io.github.aedev.flow.innertube.models.MusicShelfRenderer
 import io.github.aedev.flow.innertube.models.MusicTwoRowItemRenderer
 import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.Run
 import io.github.aedev.flow.innertube.models.SectionListRenderer
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
@@ -40,10 +41,19 @@ data class ArtistSection(
     val showsReleaseType: Boolean = false,
 )
 
+/** A linked stretch of an artist's description, from [start] up to [end]. */
+data class DescriptionLink(
+    val start: Int,
+    val end: Int,
+    val url: String,
+)
+
 data class ArtistPage(
     val artist: ArtistItem,
     val sections: List<ArtistSection>,
     val description: String?,
+    /** The linked stretches of [description], such as its Wikipedia source and licence. */
+    val descriptionLinks: List<DescriptionLink> = emptyList(),
     val subscriberCountText: String? = null,
     val monthlyListenersText: String? = null,
 ) {
@@ -136,12 +146,13 @@ data class ArtistPage(
                         sections = sectionContents.mapNotNull(::fromSectionListRendererContent),
                         artistChannelIds = setOfNotNull(browseId, header?.subscriptionButton?.subscribeButtonRenderer?.channelId),
                     ),
-                description =
+                description = header?.description?.runs?.joinToString("") { it.text },
+                descriptionLinks =
                     header
                         ?.description
                         ?.runs
-                        ?.firstOrNull()
-                        ?.text,
+                        ?.let(::descriptionLinks)
+                        .orEmpty(),
                 subscriberCountText =
                     header
                         ?.subscriptionButton
@@ -157,6 +168,19 @@ data class ArtistPage(
                         ?.firstOrNull()
                         ?.text,
             )
+        }
+
+        // A Wikipedia bio arrives as the text, then each link as its own run with shortened text.
+        private fun descriptionLinks(runs: List<Run>): List<DescriptionLink> {
+            var offset = 0
+            return runs.mapNotNull { run ->
+                val start = offset
+                offset += run.text.length
+                run.navigationEndpoint
+                    ?.urlEndpoint
+                    ?.url
+                    ?.let { url -> DescriptionLink(start, offset, url) }
+            }
         }
 
         /**

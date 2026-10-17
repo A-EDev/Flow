@@ -3,8 +3,10 @@ package io.github.aedev.flow.ui.screens.music
 import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,7 +18,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,8 +28,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -34,12 +40,15 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
+import io.github.aedev.flow.ui.LocalStatusBarHero
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
+import io.github.aedev.flow.ui.components.music.detail.ArtistQueue
 import io.github.aedev.flow.ui.components.music.detail.MusicHeroTopBar
+import io.github.aedev.flow.ui.components.music.detail.artistHeroPhotoHeight
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
@@ -102,31 +111,43 @@ fun ArtistPage(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    var isStartingQueue by remember { mutableStateOf(false) }
+    var startingQueue by remember { mutableStateOf<ArtistQueue?>(null) }
 
     // The artist's own shuffle and mix are fetched first; a missing or empty one falls back to
     // what the page already holds.
     fun playWatchPlaylist(
+        queue: ArtistQueue,
         playlistId: String?,
         params: String?,
         fallback: () -> Unit,
     ) {
-        if (isStartingQueue) return
+        if (startingQueue != null) return
         if (playlistId == null) return fallback()
         scope.launch {
-            isStartingQueue = true
+            startingQueue = queue
             val played =
                 try {
                     onPlayWatchPlaylist(playlistId, params)
                 } finally {
-                    isStartingQueue = false
+                    startingQueue = null
                 }
             if (!played) fallback()
         }
     }
 
-    val showBarTitle by remember {
-        derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
+    // The bar turns solid once the photo has slid up behind it, before the name and buttons reach it.
+    val density = LocalDensity.current
+    val solidBarAfterPx =
+        with(density) {
+            (
+                artistHeroPhotoHeight() - WindowInsets.statusBars.asPaddingValues().calculateTopPadding() -
+                    TopAppBarDefaults.TopAppBarExpandedHeight
+            ).roundToPx()
+        }
+    val showBarTitle by remember(solidBarAfterPx) {
+        derivedStateOf {
+            scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > solidBarAfterPx
+        }
     }
 
     var descriptionExpanded by remember { mutableStateOf(false) }
@@ -134,9 +155,20 @@ fun ArtistPage(
 
     val pageScheme = rememberMusicCollectionColorScheme(artistDetails.thumbnailUrl.ifEmpty { artistDetails.bannerUrl })
 
+    val statusBarHero = LocalStatusBarHero.current
+    val heroOwner = remember { Any() }
+    DisposableEffect(statusBarHero, showBarTitle) {
+        if (!showBarTitle) statusBarHero?.claim(heroOwner)
+        onDispose { statusBarHero?.release(heroOwner) }
+    }
+    val statusBarTopPx = WindowInsets.statusBars.getTop(density)
+
     MaterialTheme(colorScheme = pageScheme) {
         Scaffold(
-            modifier = modifier.fillMaxSize(),
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .reachUnderStatusBar(statusBarTopPx),
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
@@ -169,27 +201,23 @@ fun ArtistPage(
                     val topTracks = artistDetails.topTracks
                     ArtistHero(
                         artist = artistDetails,
-                        isStartingQueue = isStartingQueue,
+                        startingQueue = startingQueue,
                         onFollowClick = onFollowClick,
                         onPlayClick = {
                             if (topTracks.isNotEmpty()) onTrackClick(topTracks.first(), topTracks)
                         },
                         onShuffleClick = {
-                            playWatchPlaylist(artistDetails.shufflePlaylistId, artistDetails.shuffleParams) {
+                            playWatchPlaylist(ArtistQueue.SHUFFLE, artistDetails.shufflePlaylistId, artistDetails.shuffleParams) {
                                 if (topTracks.isNotEmpty()) onTrackClick(topTracks.random(), topTracks.shuffled())
                             }
                         },
                         onRadioClick =
                             artistDetails.radioPlaylistId?.let { radioId ->
                                 {
-                                    playWatchPlaylist(radioId, artistDetails.radioParams) {
+                                    playWatchPlaylist(ArtistQueue.RADIO, radioId, artistDetails.radioParams) {
                                         topTracks.firstOrNull()?.let(onStartRadio)
                                     }
                                 }
-                            },
-                        onVideosClick =
-                            artistDetails.videos.takeIf { it.isNotEmpty() }?.let { videos ->
-                                { onTrackClick(videos.first(), videos) }
                             },
                     )
                 }
@@ -198,6 +226,7 @@ fun ArtistPage(
                     item(key = "bio") {
                         ArtistBio(
                             description = artistDetails.description,
+                            links = artistDetails.descriptionLinks,
                             isExpanded = descriptionExpanded,
                             onToggleExpanded = { descriptionExpanded = !descriptionExpanded },
                         )
@@ -278,6 +307,7 @@ fun ArtistPage(
                             title = stringResource(R.string.tab_videos),
                             items = artistDetails.videos,
                             key = { "videos:${it.videoId}" },
+                            action = MusicSectionAction.PlayAll { onTrackClick(artistDetails.videos.first(), artistDetails.videos) },
                         ) { video ->
                             MusicCollectionCard(
                                 title = video.title,
@@ -326,6 +356,21 @@ fun ArtistPage(
     }
 }
 
+/**
+ * The app keeps every page below the status bar. The artist page reaches back up under it by
+ * [topPx], so the hero photo fills the status bar while the top bar pads itself back down.
+ */
+private fun Modifier.reachUnderStatusBar(topPx: Int): Modifier =
+    layout { measurable, constraints ->
+        if (topPx == 0 || !constraints.hasBoundedHeight) {
+            val placeable = measurable.measure(constraints)
+            return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
+        val height = constraints.maxHeight + topPx
+        val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+        layout(placeable.width, constraints.maxHeight) { placeable.place(0, -topPx) }
+    }
+
 private fun LazyListScope.segmentedTracks(
     id: String,
     tracks: List<MusicTrack>,
@@ -339,7 +384,7 @@ private fun LazyListScope.segmentedTracks(
             track = track,
             index = index + 1,
             shape = flowSegmentShape(index = index, count = tracks.size),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track, queue) },
             onLongClick = { onTrackMenu(track) },

@@ -47,7 +47,16 @@ fun PlayerSecondaryActions(
     onQueueClick: () -> Unit,
     modifier: Modifier = Modifier,
     queueActive: Boolean = false,
+    sleepTimerActive: Boolean = false,
+    onSleepTimerClick: (() -> Unit)? = null,
 ) {
+    val trailingShape =
+        RoundedCornerShape(
+            topStart = SegmentEdgeRadius,
+            bottomStart = SegmentEdgeRadius,
+            topEnd = SegmentFullRadius,
+            bottomEnd = SegmentFullRadius,
+        )
     Row(
         modifier =
             modifier
@@ -99,15 +108,20 @@ fun PlayerSecondaryActions(
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Outlined.QueueMusic,
             contentDescription = stringResource(R.string.playlist_queue),
-            uncheckedShape =
-                RoundedCornerShape(
-                    topStart = SegmentEdgeRadius,
-                    bottomStart = SegmentEdgeRadius,
-                    topEnd = SegmentFullRadius,
-                    bottomEnd = SegmentFullRadius,
-                ),
+            uncheckedShape = if (onSleepTimerClick == null) trailingShape else RoundedCornerShape(SegmentEdgeRadius),
             onClick = onQueueClick,
         )
+        if (onSleepTimerClick != null) {
+            PlayerToggleButton(
+                checked = sleepTimerActive,
+                checkedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                icon = if (sleepTimerActive) Icons.Filled.Bedtime else Icons.Outlined.Bedtime,
+                contentDescription = stringResource(R.string.sleep_timer),
+                uncheckedShape = trailingShape,
+                onClick = onSleepTimerClick,
+            )
+        }
     }
 }
 

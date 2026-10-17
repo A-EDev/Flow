@@ -23,6 +23,7 @@ import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
+import io.github.aedev.flow.ui.components.musicplayer.common.canTurnLight
 import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsGroupScope
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -61,9 +62,11 @@ internal fun PlayerAppearanceScreen(
     val frameStep by viewModel.frameStepButtons.collectAsStateWithLifecycle()
     val musicBackground by viewModel.musicBackground.collectAsStateWithLifecycle()
     val hideMusicArtwork by viewModel.hideMusicArtwork.collectAsStateWithLifecycle()
+    val followLightTheme by viewModel.followLightTheme.collectAsStateWithLifecycle()
     val artworkControlColors by viewModel.artworkControlColors.collectAsStateWithLifecycle()
     val animatedArtwork by viewModel.animatedArtwork.collectAsStateWithLifecycle()
     val plainControlColors by viewModel.plainControlColors.collectAsStateWithLifecycle()
+    val sleepTimerButton by viewModel.sleepTimerButton.collectAsStateWithLifecycle()
     val adaptiveSize by viewModel.adaptivePlayerSize.collectAsStateWithLifecycle()
     val ambientMode by viewModel.ambientMode.collectAsStateWithLifecycle()
     val groupedQuality by viewModel.groupedQualitySelector.collectAsStateWithLifecycle()
@@ -159,6 +162,9 @@ internal fun PlayerAppearanceScreen(
         }
         group(key = "player_appearance.music", header = R.string.settings_section_music_player) {
             nav(PlayerAppearanceIndex.musicBackground, value = backgroundLabel, onClick = { sheet = PreviewSheet.BACKGROUND })
+            if (musicBackground.canTurnLight) {
+                switch(PlayerAppearanceIndex.followLightTheme, followLightTheme, viewModel::setFollowLightTheme)
+            }
             switch(PlayerAppearanceIndex.hideMusicArtwork, hideMusicArtwork, viewModel::setHideMusicArtwork)
             switch(PlayerAppearanceIndex.animatedArtwork, animatedArtwork, viewModel::setAnimatedArtwork)
             if (animatedArtwork) {
@@ -177,6 +183,7 @@ internal fun PlayerAppearanceScreen(
                     viewModel::setPlainControlColors,
                 )
             }
+            switch(PlayerAppearanceIndex.sleepTimerButton, sleepTimerButton, viewModel::setSleepTimerButton)
         }
         group(key = "player_appearance.video", header = R.string.settings_section_video_player) {
             switch(PlayerAppearanceIndex.adaptiveSize, adaptiveSize, viewModel::setAdaptivePlayerSize)
@@ -231,7 +238,7 @@ internal fun PlayerAppearanceScreen(
                 label = { stringResource(musicBackgroundLabel(it)) },
                 onSelect = viewModel::setMusicBackground,
                 onDismiss = { sheet = null },
-                preview = { MusicBackgroundPreview(it) },
+                preview = { MusicBackgroundPreview(it, followLightTheme) },
             )
         }
 
