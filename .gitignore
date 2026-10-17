@@ -14,13 +14,16 @@ newpipe-dev
 # Signing keystore - NEVER COMMIT THIS FILE!
 release.keystore
 generate_key.ps1
+generate_key.sh
 generate_key.bat
 flow-website
 svglogo
 metro*
 release.ps1
+release.sh
 release.bat
 releasenote.ps1
+releasenote.sh
 build_result.md
 LibreTube-master
 
