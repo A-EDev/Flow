@@ -6,12 +6,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.paging.LoadState
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -22,6 +27,8 @@ import io.github.aedev.flow.data.local.Duration
 import io.github.aedev.flow.data.local.SearchFeature
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
+import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.local.WatchState
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowSuggestionRow
@@ -145,9 +152,9 @@ class SearchComponentsTest {
     fun `the chip row offers shorts second, where youtube puts it`() {
         show {
             SearchFilterBar(
-                selected = ContentType.ALL,
+                filter = SearchFilter.DEFAULT,
                 shortsEnabled = true,
-                onContentTypeSelected = {},
+                onFilterChange = {},
             )
         }
 
@@ -158,9 +165,9 @@ class SearchComponentsTest {
     fun `the chip row hides shorts when the user turned shorts off`() {
         show {
             SearchFilterBar(
-                selected = ContentType.ALL,
+                filter = SearchFilter.DEFAULT,
                 shortsEnabled = false,
-                onContentTypeSelected = {},
+                onFilterChange = {},
             )
         }
 
@@ -169,18 +176,76 @@ class SearchComponentsTest {
 
     @Test
     fun `picking a type reports it once`() {
-        val picked = mutableListOf<ContentType>()
+        val picked = mutableListOf<SearchFilter>()
         show {
             SearchFilterBar(
-                selected = ContentType.ALL,
+                filter = SearchFilter.DEFAULT,
                 shortsEnabled = true,
-                onContentTypeSelected = picked::add,
+                onFilterChange = { picked += it },
             )
         }
 
         rule.onNodeWithText(string(R.string.channels_header)).performClick()
 
-        assertThat(picked).containsExactly(ContentType.CHANNELS)
+        assertThat(picked).containsExactly(SearchFilter(contentType = ContentType.CHANNELS))
+    }
+
+    @Test
+    fun `recently uploaded is the this week filter and a second tap clears it`() {
+        val picked = mutableListOf<SearchFilter>()
+        val recent = SearchFilter(uploadDate = UploadDate.THIS_WEEK)
+        var filter by mutableStateOf(SearchFilter.DEFAULT)
+        show {
+            SearchFilterBar(
+                filter = filter,
+                shortsEnabled = true,
+                onFilterChange = {
+                    picked += it
+                    filter = it
+                },
+            )
+        }
+
+        rule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(string(R.string.search_filter_recently_uploaded)))
+        rule.onNodeWithText(string(R.string.search_filter_recently_uploaded)).performClick()
+        rule.onNodeWithText(string(R.string.search_filter_recently_uploaded)).performClick()
+
+        assertThat(picked).containsExactly(recent, SearchFilter.DEFAULT).inOrder()
+    }
+
+    @Test
+    fun `watched and unwatched replace each other`() {
+        val picked = mutableListOf<SearchFilter>()
+        var filter by mutableStateOf(SearchFilter(watchState = WatchState.UNWATCHED))
+        show {
+            SearchFilterBar(
+                filter = filter,
+                shortsEnabled = true,
+                onFilterChange = {
+                    picked += it
+                    filter = it
+                },
+            )
+        }
+
+        rule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(string(R.string.search_filter_watched)))
+        rule.onNodeWithText(string(R.string.search_filter_watched)).performClick()
+
+        assertThat(picked).containsExactly(SearchFilter(watchState = WatchState.WATCHED))
+    }
+
+    @Test
+    fun `channel and playlist searches show no video chips`() {
+        show {
+            SearchFilterBar(
+                filter = SearchFilter(contentType = ContentType.CHANNELS),
+                shortsEnabled = true,
+                onFilterChange = {},
+            )
+        }
+
+        assertThat(nodesContaining(string(R.string.search_filter_recently_uploaded))).isEmpty()
+        assertThat(nodesContaining(string(R.string.search_filter_unwatched))).isEmpty()
     }
 
     @Test
