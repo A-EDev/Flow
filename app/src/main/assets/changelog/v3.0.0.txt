@@ -170,6 +170,7 @@ IMPROVEMENTS
 - The player controls step aside while you drag to seek, so the time read-out is not covered
 - A restored music queue picks the song up where it stopped instead of from the start (#1280)
 - Music keeps playing when you clear Flow from recents while a song is loading (#1280)
+- Artist pages play, shuffle or start the artist's radio in one tap, with the subscriber and audience figures under the buttons, and the Videos shelf plays all of them
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -320,6 +321,7 @@ FIXES AND STABILITY
 - Fix the sleep timer's Close app leaving the players and their notifications running (#1272)
 - Fix videos touching each other when Cards per row is two or three on a phone; cards that narrow leave out the channel picture so the title fits (#1281)
 - The sleep timer's Start and Cancel buttons stay in view instead of sitting below the fold, and the music player's sheet now fits its content
+- Artist bios no longer stop at "From Wikipedia (": the whole text shows, with its source and licence links, and the song rows on artist pages are visible again
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
