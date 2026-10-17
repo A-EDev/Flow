@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.paging
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.WatchState
 import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.innertube.YouTube
@@ -19,7 +20,8 @@ import io.github.aedev.flow.innertube.pages.search.SearchSection
  *
  * Every filter and sort is a `params` token the server applies, so a page arrives already narrowed
  * and already ordered; the avatars, badges and verification the old path fetched per video are read
- * out of the same response.
+ * out of the same response. The watched filter is the exception: it is applied here, so a page it
+ * thins out reads on, up to [MAX_REQUESTS_PER_LOAD] requests, rather than reaching the grid nearly empty.
  */
 class SearchPagingSource(
     private val query: String,
@@ -27,26 +29,48 @@ class SearchPagingSource(
     private val shortsEnabled: Boolean = true,
     private val onHeader: (SearchHeader) -> Unit = {},
     private val loadPage: SearchPageLoader = DefaultSearchPageLoader,
+    private val watchedVideos: WatchedVideoLookup = WatchedVideoLookup { emptySet() },
     private val exclusions: suspend () -> FeedExclusions = { FeedExclusions.NONE },
 ) : PagingSource<String, SearchResultItem>() {
     override fun getRefreshKey(state: PagingState<String, SearchResultItem>): String? = null
 
     private val loadedItemKeys = DistinctKeyTracker()
 
-    override suspend fun load(params: LoadParams<String>): LoadResult<String, SearchResultItem> {
-        val continuation = params.key
-        return try {
-            val page = loadPage(query, filter.toSearchParams(), continuation)
-            if (continuation == null) onHeader(page.header)
-            val results = page.toResultItems(shortsEnabled).withoutHidden(exclusions())
-            LoadResult.Page(
-                data = loadedItemKeys.filter(results) { it.identityKey() },
-                prevKey = null,
-                nextKey = page.continuation,
+    private val watchState =
+        filter.watchState.takeIf { filter.contentType.supportsVideoFilters() } ?: WatchState.ANY
+
+    override suspend fun load(params: LoadParams<String>): LoadResult<String, SearchResultItem> =
+        try {
+            val hidden = exclusions()
+            val results = mutableListOf<SearchResultItem>()
+            var continuation = params.key
+            var requests = 0
+            do {
+                val page = loadPage(query, filter.toSearchParams(), continuation)
+                if (params.key == null && requests == 0) onHeader(page.header)
+                requests++
+                val items = page.toResultItems(shortsEnabled).withoutHidden(hidden)
+                results +=
+                    loadedItemKeys.filter(items.watchFiltered()) { it.identityKey() }
+                continuation = page.continuation
+            } while (watchState != WatchState.ANY &&
+                results.size < MIN_FILTERED_PAGE &&
+                continuation != null &&
+                requests < MAX_REQUESTS_PER_LOAD
             )
+            LoadResult.Page(data = results, prevKey = null, nextKey = continuation)
         } catch (e: Exception) {
             LoadResult.Error(e)
         }
+
+    private suspend fun List<SearchResultItem>.watchFiltered(): List<SearchResultItem> {
+        if (watchState == WatchState.ANY) return this
+        return withWatchState(watchState, watchedVideos(videos()))
+    }
+
+    private companion object {
+        const val MIN_FILTERED_PAGE = 6
+        const val MAX_REQUESTS_PER_LOAD = 3
     }
 }
 

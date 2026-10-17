@@ -61,6 +61,23 @@ class SearchHistoryEntriesTest {
     }
 
     @Test
+    fun `the watch filter survives a round trip and older entries read it as any`() {
+        val unwatched = filtered.copy(watchState = WatchState.UNWATCHED)
+
+        val json = gson.toJson(listOf(entry("world news", unwatched)))
+        val read = gson.fromJson<List<SearchHistoryItem>>(json, historyType).map(SearchHistoryItem::sanitized)
+        val old =
+            gson
+                .fromJson<List<SearchHistoryItem>>(
+                    """[{"id":"a","query":"cats","timestamp":1,"type":"TEXT","filters":{"uploadDate":"TODAY"}}]""",
+                    historyType,
+                ).map(SearchHistoryItem::sanitized)
+
+        assertThat(read.single().filters).isEqualTo(unwatched)
+        assertThat(old.single().filters?.watchState).isEqualTo(WatchState.ANY)
+    }
+
+    @Test
     fun `a filter value from a newer version falls back to its default`() {
         val json =
             """[{"id":"a","query":"cats","timestamp":1,"type":"TEXT",""" +

@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.Duration
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.local.WatchState
 
 /** What [this] narrows, in dialog order. Channels and playlists ignore duration and date, so those are left out there. */
 internal fun SearchFilter.summaryLabelRes(): List<Int> =
@@ -16,6 +17,7 @@ internal fun SearchFilter.summaryLabelRes(): List<Int> =
         if (contentType != ContentType.CHANNELS && contentType != ContentType.PLAYLISTS) {
             if (duration != Duration.ANY) add(duration.labelRes())
             if (uploadDate != UploadDate.ANY) add(uploadDate.labelRes())
+            if (watchState != WatchState.ANY) add(watchState.labelRes())
         }
         if (sortType != SortType.RELEVANCE) add(sortType.labelRes())
         features.sorted().forEach { add(it.labelRes()) }

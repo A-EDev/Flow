@@ -69,4 +69,4 @@ private fun SearchFeature.toParam(): YouTubeSearchParams.Feature =
         SearchFeature.PURCHASED -> YouTubeSearchParams.Feature.PURCHASED
     }
 
-private fun ContentType.supportsVideoFilters(): Boolean = this != ContentType.CHANNELS && this != ContentType.PLAYLISTS
+internal fun ContentType.supportsVideoFilters(): Boolean = this != ContentType.CHANNELS && this != ContentType.PLAYLISTS

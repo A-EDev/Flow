@@ -37,6 +37,7 @@ import io.github.aedev.flow.data.local.SearchFeature
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.local.WatchState
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 
@@ -87,6 +88,13 @@ fun SearchFilterDialog(
                         options = UploadDate.entries,
                         optionLabel = { stringResource(it.labelRes()) },
                         onSelect = { draft = draft.copy(uploadDate = it) },
+                    )
+                    FilterRow(
+                        label = stringResource(R.string.search_filter_group_watched),
+                        value = stringResource(draft.watchState.labelRes()),
+                        options = WatchState.entries,
+                        optionLabel = { stringResource(it.labelRes()) },
+                        onSelect = { draft = draft.copy(watchState = it) },
                     )
                 }
 
@@ -208,6 +216,13 @@ internal fun UploadDate.labelRes(): Int =
         UploadDate.THIS_WEEK -> R.string.date_this_week
         UploadDate.THIS_MONTH -> R.string.date_this_month
         UploadDate.THIS_YEAR -> R.string.date_this_year
+    }
+
+internal fun WatchState.labelRes(): Int =
+    when (this) {
+        WatchState.ANY -> R.string.search_filter_watch_any
+        WatchState.UNWATCHED -> R.string.search_filter_unwatched
+        WatchState.WATCHED -> R.string.search_filter_watched
     }
 
 internal fun SortType.labelRes(): Int =

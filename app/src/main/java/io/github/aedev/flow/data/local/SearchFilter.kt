@@ -1,8 +1,9 @@
 package io.github.aedev.flow.data.local
 
 /**
- * Everything the search feed can be narrowed by. Every field maps to a server-side `params` token —
- * nothing here is applied to the results after they arrive.
+ * Everything the search feed can be narrowed by. Every field maps to a server-side `params` token
+ * except [watchState], which YouTube only honours for a signed-in account, so it is applied to each
+ * page against local watch history instead.
  */
 data class SearchFilter(
     val contentType: ContentType = ContentType.ALL,
@@ -10,6 +11,7 @@ data class SearchFilter(
     val uploadDate: UploadDate = UploadDate.ANY,
     val sortType: SortType = SortType.RELEVANCE,
     val features: Set<SearchFeature> = emptySet(),
+    val watchState: WatchState = WatchState.ANY,
 ) {
     val isDefault: Boolean
         get() = this == DEFAULT
@@ -22,6 +24,7 @@ data class SearchFilter(
                 duration != Duration.ANY,
                 uploadDate != UploadDate.ANY,
                 sortType != SortType.RELEVANCE,
+                watchState != WatchState.ANY,
             ).count { it } + features.size
 
     companion object {
@@ -64,6 +67,13 @@ enum class UploadDate {
     THIS_WEEK,
     THIS_MONTH,
     THIS_YEAR,
+}
+
+/** Read against the user's watched threshold, the same line Home and Subscriptions hide by. */
+enum class WatchState {
+    ANY,
+    UNWATCHED,
+    WATCHED,
 }
 
 enum class SearchFeature {

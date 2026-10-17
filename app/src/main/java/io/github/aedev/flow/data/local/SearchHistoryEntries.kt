@@ -29,6 +29,7 @@ internal fun SearchFilter.sanitized(): SearchFilter =
         uploadDate = uploadDate.orDefault(UploadDate.ANY),
         sortType = sortType.orDefault(SortType.RELEVANCE),
         features = features.orDefault(emptySet()).filterNotNull().toSet(),
+        watchState = watchState.orDefault(WatchState.ANY),
     )
 
 /** The stored filters this device can still run: a Shorts search falls back to everything once Shorts are hidden. */

@@ -509,6 +509,13 @@
     <string name="search_filter_group_upload_date">Upload date</string>
     <string name="search_filter_group_features">Features</string>
     <string name="search_filter_group_sort">Sort by</string>
+    <string name="search_filter_group_watched">Watched</string>
+    <string name="search_filter_recently_uploaded">Recently uploaded</string>
+    <string name="search_filter_watch_any">Watched or not</string>
+    <string name="search_filter_unwatched">Unwatched</string>
+    <string name="search_filter_watched">Watched</string>
+    <string name="search_watch_empty_watched">No watched videos here</string>
+    <string name="search_watch_empty_unwatched">No unwatched videos here</string>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
