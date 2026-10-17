@@ -1,18 +1,16 @@
 package io.github.aedev.flow.player
 
-import android.app.Application
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
 
-@RunWith(AndroidJUnit4::class)
-@Config(sdk = [34], application = Application::class)
 class MusicQueueAdoptionTest {
+    private fun artwork(url: String): Uri = mockk { every { this@mockk.toString() } returns url }
+
     private fun item(
         id: String,
         title: String = "Song $id",
@@ -24,7 +22,7 @@ class MusicQueueAdoptionTest {
                 .Builder()
                 .setTitle(title)
                 .setArtist("Artist")
-                .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$id/hqdefault.jpg"))
+                .setArtworkUri(artwork("https://i.ytimg.com/vi/$id/hqdefault.jpg"))
                 .setDurationMs(215_000L)
                 .build(),
         ).build()
