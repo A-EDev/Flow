@@ -253,4 +253,29 @@ class ArtistPageTest {
         assertNull(ArtistDiscographyParams.releaseKind("not base64 at all"))
         assertNull(ArtistDiscographyParams.releaseKind(null))
     }
+
+    @Test
+    fun `the whole description is kept with its source and licence links`() {
+        val wiki = "https://en.wikipedia.org/wiki/Linkin_Park"
+        val licence = "http://creativecommons.org/licenses/by-sa/3.0/legalcode"
+        val bio = "Linkin Park is an American rock band.\\n\\nFrom Wikipedia ("
+        val header =
+            """{"musicImmersiveHeaderRenderer":{"title":{"runs":[{"text":"Linkin Park"}]},"menu":{"menuRenderer":{}},"description":{"runs":[
+            |{"text":"$bio"},
+            |{"text":"https://en.wikipedia.org/wiki/Linkin_...","navigationEndpoint":{"urlEndpoint":{"url":"$wiki"}}},
+            |{"text":") under Creative Commons Attribution CC-BY-SA 3.0 ("},
+            |{"text":"http://creativecommons.org/licenses/b...","navigationEndpoint":{"urlEndpoint":{"url":"$licence"}}},
+            |{"text":")"}]}}}
+            """.trimMargin()
+
+        val page = ArtistPage.fromBrowseResponse("UCxgN32UVVztKAQd2HkXzBtw", InnerTubeJson.browse(sections = emptyList(), header = header))
+
+        val description = page.description.orEmpty()
+        assertTrue(description.startsWith("Linkin Park is an American rock band."))
+        assertTrue(description.endsWith(") under Creative Commons Attribution CC-BY-SA 3.0 (http://creativecommons.org/licenses/b...)"))
+        assertEquals(listOf(wiki, licence), page.descriptionLinks.map { it.url })
+        val (source, licenceLink) = page.descriptionLinks
+        assertEquals("https://en.wikipedia.org/wiki/Linkin_...", description.substring(source.start, source.end))
+        assertEquals("http://creativecommons.org/licenses/b...", description.substring(licenceLink.start, licenceLink.end))
+    }
 }

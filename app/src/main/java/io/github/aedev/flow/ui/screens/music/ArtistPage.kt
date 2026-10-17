@@ -198,6 +198,7 @@ fun ArtistPage(
                     item(key = "bio") {
                         ArtistBio(
                             description = artistDetails.description,
+                            links = artistDetails.descriptionLinks,
                             isExpanded = descriptionExpanded,
                             onToggleExpanded = { descriptionExpanded = !descriptionExpanded },
                         )

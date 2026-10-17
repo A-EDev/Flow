@@ -11,6 +11,7 @@ data class NavigationEndpoint(
     val queueAddEndpoint: QueueAddEndpoint? = null,
     val shareEntityEndpoint: ShareEntityEndpoint? = null,
     val feedbackEndpoint: FeedbackEndpoint? = null,
+    val urlEndpoint: UrlEndpoint? = null,
 ) {
     val endpoint: Endpoint?
         get() =
@@ -22,12 +23,20 @@ data class NavigationEndpoint(
                 ?: shareEntityEndpoint
 
     val anyWatchEndpoint: WatchEndpoint?
-        get() = watchEndpoint
-            ?: watchPlaylistEndpoint
+        get() =
+            watchEndpoint
+                ?: watchPlaylistEndpoint
 
     val musicVideoType: String?
-        get() = anyWatchEndpoint
-            ?.watchEndpointMusicSupportedConfigs
-            ?.watchEndpointMusicConfig
-            ?.musicVideoType
+        get() =
+            anyWatchEndpoint
+                ?.watchEndpointMusicSupportedConfigs
+                ?.watchEndpointMusicConfig
+                ?.musicVideoType
 }
+
+/** A link out of YouTube, such as the Wikipedia source under an artist's bio. */
+@Serializable
+data class UrlEndpoint(
+    val url: String,
+)

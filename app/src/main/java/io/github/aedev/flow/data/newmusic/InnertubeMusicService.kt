@@ -4,6 +4,7 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicCharts
 import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTextLink
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.music.model.RelatedMusic
@@ -328,6 +329,7 @@ object InnertubeMusicService {
                 subscriberCount = parseCount(page.subscriberCountText),
                 monthlyListenersText = page.monthlyListenersText,
                 description = page.description ?: "",
+                descriptionLinks = page.descriptionLinks.map { MusicTextLink(it.start, it.end, it.url) },
                 topTracks = tracks(ArtistSectionKind.TOP_SONGS),
                 albums = releases(ArtistSectionKind.ALBUMS),
                 singles = releases(ArtistSectionKind.SINGLES),

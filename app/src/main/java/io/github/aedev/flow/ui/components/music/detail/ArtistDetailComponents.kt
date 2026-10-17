@@ -57,6 +57,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -64,6 +69,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.ArtistDetails
+import io.github.aedev.flow.data.music.model.MusicTextLink
 import io.github.aedev.flow.ui.components.shared.flowWindowWidth
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -290,17 +296,29 @@ private fun ArtistPlayMenuItem(
 }
 
 /**
- * The expandable artist description.
+ * The expandable artist description. [links] become tappable, such as its Wikipedia source.
  */
 @Composable
 fun ArtistBio(
     description: String,
+    links: List<MusicTextLink>,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val linkColor = MaterialTheme.colorScheme.primary
+    val text =
+        remember(description, links, linkColor) {
+            buildAnnotatedString {
+                append(description)
+                val styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
+                links
+                    .filter { it.start in 0 until it.end && it.end <= description.length }
+                    .forEach { addLink(LinkAnnotation.Url(it.url, styles), it.start, it.end) }
+            }
+        }
     Text(
-        text = description,
+        text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = if (isExpanded) Int.MAX_VALUE else COLLAPSED_BIO_LINES,
