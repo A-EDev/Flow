@@ -32,6 +32,7 @@ SEARCH, EXPLORE AND CHANNELS
 - Creator cards are tinted by the channel avatar and show their latest uploads
 - Blocked channels are hidden from search results too, not just the feed
 - Search history keeps each search's filters and applies them again on tap (#1174)
+- Recently uploaded, Unwatched and Watched chips in the search filter row. Watched and Unwatched use your watch history (#940)
 - Explore is rebuilt around Live, Gaming, Music, News, Sports, Learning and Fashion, with the region one tap away in the top bar
 - Explore's Music tab shows trending music videos from YouTube Music's charts for your region (#1254)
 - Explore tells you when to try again instead of showing raw errors
@@ -50,6 +51,8 @@ HOME AND RECOMMENDATIONS
 - Related videos rotate their seeds, spread across your interests, and say which video they came from in Details (#907)
 - New subscription uploads come from your whole subscription feed, and only a couple pin to the top, one per channel
 - Subscriptions show collaborations a channel you follow took part in, with every collaborator on the card. Turn it off in Content settings (#840)
+- Subscriptions save new uploads as soon as the quick check ends, and the slower Shorts and live check has its own counter (#1042)
+- With a subscription group open, refresh fetches only that group, small groups read further back, and older uploads stay between refreshes (#1099)
 - Channels you interact with are no longer ranked below ones you've never seen
 - The engine learns from watch time, early skips, downloads, Watch Later, playlist saves, live subscribes and your searches
 - It learns phrases instead of single words: creator tags, hashtags and word pairs you keep watching together. lo-fi and lofi count as one (#907)
@@ -87,6 +90,7 @@ MUSIC
 - While the engine is still new, the music page leads with charts and moods
 - A song played from search plays on its own and endless radio fills Up next, like YouTube Music
 - The whole music section moved to Material 3 Expressive: wide carousels, grouped Quick Picks, cookie shaped artists, mood tiles and new recognition screens
+- Android Auto: For you, Library, Playlists and Queue tabs, search, voice play and artwork, and music started in the car joins your queue (#1221)
 
 MUSIC PLAYER
 - Full redesign with a pill mini player and a progress ring
@@ -246,6 +250,7 @@ RECAP AND PRIVACY
 - A monthly and yearly Recap story, shareable as a poster
 - Digital wellbeing reads watch time from Recap once it covers a full week
 - Deep Flow keeps a session private: nothing goes to Recap, feed memory or scrobbling. Long press the FLOW wordmark or logo to switch it (#1228)
+- An optional Deep Flow switch above recent searches, turned on in Settings (#706)
 
 IMPORTS, SYNC AND UPDATES
 - Updates download, verify and install inside Flow, with release notes, size and Skip this version
