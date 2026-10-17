@@ -2708,4 +2708,11 @@
     <string name="transcript_search_hint">Buscar transcripción</string>
     <string name="transcript_language">Idioma</string>
     <string name="channel_links">Enlaces</string>
+    <string name="home_load_more_failed">No se pudieron cargar mas vídeos</string>
+    <string name="home_load_more_failed_body">Revisa tu conexión</string>
+    <string name="home_refresh_failed">No se puso refrescar la página principal</string>
+    <string name="lyrics_keep_screen_on">Mantén la pantalla encendida</string>
+    <string name="lyrics_keep_screen_on_summary">Mientras se ve la letra y la música se preproduce</string>
+    <string name="player_appearance_follow_light_theme_title">Tema claro en claro</string>
+    <string name="player_appearance_sleep_timer_button_title">Temporizador de apagado</string>
 </resources>
