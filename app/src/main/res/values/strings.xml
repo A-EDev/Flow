@@ -2186,6 +2186,8 @@
     <string name="daily_discover_for_fans_of">For fans of %1$s</string>
     <string name="section_recommended">Recommended</string>
     <string name="section_recently_played">Recently played</string>
+    <string name="auto_tab_for_you">For you</string>
+    <string name="auto_tab_queue">Queue</string>
     <string name="section_music_videos">Music videos</string>
     <string name="section_music_videos_for_you">Music videos for you</string>
     <string name="section_live_performances">Live performances</string>

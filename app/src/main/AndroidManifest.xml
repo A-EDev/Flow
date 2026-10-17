@@ -652,6 +652,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/shared_file_paths" />
         </provider>
+
+        <!-- Song artwork for Android Auto, which only loads browse images from content URIs. Read access is granted to the browsing car app. -->
+        <provider
+            android:name=".service.auto.AutoArtworkProvider"
+            android:authorities="${applicationId}.auto.artwork"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>
