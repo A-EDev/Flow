@@ -4594,4 +4594,13 @@
     <string name="settings_original_titles">العناوين الأصلية</string>
     <string name="settings_original_titles_summary">عرض العناوين والأوصاف بلغة الفيديو الأصلية</string>
     <string name="settings_keywords_original_titles">غير مترجم، مترجم تلقائيًا، الترجمة، اللغة الأصلية، العناوين، الأوصاف</string>
+    <string name="notif_check_interval_off_new_videos">معطّل طالما أن \"الفيديوهات الجديدة\" معطّلة</string>
+    <string name="content_settings_shared_links_title">الروابط المشاركة</string>
+    <string name="content_settings_shared_links_subtitle">ما الذي يفعله الفيديو عند مشاركته إلى Flow</string>
+    <string name="content_settings_shared_links_dialog_body">تشغيل الروابط التي تنقر عليها في التطبيقات الأخرى دائمًا.</string>
+    <string name="content_settings_shared_links_play">تشغيل فورًا</string>
+    <string name="content_settings_shared_links_ask_while_playing">اسأل أثناء تشغيل شيء ما</string>
+    <string name="content_settings_shared_links_always_ask">اسأل دائمًا</string>
+    <string name="shared_link_play_now">تشغيل الآن</string>
+    <string name="shared_link_play_now_desc">يستبدل ما يتم تشغيله حاليًا</string>
 </resources>
