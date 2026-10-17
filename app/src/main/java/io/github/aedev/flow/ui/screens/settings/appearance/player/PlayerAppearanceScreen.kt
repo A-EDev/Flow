@@ -64,6 +64,7 @@ internal fun PlayerAppearanceScreen(
     val artworkControlColors by viewModel.artworkControlColors.collectAsStateWithLifecycle()
     val animatedArtwork by viewModel.animatedArtwork.collectAsStateWithLifecycle()
     val plainControlColors by viewModel.plainControlColors.collectAsStateWithLifecycle()
+    val sleepTimerButton by viewModel.sleepTimerButton.collectAsStateWithLifecycle()
     val adaptiveSize by viewModel.adaptivePlayerSize.collectAsStateWithLifecycle()
     val ambientMode by viewModel.ambientMode.collectAsStateWithLifecycle()
     val groupedQuality by viewModel.groupedQualitySelector.collectAsStateWithLifecycle()
@@ -177,6 +178,7 @@ internal fun PlayerAppearanceScreen(
                     viewModel::setPlainControlColors,
                 )
             }
+            switch(PlayerAppearanceIndex.sleepTimerButton, sleepTimerButton, viewModel::setSleepTimerButton)
         }
         group(key = "player_appearance.video", header = R.string.settings_section_video_player) {
             switch(PlayerAppearanceIndex.adaptiveSize, adaptiveSize, viewModel::setAdaptivePlayerSize)

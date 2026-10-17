@@ -64,6 +64,7 @@ internal fun FullMusicPlayerContent(
     palette: MediaPalette,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
+    sleepTimerButton: Boolean,
     // The transport, seek bar, like and download and the action row draw with this scheme.
     controlScheme: ColorScheme = MaterialTheme.colorScheme,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
@@ -346,6 +347,8 @@ internal fun FullMusicPlayerContent(
                             onMoreClick = { showMoreOptions = true },
                             modifier = modifier,
                             queueActive = isWide && sidePaneTab == PlayerSidePaneTab.UP_NEXT,
+                            sleepTimerActive = SleepTimerManager.isActive,
+                            onSleepTimerClick = if (sleepTimerButton) ({ showSleepTimer = true }) else null,
                         )
                     }
                 },

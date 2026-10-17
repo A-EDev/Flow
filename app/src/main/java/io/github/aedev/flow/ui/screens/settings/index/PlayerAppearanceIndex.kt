@@ -98,6 +98,13 @@ internal object PlayerAppearanceIndex {
             section = R.string.settings_section_music_player,
             revealVia = artworkControlColors.key,
         )
+    val sleepTimerButton =
+        entry(
+            "music_sleep_timer_button",
+            R.string.player_appearance_sleep_timer_button_title,
+            R.string.player_appearance_sleep_timer_button_subtitle,
+            R.string.settings_section_music_player,
+        )
     val adaptiveSize =
         entry(
             "adaptive_size",
@@ -169,6 +176,7 @@ internal object PlayerAppearanceIndex {
             animatedArtworkWifiOnly,
             artworkControlColors,
             plainControlColors,
+            sleepTimerButton,
             adaptiveSize,
             ambientMode,
             groupedQuality,

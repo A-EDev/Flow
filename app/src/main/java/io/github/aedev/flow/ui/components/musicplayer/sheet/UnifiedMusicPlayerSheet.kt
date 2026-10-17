@@ -124,6 +124,7 @@ internal fun UnifiedMusicPlayerSheet(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
     )
     val hideArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
+    val sleepTimerButton by playerPreferences.musicSleepTimerButton.collectAsState(initial = false)
     val palette = rememberMediaPalette(displayTrack.highResThumbnailUrl)
     val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle)
     val artworkControlColors by playerPreferences.musicArtworkControlColors.collectAsState(initial = true)
@@ -466,6 +467,7 @@ internal fun UnifiedMusicPlayerSheet(
                             palette = palette,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
+                            sleepTimerButton = sleepTimerButton,
                             controlScheme = controlScheme,
                         )
                     }

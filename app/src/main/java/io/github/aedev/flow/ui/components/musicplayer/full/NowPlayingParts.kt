@@ -170,6 +170,8 @@ internal fun PlayerActionRow(
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
     queueActive: Boolean = false,
+    sleepTimerActive: Boolean = false,
+    onSleepTimerClick: (() -> Unit)? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Row(
@@ -187,6 +189,8 @@ internal fun PlayerActionRow(
             onQueueClick = onQueueClick,
             modifier = Modifier.weight(1f),
             queueActive = queueActive,
+            sleepTimerActive = sleepTimerActive,
+            onSleepTimerClick = onSleepTimerClick,
         )
         FilledTonalIconButton(
             onClick = onMoreClick,
