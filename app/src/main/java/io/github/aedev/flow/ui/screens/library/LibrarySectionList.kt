@@ -11,37 +11,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
+import io.github.aedev.flow.ui.components.library.LibrarySection
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
-import io.github.aedev.flow.ui.components.shared.MediaKind
 
 @Composable
 internal fun LibrarySectionList(
+    sections: List<LibrarySection>,
     counts: LibraryCounts?,
-    shortsEnabled: Boolean,
-    separatePlaylistKinds: Boolean,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToPlaylists: (MediaKind?) -> Unit,
-    onNavigateToLikedVideos: () -> Unit,
-    onNavigateToLikedMusic: () -> Unit,
-    onNavigateToWatchLater: () -> Unit,
-    onNavigateToSavedShorts: () -> Unit,
-    onNavigateToDownloads: () -> Unit,
+    onOpenSection: (LibrarySection) -> Unit,
 ) {
     Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
         LibrarySectionHeader(stringResource(R.string.library_section_header))
-        LibrarySectionRow(LibrarySection.HISTORY, counts, onNavigateToHistory)
-        if (separatePlaylistKinds) {
-            LibrarySectionRow(LibrarySection.VIDEO_PLAYLISTS, counts) { onNavigateToPlaylists(MediaKind.Videos) }
-            LibrarySectionRow(LibrarySection.MUSIC_PLAYLISTS, counts) { onNavigateToPlaylists(MediaKind.Music) }
-        } else {
-            LibrarySectionRow(LibrarySection.PLAYLISTS, counts) { onNavigateToPlaylists(null) }
-        }
-        LibrarySectionRow(LibrarySection.WATCH_LATER, counts, onNavigateToWatchLater)
-        LibrarySectionRow(LibrarySection.LIKED_VIDEOS, counts, onNavigateToLikedVideos)
-        LibrarySectionRow(LibrarySection.LIKED_MUSIC, counts, onNavigateToLikedMusic)
-        LibrarySectionRow(LibrarySection.DOWNLOADS, counts, onNavigateToDownloads)
-        if (shortsEnabled) {
-            LibrarySectionRow(LibrarySection.SAVED_SHORTS, counts, onNavigateToSavedShorts)
+        sections.forEach { section ->
+            LibrarySectionRow(section, counts) { onOpenSection(section) }
         }
     }
 }

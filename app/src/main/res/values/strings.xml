@@ -4295,6 +4295,7 @@
     <string name="settings_music_home_title">Music home</string>
     <string name="settings_music_home_summary">Choose the sections the music home shows</string>
     <string name="settings_music_home_sections">Sections</string>
+    <string name="settings_library_summary">Choose the sections Library shows</string>
     <string name="onboarding_step_artists">Artists</string>
     <string name="onboarding_artists_title">Pick some artists</string>
     <string name="onboarding_artists_subtitle">Your music picks start from them. Skip it if you like.</string>

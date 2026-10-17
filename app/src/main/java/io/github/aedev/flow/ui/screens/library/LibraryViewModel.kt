@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.stats.RecapReadiness
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.ui.components.library.LIBRARY_SHELF_ITEM_LIMIT
 import io.github.aedev.flow.ui.components.library.LibraryMediaItem
+import io.github.aedev.flow.ui.components.library.LibrarySection
 import io.github.aedev.flow.ui.components.library.toLibraryMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -174,6 +175,12 @@ class LibraryViewModel
         internal val separatePlaylistKinds =
             playerPreferences.separatePlaylistKinds
                 .stateIn(viewModelScope, sharing, false)
+
+        /** Null until the stored choice is read, so a hidden section never shows for a frame. */
+        internal val hiddenSections: StateFlow<Set<LibrarySection>?> =
+            playerPreferences.hiddenLibrarySections
+                .map(LibrarySection::fromStored)
+                .stateIn(viewModelScope, sharing, null)
 
         internal val shelfPreviewsEnabled =
             playerPreferences.libraryShelfPreviewsEnabled

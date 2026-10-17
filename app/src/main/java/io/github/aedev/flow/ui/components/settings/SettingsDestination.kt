@@ -35,6 +35,7 @@ enum class SettingsDestination(
     QUALITY("quality", R.string.quality),
     CONTENT("content", R.string.settings_content_title),
     MUSIC_HOME("music_home", R.string.settings_music_home_title, CONTENT),
+    LIBRARY("library", R.string.library, CONTENT),
     TOPICS("topics", R.string.settings_topics_title),
     INTEGRATIONS("integrations", R.string.settings_integrations_title),
     SCROBBLING("scrobbling", R.string.scrobbling_title, INTEGRATIONS),
