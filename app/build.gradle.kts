@@ -218,6 +218,12 @@ android {
         unitTests {
             isReturnDefaultValues = true
             isIncludeAndroidResources = true
+            all { test ->
+                // Opt-in tokenizer export for the sponsor tests; without it they skip rather than fail.
+                providers.gradleProperty("sponsorModelAssets").orNull?.let {
+                    test.systemProperty("sponsorModelAssets", it)
+                }
+            }
         }
     }
 }
@@ -273,7 +279,38 @@ composeCompiler {
     }
 }
 
+val onnxRuntimeAar = file("libs/onnxruntime-android-1.29.0.aar")
+
+// The release-style GitHub builds ship the reduced ONNX Runtime from tools/onnxruntime; the full Maven artifact
+// would add ~30 MB per ABI, so they refuse to build without it. The FOSS flavor has no on-device detection.
+val requireOnnxRuntimeAar by tasks.registering {
+    val aar = onnxRuntimeAar
+    doLast {
+        if (!aar.exists()) {
+            throw GradleException(
+                "app/libs/onnxruntime-android-1.29.0.aar is missing. Run tools/onnxruntime/build-onnxruntime-android.sh first.",
+            )
+        }
+    }
+}
+tasks.configureEach {
+    if (name == "preGithubReleaseBuild" || name == "preGithubNightlyBuild") dependsOn(requireOnnxRuntimeAar)
+}
+
+if (!onnxRuntimeAar.exists()) {
+    logger.warn("app/libs/onnxruntime-android-1.29.0.aar is missing; GitHub debug builds use the full ONNX Runtime from Maven.")
+    configurations.configureEach {
+        if (name == "githubDebugImplementation") {
+            project.dependencies.add(name, "com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
+        }
+    }
+}
+
 dependencies {
+    if (onnxRuntimeAar.exists()) {
+        "githubImplementation"(files(onnxRuntimeAar))
+    }
+
     // --- Core Android ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

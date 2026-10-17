@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.data.sponsordetection.isOnDevicePrediction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -24,6 +25,11 @@ import kotlinx.coroutines.launch
  */
 class SponsorBlockHandler(
     private val scope: CoroutineScope,
+    /** Used only when the SponsorBlock database has no segments for the video; results are suggestions. */
+    private val fallbackSegments: suspend (
+        videoId: String,
+        onProvisional: (List<SponsorBlockSegment>) -> Unit,
+    ) -> List<SponsorBlockSegment> = { _, _ -> emptyList() },
 ) {
     companion object {
         private const val TAG = "SponsorBlockHandler"
@@ -125,7 +131,12 @@ class SponsorBlockHandler(
         loadJob =
             scope.launch {
                 try {
-                    val segments = sponsorBlockRepository.getSegments(videoId)
+                    val segments =
+                        sponsorBlockRepository.getSegments(videoId).ifEmpty {
+                            fallbackSegments(videoId) { provisional ->
+                                if (videoId == currentVideoId && isEnabled) _sponsorSegments.value = provisional
+                            }
+                        }
                     _sponsorSegments.value = segments
                     Log.d(TAG, "Loaded ${segments.size} segments for video $videoId")
                     segments.forEach {
@@ -250,6 +261,7 @@ class SponsorBlockHandler(
 
             return when (action) {
                 SponsorBlockAction.SKIP -> {
+                    if (segment.isOnDevicePrediction()) return null
                     lastSkippedSegmentUuid = segment.uuid
                     _skipEvent.tryEmit(segment)
                     (segment.endTime * 1000).toLong()

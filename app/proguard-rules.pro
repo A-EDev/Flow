@@ -92,3 +92,5 @@
 -dontwarn javax.annotation.**
 -dontwarn org.slf4j.**
 -dontwarn java.beans.**
+## ONNX Runtime: its native code looks these classes up by name
+-keep class ai.onnxruntime.** { *; }

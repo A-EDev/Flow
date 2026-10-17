@@ -41,6 +41,17 @@ internal object IntegrationsIndex {
             revealVia = sponsorBlock.key,
             destination = page,
         )
+    val onDevice =
+        SettingEntry(
+            key = "integrations.sponsorblock.on_device",
+            title = R.string.sponsor_model_toggle_title,
+            summary = R.string.sponsor_model_toggle_subtitle,
+            keywords = R.string.settings_keywords_sponsorblock,
+            section = R.string.player_settings_sponsorblock,
+            revealVia = sponsorBlock.key,
+            availability = SettingAvailability.GithubOnly,
+            destination = page,
+        )
     val deArrow =
         SettingEntry(
             key = "integrations.dearrow",
@@ -84,5 +95,5 @@ internal object IntegrationsIndex {
             destination = page,
         )
 
-    val all = listOf(sponsorBlock, segments, contribute, userId, deArrow, deArrowBadge, dislikes, discord, discordAccount)
+    val all = listOf(sponsorBlock, segments, contribute, userId, onDevice, deArrow, deArrowBadge, dislikes, discord, discordAccount)
 }
