@@ -39,6 +39,7 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
+import io.github.aedev.flow.ui.components.music.detail.ArtistQueue
 import io.github.aedev.flow.ui.components.music.detail.MusicHeroTopBar
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
@@ -102,24 +103,25 @@ fun ArtistPage(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    var isStartingQueue by remember { mutableStateOf(false) }
+    var startingQueue by remember { mutableStateOf<ArtistQueue?>(null) }
 
     // The artist's own shuffle and mix are fetched first; a missing or empty one falls back to
     // what the page already holds.
     fun playWatchPlaylist(
+        queue: ArtistQueue,
         playlistId: String?,
         params: String?,
         fallback: () -> Unit,
     ) {
-        if (isStartingQueue) return
+        if (startingQueue != null) return
         if (playlistId == null) return fallback()
         scope.launch {
-            isStartingQueue = true
+            startingQueue = queue
             val played =
                 try {
                     onPlayWatchPlaylist(playlistId, params)
                 } finally {
-                    isStartingQueue = false
+                    startingQueue = null
                 }
             if (!played) fallback()
         }
@@ -169,27 +171,23 @@ fun ArtistPage(
                     val topTracks = artistDetails.topTracks
                     ArtistHero(
                         artist = artistDetails,
-                        isStartingQueue = isStartingQueue,
+                        startingQueue = startingQueue,
                         onFollowClick = onFollowClick,
                         onPlayClick = {
                             if (topTracks.isNotEmpty()) onTrackClick(topTracks.first(), topTracks)
                         },
                         onShuffleClick = {
-                            playWatchPlaylist(artistDetails.shufflePlaylistId, artistDetails.shuffleParams) {
+                            playWatchPlaylist(ArtistQueue.SHUFFLE, artistDetails.shufflePlaylistId, artistDetails.shuffleParams) {
                                 if (topTracks.isNotEmpty()) onTrackClick(topTracks.random(), topTracks.shuffled())
                             }
                         },
                         onRadioClick =
                             artistDetails.radioPlaylistId?.let { radioId ->
                                 {
-                                    playWatchPlaylist(radioId, artistDetails.radioParams) {
+                                    playWatchPlaylist(ArtistQueue.RADIO, radioId, artistDetails.radioParams) {
                                         topTracks.firstOrNull()?.let(onStartRadio)
                                     }
                                 }
-                            },
-                        onVideosClick =
-                            artistDetails.videos.takeIf { it.isNotEmpty() }?.let { videos ->
-                                { onTrackClick(videos.first(), videos) }
                             },
                     )
                 }
@@ -279,6 +277,7 @@ fun ArtistPage(
                             title = stringResource(R.string.tab_videos),
                             items = artistDetails.videos,
                             key = { "videos:${it.videoId}" },
+                            action = MusicSectionAction.PlayAll { onTrackClick(artistDetails.videos.first(), artistDetails.videos) },
                         ) { video ->
                             MusicCollectionCard(
                                 title = video.title,
