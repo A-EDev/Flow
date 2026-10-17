@@ -309,7 +309,7 @@
     <string name="playlist_public">Публічний</string>
     <string name="details_metadata">Подробиці</string>
     <string name="mark_as_watched_toast">Позначено як переглянуте</string>
-    <string name="i_like_this">Я хочу більше подібного</string>
+    <string name="i_like_this">Більше подібного</string>
     <string name="i_like_this_toast">Ви побачите більше такого контенту.</string>
     <string name="likes">Лайки</string>
     <string name="dislikes">Дизлайк</string>
@@ -4344,4 +4344,34 @@
     <string name="sync_error_protocol">Два пристрої не змогли узгодити кроки синхронізації. Оновіть Flow на обох пристроях і спробуйте ще раз.</string>
     <string name="sync_error_peer">Інший пристрій повідомив про проблему: %1$s</string>
     <string name="music_playback_warning_unavailable">Ця пісня більше недоступна на YouTube.</string>
+    <string name="home_load_more_failed">Не вдалося завантажити інші відео</string>
+    <string name="home_load_more_failed_body">Перевірте своє з’єднання</string>
+    <string name="home_refresh_failed">Не вдалося оновити стрічку</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Перевірка %1$d з %2$d каналу для Shorts та трансляцій</item>
+        <item quantity="few">Перевірка %1$d з %2$d каналів для Shorts та трансляцій</item>
+        <item quantity="many">Перевірка %1$d з %2$d каналів для Shorts та трансляцій</item>
+        <item quantity="other">Перевірка %1$d з %2$d каналів для Shorts та трансляцій</item>
+    </plurals>
+    <string name="lyrics_keep_screen_on">Не вимикати екран</string>
+    <string name="lyrics_keep_screen_on_summary">Поки на екрані показуються слова пісні, а музика грає</string>
+    <string name="player_appearance_follow_light_theme_title">Світло у світлій темі</string>
+    <string name="player_appearance_follow_light_theme_subtitle">Фони ілюстрацій стають світлими</string>
+    <string name="player_appearance_sleep_timer_button_title">Кнопка таймера вимкнення</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">Показати поруч із кнопкою черги</string>
+    <plurals name="course_lessons_count">
+        <item quantity="one">Курс · %d урок</item>
+        <item quantity="few">Курс · %d уроки</item>
+        <item quantity="many">Курс · %d уроків</item>
+        <item quantity="other">Курс · %d уроків</item>
+    </plurals>
+    <string name="search_filter_group_watched">Переглянуто</string>
+    <string name="search_filter_recently_uploaded">Нещодавно завантажені</string>
+    <string name="search_filter_watch_any">Переглянуто чи ні</string>
+    <string name="search_filter_unwatched">Не переглянуто</string>
+    <string name="search_filter_watched">Переглянуто</string>
+    <string name="search_watch_empty_watched">Тут немає переглянутих відео</string>
+    <string name="search_watch_empty_unwatched">Тут немає непереглянутих відео</string>
+    <string name="deep_flow_on_search_title">Показати у результатах пошуку</string>
+    <string name="deep_flow_on_search_subtitle">Перемикач «Deep Flow» над останніми пошуковими запитами</string>
 </resources>
