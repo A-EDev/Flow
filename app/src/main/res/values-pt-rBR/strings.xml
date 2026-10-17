@@ -3726,4 +3726,14 @@
     <string name="player_settings_speed_swipe_left">Lado esquerdo</string>
     <string name="player_settings_speed_swipe_right">Lado direito</string>
     <string name="content_settings_live_chat_enabled_subtitle">Mostrar chat em transmissões ao vivo</string>
+    <plurals name="import_takeout_part_history">
+        <item quantity="one">%d entrada do histórico</item>
+        <item quantity="many">%d de entradas do histórico</item>
+        <item quantity="other">%d entradas do histórico</item>
+    </plurals>
+    <plurals name="import_takeout_part_music_library">
+        <item quantity="one">%d música da biblioteca do YouTube Music</item>
+        <item quantity="many">%d de músicas da biblioteca do YouTube Music</item>
+        <item quantity="other">%d músicas da biblioteca do YouTube Music</item>
+    </plurals>
 </resources>
