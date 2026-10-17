@@ -18,6 +18,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
@@ -50,6 +54,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
@@ -99,6 +105,16 @@ fun HomeScreen(
     val chipRowState = rememberTopAppBarState()
     val chipRowBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(chipRowState)
     val currentChips by rememberUpdatedState(chips)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val refreshFailed = stringResource(R.string.home_refresh_failed)
+    val retryLabel = stringResource(R.string.retry)
+
+    LaunchedEffect(viewModel) {
+        viewModel.refreshFailures.collectLatest {
+            val result = snackbarHostState.showSnackbar(refreshFailed, actionLabel = retryLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) viewModel.refreshFeed()
+        }
+    }
 
     LifecycleStartEffect(viewModel, homeFeedEnabled) {
         if (homeFeedEnabled) {
@@ -164,6 +180,9 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
+        snackbarHost = {
+            SnackbarHost(snackbarHostState, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current))
+        },
         topBar = {
             FlowTopBar(
                 title = {
@@ -287,6 +306,9 @@ fun HomeScreen(
                                 onOpenShortsFeed = onOpenShortsFeed,
                                 onShortsShown = viewModel::recordShelfImpressions,
                                 onRefresh = { viewModel.refreshFeed() },
+                                onRetryLoadMore = viewModel::retryLoadMore,
+                                // Since v5 the feed can end at a few dozen cards; a list that just stops reads as broken (#1317).
+                                footerMinVideos = 0,
                             )
                         }
                     }

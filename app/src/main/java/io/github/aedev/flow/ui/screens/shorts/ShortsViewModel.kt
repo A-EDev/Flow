@@ -18,6 +18,7 @@ import io.github.aedev.flow.data.model.ShortLinkedVideo
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.recommendation.BlockedChannelNames
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -72,6 +73,7 @@ class ShortsViewModel
         private val queueFactory: ShortsQueueLoaderFactory,
         private val playerPreferences: PlayerPreferences,
         private val videoStats: VideoStatsRecorder,
+        private val blockedNames: BlockedChannelNames,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(ShortsUiState())
         val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
@@ -538,13 +540,17 @@ class ShortsViewModel
         fun blockChannel(short: ShortVideo) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 try {
-                    val channelId = short.channelId
+                    // A handle in place of the channel id would block a key no feed matches.
+                    val metadata = if (short.channelId.startsWith("UC")) null else repository.getLiveWatchMetadata(short.id)
+                    val channelId = metadata?.channelId.orEmpty().ifBlank { short.channelId }
                     check(channelId.isNotBlank()) { context.getString(R.string.channel_metadata_unavailable) }
+                    val channelName = metadata?.channelName.orEmpty().ifBlank { short.channelName }
                     FlowNeuroEngine.blockChannel(context, channelId)
+                    blockedNames.remember(channelId, channelName)
                     videoStats.onAction(LedgerAction.BLOCK_CHANNEL)
                     dropChannel(channelId)
                     FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(channelId, short.id))
-                    _snackbarMessage.value = context.getString(R.string.channel_blocked_toast, short.channelName)
+                    _snackbarMessage.value = context.getString(R.string.channel_blocked_toast, channelName)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error blocking channel", e)
                     _snackbarMessage.value = context.getString(R.string.quick_actions_error_template, e.message)

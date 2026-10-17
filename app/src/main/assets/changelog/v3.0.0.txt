@@ -323,6 +323,10 @@ FIXES AND STABILITY
 - Fix videos touching each other when Cards per row is two or three on a phone; cards that narrow leave out the channel picture so the title fits (#1281)
 - The sleep timer's Start and Cancel buttons stay in view instead of sitting below the fold, and the music player's sheet now fits its content
 - Artist bios no longer stop at "From Wikipedia (": the whole text shows, with its source and licence links, and the song rows on artist pages are visible again
+- Home keeps loading after a dropped connection: a failed search no longer ends the feed or comes back empty for half an hour, and a Retry row shows where loading more failed (#1317)
+- Loading more adds several videos at a time instead of one or two, and Home says when it has run out of videos at any feed length (#1317)
+- A refresh that fails keeps the feed on screen and says so with a Retry, and a pull to refresh during a load no longer snaps back (#1317)
+- Hidden from you shows the name of every blocked channel instead of its ID, and older blocks are looked up once (#1325)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

@@ -14,6 +14,9 @@
     <string name="no_subscriptions_yet">No Subscriptions Yet</string>
     <string name="empty_subscriptions_body">Subscribe to channels to see their latest videos here</string>
     <string name="home_refresh_feed">Refresh Feed</string>
+    <string name="home_load_more_failed">Couldn\'t load more videos</string>
+    <string name="home_load_more_failed_body">Check your connection</string>
+    <string name="home_refresh_failed">Couldn\'t refresh your feed</string>
     <plurals name="subscriptions_refresh_progress_template">
         <item quantity="one">Refreshing %1$d of %2$d channel</item>
         <item quantity="other">Refreshing %1$d of %2$d channels</item>
@@ -3952,6 +3955,7 @@
     <string name="taste_hidden_artists">Artists</string>
     <string name="taste_unblock">Unblock</string>
     <string name="taste_unblock_item">Unblock %1$s</string>
+    <string name="taste_unknown_channel">Unknown channel</string>
     <string name="taste_data_header">Your data</string>
     <string name="taste_export_video">Export video profile</string>
     <string name="taste_import_video">Import video profile</string>

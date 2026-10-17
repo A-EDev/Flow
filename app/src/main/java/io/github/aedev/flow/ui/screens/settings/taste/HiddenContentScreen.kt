@@ -9,9 +9,11 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -33,6 +35,7 @@ internal fun HiddenContentScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hidden = state.hidden
+    LaunchedEffect(viewModel) { viewModel.resolveMissingNames() }
     SettingsPage(title = stringResource(R.string.taste_hidden_title), onBack = onBack, highlight = highlight) {
         if (!state.loading && hidden.count == 0) {
             item("hidden.empty") {
@@ -50,7 +53,7 @@ internal fun HiddenContentScreen(
             hidden.topics.map { NamedItem(it, it.readableTopic()) },
             viewModel::unblockTopic,
         )
-        hiddenGroup("hidden.channels", R.string.taste_hidden_channels, hidden.channels, viewModel::unblockChannel)
+        hiddenChannels(hidden.channels, hidden.resolvingNames, viewModel::unblockChannel)
         hiddenGroup("hidden.artists", R.string.taste_hidden_artists, hidden.artists, viewModel::unblockArtist)
     }
 }
@@ -75,6 +78,35 @@ private fun SettingsListScope.hiddenGroup(
     }
 }
 
+/** A channel without a name yet reads as loading while names are fetched, then as unknown with its id below. */
+private fun SettingsListScope.hiddenChannels(
+    channels: List<NamedItem>,
+    resolvingNames: Boolean,
+    onUnblock: (String) -> Unit,
+) {
+    group(key = "hidden.channels", header = R.string.taste_hidden_channels) {
+        channels.forEach { item ->
+            row("hidden.channels.${item.id}") { shape ->
+                val unnamed = item.name.isBlank()
+                val label =
+                    when {
+                        !unnamed -> item.name
+                        resolvingNames -> stringResource(R.string.loading_ellipsis)
+                        else -> stringResource(R.string.taste_unknown_channel)
+                    }
+                TasteActionRow(
+                    name = label,
+                    shape = shape,
+                    actionLabel = stringResource(R.string.taste_unblock),
+                    actionDescription = stringResource(R.string.taste_unblock_item, if (unnamed) item.id else item.name),
+                    supporting = item.id.takeIf { unnamed && !resolvingNames },
+                    muted = unnamed,
+                ) { onUnblock(item.id) }
+            }
+        }
+    }
+}
+
 /** One named item with a single text action, such as unblocking or removing it. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -83,18 +115,26 @@ internal fun TasteActionRow(
     shape: Shape,
     actionLabel: String,
     actionDescription: String,
+    supporting: String? = null,
+    muted: Boolean = false,
     onAction: () -> Unit,
 ) {
     SegmentedListItem(
         verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        supportingContent = supporting?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         trailingContent = {
             TextButton(onClick = onAction, modifier = Modifier.semantics { contentDescription = actionDescription }) {
                 Text(actionLabel)
             }
         },
     ) {
-        Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            name,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
+        )
     }
 }
