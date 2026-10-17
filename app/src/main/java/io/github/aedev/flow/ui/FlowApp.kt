@@ -169,6 +169,7 @@ fun FlowApp(
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
 
     val currentEntry by navController.currentBackStackEntryAsState()
+    val statusBarHero = remember { StatusBarHeroState() }
     val currentTab = currentEntry?.flowTab()
     val selectedTab by rememberSelectedFlowTab(navController, defaultTab)
     val usesNavigationRail = flowUsesNavigationRail()
@@ -327,6 +328,10 @@ fun FlowApp(
                 musicPlayerBackgroundStyle == io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.DEFAULT ||
                     (musicPlayerFollowLightTheme && musicPlayerBackgroundStyle.canTurnLight),
             isShortsPlayer = isShortsPlayerRoute,
+            heroUnderStatusBar =
+                statusBarHero.heroUnderStatusBar &&
+                    !musicPlayerSheetState.isExpanded &&
+                    playerSheetState.currentValue != PlayerSheetValue.Expanded,
         )
 
         LaunchedEffect(isInPipMode) {
@@ -485,6 +490,7 @@ fun FlowApp(
                                     LocalMusicMenus provides musicMenus,
                                     LocalEqualizerState provides equalizerViewModel.state,
                                     LocalFlowBottomInsets provides bottomInsets,
+                                    LocalStatusBarHero provides statusBarHero,
                                 ) {
                                     NavHost(
                                         navController = navController,

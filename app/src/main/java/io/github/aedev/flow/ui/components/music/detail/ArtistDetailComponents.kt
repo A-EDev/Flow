@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -97,7 +101,7 @@ fun ArtistHero(
 ) {
     val context = LocalContext.current
     val imageUrl = artist.thumbnailUrl.ifEmpty { artist.bannerUrl }
-    val heroHeight = flowWindowWidth().coerceAtMost(HeroMaxHeight)
+    val heroHeight = artistHeroPhotoHeight()
     val heroShape =
         MaterialTheme.shapes.extraExtraLarge.copy(
             topStart = CornerSize(0.dp),
@@ -224,6 +228,11 @@ fun ArtistHero(
         }
     }
 }
+
+/** The hero photo's height. The page runs under the status bar, so the photo grows by it and keeps its visible size. */
+@Composable
+fun artistHeroPhotoHeight(): Dp =
+    flowWindowWidth().coerceAtMost(HeroMaxHeight) + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
 /**
  * Shuffle or Radio: a tonal icon button that names itself in a tooltip, and turns into a spinner

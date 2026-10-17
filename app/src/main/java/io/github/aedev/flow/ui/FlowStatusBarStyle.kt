@@ -5,6 +5,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -23,6 +28,8 @@ internal fun ApplyStatusBarStyle(
     isMusicPlayerImmersive: Boolean = false,
     musicPlayerFollowsTheme: Boolean = false,
     isShortsPlayer: Boolean = false,
+    // A page's full-bleed hero is under the status bar, so its icons must be light to read on the photo.
+    heroUnderStatusBar: Boolean = false,
 ) {
     val activity = LocalContext.current as? Activity ?: return
     val view = LocalView.current
@@ -39,7 +46,7 @@ internal fun ApplyStatusBarStyle(
     SideEffect {
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, view)
-        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive || isShortsPlayer
+        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive || isShortsPlayer || heroUnderStatusBar
 
         window.statusBarColor =
             if (shouldDrawBehindStatusBar) {
@@ -54,3 +61,26 @@ internal fun ApplyStatusBarStyle(
             (!isDarkTheme && !shouldDrawBehindStatusBar) || musicImmersiveOnLightSurface
     }
 }
+
+/**
+ * Lets the page on screen say its hero photo sits under the status bar, so the status bar icons
+ * turn light while the photo is there. Only the page that claimed it last can release it, so a
+ * page leaving during a transition never clears the claim of the page that replaced it.
+ */
+@Stable
+internal class StatusBarHeroState {
+    private var owner: Any? by mutableStateOf(null)
+
+    val heroUnderStatusBar: Boolean
+        get() = owner != null
+
+    fun claim(owner: Any) {
+        this.owner = owner
+    }
+
+    fun release(owner: Any) {
+        if (this.owner === owner) this.owner = null
+    }
+}
+
+internal val LocalStatusBarHero = staticCompositionLocalOf<StatusBarHeroState?> { null }
