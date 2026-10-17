@@ -340,7 +340,7 @@ private fun LazyListScope.segmentedTracks(
             track = track,
             index = index + 1,
             shape = flowSegmentShape(index = index, count = tracks.size),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track, queue) },
             onLongClick = { onTrackMenu(track) },
