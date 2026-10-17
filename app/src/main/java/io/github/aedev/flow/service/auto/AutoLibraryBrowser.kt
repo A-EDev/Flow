@@ -166,8 +166,17 @@ internal class AutoLibraryBrowser(
 
     private suspend fun expand(item: MediaItem): Pair<List<MusicTrack>, Int> {
         val query = item.requestMetadata.searchQuery
-        if (!query.isNullOrBlank() && item.mediaId.isBlank()) {
-            return withContext(PerformanceDispatcher.networkIO) { library.search(query) } to 0
+        if (query != null && item.mediaId.isBlank()) {
+            // "Play music on Flow" arrives with no words, and plays what the user has on repeat.
+            val tracks =
+                if (query.isBlank()) {
+                    withContext(PerformanceDispatcher.diskIO) {
+                        library.tracks(AutoBrowseTree.ON_REPEAT).orEmpty().ifEmpty { library.tracks(AutoBrowseTree.RECENT).orEmpty() }
+                    }
+                } else {
+                    withContext(PerformanceDispatcher.networkIO) { library.search(query) }
+                }
+            return tracks to 0
         }
         val (parentId, videoId) = AutoBrowseTree.songOf(item.mediaId) ?: return resolveEach(listOf(item)) to 0
         val tracks = withContext(PerformanceDispatcher.diskIO) { library.tracks(parentId) }.orEmpty()
