@@ -34,6 +34,7 @@ data class MusicPlayerUiState(
     val lyricsShowTranslation: Boolean = true,
     val lyricsShowRomanization: Boolean = true,
     val lyricsAutoRomanize: Boolean = false,
+    val lyricsKeepScreenOn: Boolean = false,
     val lyricsCandidates: List<LyricsCandidate> = emptyList(),
     val isBrowsingLyrics: Boolean = false,
 )

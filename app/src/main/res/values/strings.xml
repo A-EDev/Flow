@@ -131,6 +131,8 @@
     <string name="lyrics_show_romanization_summary">Show lyrics in other scripts in Latin letters too</string>
     <string name="lyrics_auto_romanize">Romanize on this device</string>
     <string name="lyrics_auto_romanize_summary">When the lyrics source has no romanization</string>
+    <string name="lyrics_keep_screen_on">Keep screen on</string>
+    <string name="lyrics_keep_screen_on_summary">While lyrics are showing and music plays</string>
     <string name="player_appearance_artwork_control_colors_title">Artwork colors on controls</string>
     <string name="player_appearance_artwork_control_colors_subtitle">Tint the buttons and seek bar from the cover</string>
     <string name="player_appearance_plain_control_colors_title">Control colors</string>
@@ -2071,6 +2073,7 @@
     <string name="artist_insights_played_times">Played %1$d times</string>
     <string name="artist_insights_liked">Liked</string>
     <string name="artist_known_related_badge">In your rotation</string>
+    <string name="artist_play_videos">Play videos</string>
     <string name="section_rotation_morning">Your morning rotation</string>
     <string name="section_rotation_afternoon">Your afternoon rotation</string>
     <string name="section_rotation_evening">Your evening rotation</string>

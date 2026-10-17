@@ -288,6 +288,15 @@ internal fun NavGraphBuilder.musicRoutes(
                         val encodedParams = if (params != null) android.net.Uri.encode(params) else null
                         navController.navigate("artistItems/$channelId/$browseId?params=$encodedParams")
                     },
+                    onPlayWatchPlaylist = { playlistId, params ->
+                        musicPlayerViewModel.playWatchPlaylist(playlistId, params).also { played ->
+                            if (played) onMusicStarted()
+                        }
+                    },
+                    onStartRadio = { track ->
+                        musicPlayerViewModel.startRadio(track)
+                        onMusicStarted()
+                    },
                 )
             }
         }
