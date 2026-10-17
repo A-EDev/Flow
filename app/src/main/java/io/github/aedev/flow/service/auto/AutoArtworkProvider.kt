@@ -81,7 +81,13 @@ class AutoArtworkProvider : ContentProvider() {
             context: Context,
             packageName: String,
         ) {
-            val prefix = Uri.Builder().scheme("content").authority(context.packageName + AUTHORITY_SUFFIX).appendPath(ART_PATH).build()
+            val prefix =
+                Uri
+                    .Builder()
+                    .scheme("content")
+                    .authority(context.packageName + AUTHORITY_SUFFIX)
+                    .appendPath(ART_PATH)
+                    .build()
             runCatching {
                 context.grantUriPermission(
                     packageName,
@@ -99,8 +105,11 @@ class AutoArtworkProvider : ContentProvider() {
             if (url.isBlank()) return null
             val parsed = Uri.parse(url)
             return when {
-                parsed.scheme == "content" || parsed.scheme == "android.resource" -> parsed
-                isAllowedArtworkUrl(url) ->
+                parsed.scheme == "content" || parsed.scheme == "android.resource" -> {
+                    parsed
+                }
+
+                isAllowedArtworkUrl(url) -> {
                     Uri
                         .Builder()
                         .scheme("content")
@@ -108,7 +117,11 @@ class AutoArtworkProvider : ContentProvider() {
                         .appendPath(ART_PATH)
                         .appendQueryParameter(URL_PARAM, url)
                         .build()
-                else -> null
+                }
+
+                else -> {
+                    null
+                }
             }
         }
 

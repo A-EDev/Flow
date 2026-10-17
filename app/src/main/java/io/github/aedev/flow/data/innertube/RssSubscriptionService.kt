@@ -194,7 +194,8 @@ class RssSubscriptionService
                             chunk
                                 .map { channelId ->
                                     async(Dispatchers.IO) {
-                                        channelId to runChannelTabFetch(channelId, minimumDateMillis, sweep.rssDates, channelExtractionCount)
+                                        channelId to
+                                            runChannelTabFetch(channelId, minimumDateMillis, sweep.rssDates, channelExtractionCount)
                                     }
                                 }.awaitAll()
                         }
@@ -529,7 +530,6 @@ class RssSubscriptionService
             const val CHANNEL_BATCH_SIZE = 50
             val CHANNEL_BATCH_DELAY = (100L..400L)
             const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
-
 
             val RESTRICTION_MARKERS =
                 listOf(

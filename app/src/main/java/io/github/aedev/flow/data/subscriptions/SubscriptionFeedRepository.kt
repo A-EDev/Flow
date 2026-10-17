@@ -118,7 +118,12 @@ class SubscriptionFeedRepository
                 if (plan.isEmpty) return@flow
                 if (!refreshLock.tryLock()) {
                     Log.d(TAG, "A subscription refresh is already running; following it")
-                    emitAll(running.takeWhile { it != null }.filterNotNull().transformWhile { emit(it); !it.finished })
+                    emitAll(
+                        running.takeWhile { it != null }.filterNotNull().transformWhile {
+                            emit(it)
+                            !it.finished
+                        },
+                    )
                     return@flow
                 }
 

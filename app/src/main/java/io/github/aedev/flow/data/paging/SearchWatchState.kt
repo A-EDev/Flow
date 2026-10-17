@@ -31,6 +31,7 @@ internal fun List<SearchResultItem>.withWatchState(
 ): List<SearchResultItem> {
     if (state == WatchState.ANY) return this
     val keepWatched = state == WatchState.WATCHED
+
     fun Video.kept() = (id in watchedIds) == keepWatched
 
     return mapNotNull { item ->

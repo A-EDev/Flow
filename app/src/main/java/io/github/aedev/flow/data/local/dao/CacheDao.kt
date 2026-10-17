@@ -98,7 +98,6 @@ interface CacheDao {
     @Query("DELETE FROM subscription_feed_cache WHERE channelId IN (:channelIds) AND feedChannelId = ''")
     suspend fun deleteSubscriptionFeedForChannels(channelIds: List<String>)
 
-
     @Query("DELETE FROM subscription_feed_cache WHERE feedChannelId = :feedChannelId")
     suspend fun deleteCollaborationsFrom(feedChannelId: String)
 

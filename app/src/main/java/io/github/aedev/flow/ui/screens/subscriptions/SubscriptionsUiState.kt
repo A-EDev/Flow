@@ -91,8 +91,7 @@ data class SubscriptionsUiState(
     val failedChannelReasons: Map<String, String> = emptyMap(),
 ) {
     /** The selected group's channels, which scope its refreshes and reads; null for every subscription. */
-    fun selectedGroupScope(): Set<String>? =
-        selectedGroupName?.let { name -> groups.find { it.name == name }?.channelIds?.toSet() }
+    fun selectedGroupScope(): Set<String>? = selectedGroupName?.let { name -> groups.find { it.name == name }?.channelIds?.toSet() }
 
     /** Display names for [failedChannelIds], falling back to the raw id for an unknown channel. */
     val failedChannelNames: List<String>

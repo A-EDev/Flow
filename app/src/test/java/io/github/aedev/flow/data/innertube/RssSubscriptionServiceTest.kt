@@ -275,7 +275,13 @@ class RssSubscriptionServiceTest {
             val rssStage = chunks.filter { it.stage == SubscriptionRefreshStage.RSS }
 
             assertThat(rssStage.flatMap { it.videos }).isEmpty()
-            assertThat(chunks.last().videos.single { it.id == "r1" }.isShort).isTrue()
+            assertThat(
+                chunks
+                    .last()
+                    .videos
+                    .single { it.id == "r1" }
+                    .isShort,
+            ).isTrue()
         }
 
     @Test

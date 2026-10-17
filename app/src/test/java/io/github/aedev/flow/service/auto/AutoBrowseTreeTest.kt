@@ -17,7 +17,9 @@ class AutoBrowseTreeTest {
         val search = AutoBrowseTree.search(" daft punk ")
 
         assertThat(AutoBrowseTree.songOf(AutoBrowseTree.song(playlist, "v1"))?.first?.let(AutoBrowseTree::playlistIdOf)).isEqualTo("PL:abc")
-        assertThat(AutoBrowseTree.songOf(AutoBrowseTree.song(search, "v2"))?.first?.let(AutoBrowseTree::searchQueryOf)).isEqualTo("daft punk")
+        assertThat(
+            AutoBrowseTree.songOf(AutoBrowseTree.song(search, "v2"))?.first?.let(AutoBrowseTree::searchQueryOf),
+        ).isEqualTo("daft punk")
     }
 
     @Test
