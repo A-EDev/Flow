@@ -66,6 +66,12 @@ internal fun ContentSettingsScreen(
                 onClick = { onNavigate(SettingsTarget(SettingsDestination.MUSIC_HOME)) },
             )
         }
+        group(key = "content.library", header = R.string.library) {
+            nav(
+                DestinationIndex.entry(SettingsDestination.LIBRARY),
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.LIBRARY)) },
+            )
+        }
         group(key = "content.subscriptions", header = R.string.settings_section_subscriptions) {
             switch(ContentIndex.subsVideos, viewModel.subsVideos, viewModel::setSubsVideos)
             switch(ContentIndex.subsShorts, viewModel.subsShorts, viewModel::setSubsShorts, enabled = shortsContent)

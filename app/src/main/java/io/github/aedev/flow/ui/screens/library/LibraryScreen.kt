@@ -37,6 +37,7 @@ import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
+import io.github.aedev.flow.ui.components.library.LibrarySection
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.MediaKind
@@ -76,9 +77,26 @@ fun LibraryScreen(
     val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
     val recapReady by viewModel.recapReady.collectAsStateWithLifecycle()
     val notesCount by viewModel.notesCount.collectAsStateWithLifecycle()
+    val hiddenSections by viewModel.hiddenSections.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     val listState = rememberLazyListState()
     OnTabReselected(FlowTab.Library.route) { listState.animateScrollToItem(0) }
+    val openSection: (LibrarySection) -> Unit = { section ->
+        when (section) {
+            LibrarySection.HISTORY -> onNavigateToHistory()
+            LibrarySection.PLAYLISTS -> onNavigateToPlaylists(null)
+            LibrarySection.VIDEO_PLAYLISTS -> onNavigateToPlaylists(MediaKind.Videos)
+            LibrarySection.MUSIC_PLAYLISTS -> onNavigateToPlaylists(MediaKind.Music)
+            LibrarySection.WATCH_LATER -> onNavigateToWatchLater()
+            LibrarySection.LIKED_VIDEOS -> onNavigateToLikedVideos()
+            LibrarySection.LIKED_MUSIC -> onNavigateToLikedMusic()
+            LibrarySection.DOWNLOADS -> onNavigateToDownloads()
+            LibrarySection.SAVED_SHORTS -> onNavigateToSavedShorts()
+            LibrarySection.LOCAL_MEDIA -> onNavigateToLocalMedia()
+            LibrarySection.NOTES -> onNavigateToNotes()
+            LibrarySection.SETTINGS -> onManageData()
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -116,6 +134,9 @@ fun LibraryScreen(
                     modifier = Modifier.padding(horizontal = RecapCardPadding),
                 )
             }
+            val hidden = hiddenSections ?: return@LazyColumn
+            val contentSections = visibleContentSections(hidden, separatePlaylistKinds, shortsEnabled)
+            val settingsSections = visibleSettingsSections(hidden, notesEnabled = notesCount != null)
             if (shelfPreviewsEnabled && isLibraryEmpty) {
                 item(key = "library-empty", contentType = "empty") {
                     FlowEmptyState(
@@ -127,15 +148,8 @@ fun LibraryScreen(
             } else if (shelfPreviewsEnabled) {
                 libraryShelves(
                     viewModel = viewModel,
-                    shortsEnabled = shortsEnabled,
-                    separatePlaylistKinds = separatePlaylistKinds,
-                    onNavigateToHistory = onNavigateToHistory,
-                    onNavigateToPlaylists = onNavigateToPlaylists,
-                    onNavigateToLikedVideos = onNavigateToLikedVideos,
-                    onNavigateToLikedMusic = onNavigateToLikedMusic,
-                    onNavigateToWatchLater = onNavigateToWatchLater,
-                    onNavigateToSavedShorts = onNavigateToSavedShorts,
-                    onNavigateToDownloads = onNavigateToDownloads,
+                    sections = contentSections,
+                    onOpenSection = openSection,
                     onVideoClick = onVideoClick,
                     onMusicClick = onMusicClick,
                     onPlaylistClick = onPlaylistClick,
@@ -144,60 +158,42 @@ fun LibraryScreen(
                     onDownloadedMusicClick = onDownloadedMusicClick,
                     onSavedShortClick = onSavedShortClick,
                 )
-            } else {
+            } else if (contentSections.isNotEmpty()) {
                 item(key = "sections", contentType = "navigation-section") {
                     val counts by viewModel.counts.collectAsStateWithLifecycle()
-                    LibrarySectionList(
-                        counts = counts,
-                        shortsEnabled = shortsEnabled,
-                        separatePlaylistKinds = separatePlaylistKinds,
-                        onNavigateToHistory = onNavigateToHistory,
-                        onNavigateToPlaylists = onNavigateToPlaylists,
-                        onNavigateToLikedVideos = onNavigateToLikedVideos,
-                        onNavigateToLikedMusic = onNavigateToLikedMusic,
-                        onNavigateToWatchLater = onNavigateToWatchLater,
-                        onNavigateToSavedShorts = onNavigateToSavedShorts,
-                        onNavigateToDownloads = onNavigateToDownloads,
-                    )
+                    LibrarySectionList(sections = contentSections, counts = counts, onOpenSection = openSection)
                 }
             }
 
-            item(key = "settings-data", contentType = "navigation-section") {
-                Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
-                    LibrarySectionHeader(stringResource(R.string.library_settings_data_header))
-                    // An empty library has no shelves, but downloads from an earlier install can still be found.
-                    if (shelfPreviewsEnabled && isLibraryEmpty) {
-                        LibraryNavigationRow(
-                            icon = LibrarySection.DOWNLOADS.icon,
-                            title = LibrarySection.DOWNLOADS.title,
-                            subtitle = stringResource(R.string.empty_downloads),
-                            onClick = onNavigateToDownloads,
-                        )
+            // An empty library has no shelves, but downloads from an earlier install can still be found.
+            val emptyLibraryDownloads = shelfPreviewsEnabled && isLibraryEmpty && LibrarySection.DOWNLOADS in contentSections
+            if (emptyLibraryDownloads || settingsSections.isNotEmpty()) {
+                item(key = "settings-data", contentType = "navigation-section") {
+                    Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
+                        LibrarySectionHeader(stringResource(R.string.library_settings_data_header))
+                        if (emptyLibraryDownloads) {
+                            LibraryNavigationRow(
+                                icon = LibrarySection.DOWNLOADS.icon,
+                                title = LibrarySection.DOWNLOADS.title,
+                                subtitle = stringResource(R.string.empty_downloads),
+                                onClick = onNavigateToDownloads,
+                            )
+                        }
+                        settingsSections.forEach { section ->
+                            val notes = notesCount
+                            if (section == LibrarySection.NOTES && notes != null && notes > 0) {
+                                LibraryNavigationRow(
+                                    icon = section.icon,
+                                    title = section.title,
+                                    subtitle = pluralStringResource(R.plurals.notes_count, notes, notes),
+                                    onClick = onNavigateToNotes,
+                                )
+                            } else {
+                                LibrarySectionRow(section = section, counts = null, onClick = { openSection(section) })
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    LibrarySectionRow(
-                        section = LibrarySection.LOCAL_MEDIA,
-                        counts = null,
-                        onClick = onNavigateToLocalMedia,
-                    )
-                    notesCount?.let { count ->
-                        LibraryNavigationRow(
-                            icon = LibrarySection.NOTES.icon,
-                            title = LibrarySection.NOTES.title,
-                            subtitle =
-                                if (count > 0) {
-                                    pluralStringResource(R.plurals.notes_count, count, count)
-                                } else {
-                                    LibrarySection.NOTES.subtitle(null)
-                                },
-                            onClick = onNavigateToNotes,
-                        )
-                    }
-                    LibrarySectionRow(
-                        section = LibrarySection.SETTINGS,
-                        counts = null,
-                        onClick = onManageData,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -206,15 +202,8 @@ fun LibraryScreen(
 
 private fun LazyListScope.libraryShelves(
     viewModel: LibraryViewModel,
-    shortsEnabled: Boolean,
-    separatePlaylistKinds: Boolean,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToPlaylists: (MediaKind?) -> Unit,
-    onNavigateToLikedVideos: () -> Unit,
-    onNavigateToLikedMusic: () -> Unit,
-    onNavigateToWatchLater: () -> Unit,
-    onNavigateToSavedShorts: () -> Unit,
-    onNavigateToDownloads: () -> Unit,
+    sections: List<LibrarySection>,
+    onOpenSection: (LibrarySection) -> Unit,
     onVideoClick: (Video) -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onPlaylistClick: (String) -> Unit,
@@ -223,105 +212,80 @@ private fun LazyListScope.libraryShelves(
     onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onSavedShortClick: (Video) -> Unit,
 ) {
-    item(key = "history", contentType = "media-shelf") {
-        LibraryMediaShelfRoute(
-            section = LibrarySection.HISTORY,
-            itemsFlow = viewModel.history,
-            onTitleClick = onNavigateToHistory,
-            onVideoClick = onVideoClick,
-            onMusicClick = onMusicClick,
-            onDownloadedVideoClick = onDownloadedVideoClick,
-            onDownloadedMusicClick = onDownloadedMusicClick,
-        )
-    }
+    sections.forEach { section ->
+        val onTitleClick = { onOpenSection(section) }
+        when (section) {
+            LibrarySection.HISTORY, LibrarySection.LIKED_MUSIC -> {
+                item(key = section.name, contentType = "media-shelf") {
+                    LibraryMediaShelfRoute(
+                        section = section,
+                        itemsFlow = if (section == LibrarySection.HISTORY) viewModel.history else viewModel.likedMusic,
+                        onTitleClick = onTitleClick,
+                        onVideoClick = onVideoClick,
+                        onMusicClick = onMusicClick,
+                        onDownloadedVideoClick = onDownloadedVideoClick,
+                        onDownloadedMusicClick = onDownloadedMusicClick,
+                    )
+                }
+            }
 
-    if (separatePlaylistKinds) {
-        item(key = "video-playlists", contentType = "playlist-shelf") {
-            LibraryPlaylistsShelf(
-                section = LibrarySection.VIDEO_PLAYLISTS,
-                videoPlaylistsFlow = viewModel.playlists,
-                musicPlaylistsFlow = null,
-                onTitleClick = { onNavigateToPlaylists(MediaKind.Videos) },
-                onVideoPlaylistClick = onPlaylistClick,
-                onMusicPlaylistClick = onMusicPlaylistClick,
-            )
-        }
-        item(key = "music-playlists", contentType = "playlist-shelf") {
-            LibraryPlaylistsShelf(
-                section = LibrarySection.MUSIC_PLAYLISTS,
-                videoPlaylistsFlow = null,
-                musicPlaylistsFlow = viewModel.musicPlaylists,
-                onTitleClick = { onNavigateToPlaylists(MediaKind.Music) },
-                onVideoPlaylistClick = onPlaylistClick,
-                onMusicPlaylistClick = onMusicPlaylistClick,
-            )
-        }
-    } else {
-        item(key = "playlists", contentType = "playlist-shelf") {
-            LibraryPlaylistsShelf(
-                section = LibrarySection.PLAYLISTS,
-                videoPlaylistsFlow = viewModel.playlists,
-                musicPlaylistsFlow = viewModel.musicPlaylists,
-                onTitleClick = { onNavigateToPlaylists(null) },
-                onVideoPlaylistClick = onPlaylistClick,
-                onMusicPlaylistClick = onMusicPlaylistClick,
-            )
-        }
-    }
+            LibrarySection.PLAYLISTS, LibrarySection.VIDEO_PLAYLISTS, LibrarySection.MUSIC_PLAYLISTS -> {
+                item(key = section.name, contentType = "playlist-shelf") {
+                    LibraryPlaylistsShelf(
+                        section = section,
+                        videoPlaylistsFlow = viewModel.playlists.takeIf { section != LibrarySection.MUSIC_PLAYLISTS },
+                        musicPlaylistsFlow = viewModel.musicPlaylists.takeIf { section != LibrarySection.VIDEO_PLAYLISTS },
+                        onTitleClick = onTitleClick,
+                        onVideoPlaylistClick = onPlaylistClick,
+                        onMusicPlaylistClick = onMusicPlaylistClick,
+                    )
+                }
+            }
 
-    item(key = "watch-later", contentType = "video-shelf") {
-        LibraryVideoShelf(
-            section = LibrarySection.WATCH_LATER,
-            videosFlow = viewModel.watchLater,
-            onTitleClick = onNavigateToWatchLater,
-            onVideoClick = onVideoClick,
-        )
-    }
+            LibrarySection.WATCH_LATER, LibrarySection.LIKED_VIDEOS -> {
+                item(key = section.name, contentType = "video-shelf") {
+                    LibraryVideoShelf(
+                        section = section,
+                        videosFlow = if (section == LibrarySection.WATCH_LATER) viewModel.watchLater else viewModel.likedVideos,
+                        onTitleClick = onTitleClick,
+                        onVideoClick = onVideoClick,
+                    )
+                }
+            }
 
-    item(key = "liked-videos", contentType = "video-shelf") {
-        LibraryVideoShelf(
-            section = LibrarySection.LIKED_VIDEOS,
-            videosFlow = viewModel.likedVideos,
-            onTitleClick = onNavigateToLikedVideos,
-            onVideoClick = onVideoClick,
-        )
-    }
+            LibrarySection.DOWNLOADS -> {
+                item(key = section.name, contentType = "media-shelf") {
+                    val activeDownloads by viewModel.activeDownloadCount.collectAsStateWithLifecycle()
+                    LibraryMediaShelfRoute(
+                        section = section,
+                        itemsFlow = viewModel.downloads,
+                        onTitleClick = onTitleClick,
+                        onVideoClick = onVideoClick,
+                        onMusicClick = onMusicClick,
+                        onDownloadedVideoClick = onDownloadedVideoClick,
+                        onDownloadedMusicClick = onDownloadedMusicClick,
+                        emptyMessage =
+                            stringResource(
+                                if ((activeDownloads ?: 0) > 0) R.string.downloads_section_in_progress else R.string.empty_downloads,
+                            ),
+                    )
+                }
+            }
 
-    item(key = "liked-music", contentType = "media-shelf") {
-        LibraryMediaShelfRoute(
-            section = LibrarySection.LIKED_MUSIC,
-            itemsFlow = viewModel.likedMusic,
-            onTitleClick = onNavigateToLikedMusic,
-            onVideoClick = onVideoClick,
-            onMusicClick = onMusicClick,
-            onDownloadedVideoClick = onDownloadedVideoClick,
-            onDownloadedMusicClick = onDownloadedMusicClick,
-        )
-    }
+            LibrarySection.SAVED_SHORTS -> {
+                item(key = section.name, contentType = "shorts-shelf") {
+                    LibraryShortsShelfRoute(
+                        section = section,
+                        shortsFlow = viewModel.savedShorts,
+                        onTitleClick = onTitleClick,
+                        onShortClick = onSavedShortClick,
+                    )
+                }
+            }
 
-    item(key = "downloads", contentType = "media-shelf") {
-        val activeDownloads by viewModel.activeDownloadCount.collectAsStateWithLifecycle()
-        LibraryMediaShelfRoute(
-            section = LibrarySection.DOWNLOADS,
-            itemsFlow = viewModel.downloads,
-            onTitleClick = onNavigateToDownloads,
-            onVideoClick = onVideoClick,
-            onMusicClick = onMusicClick,
-            onDownloadedVideoClick = onDownloadedVideoClick,
-            onDownloadedMusicClick = onDownloadedMusicClick,
-            emptyMessage =
-                stringResource(if ((activeDownloads ?: 0) > 0) R.string.downloads_section_in_progress else R.string.empty_downloads),
-        )
-    }
-
-    if (shortsEnabled) {
-        item(key = "saved-shorts", contentType = "shorts-shelf") {
-            LibraryShortsShelfRoute(
-                section = LibrarySection.SAVED_SHORTS,
-                shortsFlow = viewModel.savedShorts,
-                onTitleClick = onNavigateToSavedShorts,
-                onShortClick = onSavedShortClick,
-            )
+            LibrarySection.LOCAL_MEDIA, LibrarySection.NOTES, LibrarySection.SETTINGS -> {
+                Unit
+            }
         }
     }
 }
