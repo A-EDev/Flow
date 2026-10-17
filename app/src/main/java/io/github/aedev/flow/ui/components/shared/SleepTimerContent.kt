@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
@@ -34,17 +35,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import kotlin.math.roundToInt
 
+/** What the sleep timer sheet scrolls: the countdown while a timer runs, the picker otherwise. */
 @Composable
-internal fun SleepTimerSheetContent(
+internal fun SleepTimerBody(
     isActive: Boolean,
     pauseAtEndOfMedia: Boolean,
     remainingMs: Long,
@@ -54,26 +58,17 @@ internal fun SleepTimerSheetContent(
     onCustomInputChange: (String) -> Unit,
     inputError: Boolean,
     onEndOfMedia: () -> Unit,
-    onCancel: () -> Unit,
-    onStart: () -> Unit,
     closeAppOnExpiry: Boolean,
     onCloseAppToggle: (Boolean) -> Unit,
-    onReset: () -> Unit,
-    onCancelTimer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    Column(modifier = modifier.animateContentSize()) {
         AnimatedContent(targetState = isActive, label = "sleepTimerContent") { active ->
             if (active) {
                 ActiveTimerContent(
                     pauseAtEndOfMedia = pauseAtEndOfMedia,
                     remainingMs = remainingMs,
                     closeAppOnExpiry = closeAppOnExpiry,
-                    onReset = onReset,
-                    onCancel = onCancelTimer,
                 )
             } else {
                 InactiveTimerContent(
@@ -83,8 +78,6 @@ internal fun SleepTimerSheetContent(
                     onCustomInputChange = onCustomInputChange,
                     inputError = inputError,
                     onEndOfMedia = onEndOfMedia,
-                    onCancel = onCancel,
-                    onStart = onStart,
                     closeAppOnExpiry = closeAppOnExpiry,
                     onCloseAppToggle = onCloseAppToggle,
                 )
@@ -93,13 +86,35 @@ internal fun SleepTimerSheetContent(
     }
 }
 
+/** The sheet's buttons, kept below the scrolling body so they are always on screen. */
+@Composable
+internal fun SleepTimerActions(
+    isActive: Boolean,
+    pauseAtEndOfMedia: Boolean,
+    onCancel: () -> Unit,
+    onStart: () -> Unit,
+    onReset: () -> Unit,
+    onCancelTimer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedContent(targetState = isActive, label = "sleepTimerActions", modifier = modifier) { active ->
+        if (active) {
+            ActiveTimerActions(
+                pauseAtEndOfMedia = pauseAtEndOfMedia,
+                onReset = onReset,
+                onCancel = onCancelTimer,
+            )
+        } else {
+            InactiveTimerActions(onCancel = onCancel, onStart = onStart)
+        }
+    }
+}
+
 @Composable
 private fun ActiveTimerContent(
     pauseAtEndOfMedia: Boolean,
     remainingMs: Long,
-    onReset: () -> Unit,
-    onCancel: () -> Unit,
-    closeAppOnExpiry: Boolean = false,
+    closeAppOnExpiry: Boolean,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -155,30 +170,37 @@ private fun ActiveTimerContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+@Composable
+private fun ActiveTimerActions(
+    pauseAtEndOfMedia: Boolean,
+    onReset: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        FilledTonalButton(
+            onClick = onReset,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(52.dp),
+            enabled = !pauseAtEndOfMedia,
         ) {
-            FilledTonalButton(
-                onClick = onReset,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                enabled = !pauseAtEndOfMedia,
-            ) {
-                Text(stringResource(R.string.sleep_timer_reset))
-            }
-            Button(
-                onClick = onCancel,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(52.dp),
-            ) {
-                Text(stringResource(R.string.sleep_timer_cancel_timer))
-            }
+            Text(stringResource(R.string.sleep_timer_reset))
+        }
+        Button(
+            onClick = onCancel,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(52.dp),
+        ) {
+            Text(stringResource(R.string.sleep_timer_cancel_timer))
         }
     }
 }
@@ -192,8 +214,6 @@ private fun InactiveTimerContent(
     onCustomInputChange: (String) -> Unit,
     inputError: Boolean,
     onEndOfMedia: () -> Unit,
-    onCancel: () -> Unit,
-    onStart: () -> Unit,
     closeAppOnExpiry: Boolean,
     onCloseAppToggle: (Boolean) -> Unit,
 ) {
@@ -255,6 +275,7 @@ private fun InactiveTimerContent(
         }
 
         val haptics = LocalHapticFeedback.current
+        val focusManager = LocalFocusManager.current
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -296,7 +317,8 @@ private fun InactiveTimerContent(
                 },
             isError = inputError,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             trailingIcon = {
                 Text(
                     text = stringResource(R.string.sleep_timer_unit),
@@ -356,44 +378,50 @@ private fun InactiveTimerContent(
                 )
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(4.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun InactiveTimerActions(
+    onCancel: () -> Unit,
+    onStart: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
+        FilledTonalButton(
+            onClick = onCancel,
+            shapes =
+                ButtonDefaults.shapes(
+                    shape = ButtonGroupDefaults.connectedLeadingButtonShape,
+                    pressedShape = ButtonGroupDefaults.connectedLeadingButtonPressShape,
+                ),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(ActionButtonHeight),
         ) {
-            FilledTonalButton(
-                onClick = onCancel,
-                shapes =
-                    ButtonDefaults.shapes(
-                        shape = ButtonGroupDefaults.connectedLeadingButtonShape,
-                        pressedShape = ButtonGroupDefaults.connectedLeadingButtonPressShape,
-                    ),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(ActionButtonHeight),
-            ) {
-                Text(stringResource(R.string.cancel))
-            }
-            Button(
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                    onStart()
-                },
-                shapes =
-                    ButtonDefaults.shapes(
-                        shape = ButtonGroupDefaults.connectedTrailingButtonShape,
-                        pressedShape = ButtonGroupDefaults.connectedTrailingButtonPressShape,
-                    ),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(ActionButtonHeight),
-            ) {
-                Text(stringResource(R.string.sleep_timer_start))
-            }
+            Text(stringResource(R.string.cancel))
+        }
+        Button(
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                onStart()
+            },
+            shapes =
+                ButtonDefaults.shapes(
+                    shape = ButtonGroupDefaults.connectedTrailingButtonShape,
+                    pressedShape = ButtonGroupDefaults.connectedTrailingButtonPressShape,
+                ),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(ActionButtonHeight),
+        ) {
+            Text(stringResource(R.string.sleep_timer_start))
         }
     }
 }

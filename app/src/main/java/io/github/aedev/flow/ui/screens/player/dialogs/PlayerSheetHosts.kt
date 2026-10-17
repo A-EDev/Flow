@@ -40,6 +40,7 @@ import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
+import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
@@ -243,7 +244,7 @@ internal fun PlayerSleepTimerSheetHost(
 ) {
     MediaSleepTimerSheet(
         onDismiss = onDismiss,
-        expandedHeight = expandedHeight,
+        expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,
         asBottomSheet = !asSidePanel,

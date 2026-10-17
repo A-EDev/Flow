@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -42,12 +45,15 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
-import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/**
+ * The sleep timer sheet. With no [expandedHeight] it wraps its content, as the music player opens
+ * it; the video player passes the height its other sheets share so the video stays uncovered.
+ */
 @Composable
 fun MediaSleepTimerSheet(
     onDismiss: () -> Unit,
@@ -104,8 +110,8 @@ fun MediaSleepTimerSheet(
         }
     }
 
-    val content: @Composable (Modifier) -> Unit = { contentModifier ->
-        SleepTimerSheetContent(
+    val body: @Composable (Modifier) -> Unit = { bodyModifier ->
+        SleepTimerBody(
             isActive = isActive,
             pauseAtEndOfMedia = pauseAtEndOfMedia,
             remainingMs = remainingMs,
@@ -131,6 +137,21 @@ fun MediaSleepTimerSheet(
                 SleepTimerManager.startEndOfMedia(closeApp)
                 onDismiss()
             },
+            closeAppOnExpiry = closeApp,
+            onCloseAppToggle = { enabled ->
+                closeApp = enabled
+                SleepTimerManager.updatePreferredCloseAppOnExpiry(enabled)
+                coroutineScope.launch {
+                    playerPreferences.setSleepTimerCloseAppOnExpiry(enabled)
+                }
+            },
+            modifier = bodyModifier,
+        )
+    }
+    val actions: @Composable (Modifier) -> Unit = { actionsModifier ->
+        SleepTimerActions(
+            isActive = isActive,
+            pauseAtEndOfMedia = pauseAtEndOfMedia,
             onCancel = onDismiss,
             onStart = {
                 val minutes = customInput.toIntOrNull()
@@ -150,14 +171,6 @@ fun MediaSleepTimerSheet(
                     }
                 }
             },
-            closeAppOnExpiry = closeApp,
-            onCloseAppToggle = { enabled ->
-                closeApp = enabled
-                SleepTimerManager.updatePreferredCloseAppOnExpiry(enabled)
-                coroutineScope.launch {
-                    playerPreferences.setSleepTimerCloseAppOnExpiry(enabled)
-                }
-            },
             onReset = {
                 SleepTimerManager.start(sliderValue.roundToInt(), closeApp)
             },
@@ -165,7 +178,7 @@ fun MediaSleepTimerSheet(
                 SleepTimerManager.cancel()
                 onDismiss()
             },
-            modifier = contentModifier,
+            modifier = actionsModifier,
         )
     }
 
@@ -177,7 +190,8 @@ fun MediaSleepTimerSheet(
             enableVerticalDismiss = enableVerticalDismiss,
             onSheetProgressChange = onSheetProgressChange,
             modifier = modifier,
-            content = content,
+            body = body,
+            actions = actions,
         )
     } else {
         Surface(
@@ -190,16 +204,35 @@ fun MediaSleepTimerSheet(
                     onDismiss = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                content(
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                )
+                SleepTimerColumn(fillHeight = true, body = body, actions = actions)
             }
         }
     }
+}
+
+/**
+ * The body scrolls and the actions stay pinned under it. A sheet with a fixed height pushes the
+ * actions to its bottom edge; a sheet that wraps its content keeps them right under the body.
+ */
+@Composable
+private fun ColumnScope.SleepTimerColumn(
+    fillHeight: Boolean,
+    body: @Composable (Modifier) -> Unit,
+    actions: @Composable (Modifier) -> Unit,
+) {
+    body(
+        Modifier
+            .fillMaxWidth()
+            .weight(1f, fill = fillHeight)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
+    actions(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+    )
 }
 
 @Composable
@@ -210,14 +243,16 @@ private fun FlowSleepTimerBottomSheet(
     enableVerticalDismiss: Boolean,
     onSheetProgressChange: (Float) -> Unit,
     modifier: Modifier,
-    content: @Composable (Modifier) -> Unit,
+    body: @Composable (Modifier) -> Unit,
+    actions: @Composable (Modifier) -> Unit,
 ) {
     val sheetState = rememberFlowBottomSheetState()
     FlowBottomSheet(
         onDismiss = onDismiss,
         modifier = modifier,
         state = sheetState,
-        expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
+        expandedHeight = expandedHeight,
+        maxHeight = if (expandedHeight == null) wrappedSheetMaxHeight() else null,
         collapsedHeight = collapsedHeight,
         dismissible = enableVerticalDismiss,
         dismissOnOutsideTap = false,
@@ -237,14 +272,14 @@ private fun FlowSleepTimerBottomSheet(
             )
         },
     ) {
-        content(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-        )
+        SleepTimerColumn(fillHeight = expandedHeight != null, body = body, actions = actions)
     }
+}
+
+@Composable
+private fun wrappedSheetMaxHeight(): Dp {
+    val heightPx = LocalWindowInfo.current.containerSize.height
+    return with(LocalDensity.current) { (heightPx * WRAPPED_SHEET_MAX_HEIGHT_FRACTION).toDp() }
 }
 
 /** The same header without the drag handle, for the fullscreen side panel that hosts this sheet. */
@@ -282,3 +317,5 @@ private fun SleepTimerPanelHeader(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
     }
 }
+
+private const val WRAPPED_SHEET_MAX_HEIGHT_FRACTION = 0.9f
