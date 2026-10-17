@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.components.donation
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R
 
+internal const val OPEN_COLLECTIVE_URL = "https://opencollective.com/flow-tube"
 internal const val PATREON_URL = "https://patreon.com/A_EDev"
 
 internal class CryptoWallet(

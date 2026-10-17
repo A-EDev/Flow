@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.donation.CryptoWallet
 import io.github.aedev.flow.ui.components.donation.DonationWallets
+import io.github.aedev.flow.ui.components.donation.OPEN_COLLECTIVE_URL
 import io.github.aedev.flow.ui.components.donation.PATREON_URL
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.utils.copyPlainText
@@ -42,7 +44,7 @@ private val HeaderPadding = 24.dp
 private val HeaderSpacing = 12.dp
 private val HeroIconSize = 48.dp
 
-/** Ways to support the project: Patreon, or a wallet address copied with one tap. */
+/** Ways to support the project: Open Collective, Patreon, or a wallet address copied with one tap. */
 @Composable
 fun DonationsScreen(onNavigateBack: () -> Unit) {
     val uriHandler = LocalUriHandler.current
@@ -81,6 +83,15 @@ fun DonationsScreen(onNavigateBack: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
                 Button(
+                    onClick = { runCatching { uriHandler.openUri(OPEN_COLLECTIVE_URL) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    Icon(IconOpenCollective, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.support_flow_open_collective))
+                }
+                FilledTonalButton(
                     onClick = { runCatching { uriHandler.openUri(PATREON_URL) } },
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
