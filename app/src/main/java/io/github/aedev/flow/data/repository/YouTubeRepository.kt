@@ -287,15 +287,21 @@ class YouTubeRepository
             query: String,
             continuation: String? = null,
             params: String? = null,
-        ): Pair<List<Video>, String?> =
+        ): Pair<List<Video>, String?> = searchVideoPage(query, continuation, params).getOrElse { emptyList<Video>() to null }
+
+        /** [searchVideos] that reports a failed request instead of an empty page, for callers that cache pages. */
+        suspend fun searchVideoPage(
+            query: String,
+            continuation: String? = null,
+            params: String? = null,
+        ): Result<Pair<List<Video>, String?>> =
             withContext(Dispatchers.IO) {
                 YouTube
                     .videoSearch(query, params = params, continuation = continuation)
                     .map { page ->
                         page.resultVideos().map { it.copy(isMusic = looksLikeMusicVideo(it.title, it.channelName)) } to page.continuation
-                    }.getOrElse { error ->
+                    }.onFailure { error ->
                         Log.w(TAG, "searchVideos failed for '$query': ${error::class.simpleName}: ${error.message}")
-                        emptyList<Video>() to null
                     }
             }
 

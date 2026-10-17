@@ -46,6 +46,8 @@ internal fun HomeFeedGrid(
     onShortsShown: (ids: List<String>) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    onRetryLoadMore: () -> Unit = {},
+    footerMinVideos: Int = FEED_FOOTER_MIN_VIDEOS,
 ) {
     val videos = uiState.videos
     val channelMemoryReason = stringResource(R.string.home_reason_channel_memory)
@@ -139,7 +141,16 @@ internal fun HomeFeedGrid(
             }
         }
 
-        if (!uiState.hasMorePages && videos.size > FEED_FOOTER_MIN_VIDEOS && !uiState.isLoadingMore) {
+        if (uiState.loadMoreFailed && !uiState.isLoadingMore) {
+            item(
+                key = "load_more_failed",
+                span = { GridItemSpan(maxLineSpan) },
+            ) {
+                HomeLoadMoreFailed(onRetry = onRetryLoadMore)
+            }
+        }
+
+        if (!uiState.hasMorePages && videos.size > footerMinVideos && !uiState.isLoadingMore) {
             item(
                 key = "feed_footer",
                 span = { GridItemSpan(maxLineSpan) },

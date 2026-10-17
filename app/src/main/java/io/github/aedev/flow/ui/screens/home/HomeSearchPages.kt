@@ -8,9 +8,11 @@ import kotlinx.coroutines.sync.withLock
  * Home's discovery searches. A page is fetched once per half hour however often load-more asks for
  * its query again, and the next page of a search that already filled Home with several cards is kept
  * at hand, so load-more digs deeper into a subject that works instead of padding with weaker ones (#907).
+ * Only pages that came back with videos are kept: a failed or empty search is asked again next time
+ * instead of answering empty for half an hour (#1317).
  */
 internal class HomeSearchPages(
-    private val search: suspend (query: String, continuation: String?) -> Pair<List<Video>, String?>,
+    private val search: suspend (query: String, continuation: String?) -> Result<Pair<List<Video>, String?>>,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private companion object {
@@ -36,6 +38,7 @@ internal class HomeSearchPages(
     // The continuation of the last page fetched for each query; spent when that page is fetched.
     private val nextPage = LinkedHashMap<String, String>()
 
+    /** The first page of [query]; throws when the request failed. */
     suspend fun firstPage(query: String): List<Video> = fetch(query, null)
 
     /** The next page of whichever search put the most cards in [origins], or null when none has proved itself or has one. */
@@ -77,8 +80,12 @@ internal class HomeSearchPages(
                 ?.substringBefore('\u0000')
         }
 
-    /** A refresh starts the searches over: the next pages it had kept belong to the old feed. */
-    suspend fun reset() = mutex.withLock { nextPage.clear() }
+    /** A refresh starts the searches over: it asks again, and the next pages it had kept belong to the old feed. */
+    suspend fun reset() =
+        mutex.withLock {
+            pages.clear()
+            nextPage.clear()
+        }
 
     private suspend fun fetch(
         query: String,
@@ -90,8 +97,13 @@ internal class HomeSearchPages(
             remember(query, cached.next)
             return cached.videos
         }
-        val (videos, next) = search(query, continuation)
-        mutex.withLock { pages[key] = Page(videos, next, now) }
+        val (videos, next) =
+            search(query, continuation).getOrElse { error ->
+                // The next page was spent on this request; keep it for another try.
+                if (continuation != null) remember(query, continuation)
+                throw error
+            }
+        if (videos.isNotEmpty()) mutex.withLock { pages[key] = Page(videos, next, now) }
         remember(query, next)
         return videos
     }

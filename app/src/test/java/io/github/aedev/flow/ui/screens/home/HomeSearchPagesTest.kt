@@ -4,10 +4,14 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import java.io.IOException
 
 class HomeSearchPagesTest {
     private val calls = mutableListOf<Pair<String, String?>>()
     private var now = 0L
+    private var answer: (String, String?) -> Result<Pair<List<Video>, String?>> = { query, continuation ->
+        Result.success(listOf(video("$query-${continuation ?: "1"}")) to "${continuation ?: "page"}+")
+    }
 
     private fun video(id: String) = Video(id, "Title $id", "Channel", "ch-$id", "", 600, 1_000, uploadDate = "1 day ago")
 
@@ -15,7 +19,7 @@ class HomeSearchPagesTest {
         HomeSearchPages(
             search = { query, continuation ->
                 calls += query to continuation
-                listOf(video("$query-${continuation ?: "1"}")) to "${continuation ?: "page"}+"
+                answer(query, continuation)
             },
             clock = { now },
         )
@@ -73,6 +77,50 @@ class HomeSearchPagesTest {
             pages.reset()
 
             assertThat(pages.nextPageOfProductive(searchCards("pixel", 5))).isNull()
+        }
+
+    @Test
+    fun `a refresh asks the same search again`() =
+        runBlocking<Unit> {
+            pages.firstPage("pixel")
+            pages.reset()
+            pages.firstPage("pixel")
+
+            assertThat(calls).containsExactly("pixel" to null, "pixel" to null)
+        }
+
+    @Test
+    fun `a failed search throws and is asked again next time`() =
+        runBlocking<Unit> {
+            answer = { _, _ -> Result.failure(IOException("offline")) }
+            val failure = runCatching { pages.firstPage("pixel") }.exceptionOrNull()
+            answer = { query, _ -> Result.success(listOf(video(query)) to null) }
+            val retried = pages.firstPage("pixel")
+
+            assertThat(failure).isInstanceOf(IOException::class.java)
+            assertThat(retried.map { it.id }).containsExactly("pixel")
+            assertThat(calls).hasSize(2)
+        }
+
+    @Test
+    fun `an empty search is not kept`() =
+        runBlocking<Unit> {
+            answer = { _, _ -> Result.success(emptyList<Video>() to null) }
+            pages.firstPage("pixel")
+            pages.firstPage("pixel")
+
+            assertThat(calls).hasSize(2)
+        }
+
+    @Test
+    fun `a next page whose request failed is kept for another try`() =
+        runBlocking<Unit> {
+            pages.firstPage("pixel")
+            answer = { _, _ -> Result.failure(IOException("offline")) }
+            runCatching { pages.nextPageOfAny() }
+            answer = { query, continuation -> Result.success(listOf(video("$query-$continuation")) to null) }
+
+            assertThat(pages.nextPageOfAny()?.second?.map { it.id }).containsExactly("pixel-page+")
         }
 
     @Test

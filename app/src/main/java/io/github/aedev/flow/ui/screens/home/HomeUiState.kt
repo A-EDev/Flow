@@ -11,6 +11,8 @@ data class HomeUiState(
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,
     val hasMorePages: Boolean = true,
+    /** The last load-more found nothing because its requests failed; the feed stays open for a retry. */
+    val loadMoreFailed: Boolean = false,
     val error: String? = null,
     val isFlowFeed: Boolean = false,
     val lastRefreshTime: Long = 0L,
