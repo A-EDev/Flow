@@ -59,6 +59,7 @@ import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
+import io.github.aedev.flow.ui.components.musicplayer.common.playerBackdropColors
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
 import io.github.aedev.flow.ui.components.musicplayer.full.PlayerBackground
 import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
@@ -249,8 +250,7 @@ fun TvMusicNowPlayingScreen(
         PlayerBackground(
             thumbnailUrl = artworkUrl,
             style = backgroundStyle,
-            paletteBaseColor = palette.base,
-            paletteAccentColor = palette.accent,
+            backdrop = remember(palette) { playerBackdropColors(palette.base, palette.accent, light = false) },
             modifier = Modifier.fillMaxSize(),
         )
 

@@ -26,6 +26,8 @@ import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.SliderStyle
+import io.github.aedev.flow.ui.components.musicplayer.common.musicPlayerTurnsLight
+import io.github.aedev.flow.ui.components.musicplayer.common.playerBackdropColors
 import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressivePlayerSlider
 import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressiveWavySlider
 import io.github.aedev.flow.ui.components.musicplayer.controls.SquigglySlider
@@ -139,17 +141,22 @@ internal fun SeekbarWidthPreview(padding: Dp) {
 
 /**
  * The music player's own background in [style], painted around Flow's icon in place of album art,
- * so the preview is exactly what the player draws rather than a sketch of it.
+ * so the preview is exactly what the player draws rather than a sketch of it. [followLightTheme]
+ * is the player's light switch, so a light app theme previews the light version.
  */
 @Composable
-internal fun MusicBackgroundPreview(style: MusicPlayerBackgroundStyle) {
+internal fun MusicBackgroundPreview(
+    style: MusicPlayerBackgroundStyle,
+    followLightTheme: Boolean,
+) {
     val context = LocalContext.current
     val artwork = remember { "android.resource://${context.packageName}/${R.drawable.ic_launcher_foreground}" }
+    val scheme = MaterialTheme.colorScheme
+    val light = musicPlayerTurnsLight(style, followLightTheme, scheme.surface)
     PlayerBackground(
         thumbnailUrl = artwork,
         style = style,
-        paletteBaseColor = MaterialTheme.colorScheme.primary,
-        paletteAccentColor = MaterialTheme.colorScheme.tertiary,
+        backdrop = remember(scheme, light) { playerBackdropColors(scheme.primary, scheme.tertiary, light) },
         modifier =
             Modifier
                 .fillMaxWidth()

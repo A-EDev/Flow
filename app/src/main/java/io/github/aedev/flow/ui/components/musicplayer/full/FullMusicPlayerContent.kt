@@ -35,6 +35,7 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
+import io.github.aedev.flow.ui.components.musicplayer.common.PlayerBackdropColors
 import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerPlaybackControls
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
@@ -62,6 +63,7 @@ internal fun FullMusicPlayerContent(
     track: MusicTrack,
     isPlayerSheetExpanded: Boolean,
     palette: MediaPalette,
+    backdrop: PlayerBackdropColors,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
     sleepTimerButton: Boolean,
@@ -357,8 +359,7 @@ internal fun FullMusicPlayerContent(
         PlayerBackground(
             thumbnailUrl = backgroundThumbnailUrl,
             style = backgroundStyle,
-            paletteBaseColor = palette.base,
-            paletteAccentColor = palette.accent,
+            backdrop = backdrop,
             artworkAtStart = layout == MusicPlayerLayout.WIDE || layout == MusicPlayerLayout.SPLIT,
             animatedArtwork = animatedArtwork.takeIf { immersiveBackground },
         )

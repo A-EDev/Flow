@@ -52,6 +52,8 @@ import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.components.musicplayer.common.musicPlayerTurnsLight
+import io.github.aedev.flow.ui.components.musicplayer.common.playerBackdropColors
 import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicControlColorScheme
 import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicPlayerColorScheme
 import io.github.aedev.flow.ui.components.musicplayer.full.FullMusicPlayerContent
@@ -125,8 +127,11 @@ internal fun UnifiedMusicPlayerSheet(
     )
     val hideArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
     val sleepTimerButton by playerPreferences.musicSleepTimerButton.collectAsState(initial = false)
+    val followLightTheme by playerPreferences.musicPlayerFollowLightTheme.collectAsState(initial = false)
     val palette = rememberMediaPalette(displayTrack.highResThumbnailUrl)
-    val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle)
+    val lightPlayer = musicPlayerTurnsLight(backgroundStyle, followLightTheme, MaterialTheme.colorScheme.surface)
+    val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle, lightPlayer)
+    val backdrop = remember(palette, lightPlayer) { playerBackdropColors(palette.base, palette.accent, lightPlayer) }
     val artworkControlColors by playerPreferences.musicArtworkControlColors.collectAsState(initial = true)
     val plainControlColors by playerPreferences.musicPlainControlColors.collectAsState(initial = MusicPlainControlColors.MONOCHROME)
     val controlScheme =
@@ -465,6 +470,7 @@ internal fun UnifiedMusicPlayerSheet(
                             track = track,
                             isPlayerSheetExpanded = state.isExpanded,
                             palette = palette,
+                            backdrop = backdrop,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
                             sleepTimerButton = sleepTimerButton,
