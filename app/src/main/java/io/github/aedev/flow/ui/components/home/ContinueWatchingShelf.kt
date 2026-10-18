@@ -43,8 +43,12 @@ import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.WatchProgressBar
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
+import io.github.aedev.flow.ui.components.shared.focusLift
+import io.github.aedev.flow.ui.components.shared.onMenuKey
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.shared.skipDpadFocus
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 
 object ContinueWatchingShelfDefaults {
@@ -98,6 +102,7 @@ fun ContinueWatchingShelf(
             }
         }
         LazyRow(
+            modifier = Modifier.dpadFocusGroup(),
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -150,7 +155,7 @@ private fun ContinueWatchingCard(
         onClick = onClick,
         onLongClick = { showMenu = true },
         trailingContent = {
-            IconButton(onClick = onRemove) {
+            IconButton(onClick = onRemove, modifier = Modifier.skipDpadFocus()) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = removeLabel,
@@ -190,9 +195,11 @@ private fun ShelfVideoCardContent(
             modifier
                 .width(width)
                 .pressScale(interactionSource)
+                .focusLift(interactionSource)
+                .onMenuKey(onLongClick)
                 .combinedClickable(
                     interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
+                    indication = androidx.compose.material3.ripple(focusRingShape = MaterialTheme.shapes.medium),
                     onLongClickLabel = stringResource(R.string.more_options),
                     onLongClick = onLongClick,
                     onClick = onClick,

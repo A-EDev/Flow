@@ -110,6 +110,9 @@ class VideoCardActions(
 
 val LocalVideoCardActions = staticCompositionLocalOf { VideoCardActions.None }
 
+/** Told which video card holds D-pad focus, for a header that describes it (TV's spotlight). Null elsewhere. */
+val LocalVideoCardFocusListener = staticCompositionLocalOf<((Video) -> Unit)?> { null }
+
 /**
  * Installs the shared card state. Must wrap any tree that renders video cards; without it cards
  * fall back to defaults (settings off, no progress bars, actions that do nothing). Installed once at

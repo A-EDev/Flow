@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +37,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import io.github.aedev.flow.ui.components.shared.focusLift
 import io.github.aedev.flow.ui.components.shared.onMenuKey
 import io.github.aedev.flow.ui.components.shared.pressScale
@@ -110,9 +112,11 @@ internal fun Modifier.videoCardClickable(
     onClick: () -> Unit,
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
+    val focusListener = LocalVideoCardFocusListener.current
     return pressScale(interactionSource)
         .focusLift(interactionSource)
         .onMenuKey { state.sheets.showQuickActions = true }
+        .then(if (focusListener != null) Modifier.onFocusChanged { if (it.isFocused) focusListener(state.video) } else Modifier)
         .combinedClickable(
             interactionSource = interactionSource,
             indication = ripple(focusRingShape = MaterialTheme.shapes.large),
@@ -137,6 +141,7 @@ internal fun Modifier.videoCardChannelClickable(state: VideoCardState): Modifier
  * The ⋮ button and, on a row whose thumbnail leaves the height for it, the watched toggle beneath,
  * both at the full 48 dp target. [alignTo] pulls them up so the ⋮ icon sits on the title's first line.
  * A stacked card keeps its watched toggle in the feedback group instead, so its text keeps the width.
+ * On a D-pad the card's long press and the Menu key open the same menu, so the title takes the room.
  */
 @Composable
 internal fun VideoCardSideActions(
@@ -146,8 +151,9 @@ internal fun VideoCardSideActions(
     alignTo: Dp,
     modifier: Modifier = Modifier,
 ) {
+    if (LocalDpadNavigation.current) return
     Column(modifier = modifier.offset(y = -alignTo)) {
-        IconButton(onClick = { state.sheets.showQuickActions = true }, modifier = Modifier.skipDpadFocus()) {
+        IconButton(onClick = { state.sheets.showQuickActions = true }) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = stringResource(R.string.more_options),
@@ -159,7 +165,6 @@ internal fun VideoCardSideActions(
             IconToggleButton(
                 checked = isWatched,
                 onCheckedChange = { if (!isWatched) onWatched(state.video) },
-                modifier = Modifier.skipDpadFocus(),
             ) {
                 Icon(
                     imageVector = if (isWatched) Icons.Filled.Visibility else Icons.Outlined.Visibility,

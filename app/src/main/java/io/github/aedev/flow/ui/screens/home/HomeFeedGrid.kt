@@ -24,6 +24,7 @@ import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
 import io.github.aedev.flow.ui.components.shared.feedStripCardWidth
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
@@ -48,16 +49,17 @@ internal fun HomeFeedGrid(
     modifier: Modifier = Modifier,
     onRetryLoadMore: () -> Unit = {},
     footerMinVideos: Int = FEED_FOOTER_MIN_VIDEOS,
+    showShorts: Boolean = true,
 ) {
     val videos = uiState.videos
     val channelMemoryReason = stringResource(R.string.home_reason_channel_memory)
     val rows =
-        remember(videos, feedLayout.columns, uiState.continueWatchingVideos.isNotEmpty(), uiState.shorts.isNotEmpty()) {
+        remember(videos, feedLayout.columns, uiState.continueWatchingVideos.isNotEmpty(), showShorts && uiState.shorts.isNotEmpty()) {
             homeFeedRows(
                 videos = videos,
                 columns = feedLayout.columns,
                 showContinueWatching = uiState.continueWatchingVideos.isNotEmpty(),
-                showShorts = uiState.shorts.isNotEmpty(),
+                showShorts = showShorts && uiState.shorts.isNotEmpty(),
             )
         }
     val plan =
@@ -77,6 +79,7 @@ internal fun HomeFeedGrid(
         modifier =
             modifier
                 .fillMaxSize()
+                .dpadFocusGroup()
                 .testTag("home_feed"),
         state = gridState,
         contentPadding = plan.contentPadding(top = FeedTopPadding, bottom = flowBottomContentPadding()),

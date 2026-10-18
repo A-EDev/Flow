@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.material3.MaterialTheme
@@ -8,7 +9,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -85,3 +88,12 @@ fun Modifier.onMenuKey(onMenu: () -> Unit): Modifier =
     } else {
         this
     }
+
+/**
+ * Makes a row or grid one focus group that, on a D-pad, hands focus back to the item that last held
+ * it when focus comes back in, falling back to [fallback] (by default the nearest item) the first
+ * time. A no-op unless [LocalDpadNavigation] is on.
+ */
+@Composable
+fun Modifier.dpadFocusGroup(fallback: FocusRequester = FocusRequester.Default): Modifier =
+    if (LocalDpadNavigation.current) focusRestorer(fallback).focusGroup() else this
