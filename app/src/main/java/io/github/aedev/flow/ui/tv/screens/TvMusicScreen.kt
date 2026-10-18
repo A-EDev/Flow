@@ -18,6 +18,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.section.isDuplicateOfADedicatedShelf
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.tv.components.TvArtistCard
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
@@ -61,7 +62,7 @@ fun TvMusicScreen(
     val dynamicSections =
         remember(state.dynamicSections) {
             state.dynamicSections.filter { section ->
-                SURFACED_SECTION_TITLES.none { section.title.contains(it, ignoreCase = true) }
+                !section.title.isDuplicateOfADedicatedShelf()
             }
         }
     // Same derivation as mobile: one representative track per charting artist.
@@ -309,18 +310,6 @@ private fun TvCollectionShelf(
         )
     }
 }
-
-/** Shelves the TV screen surfaces itself — hidden from the dynamic pass-through. */
-private val SURFACED_SECTION_TITLES =
-    listOf(
-        "Quick picks",
-        "Music videos",
-        "Live performances",
-        "Long listens",
-        "Mixed for you",
-        "Recommended",
-        "Listen again",
-    )
 
 private fun List<MusicTrack>.songsOnly(): List<MusicTrack> =
     asSequence()
