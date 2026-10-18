@@ -1958,14 +1958,14 @@
     </plurals>
     <string name="support_donations_title">支持與贊助</string>
     <string name="support_flow_dev_title">支持 Flow 開發</string>
-    <string name="support_flow_dev_desc">如果 Flow 對你有幫助，歡迎透過 Patreon 或下方的加密貨幣支持。謝謝你！</string>
+    <string name="support_flow_dev_desc">如果 Flow 對你有幫助，歡迎透過 Open Collective、Patreon 或下方的加密貨幣支持。謝謝你！</string>
     <string name="support_flow_patreon">在 Patreon 上支持 Flow</string>
     <string name="thank_you_support_message">感謝你的支持！❤️</string>
     <string name="address_copied_toast">位址已複製到剪貼簿</string>
     <string name="donation_address_clip_label">贊助位址</string>
     <string name="donation_prompt_title">喜歡 Flow 嗎？</string>
     <string name="donation_prompt_message">Flow 免費、開放原始碼，而且沒有廣告。如果它在你的手機裡佔有一席之地，一點小小的支持就能讓它持續走下去。</string>
-    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_methods">Open Collective · Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">支持開發</string>
     <string name="donation_prompt_later">以後再說</string>
     <string name="donation_prompt_never">不再顯示</string>
@@ -4091,4 +4091,30 @@
     <plurals name="course_lessons_count">
         <item quantity="other">課程 · %d 堂課</item>
     </plurals>
+    <string name="home_load_more_failed">無法載入更多影片</string>
+    <string name="home_load_more_failed_body">請檢查網路連線</string>
+    <string name="home_refresh_failed">無法重新整理你的動態</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="other">正在檢查第 %1$d 個頻道，共 %2$d 個頻道的 Shorts 和直播</item>
+    </plurals>
+    <string name="lyrics_keep_screen_on">螢幕保持開啟</string>
+    <string name="lyrics_keep_screen_on_summary">顯示歌詞且音樂播放時</string>
+    <string name="player_appearance_follow_light_theme_title">淺色主題時使用淺色</string>
+    <string name="player_appearance_follow_light_theme_subtitle">封面圖的背景會變成淺色</string>
+    <string name="player_appearance_sleep_timer_button_title">睡眠計時器按鈕</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">顯示在佇列按鈕旁邊</string>
+    <string name="search_filter_group_watched">觀看狀態</string>
+    <string name="search_filter_recently_uploaded">最近上傳</string>
+    <string name="search_filter_watch_any">不限</string>
+    <string name="search_filter_unwatched">未觀看</string>
+    <string name="search_filter_watched">已觀看</string>
+    <string name="search_watch_empty_watched">這裡沒有已觀看的影片</string>
+    <string name="search_watch_empty_unwatched">這裡沒有未觀看的影片</string>
+    <string name="deep_flow_on_search_title">在搜尋中顯示</string>
+    <string name="deep_flow_on_search_subtitle">在最近搜尋上方顯示 Deep Flow 開關</string>
+    <string name="support_flow_open_collective">在 Open Collective 上支持 Flow</string>
+    <string name="auto_tab_for_you">為你推薦</string>
+    <string name="auto_tab_queue">佇列</string>
+    <string name="taste_unknown_channel">未知頻道</string>
+    <string name="settings_library_summary">選擇媒體庫要顯示的區塊</string>
 </resources>
