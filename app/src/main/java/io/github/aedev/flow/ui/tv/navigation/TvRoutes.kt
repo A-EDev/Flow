@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.tv.navigation
 
 import android.net.Uri
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.screens.music.collection.MUSIC_COLLECTION_ARG as COLLECTION_ROUTE_ARG
 
@@ -23,6 +24,12 @@ object TvRoutes {
     const val PLAYLISTS_KIND_ARG = "kind"
     const val PLAYLISTS = "playlists?kind={$PLAYLISTS_KIND_ARG}"
 
+    const val MUSIC_BROWSE_ID_ARG = "browseId"
+    const val MUSIC_BROWSE_PARAMS_ARG = "params"
+    const val MUSIC_BROWSE = "youtube_browse/{$MUSIC_BROWSE_ID_ARG}?params={$MUSIC_BROWSE_PARAMS_ARG}"
+
+    const val MOODS = "moodsAndGenres"
+
     const val SYNC = "sync"
     const val REMOTE_GUIDE = "remoteGuide"
 
@@ -35,6 +42,10 @@ object TvRoutes {
     fun playlist(playlistId: String): String = "playlist/${Uri.encode(playlistId)}"
 
     fun musicCollection(collectionId: String): String = "musicCollection/${Uri.encode(collectionId)}"
+
+    /** A mood or genre's page, as YouTube Music browses it. */
+    fun musicBrowse(item: MoodAndGenres.Item): String =
+        "youtube_browse/${item.endpoint.browseId}?params=${Uri.encode(item.endpoint.params.orEmpty())}"
 
     fun musicArtist(channelId: String): String = "musicArtist/${Uri.encode(channelId)}"
 }

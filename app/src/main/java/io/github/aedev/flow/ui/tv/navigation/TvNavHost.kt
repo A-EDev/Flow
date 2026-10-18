@@ -17,8 +17,11 @@ import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.screens.channel.ChannelScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
+import io.github.aedev.flow.ui.screens.music.MoodsAndGenresScreen
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
+import io.github.aedev.flow.ui.screens.music.YouTubeBrowseScreen
+import io.github.aedev.flow.ui.screens.music.convertSongToMusicTrack
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
@@ -114,13 +117,46 @@ fun TvNavHost(
             TvSearchScreen(
                 viewModel = searchViewModel,
                 onVideoClick = onPlayVideo,
-                onChannelClick = openChannel,
-                onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
+                onChannelClick = { channel -> openChannel(channel.url.ifBlank { channel.id }) },
+                onPlaylistClick = { playlist -> navController.navigate(TvRoutes.playlist(playlist.id)) },
                 onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
-                onOpenMusicCollection = { navController.navigate(TvRoutes.musicCollection(it)) },
-                onOpenMusicArtist = { navController.navigate(TvRoutes.musicArtist(it)) },
+                onOpenAlbum = { navController.navigate(TvRoutes.musicCollection(it)) },
+                onOpenArtist = { navController.navigate(TvRoutes.musicArtist(it)) },
+                onOpenMusicPlaylist = { navController.navigate(TvRoutes.musicCollection(it)) },
+                onOpenMood = { navController.navigate(TvRoutes.musicBrowse(it)) },
+                onOpenMoods = { navController.navigate(TvRoutes.MOODS) },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        composable(TvRoutes.MOODS) {
+            TvScreenFrame {
+                MoodsAndGenresScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onGenreClick = { navController.navigate(TvRoutes.musicBrowse(it)) },
+                )
+            }
+        }
+        composable(
+            route = TvRoutes.MUSIC_BROWSE,
+            arguments =
+                listOf(
+                    navArgument(TvRoutes.MUSIC_BROWSE_ID_ARG) { type = NavType.StringType },
+                    navArgument(TvRoutes.MUSIC_BROWSE_PARAMS_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+        ) {
+            TvScreenFrame {
+                YouTubeBrowseScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSongClick = { song -> musicPlayerViewModel.loadAndPlayTrack(convertSongToMusicTrack(song), emptyList()) },
+                    onAlbumClick = { navController.navigate(TvRoutes.musicCollection(it)) },
+                    onArtistClick = { navController.navigate(TvRoutes.musicArtist(it)) },
+                    onPlaylistClick = { navController.navigate(TvRoutes.musicCollection(it)) },
+                )
+            }
         }
         composable(FlowTab.Library.route) {
             TvLibraryScreen(

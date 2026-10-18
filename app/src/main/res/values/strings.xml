@@ -3065,6 +3065,7 @@
     <string name="tv_keyboard_delete">Delete</string>
     <string name="tv_keyboard_clear">Clear</string>
     <string name="tv_keyboard_voice">Voice search</string>
+    <string name="tv_keyboard_system">Other languages</string>
     <string name="tv_filter_all">All</string>
     <string name="tv_filter_videos">Videos</string>
     <string name="tv_filter_channels">Channels</string>
