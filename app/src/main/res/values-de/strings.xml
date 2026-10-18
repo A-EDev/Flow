@@ -2281,4 +2281,7 @@
     <string name="sync_qr_advertised_address">Dieses Gerät: %1$s</string>
     <string name="sync_verification_after_connect">Überprüfe nach dem Verbinden, dass beide Geräte den gleichen Code anzeigen.</string>
     <string name="sync_error_qr_wrong_version">Inkompatible App Version auf dem anderen Gerät.</string>
+    <string name="home_load_more_failed">Es konnten keine weiteren Videos geladen werden</string>
+    <string name="home_load_more_failed_body">Überprüfen Sie Ihre Verbindung</string>
+    <string name="home_refresh_failed">Dein Feed konnte nicht aktualisiert werden</string>
 </resources>
