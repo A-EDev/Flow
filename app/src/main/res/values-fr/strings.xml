@@ -2440,7 +2440,7 @@
         <item quantity="other">%1$d / %2$d fournisseurs activés</item>
     </plurals>
     <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
-        <item quantity="one">Défilement automatique toutes les %1$d secondes</item>
+        <item quantity="one">Défilement automatique toutes les %1$d seconde</item>
         <item quantity="many">Défilement automatique toutes les %1$d secondes</item>
         <item quantity="other">Défilement automatique toutes les %1$d secondes</item>
     </plurals>
@@ -2645,7 +2645,7 @@
         <item quantity="other">%1$d sélectionnés</item>
     </plurals>
     <plurals name="every_min_template">
-        <item quantity="one">Toutes les %1$d minutes</item>
+        <item quantity="one">Toutes les %1$d minute</item>
         <item quantity="many">Toutes les %1$d minutes</item>
         <item quantity="other">Toutes les %1$d minutes</item>
     </plurals>
@@ -2736,4 +2736,43 @@
     <string name="theme_name_yin_yang">Yin &amp; Yang</string>
     <string name="theme_name_strawberry_daiquiri">Daiquiri à la fraise</string>
     <string name="theme_name_tide">Marée</string>
+    <string name="lyrics_keep_screen_on_summary">Tant que les paroles sont affichés et que la musique joue</string>
+    <string name="player_appearance_sleep_timer_button_title">Bouton de mise en veille</string>
+    <string name="player_appearance_plain_control_colors_title">controle des couleurs</string>
+    <string name="player_appearance_plain_control_colors_monochrome">Noir et blanc</string>
+    <string name="player_appearance_plain_control_colors_app">Thème de couleurs</string>
+    <string name="lyrics_source_local_file">Fichier de paroles</string>
+    <string name="check_out_short_template">Vérifiez ce short: %1$s\nhttps://youtube.com/shorts/%2$s</string>
+    <string name="link_not_supported">Flow ne peut pas ouvrir ce genre de lien</string>
+    <string name="mark_as_unwatched">Marqué comme non vu</string>
+    <string name="channel_name_copied">Nom de la chaine copier dans le presse-papier</string>
+    <string name="copy_channel_name">Copier le nom de la chaine</string>
+    <string name="channel_name_clip_label">Nom de la chaine</string>
+    <plurals name="course_lessons_count">
+        <item quantity="one">Cours · %d leçon</item>
+        <item quantity="many">Cours · %d leçons</item>
+        <item quantity="other">Cours · %d leçons</item>
+    </plurals>
+    <string name="downloads_recover_title">Trouver les téléchargement depuis une installation précedente</string>
+    <string name="downloads_recover_body">Flow sauvegardes les téléchargements dans Download/Flow and Music/Flow. Pour lister les fichiers sauvegarder par une installation précédente, autorisez l\'accès aux vidéos et audios.</string>
+    <string name="downloads_recover_allow">Autoriser l\'accès</string>
+    <string name="downloads_recover_dismiss">Pas maintenant</string>
+    <plurals name="downloads_recovered_count">
+        <item quantity="one">%d téléchargement a été trouver depuis une installation précédente</item>
+        <item quantity="many">%d téléchargements ont été trouver depuis une installation précédente</item>
+        <item quantity="other">%d téléchargements ont été trouver depuis une installation précédente</item>
+    </plurals>
+    <string name="downloads_recovered_none">Aucun téléchargement n\'a été trouver depuis une installation précédente</string>
+    <string name="downloads_find_earlier_running">Recherche…</string>
+    <string name="search_filter_recently_uploaded">télécharger récemment</string>
+    <string name="search_filter_watch_any">Regarder ou pas</string>
+    <string name="search_filter_unwatched">Pas regarder</string>
+    <string name="search_watch_empty_watched">Pas de vidéos regarder ici</string>
+    <string name="home_load_more_failed">Impossible de chargez plus de vidéos</string>
+    <string name="home_load_more_failed_body">Vérifiez votre connection</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Vérification de %1$d sur %2$d chaine pour les shorts et live</item>
+        <item quantity="many">Vérification de %1$d sur %2$d chaines pour les shorts et live</item>
+        <item quantity="other">Vérification de %1$d sur %2$d chaines pour les shorts et live</item>
+    </plurals>
 </resources>
