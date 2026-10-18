@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.subscriptions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,7 +19,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +36,7 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.ChannelGroupBadge
 import io.github.aedev.flow.ui.components.shared.flowArtistShape
+import io.github.aedev.flow.ui.components.shared.focusLift
 import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 private val AvatarItemWidth = 64.dp
@@ -55,12 +59,18 @@ internal fun ChannelAvatarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
             modifier
                 .width(AvatarItemWidth)
-                .clickable(onClick = onClick),
+                .focusLift(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(focusRingShape = MaterialTheme.shapes.medium),
+                    onClick = onClick,
+                ),
     ) {
         Box(
             modifier = Modifier.size(AvatarSize),
@@ -105,12 +115,18 @@ internal fun AllSubscriptionsAvatarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
             modifier
                 .width(AvatarItemWidth)
-                .clickable(onClick = onClick),
+                .focusLift(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(focusRingShape = MaterialTheme.shapes.medium),
+                    onClick = onClick,
+                ),
     ) {
         Box(
             modifier =

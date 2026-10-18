@@ -269,3 +269,49 @@ internal fun SubscriptionCreateEditGroupDialog(
         },
     )
 }
+
+/**
+ * The group manager and the create or edit dialog it hands off to, as one flow: shown while the user
+ * manages groups, and [onDismiss] once they leave it.
+ */
+@Composable
+internal fun SubscriptionGroupDialogsHost(
+    viewModel: SubscriptionsViewModel,
+    uiState: SubscriptionsUiState,
+    onDismiss: () -> Unit,
+) {
+    var editing by remember { mutableStateOf(false) }
+    var editingGroup by remember { mutableStateOf<SubscriptionGroup?>(null) }
+
+    if (!editing) {
+        SubscriptionGroupsManagerDialog(
+            groups = uiState.groups,
+            onDismiss = onDismiss,
+            onCreateNew = {
+                editingGroup = null
+                editing = true
+            },
+            onEdit = { group ->
+                editingGroup = group
+                editing = true
+            },
+            onDelete = { group -> viewModel.deleteGroup(group.name) },
+            onReorder = viewModel::reorderGroups,
+        )
+    } else {
+        SubscriptionCreateEditGroupDialog(
+            existingGroup = editingGroup,
+            allChannels = uiState.subscribedChannels,
+            onDismiss = onDismiss,
+            onConfirm = { name, channelIds ->
+                val existing = editingGroup
+                if (existing == null) {
+                    viewModel.createGroup(name, channelIds)
+                } else {
+                    viewModel.updateGroup(existing.name, name, channelIds)
+                }
+                onDismiss()
+            },
+        )
+    }
+}

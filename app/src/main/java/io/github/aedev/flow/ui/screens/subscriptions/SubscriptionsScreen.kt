@@ -29,7 +29,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,34 +36,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Channel
-import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-
-private const val QUICK_ACCESS_CHANNEL_LIMIT = 15
-private const val STALE_REFRESH_INTERVAL_MS = 3 * 60 * 1000L
 
 @Composable
 fun SubscriptionsScreen(
@@ -96,8 +83,6 @@ fun SubscriptionsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showSortMenu by remember { mutableStateOf(false) }
     var showGroupsDialog by remember { mutableStateOf(false) }
-    var showCreateGroupDialog by remember { mutableStateOf(false) }
-    var editingGroup by remember { mutableStateOf<SubscriptionGroup?>(null) }
 
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -109,58 +94,18 @@ fun SubscriptionsScreen(
             }
         }
 
-    LaunchedEffect(viewModel) { viewModel.ensureStarted() }
     LaunchedEffect(viewModel) { viewModel.importMessages.collect { snackbarHostState.showSnackbar(it) } }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(viewModel, lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.refreshIfStaleOrMissedUploads()
-            while (true) {
-                delay(STALE_REFRESH_INTERVAL_MS)
-                viewModel.refreshIfStaleOrMissedUploads()
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        TabScrollEventBus.scrollToTopEvents
-            .filter { it == "subscriptions" }
-            .collectLatest {
-                feedGridState.animateScrollToItem(0)
-                viewModel.refreshFeed()
-            }
-    }
-
-    val sortedChannels =
-        remember(uiState.subscribedChannels, uiState.sortMode, uiState.recentVideos) {
-            sortSubscriptions(uiState.subscribedChannels, uiState.sortMode, uiState.recentVideos)
-        }
-    val topChannels =
-        remember(sortedChannels) {
-            quickAccessOrder(sortedChannels).take(QUICK_ACCESS_CHANNEL_LIMIT)
-        }
+    val channels = rememberSubscriptionChannels(uiState)
+    val sortedChannels = channels.sorted
+    val topChannels = channels.quickAccess
     val videos = uiState.recentVideos
-
-    LaunchedEffect(feedGridState, videos, isManagingSubs) {
-        if (isManagingSubs) {
-            viewModel.updateVisibleVideoIds(emptySet())
-            return@LaunchedEffect
-        }
-
-        val feedVideoIds = videos.mapTo(HashSet(videos.size)) { it.id }
-        snapshotFlow {
-            feedGridState.layoutInfo.visibleItemsInfo
-                .mapNotNull { item -> item.key as? String }
-                .toSet()
-        }.collectLatest { visibleKeys ->
-            viewModel.updateVisibleVideoIds(visibleKeys.filterTo(HashSet()) { it in feedVideoIds })
-        }
-    }
-
-    DisposableEffect(viewModel) {
-        onDispose { viewModel.updateVisibleVideoIds(emptySet()) }
-    }
+    SubscriptionsFeedEffects(
+        viewModel = viewModel,
+        feedGridState = feedGridState,
+        videos = videos,
+        isManagingSubs = isManagingSubs,
+    )
 
     Scaffold(
         topBar = {
@@ -310,38 +255,10 @@ fun SubscriptionsScreen(
     }
 
     if (showGroupsDialog) {
-        SubscriptionGroupsManagerDialog(
-            groups = uiState.groups,
+        SubscriptionGroupDialogsHost(
+            viewModel = viewModel,
+            uiState = uiState,
             onDismiss = { showGroupsDialog = false },
-            onCreateNew = {
-                editingGroup = null
-                showGroupsDialog = false
-                showCreateGroupDialog = true
-            },
-            onEdit = { group ->
-                editingGroup = group
-                showGroupsDialog = false
-                showCreateGroupDialog = true
-            },
-            onDelete = { group -> viewModel.deleteGroup(group.name) },
-            onReorder = viewModel::reorderGroups,
-        )
-    }
-
-    if (showCreateGroupDialog) {
-        SubscriptionCreateEditGroupDialog(
-            existingGroup = editingGroup,
-            allChannels = uiState.subscribedChannels,
-            onDismiss = { showCreateGroupDialog = false },
-            onConfirm = { name, channelIds ->
-                val existing = editingGroup
-                if (existing == null) {
-                    viewModel.createGroup(name, channelIds)
-                } else {
-                    viewModel.updateGroup(existing.name, name, channelIds)
-                }
-                showCreateGroupDialog = false
-            },
         )
     }
 }
