@@ -62,7 +62,13 @@ class SettingsIndexTest {
     @Test
     fun `a tv reaches no option on a page it leaves out`() {
         val onTv = all.filter { DestinationIndex.isReachable(it, tv = true) }
-        val hidden = setOf(SettingsDestination.WIDGETS, SettingsDestination.DOWNLOADS, SettingsDestination.LOCAL_MEDIA, SettingsDestination.NOTIFICATIONS)
+        val hidden =
+            setOf(
+                SettingsDestination.WIDGETS,
+                SettingsDestination.DOWNLOADS,
+                SettingsDestination.LOCAL_MEDIA,
+                SettingsDestination.NOTIFICATIONS,
+            )
         assertTrue(onTv.none { option -> option.destination.path.any { it in hidden } })
         assertTrue(onTv.any { DestinationIndex.destinationOf(it) == SettingsDestination.REMOTE_GUIDE })
     }

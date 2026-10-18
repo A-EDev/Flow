@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,6 +53,7 @@ internal fun SettingsHomeScreen(
     onOpenDonations: () -> Unit,
     onOpenUpdate: () -> Unit,
     onBack: () -> Unit,
+    selectedRowFocus: FocusRequester? = null,
     viewModel: SettingsHomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -119,6 +121,7 @@ internal fun SettingsHomeScreen(
                         persona = persona,
                         deepFlow = deepFlow,
                         updateCheckingLabel = checkingLabel.takeIf { updateCheck == UpdateCheckState.Checking },
+                        selectedRowFocus = selectedRowFocus,
                     ),
                 actions =
                     SettingsHomeActions(

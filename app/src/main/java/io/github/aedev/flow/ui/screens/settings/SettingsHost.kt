@@ -2,11 +2,9 @@ package io.github.aedev.flow.ui.screens.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -19,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -28,12 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import io.github.aedev.flow.ui.components.layout.rememberFlowPaneScaffoldDirective
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
+import io.github.aedev.flow.ui.components.shared.dpadFocusOnEnter
 import io.github.aedev.flow.ui.screens.settings.home.SettingsHomeScreen
-import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.launch
 
 /**
@@ -58,8 +57,10 @@ fun SettingsHost(
     var stack by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var startConsumed by rememberSaveable { mutableStateOf(false) }
     val dpad = LocalDpadNavigation.current
+    val listFocus = remember { FocusRequester() }
+    val selectedRowFocus = remember { FocusRequester() }
     val pageFocus = remember { FocusRequester() }
-    var pageFocusRequests by remember { mutableIntStateOf(0) }
+    var pageHasFocus by remember { mutableStateOf(false) }
 
     val twoPane =
         navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Expanded &&
@@ -67,6 +68,8 @@ fun SettingsHost(
     val current = stack.lastOrNull()?.let(SettingsTarget::decode) ?: SettingsTarget(SettingsDestination.APPEARANCE)
 
     fun open(target: SettingsTarget) {
+        // A new page takes focus as it enters; the one already open beside the list has to be asked.
+        if (dpad && twoPane && target.destination == current.destination) pageFocus.requestFocus()
         stack = target.destination.path
             .dropLast(1)
             .map { SettingsTarget(it).encode() } + target.encode()
@@ -84,13 +87,11 @@ fun SettingsHost(
                         ?.encode(),
                 )
         stack = settled + target.encode()
-        if (dpad) pageFocusRequests++
     }
 
     fun back() {
         if (stack.size > 1) {
             stack = stack.dropLast(1)
-            if (dpad) pageFocusRequests++
         } else {
             scope.launch { if (!navigator.navigateBack()) onExit() }
         }
@@ -103,21 +104,38 @@ fun SettingsHost(
         }
     }
 
+    // Beside the list, OK on a page moves a remote into it; Back from that page's top level returns to
+    // the page's row, or to the list when that row has scrolled away. Registered before the pages, so a page's own Back comes first.
+    BackHandler(enabled = dpad && twoPane && stack.size <= 1 && pageHasFocus) {
+        if (!selectedRowFocus.requestFocus()) listFocus.requestFocus()
+    }
+
     NavigableListDetailPaneScaffold(
         navigator = navigator,
         listPane = {
-            AnimatedPane {
+            AnimatedPane(modifier = Modifier.focusRequester(listFocus).dpadFocusGroup()) {
                 SettingsHomeScreen(
                     selected = if (twoPane) current.destination.root else null,
                     onOpen = ::open,
                     onOpenDonations = onOpenDonations,
                     onOpenUpdate = onOpenUpdate,
                     onBack = onExit,
+                    selectedRowFocus = selectedRowFocus,
                 )
             }
         },
         detailPane = {
-            AnimatedPane {
+            AnimatedPane(
+                modifier =
+                    if (dpad) {
+                        Modifier
+                            .onFocusChanged { pageHasFocus = it.hasFocus }
+                            .focusRequester(pageFocus)
+                            .dpadFocusGroup()
+                    } else {
+                        Modifier
+                    },
+            ) {
                 val spec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = current,
@@ -125,10 +143,7 @@ fun SettingsHost(
                     contentKey = { it.destination },
                     label = "settingsDetail",
                 ) { target ->
-                    // Stepping between sub-pages disposes the row a remote had focused; the page coming in
-                    // takes focus instead of it falling back to the first field on screen.
-                    val incoming = dpad && transition.targetState == EnterExitState.Visible
-                    Box(modifier = if (incoming) Modifier.focusRequester(pageFocus).focusGroup() else Modifier) {
+                    Box(modifier = dpadFocusOnEnter()) {
                         SettingsDetail(
                             target = target,
                             onBack = if (twoPane && stack.size <= 1) null else ::back,
@@ -138,19 +153,11 @@ fun SettingsHost(
                         )
                     }
                 }
-                LaunchedEffect(pageFocusRequests) {
-                    if (pageFocusRequests == 0) return@LaunchedEffect
-                    awaitFrame()
-                    pageFocus.requestFocus()
-                }
             }
         },
     )
 
-    BackHandler(enabled = stack.size > 1) {
-        stack = stack.dropLast(1)
-        if (dpad) pageFocusRequests++
-    }
+    BackHandler(enabled = stack.size > 1) { stack = stack.dropLast(1) }
 }
 
 /**

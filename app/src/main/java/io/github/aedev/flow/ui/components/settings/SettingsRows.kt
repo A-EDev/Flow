@@ -113,9 +113,11 @@ fun SettingsGroupScope.nav(
     selected: Boolean = false,
     icon: ImageVector? = null,
     @DrawableRes iconRes: Int? = null,
+    modifier: Modifier = Modifier,
 ) = entryRow(entry) { shape ->
     FlowNavRow(
         title = stringResource(entry.title),
+        modifier = modifier,
         supportingText = value ?: entry.summaryText(),
         onClick = onClick,
         enabled = enabled,

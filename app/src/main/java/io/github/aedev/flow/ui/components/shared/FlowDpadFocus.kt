@@ -1,16 +1,22 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -97,3 +103,23 @@ fun Modifier.onMenuKey(onMenu: () -> Unit): Modifier =
 @Composable
 fun Modifier.dpadFocusGroup(fallback: FocusRequester = FocusRequester.Default): Modifier =
     if (LocalDpadNavigation.current) focusRestorer(fallback).focusGroup() else this
+
+/**
+ * Focus for content that enters an [androidx.compose.animation.AnimatedContent] after its first frame:
+ * the content it replaces leaves with whatever a remote had focused in it, so the new content takes
+ * focus instead of it falling back to the first field on screen. Content shown from the start leaves
+ * focus where it is. A no-op unless [LocalDpadNavigation] is on.
+ */
+@Composable
+fun AnimatedVisibilityScope.dpadFocusOnEnter(): Modifier {
+    if (!LocalDpadNavigation.current) return Modifier
+    val requester = remember { FocusRequester() }
+    val entering = remember { transition.currentState == EnterExitState.PreEnter }
+    LaunchedEffect(requester) {
+        if (!entering) return@LaunchedEffect
+        // Lazy lists inside place their items in the first layout pass, after this effect starts.
+        withFrameNanos {}
+        requester.requestFocus()
+    }
+    return Modifier.focusRequester(requester).focusGroup()
+}

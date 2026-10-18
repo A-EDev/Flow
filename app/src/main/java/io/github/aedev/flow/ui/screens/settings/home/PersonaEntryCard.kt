@@ -35,11 +35,12 @@ internal fun PersonaEntryCard(
     persona: FlowPersona?,
     selected: Boolean,
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         onClick = onOpen,
         selected = selected,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
         color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
