@@ -10,19 +10,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.toMusicTrack
+import io.github.aedev.flow.data.music.model.toVideo
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
+import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.screens.channel.ChannelScreen
+import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
+import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
+import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
+import io.github.aedev.flow.ui.tv.components.TvScreenFrame
 import io.github.aedev.flow.ui.tv.screens.TvArtistScreen
-import io.github.aedev.flow.ui.tv.screens.TvChannelScreen
 import io.github.aedev.flow.ui.tv.screens.TvHomeScreen
 import io.github.aedev.flow.ui.tv.screens.TvLibraryScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicCollectionScreen
 import io.github.aedev.flow.ui.tv.screens.TvMusicScreen
-import io.github.aedev.flow.ui.tv.screens.TvPlaylistDetailScreen
 import io.github.aedev.flow.ui.tv.screens.TvRemoteGuideScreen
 import io.github.aedev.flow.ui.tv.screens.TvSearchScreen
 import io.github.aedev.flow.ui.tv.screens.TvSettingsScreen
@@ -41,7 +47,8 @@ fun TvNavHost(
     subscriptionsViewModel: SubscriptionsViewModel,
     searchViewModel: SearchViewModel,
     onPlayVideo: (Video) -> Unit,
-    onPlayPlaylist: (List<Video>, String) -> Unit,
+    onPlayPlaylist: (videos: List<Video>, startIndex: Int, title: String, shuffle: Boolean) -> Unit,
+    onPlayVideoId: (String) -> Unit,
     onSelectRoot: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -58,7 +65,7 @@ fun TvNavHost(
             TvHomeScreen(
                 viewModel = homeViewModel,
                 onVideoClick = onPlayVideo,
-                onPlayPlaylist = onPlayPlaylist,
+                onPlayPlaylist = { videos, title -> onPlayPlaylist(videos, 0, title, false) },
                 onOpenLibrary = { onSelectRoot(FlowTab.Library.route) },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -118,11 +125,50 @@ fun TvNavHost(
         composable(FlowTab.Library.route) {
             TvLibraryScreen(
                 onVideoClick = onPlayVideo,
+                onMusicClick = musicPlayerViewModel::loadAndPlayTrack,
+                onOpenHistory = { navController.navigate(TvRoutes.HISTORY) },
+                onOpenPlaylists = { kind -> navController.navigate(TvRoutes.playlists(kind)) },
                 onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
-                onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
-                onOpenMusicCollection = { navController.navigate(TvRoutes.musicCollection(it)) },
+                onOpenMusicPlaylist = { navController.navigate(TvRoutes.musicCollection(it)) },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        composable(TvRoutes.HISTORY) {
+            TvScreenFrame {
+                HistoryScreen(
+                    onVideoClick = { track -> onPlayVideo(track.toVideo()) },
+                    onBackClick = { navController.popBackStack() },
+                    onShortsQueue = {},
+                    onMusicClick = { track, queue -> musicPlayerViewModel.loadAndPlayTrack(track, queue) },
+                )
+            }
+        }
+        composable(
+            route = TvRoutes.PLAYLISTS,
+            arguments =
+                listOf(
+                    navArgument(TvRoutes.PLAYLISTS_KIND_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+        ) { entry ->
+            val kind =
+                entry.arguments?.getString(TvRoutes.PLAYLISTS_KIND_ARG)?.let { name ->
+                    MediaKind.entries.firstOrNull {
+                        it.name ==
+                            name
+                    }
+                }
+            TvScreenFrame {
+                PlaylistsScreen(
+                    fixedKind = kind,
+                    onBackClick = { navController.popBackStack() },
+                    onVideoPlaylistClick = { navController.navigate(TvRoutes.playlist(it.id)) },
+                    onMusicPlaylistClick = { navController.navigate(TvRoutes.musicCollection(it.id)) },
+                )
+            }
         }
         composable(TV_SETTINGS_ROUTE) {
             TvSettingsScreen(
@@ -152,22 +198,36 @@ fun TvNavHost(
                     ?.getString(TvRoutes.CHANNEL_ARG)
                     ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
                     .orEmpty()
-            TvChannelScreen(
-                channelUrl = channelRef,
-                onVideoClick = onPlayVideo,
-                onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
-                modifier = Modifier.fillMaxSize(),
-            )
+            TvScreenFrame {
+                ChannelScreen(
+                    channelUrl = channelRef,
+                    onVideoClick = onPlayVideo,
+                    onChannelClick = openChannel,
+                    onShortClick = { videoId, _ -> onPlayVideoId(videoId) },
+                    onPlaylistClick = { navController.navigate(TvRoutes.playlist(it)) },
+                    onBackClick = { navController.popBackStack() },
+                    showShorts = false,
+                )
+            }
         }
         composable(
             route = TvRoutes.PLAYLIST,
             arguments = listOf(navArgument(TvRoutes.PLAYLIST_ARG) { type = NavType.StringType }),
         ) {
-            TvPlaylistDetailScreen(
-                onVideoClick = onPlayVideo,
-                onPlayPlaylist = onPlayPlaylist,
-                modifier = Modifier.fillMaxSize(),
-            )
+            TvScreenFrame {
+                PlaylistDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPlayPlaylist = { videos, index, shuffle, title ->
+                        val start = videos[index]
+                        if (start.isMusic) {
+                            val tracks = videos.filter { it.isMusic }.map { it.toMusicTrack() }
+                            musicPlayerViewModel.loadAndPlayTrack(start.toMusicTrack(), tracks, title)
+                        } else {
+                            onPlayPlaylist(videos, index, title, shuffle)
+                        }
+                    },
+                )
+            }
         }
     }
 }

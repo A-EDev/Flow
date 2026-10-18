@@ -53,7 +53,11 @@ import io.github.aedev.flow.ui.tv.navigation.TV_SETTINGS_ROUTE
 /**
  * The TV navigation rail: M3's wide rail with the user's tabs and Settings at its foot. It expands
  * with labels while it holds focus and lies over the content, which is laid out against the collapsed
- * width, so expanding never moves the page. Focus always enters on the selected destination.
+ * width, so expanding never moves the page.
+ *
+ * Focus enters on the selected destination when it comes from the Left (a D-pad press, or the shell's
+ * Back). Any other entry is Compose handing out initial focus after the focused item went away, which
+ * would otherwise land here as the first item on screen, so it goes to [onOtherEntry] when that takes it.
  */
 @Composable
 fun TvNavRail(
@@ -62,6 +66,7 @@ fun TvNavRail(
     onSelect: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
     focusRequester: FocusRequester,
+    onOtherEntry: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val state = rememberWideNavigationRailState()
@@ -82,7 +87,10 @@ fun TvNavRail(
                     onFocusChanged(it.hasFocus)
                 }.focusRequester(focusRequester)
                 .focusProperties {
-                    onEnter = { selectedRequester.requestFocus() }
+                    onEnter = {
+                        val redirected = requestedFocusDirection != FocusDirection.Left && onOtherEntry()
+                        if (!redirected) selectedRequester.requestFocus()
+                    }
                     onExit = { if (requestedFocusDirection == FocusDirection.Left) cancelFocusChange() }
                 }.focusGroup(),
         state = state,

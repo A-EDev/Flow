@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -62,7 +63,8 @@ fun TvShell(
     subscriptionsViewModel: SubscriptionsViewModel,
     searchViewModel: SearchViewModel,
     onPlayVideo: (Video) -> Unit,
-    onPlayPlaylist: (List<Video>, String) -> Unit,
+    onPlayPlaylist: (videos: List<Video>, startIndex: Int, title: String, shuffle: Boolean) -> Unit,
+    onPlayVideoId: (String) -> Unit,
     activeMusicTrack: MusicTrack?,
     onExpandMusic: () -> Unit,
     onDismissMusic: () -> Unit,
@@ -134,6 +136,7 @@ fun TvShell(
                     searchViewModel = searchViewModel,
                     onPlayVideo = onPlayVideo,
                     onPlayPlaylist = onPlayPlaylist,
+                    onPlayVideoId = onPlayVideoId,
                     onSelectRoot = ::selectRoot,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -164,6 +167,7 @@ fun TvShell(
             onSelect = ::selectRoot,
             onFocusChanged = { railHasFocus = it },
             focusRequester = railFocusRequester,
+            onOtherEntry = { contentFocusRequester.requestFocus() },
             modifier = Modifier.align(Alignment.CenterStart),
         )
 
@@ -179,7 +183,7 @@ fun TvShell(
                 TvBackAction.POP_DETAIL -> navController.popBackStack()
                 TvBackAction.POP_TAB -> navigateToRoot(rootHistory.removeAt(rootHistory.lastIndex))
                 TvBackAction.GO_START -> navigateToRoot(navigation.startTab.route)
-                TvBackAction.FOCUS_RAIL -> railFocusRequester.requestFocus()
+                TvBackAction.FOCUS_RAIL -> railFocusRequester.requestFocus(FocusDirection.Left)
                 TvBackAction.EXIT -> Unit
             }
         }

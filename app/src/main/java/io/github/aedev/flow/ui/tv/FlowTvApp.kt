@@ -73,12 +73,14 @@ fun FlowTvApp(
 
     fun playPlaylist(
         videos: List<Video>,
+        startIndex: Int,
         title: String,
+        shuffle: Boolean,
     ) {
-        val first = videos.firstOrNull() ?: return
+        val start = videos.getOrNull(startIndex) ?: return
         EnhancedMusicPlayerManager.pause()
-        GlobalPlayerState.setCurrentVideo(first)
-        playerViewModel.playPlaylist(videos, startIndex = 0, title = title)
+        GlobalPlayerState.setCurrentVideo(start)
+        playerViewModel.playPlaylist(videos, startIndex, title, shuffle)
     }
 
     // Metadata is resolved by playVideo -> loadVideoInfo; the stub only seeds the id.
@@ -151,6 +153,7 @@ fun FlowTvApp(
                         searchViewModel = searchViewModel,
                         onPlayVideo = ::play,
                         onPlayPlaylist = ::playPlaylist,
+                        onPlayVideoId = { playById(it) },
                         activeMusicTrack = visibleMusicTrack,
                         onExpandMusic = { musicExpanded = true },
                         onDismissMusic = {
