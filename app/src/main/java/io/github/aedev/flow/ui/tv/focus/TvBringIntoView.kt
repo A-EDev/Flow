@@ -27,10 +27,3 @@ fun ProvideTvRowPivot(content: @Composable () -> Unit) {
     val spec = remember { TvPivotBringIntoViewSpec(parentFraction = 0.08f) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
-
-/** Applies pivot scrolling to vertical containers (grids, columns) in [content]. */
-@Composable
-fun ProvideTvColumnPivot(content: @Composable () -> Unit) {
-    val spec = remember { TvPivotBringIntoViewSpec(parentFraction = 0.25f) }
-    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
-}

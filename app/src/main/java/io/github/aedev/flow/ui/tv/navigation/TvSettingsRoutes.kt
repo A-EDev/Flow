@@ -14,11 +14,11 @@ import io.github.aedev.flow.ui.screens.recap.story.RecapStoryScreen
 import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.settings.SettingsHostOptions
 import io.github.aedev.flow.ui.screens.settings.about.DonationsScreen
+import io.github.aedev.flow.ui.screens.sync.SyncScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.screens.update.UpdateScreen
 import io.github.aedev.flow.ui.tv.components.TvScreenFrame
 import io.github.aedev.flow.ui.tv.screens.TvRemoteGuideScreen
-import io.github.aedev.flow.ui.tv.screens.TvSyncScreen
 
 /** Settings, hosted from the phone with TV's own Sync and remote guide pages, and the screens it opens. */
 internal fun NavGraphBuilder.tvSettingsRoutes(navController: NavHostController) {
@@ -28,7 +28,7 @@ internal fun NavGraphBuilder.tvSettingsRoutes(navController: NavHostController) 
                 SettingsHostOptions(
                     pages =
                         mapOf(
-                            SettingsDestination.SYNC to { onBack -> TvSyncScreen(onNavigateBack = { onBack?.invoke() }) },
+                            SettingsDestination.SYNC to { onBack -> SyncScreen(onBack = onBack, hostOnly = true) },
                             SettingsDestination.REMOTE_GUIDE to { onBack -> TvRemoteGuideScreen(onBack = onBack) },
                         ),
                 )
