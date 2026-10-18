@@ -35,6 +35,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
@@ -54,6 +55,9 @@ import kotlinx.coroutines.flow.drop
  * that API applies `Modifier.sizeIn(minWidth = 360.dp, minHeight = 56.dp, maxWidth = 720.dp)`
  * internally and exposes no height parameter, so the 40 dp pill this app uses is not reachable
  * through it. Everything else — shape, colours, type, motion — still comes from the theme.
+ *
+ * [readOnly] shows the query without taking focus or raising a keyboard, for a surface that edits
+ * [state] another way, as TV's D-pad keyboard does.
  */
 @Composable
 fun FlowSearchField(
@@ -67,6 +71,7 @@ fun FlowSearchField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     releaseFocusWithKeyboard: Boolean = false,
+    readOnly: Boolean = false,
 ) {
     if (releaseFocusWithKeyboard) ReleaseFocusWhenKeyboardCloses()
     Surface(
@@ -99,10 +104,12 @@ fun FlowSearchField(
                 }
                 BasicTextField(
                     state = state,
+                    readOnly = readOnly,
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
+                            .focusProperties { canFocus = !readOnly }
                             .onFocusChanged { if (it.isFocused) onFieldFocused() },
                     textStyle =
                         LocalTextStyle.current.merge(
@@ -115,7 +122,7 @@ fun FlowSearchField(
                 )
             }
 
-            if (state.text.isNotEmpty()) {
+            if (state.text.isNotEmpty() && !readOnly) {
                 IconButton(
                     onClick = {
                         state.clearText()
