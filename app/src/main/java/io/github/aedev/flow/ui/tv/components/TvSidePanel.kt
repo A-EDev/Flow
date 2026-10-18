@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.tv.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -39,15 +40,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 
 /**
- * Right-side modal panel — the TV replacement for bottom sheets and dropdowns.
- * While open it is a focus trap: D-pad can never move focus out of the panel,
- * and if the focused row leaves composition (content swap, list reload) focus
- * is re-grabbed automatically. Dismissed via Back or the header close button.
- * Placed inside a Box.
+ * Right-side modal panel, the TV replacement for bottom sheets and dropdowns. While open it is a
+ * focus trap: no D-pad direction leaves it, and if the focused row leaves composition (a content
+ * swap, a reload) focus goes back into the panel once. Dismissed with Back or the header close
+ * button. Placed inside a Box.
  */
 @Composable
 fun BoxScope.TvSidePanel(
@@ -58,41 +57,39 @@ fun BoxScope.TvSidePanel(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val dimens = LocalTvDimens.current
-    val firstFocusRequester = remember { FocusRequester() }
-    var panelHasFocus by remember { mutableStateOf(false) }
+    val motion = MaterialTheme.motionScheme
 
     AnimatedVisibility(
         visible = visible,
         modifier = modifier.align(Alignment.CenterEnd),
-        enter = fadeIn() + slideInHorizontally { it / 3 },
-        exit = fadeOut() + slideOutHorizontally { it / 3 },
+        enter = fadeIn(motion.defaultEffectsSpec()) + slideInHorizontally(motion.defaultSpatialSpec()) { it / 3 },
+        exit = fadeOut(motion.fastEffectsSpec()) + slideOutHorizontally(motion.fastSpatialSpec()) { it / 3 },
     ) {
+        val contentFocusRequester = remember { FocusRequester() }
+        var panelHasFocus by remember { mutableStateOf(false) }
+
         Surface(
-            modifier = Modifier
-                .width(dimens.sidePanelWidth)
-                .fillMaxHeight(),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 3.dp,
+            modifier =
+                Modifier
+                    .width(dimens.sidePanelWidth)
+                    .fillMaxHeight(),
+            shape = MaterialTheme.shapes.extraLarge.copy(topEnd = ZeroCornerSize, bottomEnd = ZeroCornerSize),
+            color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onFocusChanged { panelHasFocus = it.hasFocus }
-                    // Trap: no D-pad direction may move focus out of the panel.
-                    .focusProperties {
-                        @OptIn(ExperimentalComposeUiApi::class)
-                        exit = { FocusRequester.Cancel }
-                    }
-                    .focusGroup()
-                    .padding(
-                        horizontal = 24.dp,
-                        vertical = dimens.overscanVertical,
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .onFocusChanged { panelHasFocus = it.hasFocus }
+                        .focusProperties { onExit = { cancelFocusChange() } }
+                        .focusGroup()
+                        .padding(horizontal = 24.dp, vertical = dimens.overscanVertical),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -112,24 +109,18 @@ fun BoxScope.TvSidePanel(
                 Box(
                     Modifier
                         .weight(1f)
-                        .focusRequester(firstFocusRequester)
-                        .focusGroup()
+                        .focusRequester(contentFocusRequester)
+                        .focusGroup(),
                 ) {
                     Column(content = content)
                 }
             }
         }
-    }
 
-    LaunchedEffect(visible) {
-        if (!visible) return@LaunchedEffect
-        snapshotFlow { panelHasFocus }.collectLatest { hasFocus ->
-            if (hasFocus) return@collectLatest
-            repeat(20) {
-                delay(120)
-                if (panelHasFocus) return@collectLatest
-                runCatching { firstFocusRequester.requestFocus() }
-            }
+        LaunchedEffect(Unit) {
+            snapshotFlow { !panelHasFocus && transition.targetState == EnterExitState.Visible }
+                .filter { it }
+                .collect { contentFocusRequester.requestFocus() }
         }
     }
 }
