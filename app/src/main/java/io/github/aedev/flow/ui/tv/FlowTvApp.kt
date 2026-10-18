@@ -22,6 +22,10 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
+import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
+import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
+import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
 import io.github.aedev.flow.ui.components.shared.LocalFlowSheetPresenter
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -124,52 +128,58 @@ fun FlowTvApp(
         onDeeplinkConsumed()
     }
 
+    val musicMenus = rememberMusicMenus()
+
     FlowTvTheme {
         CompositionLocalProvider(
             LocalMediaNavigator provides mediaNavigator,
             LocalFlowSheetPresenter provides TvSheetPresenter,
+            LocalMusicMenus provides musicMenus,
         ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onBackground,
-            ) {
-                val video = activeVideo
-                val visibleMusicTrack = activeMusicTrack.takeIf { musicSessionActive }
-                if (video == null && musicExpanded && visibleMusicTrack != null) {
-                    TvMusicNowPlayingScreen(
-                        viewModel = musicPlayerViewModel,
-                        onCollapse = { musicExpanded = false },
-                    )
-                } else if (video == null) {
-                    val tvNavigation = navigation ?: return@Surface
-                    TvShell(
-                        navigation = tvNavigation,
-                        navController = navController,
-                        homeViewModel = homeViewModel,
-                        musicViewModel = musicViewModel,
-                        musicPlayerViewModel = musicPlayerViewModel,
-                        subscriptionsViewModel = subscriptionsViewModel,
-                        searchViewModel = searchViewModel,
-                        onPlayVideo = ::play,
-                        onPlayPlaylist = ::playPlaylist,
-                        onPlayVideoId = { playById(it) },
-                        activeMusicTrack = visibleMusicTrack,
-                        onExpandMusic = { musicExpanded = true },
-                        onDismissMusic = {
-                            musicExpanded = false
-                            musicSessionActive = false
-                            EnhancedMusicPlayerManager.clearCurrentTrack()
-                        },
-                    )
-                } else {
-                    TvPlayerScreen(
-                        video = video,
-                        viewModel = playerViewModel,
-                        onClose = ::closePlayer,
-                    )
+            ProvideMusicPlaybackState(surfacesVisible = !musicExpanded && activeVideo == null) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground,
+                ) {
+                    val video = activeVideo
+                    val visibleMusicTrack = activeMusicTrack.takeIf { musicSessionActive }
+                    if (video == null && musicExpanded && visibleMusicTrack != null) {
+                        TvMusicNowPlayingScreen(
+                            viewModel = musicPlayerViewModel,
+                            onCollapse = { musicExpanded = false },
+                        )
+                    } else if (video == null) {
+                        val tvNavigation = navigation ?: return@Surface
+                        TvShell(
+                            navigation = tvNavigation,
+                            navController = navController,
+                            homeViewModel = homeViewModel,
+                            musicViewModel = musicViewModel,
+                            musicPlayerViewModel = musicPlayerViewModel,
+                            subscriptionsViewModel = subscriptionsViewModel,
+                            searchViewModel = searchViewModel,
+                            onPlayVideo = ::play,
+                            onPlayPlaylist = ::playPlaylist,
+                            onPlayVideoId = { playById(it) },
+                            activeMusicTrack = visibleMusicTrack,
+                            onExpandMusic = { musicExpanded = true },
+                            onDismissMusic = {
+                                musicExpanded = false
+                                musicSessionActive = false
+                                EnhancedMusicPlayerManager.clearCurrentTrack()
+                            },
+                        )
+                    } else {
+                        TvPlayerScreen(
+                            video = video,
+                            viewModel = playerViewModel,
+                            onClose = ::closePlayer,
+                        )
+                    }
                 }
             }
+            MusicMenuSheets(musicMenus)
         }
     }
 }

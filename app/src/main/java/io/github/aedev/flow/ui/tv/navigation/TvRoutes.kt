@@ -19,6 +19,11 @@ object TvRoutes {
     const val MUSIC_ARTIST_ARG = "artistChannelId"
     const val MUSIC_ARTIST = "musicArtist/{$MUSIC_ARTIST_ARG}"
 
+    const val ARTIST_ITEMS_CHANNEL_ARG = "channelId"
+    const val ARTIST_ITEMS_BROWSE_ARG = "browseId"
+    const val ARTIST_ITEMS_PARAMS_ARG = "params"
+    const val ARTIST_ITEMS = "artistItems/{$ARTIST_ITEMS_CHANNEL_ARG}/{$ARTIST_ITEMS_BROWSE_ARG}?params={$ARTIST_ITEMS_PARAMS_ARG}"
+
     const val HISTORY = "history"
 
     const val PLAYLISTS_KIND_ARG = "kind"
@@ -46,6 +51,13 @@ object TvRoutes {
     /** A mood or genre's page, as YouTube Music browses it. */
     fun musicBrowse(item: MoodAndGenres.Item): String =
         "youtube_browse/${item.endpoint.browseId}?params=${Uri.encode(item.endpoint.params.orEmpty())}"
+
+    /** Everything in one of an artist's sections, the page behind a shelf's "See all". */
+    fun artistItems(
+        channelId: String,
+        browseId: String,
+        params: String?,
+    ): String = "artistItems/${Uri.encode(channelId)}/${Uri.encode(browseId)}" + params?.let { "?params=${Uri.encode(it)}" }.orEmpty()
 
     fun musicArtist(channelId: String): String = "musicArtist/${Uri.encode(channelId)}"
 }
