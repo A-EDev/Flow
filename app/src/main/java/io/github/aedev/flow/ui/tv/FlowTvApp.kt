@@ -36,7 +36,7 @@ import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.tv.components.TvSheetPresenter
 import io.github.aedev.flow.ui.tv.music.TvMusicNowPlaying
 import io.github.aedev.flow.ui.tv.navigation.TvMediaNavigator
-import io.github.aedev.flow.ui.tv.screens.TvPlayerScreen
+import io.github.aedev.flow.ui.tv.player.TvPlayerScreen
 import io.github.aedev.flow.ui.tv.theme.FlowTvTheme
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -175,6 +175,7 @@ fun FlowTvApp(
                             video = video,
                             viewModel = playerViewModel,
                             onClose = ::closePlayer,
+                            onOpenChannel = mediaNavigator::openChannel,
                         )
                     }
                 }

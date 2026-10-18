@@ -1,14 +1,7 @@
 package io.github.aedev.flow.ui.tv.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,6 +30,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -44,39 +38,9 @@ import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.flow.filter
 
 /**
- * Right-side modal panel, the TV replacement for bottom sheets and dropdowns. While open it is a
- * focus trap: no D-pad direction leaves it, and if the focused row leaves composition (a content
- * swap, a reload) focus goes back into the panel once. Dismissed with Back or the header close
- * button. Placed inside a Box.
- */
-@Composable
-fun BoxScope.TvSidePanel(
-    visible: Boolean,
-    title: String,
-    modifier: Modifier = Modifier,
-    onClose: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val motion = MaterialTheme.motionScheme
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier.align(Alignment.CenterEnd),
-        enter = fadeIn(motion.defaultEffectsSpec()) + slideInHorizontally(motion.defaultSpatialSpec()) { it / 3 },
-        exit = fadeOut(motion.fastEffectsSpec()) + slideOutHorizontally(motion.fastSpatialSpec()) { it / 3 },
-    ) {
-        TvSidePanelSurface(
-            title = title,
-            onClose = onClose,
-            keepsFocus = { transition.targetState == EnterExitState.Visible },
-            contentPadding = PaddingValues(horizontal = 24.dp),
-            content = content,
-        )
-    }
-}
-
-/**
- * The panel itself: a full-height surface on the end edge whose content takes focus when it opens and
- * again whenever focus drops out of it while [keepsFocus] holds. [title] null leaves the header to
+ * TV's side panel, its replacement for bottom sheets: a full-height surface on the end edge and a focus
+ * trap, so no D-pad direction leaves it. Its content takes focus when it opens and again whenever focus
+ * drops out of it (a reload, a content swap) while [keepsFocus] holds. [title] null leaves the header to
  * the content, as the shared sheets draw their own.
  */
 @Composable
@@ -86,6 +50,7 @@ internal fun TvSidePanelSurface(
     keepsFocus: () -> Boolean,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
+    color: Color = MaterialTheme.colorScheme.surfaceContainer,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val dimens = LocalTvDimens.current
@@ -98,7 +63,7 @@ internal fun TvSidePanelSurface(
                 .width(dimens.sidePanelWidth)
                 .fillMaxHeight(),
         shape = MaterialTheme.shapes.extraLarge.copy(topEnd = ZeroCornerSize, bottomEnd = ZeroCornerSize),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = color,
     ) {
         Column(
             modifier =

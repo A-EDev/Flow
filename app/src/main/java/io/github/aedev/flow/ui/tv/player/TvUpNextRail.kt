@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.tv.player
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
@@ -15,17 +16,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.tv.components.TvVideoCard
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import io.github.aedev.flow.ui.tv.focus.ProvideTvRowPivot
-import io.github.aedev.flow.ui.tv.focus.tvRowFocus
-import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
+
+private val UpNextCardWidth = 184.dp
 
 /**
- * Up-next shelf in the player overlay: the active queue when one exists,
- * otherwise related videos. The current queue item is marked selected.
+ * The row under the player controls: the rest of the queue when one is playing, otherwise the related
+ * videos, as the phone's cards. Their text takes the over-video inks, since the row sits on the
+ * player's scrim rather than on the page.
  */
 @Composable
-fun TvUpNextRail(
+internal fun TvUpNextRail(
     queue: List<Video>,
     currentQueueIndex: Int,
     relatedVideos: List<Video>,
@@ -33,40 +38,41 @@ fun TvUpNextRail(
     firstItemFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    val videos = if (queue.isNotEmpty()) queue else relatedVideos
+    val upcoming = queue.drop(currentQueueIndex + 1)
+    val videos = upcoming.ifEmpty { relatedVideos }
     if (videos.isEmpty()) return
-    val dimens = LocalTvDimens.current
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = if (queue.isNotEmpty()) {
-                stringResource(R.string.tv_player_queue)
-            } else {
-                stringResource(R.string.up_next)
-            },
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = stringResource(if (upcoming.isNotEmpty()) R.string.tv_player_queue else R.string.up_next),
+            style = MaterialTheme.typography.labelLarge,
+            color = PlayerScrimContentSecondary,
         )
-        ProvideTvRowPivot {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .tvRowFocus(),
-                horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-            ) {
-                itemsIndexed(videos, key = { index, video -> "${video.id}_$index" }) { index, video ->
-                    TvVideoCard(
-                        video = video,
-                        onClick = { onVideoClick(video) },
-                        modifier = if (index == 0) {
-                            Modifier.focusRequester(firstItemFocusRequester)
-                        } else {
-                            Modifier
-                        },
-                    )
+        MaterialTheme(
+            colorScheme =
+                MaterialTheme.colorScheme.copy(
+                    onSurface = PlayerScrimContent,
+                    onSurfaceVariant = PlayerScrimContentSecondary,
+                ),
+        ) {
+            ProvideTvRowPivot {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().dpadFocusGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    itemsIndexed(videos, key = { index, video -> "${video.id}_$index" }) { index, video ->
+                        MediaVideoCard(
+                            video = video,
+                            onClick = { onVideoClick(video) },
+                            modifier =
+                                Modifier
+                                    .width(UpNextCardWidth)
+                                    .then(if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier),
+                        )
+                    }
                 }
             }
         }

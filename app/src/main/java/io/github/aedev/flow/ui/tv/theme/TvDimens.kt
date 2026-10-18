@@ -14,13 +14,9 @@ data class TvDimens(
     val overscanHorizontal: Dp = 48.dp,
     val overscanVertical: Dp = 27.dp,
     val railCollapsedWidth: Dp = 96.dp,
-    val videoCardWidth: Dp = 260.dp,
     val feedCardMinWidth: Dp = 184.dp,
     val feedMaxColumns: Int = 4,
     val spotlightHeight: Dp = 176.dp,
-    val musicCardWidth: Dp = 180.dp,
-    val rowSpacing: Dp = 36.dp,
-    val itemSpacing: Dp = 20.dp,
     val sidePanelWidth: Dp = 400.dp,
 )
 

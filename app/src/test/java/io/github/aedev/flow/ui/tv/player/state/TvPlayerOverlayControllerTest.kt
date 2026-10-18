@@ -4,14 +4,12 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class TvPlayerOverlayControllerTest {
-
     private var now = 0L
     private val controller = TvPlayerOverlayController { now }
 
     @Test
-    fun `starts hidden with no panel`() {
+    fun `starts hidden`() {
         assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.HIDDEN)
-        assertThat(controller.state.value.activePanel).isNull()
     }
 
     @Test
@@ -32,7 +30,7 @@ class TvPlayerOverlayControllerTest {
         assertThat(controller.autoHideDeadline(isPlaying = false, isScrubbing = false)).isNull()
         assertThat(controller.autoHideDeadline(isPlaying = true, isScrubbing = true)).isNull()
 
-        controller.openPanel(TvPlayerPanel.SETTINGS)
+        controller.openPanel()
         assertThat(controller.autoHideDeadline(isPlaying = true, isScrubbing = false)).isNull()
 
         controller.hide()
@@ -50,59 +48,30 @@ class TvPlayerOverlayControllerTest {
     }
 
     @Test
-    fun `settings sub pages pop back to settings then transport`() {
+    fun `closing a panel returns to the transport`() {
         controller.showTransport()
-        controller.openPanel(TvPlayerPanel.SETTINGS)
-        controller.openPanel(TvPlayerPanel.QUALITY)
+        controller.openPanel()
 
-        assertThat(controller.onBack()).isTrue()
-        assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.PANEL)
-        assertThat(controller.state.value.activePanel).isEqualTo(TvPlayerPanel.SETTINGS)
-
-        assertThat(controller.onBack()).isTrue()
+        controller.closePanel()
         assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.TRANSPORT)
-        assertThat(controller.state.value.activePanel).isNull()
     }
 
     @Test
-    fun `root panels return straight to transport`() {
-        controller.showTransport()
-        controller.openPanel(TvPlayerPanel.QUEUE)
-
-        assertThat(controller.onBack()).isTrue()
-        assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.TRANSPORT)
+    fun `closing without a panel open changes nothing`() {
+        controller.hide()
+        controller.closePanel()
+        assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.HIDDEN)
     }
 
     @Test
     fun `back walks panel transport hidden then reports unhandled`() {
         controller.showTransport()
-        controller.openPanel(TvPlayerPanel.DESCRIPTION)
+        controller.openPanel()
 
-        assertThat(controller.onBack()).isTrue()   // panel -> transport
-        assertThat(controller.onBack()).isTrue()   // transport -> hidden
+        assertThat(controller.onBack()).isTrue()
+        assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.TRANSPORT)
+        assertThat(controller.onBack()).isTrue()
         assertThat(controller.state.value.mode).isEqualTo(TvOverlayMode.HIDDEN)
-        assertThat(controller.onBack()).isFalse()  // hidden -> close the player
-    }
-
-    @Test
-    fun `every settings sub page declares settings as parent`() {
-        listOf(
-            TvPlayerPanel.QUALITY,
-            TvPlayerPanel.SPEED,
-            TvPlayerPanel.AUDIO,
-            TvPlayerPanel.SUBTITLES,
-        ).forEach { panel ->
-            assertThat(panel.parent).isEqualTo(TvPlayerPanel.SETTINGS)
-        }
-        listOf(
-            TvPlayerPanel.SETTINGS,
-            TvPlayerPanel.QUEUE,
-            TvPlayerPanel.COMMENTS,
-            TvPlayerPanel.LIVE_CHAT,
-            TvPlayerPanel.DESCRIPTION,
-            TvPlayerPanel.SAVE,
-        ).forEach { panel ->
-            assertThat(panel.parent).isNull()
-        }
+        assertThat(controller.onBack()).isFalse()
     }
 }
