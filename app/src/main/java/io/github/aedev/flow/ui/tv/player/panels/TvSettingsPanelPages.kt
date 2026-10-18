@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.AudioTrackOption
 import io.github.aedev.flow.player.state.SubtitleOption
+import io.github.aedev.flow.ui.components.shared.playbackSpeedLabel
 import io.github.aedev.flow.ui.tv.components.TvNavRow
 import io.github.aedev.flow.ui.tv.components.TvSelectionRow
 import io.github.aedev.flow.ui.tv.components.TvToggleRow
@@ -66,7 +67,7 @@ fun TvSettingsMainPage(
         item(key = "speed") {
             TvNavRow(
                 label = stringResource(R.string.playback_speed),
-                value = formatSpeedLabel(currentSpeed),
+                value = playbackSpeedLabel(currentSpeed),
                 onClick = { onOpen(TvPlayerPanel.SPEED) },
             )
         }
@@ -188,7 +189,7 @@ fun TvSpeedPage(
         items(count = TV_PLAYBACK_SPEEDS.size, key = { TV_PLAYBACK_SPEEDS[it] }) { index ->
             val speed = TV_PLAYBACK_SPEEDS[index]
             TvSelectionRow(
-                label = formatSpeedLabel(speed),
+                label = playbackSpeedLabel(speed),
                 selected = speed == currentSpeed,
                 onClick = { onSelect(speed) },
                 modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
@@ -268,5 +269,3 @@ fun TvSubtitlesPage(
         }
     }
 }
-
-fun formatSpeedLabel(speed: Float): String = if (speed == speed.toLong().toFloat()) "${speed.toLong()}x" else "${speed}x"
