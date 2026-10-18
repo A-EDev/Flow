@@ -409,8 +409,9 @@ fun TvPlayerScreen(
                 durationProvider = { manager.getDuration().coerceAtLeast(0L) },
                 bufferedFractionProvider = { manager.playerState.value.bufferedPercentage / 100f },
                 scrubTargetMs = scrubUiState.takeIf { it.isScrubbing }?.targetMs,
-                active = overlayState.mode != TvOverlayMode.HIDDEN &&
-                    (playerState.isPlaying || scrubUiState.isScrubbing),
+                active =
+                    overlayState.mode != TvOverlayMode.HIDDEN &&
+                        (playerState.isPlaying || scrubUiState.isScrubbing),
                 refreshKey = seekCount,
                 focusRequester = seekBarFocusRequester,
                 onFocusChanged = { seekBarFocused = it },

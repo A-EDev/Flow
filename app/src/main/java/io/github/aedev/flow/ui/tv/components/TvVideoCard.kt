@@ -1,6 +1,6 @@
 package io.github.aedev.flow.ui.tv.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,8 +27,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.card.rememberCardTitle
-import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
-import io.github.aedev.flow.ui.tv.focus.tvFocusScale
+import io.github.aedev.flow.ui.components.shared.focusLift
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatTimeAgo
@@ -47,8 +46,7 @@ fun TvVideoCard(
     watchProgress: Float? = null,
 ) {
     val dimens = LocalTvDimens.current
-    val focusState = rememberTvFocusState()
-    val focused = focusState.isFocused
+    val interactionSource = remember { MutableInteractionSource() }
     val viewsTemplate =
         if (video.viewCount > 0) {
             stringResource(R.string.views_template, formatViewCount(video.viewCount))
@@ -69,7 +67,8 @@ fun TvVideoCard(
         modifier =
             modifier
                 .width(dimens.videoCardWidth)
-                .tvFocusScale(focusState),
+                .focusLift(interactionSource),
+        interactionSource = interactionSource,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -81,14 +80,6 @@ fun TvVideoCard(
                         .aspectRatio(16f / 9f),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                // Focus indicator, not decoration: onSurface gives the
-                // high-contrast neutral ring a thumbnail needs at 10 ft.
-                border =
-                    if (focused) {
-                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                    } else {
-                        null
-                    },
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     VideoThumbnailImage(

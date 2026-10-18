@@ -98,118 +98,127 @@ fun TvSeekBar(
     val selfPromoColor = MaterialTheme.colorScheme.secondary
     val interactionColor = MaterialTheme.colorScheme.error
     // Precomputed once per marks change: nothing allocates in the draw loop.
-    val segmentColors = remember(marks, sponsorColor, selfPromoColor, interactionColor) {
-        marks?.segments?.map { segment ->
-            segment to when (segment.category) {
-                "selfpromo" -> selfPromoColor
-                "interaction", "poi_highlight" -> interactionColor
-                else -> sponsorColor
-            }
-        }.orEmpty()
-    }
+    val segmentColors =
+        remember(marks, sponsorColor, selfPromoColor, interactionColor) {
+            marks
+                ?.segments
+                ?.map { segment ->
+                    segment to
+                        when (segment.category) {
+                            "selfpromo" -> selfPromoColor
+                            "interaction", "poi_highlight" -> interactionColor
+                            else -> sponsorColor
+                        }
+                }.orEmpty()
+        }
     // YouTube-style chapter segmentation: the track splits into spans with a
     // small gap at every chapter start (falls back to one full-width span).
-    val chapterSpans = remember(marks) {
-        val fractions = marks?.chapterFractions.orEmpty()
-            .filter { it > 0f && it < 1f }
-            .distinct()
-            .sorted()
-        if (fractions.isEmpty()) {
-            listOf(0f to 1f)
-        } else {
-            buildList {
-                var start = 0f
-                fractions.forEach { fraction ->
-                    add(start to fraction)
-                    start = fraction
+    val chapterSpans =
+        remember(marks) {
+            val fractions =
+                marks
+                    ?.chapterFractions
+                    .orEmpty()
+                    .filter { it > 0f && it < 1f }
+                    .distinct()
+                    .sorted()
+            if (fractions.isEmpty()) {
+                listOf(0f to 1f)
+            } else {
+                buildList {
+                    var start = 0f
+                    fractions.forEach { fraction ->
+                        add(start to fraction)
+                        start = fraction
+                    }
+                    add(start to 1f)
                 }
-                add(start to 1f)
             }
         }
-    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         androidx.compose.foundation.layout.Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp)
-                .focusRequester(focusRequester)
-                .onFocusChanged {
-                    focused = it.isFocused
-                    onFocusChanged(it.isFocused)
-                }
-                .focusable()
-                .drawBehind {
-                    frameTick.longValue // subscribe this draw scope to frame ticks
-                    val duration = durationProvider().coerceAtLeast(0L)
-                    val position = positionProvider().coerceAtLeast(0L)
-                    val barHeight = (if (focused) 8.dp else 5.dp).toPx()
-                    val centerY = size.height / 2f
-                    val top = centerY - barHeight / 2f
-                    val corner = CornerRadius(2.dp.toPx())
-                    val gapHalf = 1.25.dp.toPx()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged {
+                        focused = it.isFocused
+                        onFocusChanged(it.isFocused)
+                    }.focusable()
+                    .drawBehind {
+                        frameTick.longValue // subscribe this draw scope to frame ticks
+                        val duration = durationProvider().coerceAtLeast(0L)
+                        val position = positionProvider().coerceAtLeast(0L)
+                        val barHeight = (if (focused) 8.dp else 5.dp).toPx()
+                        val centerY = size.height / 2f
+                        val top = centerY - barHeight / 2f
+                        val corner = CornerRadius(2.dp.toPx())
+                        val gapHalf = 1.25.dp.toPx()
 
-                    val bufferedFraction = bufferedFractionProvider().coerceIn(0f, 1f)
-                    val playedFraction = if (duration > 0L) {
-                        (position.toFloat() / duration).coerceIn(0f, 1f)
-                    } else {
-                        0f
-                    }
+                        val bufferedFraction = bufferedFractionProvider().coerceIn(0f, 1f)
+                        val playedFraction =
+                            if (duration > 0L) {
+                                (position.toFloat() / duration).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
 
-                    // Track, buffered, and played, clipped to each chapter span.
-                    chapterSpans.forEach { (startFraction, endFraction) ->
-                        val left = size.width * startFraction + if (startFraction > 0f) gapHalf else 0f
-                        val right = size.width * endFraction - if (endFraction < 1f) gapHalf else 0f
-                        if (right <= left) return@forEach
-                        drawRoundRect(
-                            color = trackColor,
-                            topLeft = Offset(left, top),
-                            size = Size(right - left, barHeight),
-                            cornerRadius = corner,
-                        )
-                        val bufferedRight = (size.width * bufferedFraction).coerceIn(left, right)
-                        if (bufferedRight > left) {
+                        // Track, buffered, and played, clipped to each chapter span.
+                        chapterSpans.forEach { (startFraction, endFraction) ->
+                            val left = size.width * startFraction + if (startFraction > 0f) gapHalf else 0f
+                            val right = size.width * endFraction - if (endFraction < 1f) gapHalf else 0f
+                            if (right <= left) return@forEach
                             drawRoundRect(
-                                color = bufferedColor,
+                                color = trackColor,
                                 topLeft = Offset(left, top),
-                                size = Size(bufferedRight - left, barHeight),
+                                size = Size(right - left, barHeight),
+                                cornerRadius = corner,
+                            )
+                            val bufferedRight = (size.width * bufferedFraction).coerceIn(left, right)
+                            if (bufferedRight > left) {
+                                drawRoundRect(
+                                    color = bufferedColor,
+                                    topLeft = Offset(left, top),
+                                    size = Size(bufferedRight - left, barHeight),
+                                    cornerRadius = corner,
+                                )
+                            }
+                            val playedRight = (size.width * playedFraction).coerceIn(left, right)
+                            if (playedRight > left) {
+                                drawRoundRect(
+                                    color = playedColor,
+                                    topLeft = Offset(left, top),
+                                    size = Size(playedRight - left, barHeight),
+                                    cornerRadius = corner,
+                                )
+                            }
+                        }
+                        segmentColors.forEach { (segment, color) ->
+                            val left = size.width * segment.startFraction
+                            val right = size.width * segment.endFraction
+                            drawRoundRect(
+                                color = color,
+                                topLeft = Offset(left, top),
+                                size = Size((right - left).coerceAtLeast(2.dp.toPx()), barHeight),
                                 cornerRadius = corner,
                             )
                         }
-                        val playedRight = (size.width * playedFraction).coerceIn(left, right)
-                        if (playedRight > left) {
-                            drawRoundRect(
-                                color = playedColor,
-                                topLeft = Offset(left, top),
-                                size = Size(playedRight - left, barHeight),
-                                cornerRadius = corner,
-                            )
+
+                        val playedWidth = size.width * playedFraction
+                        val knobRadius = (if (focused) 10.dp else 7.dp).toPx()
+                        drawCircle(playedColor, knobRadius, center = Offset(playedWidth, centerY))
+
+                        if (scrubTargetMs != null && duration > 0L) {
+                            val ghostX = size.width * (scrubTargetMs.toFloat() / duration).coerceIn(0f, 1f)
+                            drawCircle(ghostColor, knobRadius, center = Offset(ghostX, centerY))
+                            drawCircle(playedColor, knobRadius * 0.45f, center = Offset(ghostX, centerY))
                         }
-                    }
-                    segmentColors.forEach { (segment, color) ->
-                        val left = size.width * segment.startFraction
-                        val right = size.width * segment.endFraction
-                        drawRoundRect(
-                            color = color,
-                            topLeft = Offset(left, top),
-                            size = Size((right - left).coerceAtLeast(2.dp.toPx()), barHeight),
-                            cornerRadius = corner,
-                        )
-                    }
-
-                    val playedWidth = size.width * playedFraction
-                    val knobRadius = (if (focused) 10.dp else 7.dp).toPx()
-                    drawCircle(playedColor, knobRadius, center = Offset(playedWidth, centerY))
-
-                    if (scrubTargetMs != null && duration > 0L) {
-                        val ghostX = size.width * (scrubTargetMs.toFloat() / duration).coerceIn(0f, 1f)
-                        drawCircle(ghostColor, knobRadius, center = Offset(ghostX, centerY))
-                        drawCircle(playedColor, knobRadius * 0.45f, center = Offset(ghostX, centerY))
-                    }
-                },
+                    },
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -219,11 +228,12 @@ fun TvSeekBar(
             Text(
                 text = formatDuration(shownSeconds.coerceAtLeast(0L).toInt()),
                 style = MaterialTheme.typography.labelMedium,
-                color = if (scrubTargetMs != null) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    Color.White.copy(alpha = 0.85f)
-                },
+                color =
+                    if (scrubTargetMs != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.White.copy(alpha = 0.85f)
+                    },
             )
             Text(
                 text = formatDuration(durationSeconds.coerceAtLeast(0L).toInt()),

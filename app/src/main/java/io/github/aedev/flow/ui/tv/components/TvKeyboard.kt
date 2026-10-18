@@ -15,13 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -98,27 +94,19 @@ private fun TvKey(
     wide: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        modifier = modifier,
         shape = MaterialTheme.shapes.small,
-        color = if (focused) {
-            MaterialTheme.colorScheme.inverseSurface
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        contentColor = if (focused) {
-            MaterialTheme.colorScheme.inverseOnSurface
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(
-            modifier = Modifier.size(
-                width = if (wide) KEY_SIZE * 2 + KEY_GAP else KEY_SIZE,
-                height = KEY_SIZE,
-            ),
+            modifier =
+                Modifier.size(
+                    width = if (wide) KEY_SIZE * 2 + KEY_GAP else KEY_SIZE,
+                    height = KEY_SIZE,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             content()

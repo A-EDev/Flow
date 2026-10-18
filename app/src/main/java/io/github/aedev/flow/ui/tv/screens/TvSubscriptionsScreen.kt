@@ -28,11 +28,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.progressTemplate
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvChannelCard
-import io.github.aedev.flow.ui.tv.components.TvFilterChip
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvScreenScaffold
@@ -131,14 +131,14 @@ fun TvSubscriptionsScreen(
                                 contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
                             ) {
                                 item(key = "all") {
-                                    TvFilterChip(
+                                    FlowFilterChip(
                                         label = stringResource(R.string.tv_subscriptions_all),
                                         selected = state.selectedGroupName == null,
                                         onClick = { viewModel.selectGroup(null) },
                                     )
                                 }
                                 items(state.groups, key = { it.name }) { group ->
-                                    TvFilterChip(
+                                    FlowFilterChip(
                                         label = group.name,
                                         selected = state.selectedGroupName == group.name,
                                         onClick = { viewModel.selectGroup(group.name) },

@@ -39,7 +39,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.playlist.PlaylistListOrder
 import io.github.aedev.flow.data.playlist.sortedFor
-import io.github.aedev.flow.ui.tv.components.TvFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvMusicCard
@@ -117,7 +117,7 @@ fun TvLibraryScreen(
                 contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
             ) {
                 items(TvLibrarySection.entries, key = TvLibrarySection::name) { section ->
-                    TvFilterChip(
+                    FlowFilterChip(
                         label = stringResource(section.titleRes),
                         selected = selectedSection == section,
                         onClick = { selectedSection = section },

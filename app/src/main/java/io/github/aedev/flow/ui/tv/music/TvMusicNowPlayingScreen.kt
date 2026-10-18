@@ -110,8 +110,6 @@ fun TvMusicNowPlayingScreen(
             TvIconButtonColors(
                 container = Color.White.copy(alpha = 0.12f),
                 content = Color.White,
-                focusedContainer = Color.White,
-                focusedContent = Color.Black,
                 activeContainer = palette.accent,
                 activeContent = if (palette.accent.luminance() > 0.5f) Color.Black else Color.White,
             )

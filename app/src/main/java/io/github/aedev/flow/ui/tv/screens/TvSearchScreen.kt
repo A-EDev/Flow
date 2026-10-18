@@ -53,13 +53,13 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.music.search.searchSummaryTitle
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.screens.music.MusicSearchUiState
 import io.github.aedev.flow.ui.screens.music.MusicSearchViewModel
 import io.github.aedev.flow.ui.screens.music.convertSongToMusicTrack
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.tv.components.TvArtistCard
 import io.github.aedev.flow.ui.tv.components.TvChannelCard
-import io.github.aedev.flow.ui.tv.components.TvFilterChip
 import io.github.aedev.flow.ui.tv.components.TvKeyboard
 import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
@@ -247,7 +247,7 @@ fun TvSearchScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(TvSearchTop.entries, key = TvSearchTop::name) { top ->
-                    TvFilterChip(
+                    FlowFilterChip(
                         label = stringResource(top.labelRes),
                         selected = topFilter == top,
                         onClick = {
@@ -269,7 +269,7 @@ fun TvSearchScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(TvVideoSubFilter.entries, key = TvVideoSubFilter::name) { sub ->
-                            TvFilterChip(
+                            FlowFilterChip(
                                 label = stringResource(sub.labelRes),
                                 selected = videoSubFilter == sub,
                                 onClick = {
@@ -289,7 +289,7 @@ fun TvSearchScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(TvMusicSubFilter.entries, key = TvMusicSubFilter::name) { sub ->
-                            TvFilterChip(
+                            FlowFilterChip(
                                 label = stringResource(sub.labelRes),
                                 selected = musicSubFilter == sub,
                                 onClick = {
@@ -314,7 +314,7 @@ fun TvSearchScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(suggestions.take(8), key = { it }) { suggestion ->
-                        TvFilterChip(
+                        FlowFilterChip(
                             label = suggestion,
                             selected = false,
                             onClick = { query = suggestion },

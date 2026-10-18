@@ -1,6 +1,6 @@
 package io.github.aedev.flow.ui.tv.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,8 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
-import io.github.aedev.flow.ui.tv.focus.tvFocusScale
+import io.github.aedev.flow.ui.components.shared.focusLift
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import io.github.aedev.flow.utils.formatDuration
 
@@ -71,14 +71,15 @@ private fun TvFlatSquareCard(
     modifier: Modifier = Modifier,
 ) {
     val dimens = LocalTvDimens.current
-    val focusState = rememberTvFocusState()
+    val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
         onClick = onClick,
         modifier =
             modifier
                 .width(dimens.musicCardWidth)
-                .tvFocusScale(focusState),
+                .focusLift(interactionSource),
+        interactionSource = interactionSource,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -90,12 +91,6 @@ private fun TvFlatSquareCard(
                         .aspectRatio(1f),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                border =
-                    if (focusState.isFocused) {
-                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                    } else {
-                        null
-                    },
             ) {
                 AsyncImage(
                     model = thumbnailUrl,
@@ -135,14 +130,15 @@ fun TvArtistCard(
     modifier: Modifier = Modifier,
 ) {
     val dimens = LocalTvDimens.current
-    val focusState = rememberTvFocusState()
+    val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
         onClick = onClick,
         modifier =
             modifier
                 .width(dimens.musicCardWidth)
-                .tvFocusScale(focusState),
+                .focusLift(interactionSource),
+        interactionSource = interactionSource,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -157,12 +153,6 @@ fun TvArtistCard(
                         .aspectRatio(1f),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                border =
-                    if (focusState.isFocused) {
-                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                    } else {
-                        null
-                    },
             ) {
                 AsyncImage(
                     model = thumbnailUrl,

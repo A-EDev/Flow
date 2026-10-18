@@ -37,9 +37,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.screens.channel.ChannelViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
-import io.github.aedev.flow.ui.tv.components.TvFilterChip
 import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
 import io.github.aedev.flow.ui.tv.components.TvPlaylistCard
@@ -144,7 +144,7 @@ fun TvChannelScreen(
             contentPadding = PaddingValues(horizontal = dimens.overscanHorizontal),
         ) {
             items(TvChannelTab.entries, key = { it.name }) { tab ->
-                TvFilterChip(
+                FlowFilterChip(
                     label = stringResource(tab.labelRes),
                     selected = tab == selectedTab,
                     onClick = { viewModel.selectTab(tab.kind) },

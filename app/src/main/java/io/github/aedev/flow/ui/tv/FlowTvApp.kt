@@ -27,7 +27,7 @@ import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.tv.music.TvMusicNowPlayingScreen
 import io.github.aedev.flow.ui.tv.screens.TvPlayerScreen
-import io.github.aedev.flow.ui.tv.theme.TvTheme
+import io.github.aedev.flow.ui.tv.theme.FlowTvTheme
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -92,7 +92,7 @@ fun FlowTvApp(
         onDeeplinkConsumed()
     }
 
-    TvTheme {
+    FlowTvTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
