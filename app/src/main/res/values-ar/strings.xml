@@ -4603,4 +4603,35 @@
     <string name="content_settings_shared_links_always_ask">اسأل دائمًا</string>
     <string name="shared_link_play_now">تشغيل الآن</string>
     <string name="shared_link_play_now_desc">يستبدل ما يتم تشغيله حاليًا</string>
+    <string name="home_load_more_failed">تعذّر تحميل المزيد من الفيديوهات</string>
+    <string name="home_load_more_failed_body">تحقق من اتصالك</string>
+    <string name="home_refresh_failed">تعذّر تحديث الخلاصة</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="zero">جارٍ التحقق من %1$d من أصل %2$d قناة للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+        <item quantity="one">جارٍ التحقق من %1$d من أصل %2$d قناة للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+        <item quantity="two">جارٍ التحقق من %1$d من أصل %2$d قناة للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+        <item quantity="few">جارٍ التحقق من %1$d من أصل %2$d قنوات للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+        <item quantity="many">جارٍ التحقق من %1$d من أصل %2$d قناة للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+        <item quantity="other">جارٍ التحقق من %1$d من أصل %2$d قناة للعثور على المقاطع القصيرة والبثوث المباشرة</item>
+    </plurals>
+    <string name="lyrics_keep_screen_on">إبقاء الشاشة قيد التشغيل</string>
+    <string name="lyrics_keep_screen_on_summary">أثناء عرض كلمات الأغاني وتشغيل الموسيقى</string>
+    <string name="player_appearance_follow_light_theme_title">‏فاتح في المظهر الفاتح</string>
+    <string name="player_appearance_follow_light_theme_subtitle">جعل خلفيات الأغلفة فاتحة</string>
+    <string name="player_appearance_sleep_timer_button_title">زر مؤقّت النوم</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">إظهاره بجوار زر قائمة التشغيل</string>
+    <string name="search_filter_group_watched">تمت مشاهدته</string>
+    <string name="search_filter_recently_uploaded">رُفع مؤخرًا</string>
+    <string name="search_filter_watch_any">تمت مشاهدته أم لا</string>
+    <string name="search_filter_unwatched">لم تتم مشاهدته</string>
+    <string name="search_filter_watched">تمت مشاهدته</string>
+    <string name="search_watch_empty_watched">لا توجد مقاطع فيديو تمت مشاهدتها هنا</string>
+    <string name="search_watch_empty_unwatched">لا توجد مقاطع فيديو غير مشاهدة هنا</string>
+    <string name="deep_flow_on_search_title">إظهار في البحث</string>
+    <string name="deep_flow_on_search_subtitle">مفتاح تبديل Deep Flow فوق عمليات البحث الأخيرة</string>
+    <string name="support_flow_open_collective">ادعم Flow على Open Collective</string>
+    <string name="auto_tab_for_you">مقترح لك</string>
+    <string name="auto_tab_queue">قائمة التشغيل</string>
+    <string name="taste_unknown_channel">قناة غير معروفة</string>
+    <string name="settings_library_summary">اختر الأقسام التي تظهر في المكتبة</string>
 </resources>
