@@ -1,10 +1,6 @@
 package io.github.aedev.flow.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -17,7 +13,6 @@ import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.music.model.toVideo
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
-import io.github.aedev.flow.ui.screens.music.ArtistPage
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicScreen
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
@@ -244,62 +239,30 @@ internal fun NavGraphBuilder.musicRoutes(
     // Artist Page
     composable(MUSIC_ARTIST_ROUTE_PATTERN) { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
-        val musicViewModel: MusicViewModel =
-            io.github.aedev.flow.ui.screens.music
-                .sharedMusicViewModel()
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        val uiState by musicViewModel.uiState.collectAsState()
-
-        LaunchedEffect(channelId) {
-            musicViewModel.fetchArtistDetails(channelId)
-        }
-
-        if (uiState.isArtistLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.artistLoadFailed) {
-            io.github.aedev.flow.ui.screens.music.ArtistPageError(
-                onBackClick = { navController.popBackStack() },
-                onRetry = { musicViewModel.fetchArtistDetails(channelId) },
-            )
-        } else {
-            uiState.artistDetails?.let { details ->
-                ArtistPage(
-                    artistDetails = details,
-                    downloadedTrackIds = uiState.downloadedTrackIds,
-                    insights = uiState.artistInsights,
-                    knownRelatedArtistIds = uiState.knownRelatedArtistIds,
-                    onBackClick = { navController.popBackStack() },
-                    onTrackClick = { track, queue ->
-                        musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                        onMusicStarted()
-                    },
-                    onAlbumClick = { album ->
-                        mediaNavigator.openAlbum(album.id)
-                    },
-                    onArtistClick = { id ->
-                        mediaNavigator.openArtist(id)
-                    },
-                    onFollowClick = {
-                        musicViewModel.toggleFollowArtist(details)
-                    },
-                    onSeeAllClick = { browseId, params ->
-                        val encodedParams = if (params != null) android.net.Uri.encode(params) else null
-                        navController.navigate("artistItems/$channelId/$browseId?params=$encodedParams")
-                    },
-                    onPlayWatchPlaylist = { playlistId, params ->
-                        musicPlayerViewModel.playWatchPlaylist(playlistId, params).also { played ->
-                            if (played) onMusicStarted()
-                        }
-                    },
-                    onStartRadio = { track ->
-                        musicPlayerViewModel.startRadio(track)
-                        onMusicStarted()
-                    },
-                )
-            }
-        }
+        io.github.aedev.flow.ui.screens.music.ArtistRoute(
+            channelId = channelId,
+            onBackClick = { navController.popBackStack() },
+            onTrackClick = { track, queue ->
+                musicPlayerViewModel.loadAndPlayTrack(track, queue)
+                onMusicStarted()
+            },
+            onAlbumClick = mediaNavigator::openAlbum,
+            onArtistClick = mediaNavigator::openArtist,
+            onSeeAllClick = { browseId, params ->
+                val encodedParams = if (params != null) android.net.Uri.encode(params) else null
+                navController.navigate("artistItems/$channelId/$browseId?params=$encodedParams")
+            },
+            onPlayWatchPlaylist = { playlistId, params ->
+                musicPlayerViewModel.playWatchPlaylist(playlistId, params).also { played ->
+                    if (played) onMusicStarted()
+                }
+            },
+            onStartRadio = { track ->
+                musicPlayerViewModel.startRadio(track)
+                onMusicStarted()
+            },
+        )
     }
 
     // Artist Items Page (View All)
