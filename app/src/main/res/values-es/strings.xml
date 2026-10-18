@@ -2715,4 +2715,51 @@
     <string name="lyrics_keep_screen_on_summary">Mientras se ve la letra y la música se preproduce</string>
     <string name="player_appearance_follow_light_theme_title">Tema claro en claro</string>
     <string name="player_appearance_sleep_timer_button_title">Temporizador de apagado</string>
+    <plurals name="favorites_count_template">
+        <item quantity="one">%1$d pista favorita</item>
+        <item quantity="many">%1$d pistas favoritas</item>
+        <item quantity="other">%1$d pistas favoritas</item>
+    </plurals>
+    <plurals name="remove_incomplete_downloads_message">
+        <item quantity="one">¿Eliminar %1$d descarga pausada, fallida o parcial? Las descargas completadas no se modificarán.</item>
+        <item quantity="many">¿Eliminar %1$d descargas pausadas, fallidas o parciales? Las descargas completadas no se modificarán.</item>
+        <item quantity="other">¿Eliminar %1$d descargas pausadas, fallidas o parciales? Las descargas completadas no se modificarán.</item>
+    </plurals>
+    <plurals name="sync_selected_count">
+        <item quantity="one">%1$d de %2$d seleccionado</item>
+        <item quantity="many">%1$d de %2$d seleccionados</item>
+        <item quantity="other">%1$d de %2$d seleccionados</item>
+    </plurals>
+    <plurals name="merge_playlist_success">
+        <item quantity="one">Se agregó %1$d canción a “%2$s”</item>
+        <item quantity="many">Se agregaron %1$d canciones a “%2$s”</item>
+        <item quantity="other">Se agregaron %1$d canciones a “%2$s”</item>
+    </plurals>
+    <plurals name="taste_topic_breadth_detail">
+        <item quantity="one">%1$d tema en el vector global</item>
+        <item quantity="many">%1$d temas en el vector global</item>
+        <item quantity="other">%1$d temas en el vector global</item>
+    </plurals>
+    <plurals name="ui_downloading_videos">
+        <item quantity="one">Descargando %1$d vídeo…</item>
+        <item quantity="many">Descargando %1$d vídeos…</item>
+        <item quantity="other">Descargando %1$d vídeos…</item>
+    </plurals>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+        <item quantity="one">%1$d pista descargada de %2$s</item>
+        <item quantity="many">%1$d pistas descargadas de %2$s</item>
+        <item quantity="other">%1$d pistas descargadas de %2$s</item>
+    </plurals>
+    <plurals name="toast_downloaded_tracks">
+        <item quantity="one">%1$d pista descargada</item>
+        <item quantity="many">%1$d pistas descargadas</item>
+        <item quantity="other">%1$d pistas descargadas</item>
+    </plurals>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Comprobando %1$d de %2$d canal en busca de Shorts y directos</item>
+        <item quantity="many">Comprobando %1$d de %2$d canales en busca de Shorts y directos</item>
+        <item quantity="other">Comprobando %1$d de %2$d canales en busca de Shorts y directos</item>
+    </plurals>
+    <string name="player_appearance_follow_light_theme_subtitle">Los fondos de las carátulas se vuelven claros</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">Mostrarla junto al botón de cola</string>
 </resources>
