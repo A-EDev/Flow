@@ -4,18 +4,20 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class TvBackModelTest {
+    private val booleans = listOf(true, false)
+
     @Test
     fun `detail routes pop regardless of tab, history, or rail focus`() {
-        TvDestination.entries.forEach { tab ->
-            listOf(true, false).forEach { history ->
-                listOf(true, false).forEach { rail ->
+        booleans.forEach { startTab ->
+            booleans.forEach { history ->
+                booleans.forEach { rail ->
                     assertThat(
                         TvBackModel.resolve(
                             isOnDetailRoute = true,
                             hasTabHistory = history,
-                            currentTab = tab,
+                            isOnStartTab = startTab,
                             railHasFocus = rail,
-                        )
+                        ),
                     ).isEqualTo(TvBackAction.POP_DETAIL)
                 }
             }
@@ -23,58 +25,54 @@ class TvBackModelTest {
     }
 
     @Test
-    fun `tab history wins over converging on home`() {
-        TvDestination.entries.forEach { tab ->
+    fun `tab history wins over converging on the start tab`() {
+        booleans.forEach { startTab ->
             assertThat(
                 TvBackModel.resolve(
                     isOnDetailRoute = false,
                     hasTabHistory = true,
-                    currentTab = tab,
+                    isOnStartTab = startTab,
                     railHasFocus = false,
-                )
+                ),
             ).isEqualTo(TvBackAction.POP_TAB)
         }
     }
 
     @Test
-    fun `non-home tabs without history converge on home`() {
-        TvDestination.entries
-            .filterNot { it == TvDestination.HOME }
-            .forEach { tab ->
-                listOf(true, false).forEach { rail ->
-                    assertThat(
-                        TvBackModel.resolve(
-                            isOnDetailRoute = false,
-                            hasTabHistory = false,
-                            currentTab = tab,
-                            railHasFocus = rail,
-                        )
-                    ).isEqualTo(TvBackAction.GO_HOME)
-                }
-            }
+    fun `other roots without history converge on the start tab`() {
+        booleans.forEach { rail ->
+            assertThat(
+                TvBackModel.resolve(
+                    isOnDetailRoute = false,
+                    hasTabHistory = false,
+                    isOnStartTab = false,
+                    railHasFocus = rail,
+                ),
+            ).isEqualTo(TvBackAction.GO_START)
+        }
     }
 
     @Test
-    fun `home moves focus to the rail before exiting`() {
+    fun `the start tab moves focus to the rail before exiting`() {
         assertThat(
             TvBackModel.resolve(
                 isOnDetailRoute = false,
                 hasTabHistory = false,
-                currentTab = TvDestination.HOME,
+                isOnStartTab = true,
                 railHasFocus = false,
-            )
+            ),
         ).isEqualTo(TvBackAction.FOCUS_RAIL)
     }
 
     @Test
-    fun `home with rail focused exits`() {
+    fun `the start tab with the rail focused exits`() {
         assertThat(
             TvBackModel.resolve(
                 isOnDetailRoute = false,
                 hasTabHistory = false,
-                currentTab = TvDestination.HOME,
+                isOnStartTab = true,
                 railHasFocus = true,
-            )
+            ),
         ).isEqualTo(TvBackAction.EXIT)
     }
 }

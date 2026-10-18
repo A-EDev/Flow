@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
@@ -33,6 +34,7 @@ import io.github.aedev.flow.ui.tv.screens.TvSyncScreen
 @Composable
 fun TvNavHost(
     navController: NavHostController,
+    startRoute: String,
     homeViewModel: HomeViewModel,
     musicViewModel: MusicViewModel,
     musicPlayerViewModel: MusicPlayerViewModel,
@@ -48,17 +50,17 @@ fun TvNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = TvDestination.HOME.route,
+        startDestination = startRoute,
         modifier = modifier,
     ) {
-        composable(TvDestination.HOME.route) {
+        composable(FlowTab.Home.route) {
             TvHomeScreen(
                 viewModel = homeViewModel,
                 onVideoClick = onPlayVideo,
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        composable(TvDestination.MUSIC.route) {
+        composable(FlowTab.Music.route) {
             TvMusicScreen(
                 viewModel = musicViewModel,
                 onTrackClick = musicPlayerViewModel::loadAndPlayTrack,
@@ -90,7 +92,7 @@ fun TvNavHost(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        composable(TvDestination.SUBSCRIPTIONS.route) {
+        composable(FlowTab.Subscriptions.route) {
             TvSubscriptionsScreen(
                 viewModel = subscriptionsViewModel,
                 onVideoClick = onPlayVideo,
@@ -98,7 +100,7 @@ fun TvNavHost(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        composable(TvDestination.SEARCH.route) {
+        composable(FlowTab.Search.route) {
             TvSearchScreen(
                 viewModel = searchViewModel,
                 onVideoClick = onPlayVideo,
@@ -110,7 +112,7 @@ fun TvNavHost(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        composable(TvDestination.LIBRARY.route) {
+        composable(FlowTab.Library.route) {
             TvLibraryScreen(
                 onVideoClick = onPlayVideo,
                 onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
@@ -119,7 +121,7 @@ fun TvNavHost(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        composable(TvDestination.SETTINGS.route) {
+        composable(TV_SETTINGS_ROUTE) {
             TvSettingsScreen(
                 onOpenSync = { navController.navigate(TvRoutes.SYNC) },
                 onOpenRemoteGuide = { navController.navigate(TvRoutes.REMOTE_GUIDE) },

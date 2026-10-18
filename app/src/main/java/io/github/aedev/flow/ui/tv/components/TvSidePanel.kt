@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,44 +57,68 @@ fun BoxScope.TvSidePanel(
     onClose: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val dimens = LocalTvDimens.current
     val motion = MaterialTheme.motionScheme
-
     AnimatedVisibility(
         visible = visible,
         modifier = modifier.align(Alignment.CenterEnd),
         enter = fadeIn(motion.defaultEffectsSpec()) + slideInHorizontally(motion.defaultSpatialSpec()) { it / 3 },
         exit = fadeOut(motion.fastEffectsSpec()) + slideOutHorizontally(motion.fastSpatialSpec()) { it / 3 },
     ) {
-        val contentFocusRequester = remember { FocusRequester() }
-        var panelHasFocus by remember { mutableStateOf(false) }
+        TvSidePanelSurface(
+            title = title,
+            onClose = onClose,
+            keepsFocus = { transition.targetState == EnterExitState.Visible },
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            content = content,
+        )
+    }
+}
 
-        Surface(
+/**
+ * The panel itself: a full-height surface on the end edge whose content takes focus when it opens and
+ * again whenever focus drops out of it while [keepsFocus] holds. [title] null leaves the header to
+ * the content, as the shared sheets draw their own.
+ */
+@Composable
+internal fun TvSidePanelSurface(
+    title: String?,
+    onClose: (() -> Unit)?,
+    keepsFocus: () -> Boolean,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val dimens = LocalTvDimens.current
+    val contentFocusRequester = remember { FocusRequester() }
+    var panelHasFocus by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier =
+            modifier
+                .width(dimens.sidePanelWidth)
+                .fillMaxHeight(),
+        shape = MaterialTheme.shapes.extraLarge.copy(topEnd = ZeroCornerSize, bottomEnd = ZeroCornerSize),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
             modifier =
                 Modifier
-                    .width(dimens.sidePanelWidth)
-                    .fillMaxHeight(),
-            shape = MaterialTheme.shapes.extraLarge.copy(topEnd = ZeroCornerSize, bottomEnd = ZeroCornerSize),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+                    .fillMaxSize()
+                    .onFocusChanged { panelHasFocus = it.hasFocus }
+                    .focusProperties { onExit = { cancelFocusChange() } }
+                    .focusGroup()
+                    .padding(vertical = dimens.overscanVertical),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .onFocusChanged { panelHasFocus = it.hasFocus }
-                        .focusProperties { onExit = { cancelFocusChange() } }
-                        .focusGroup()
-                        .padding(horizontal = 24.dp, vertical = dimens.overscanVertical),
-            ) {
+            if (title != null || onClose != null) {
                 Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
+                            .padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = title,
+                        text = title.orEmpty(),
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.weight(1f),
                     )
@@ -105,22 +130,23 @@ fun BoxScope.TvSidePanel(
                         )
                     }
                 }
-                // Focus lands on the content's first row, not the close button.
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(contentFocusRequester)
-                        .focusGroup(),
-                ) {
-                    Column(content = content)
-                }
+            }
+            // Focus lands on the content's first row, not the close button.
+            Box(
+                Modifier
+                    .weight(1f)
+                    .focusRequester(contentFocusRequester)
+                    .focusGroup()
+                    .padding(contentPadding),
+            ) {
+                Column(content = content)
             }
         }
+    }
 
-        LaunchedEffect(Unit) {
-            snapshotFlow { !panelHasFocus && transition.targetState == EnterExitState.Visible }
-                .filter { it }
-                .collect { contentFocusRequester.requestFocus() }
-        }
+    LaunchedEffect(Unit) {
+        snapshotFlow { !panelHasFocus && keepsFocus() }
+            .filter { it }
+            .collect { contentFocusRequester.requestFocus() }
     }
 }

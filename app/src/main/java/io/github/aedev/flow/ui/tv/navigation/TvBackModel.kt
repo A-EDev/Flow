@@ -8,32 +8,32 @@ enum class TvBackAction {
     /** A previously visited tab exists — return to it, restoring its state. */
     POP_TAB,
 
-    /** On a non-Home tab with no history — return to Home, keeping the tab's saved state. */
-    GO_HOME,
+    /** On another root with no history — return to the start tab, keeping the root's saved state. */
+    GO_START,
 
-    /** On Home with content focused — move focus to the navigation rail. */
+    /** On the start tab with content focused — move focus to the navigation rail. */
     FOCUS_RAIL,
 
-    /** On Home with the rail focused — let the system handle Back (exit). */
+    /** On the start tab with the rail focused — let the system handle Back (exit). */
     EXIT,
 }
 
 /**
- * Pure back policy for the TV shell: detail pop → previous tab → converge on
- * Home → rail → exit. Kept free of Compose/navigation types so the ordering is
- * unit-testable.
+ * Pure back policy for the TV shell: detail pop → previous tab → converge on the start tab → rail →
+ * exit. Kept free of Compose/navigation types so the ordering is unit-testable.
  */
 object TvBackModel {
     fun resolve(
         isOnDetailRoute: Boolean,
         hasTabHistory: Boolean,
-        currentTab: TvDestination,
+        isOnStartTab: Boolean,
         railHasFocus: Boolean,
-    ): TvBackAction = when {
-        isOnDetailRoute -> TvBackAction.POP_DETAIL
-        hasTabHistory -> TvBackAction.POP_TAB
-        currentTab != TvDestination.HOME -> TvBackAction.GO_HOME
-        railHasFocus -> TvBackAction.EXIT
-        else -> TvBackAction.FOCUS_RAIL
-    }
+    ): TvBackAction =
+        when {
+            isOnDetailRoute -> TvBackAction.POP_DETAIL
+            hasTabHistory -> TvBackAction.POP_TAB
+            !isOnStartTab -> TvBackAction.GO_START
+            railHasFocus -> TvBackAction.EXIT
+            else -> TvBackAction.FOCUS_RAIL
+        }
 }

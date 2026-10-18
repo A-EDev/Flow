@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.tv.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,27 +8,31 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.material3.WideNavigationRailDefaults
+import androidx.compose.material3.WideNavigationRailItemDefaults
+import androidx.compose.material3.WideNavigationRailValue
+import androidx.compose.material3.rememberWideNavigationRailState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -37,166 +40,158 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.tv.navigation.TvDestination
-import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
+import io.github.aedev.flow.ui.components.layout.navigation.icon
+import io.github.aedev.flow.ui.tv.navigation.TV_SETTINGS_ROUTE
 
 /**
- * Collapsible navigation rail: 72dp icon-only strip that expands with labels
- * while any rail item holds focus. It overlays the content (which is laid out
- * against the collapsed width) so expansion never reflows the screen.
+ * The TV navigation rail: M3's wide rail with the user's tabs and Settings at its foot. It expands
+ * with labels while it holds focus and lies over the content, which is laid out against the collapsed
+ * width, so expanding never moves the page. Focus always enters on the selected destination.
  */
 @Composable
 fun TvNavRail(
-    selected: TvDestination,
-    onSelected: (TvDestination) -> Unit,
+    tabs: List<FlowTab>,
+    selectedRoute: String?,
+    onSelect: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
+    focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
-    selectedFocusRequester: FocusRequester? = null,
 ) {
-    val dimens = LocalTvDimens.current
-    var expanded by remember { mutableStateOf(false) }
-    val width by animateDpAsState(
-        targetValue = if (expanded) dimens.railExpandedWidth else dimens.railCollapsedWidth,
-        label = "tvRailWidth",
-    )
+    val state = rememberWideNavigationRailState()
+    var hasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(hasFocus) {
+        if (hasFocus) state.expand() else state.collapse()
+    }
+    val expanded = state.targetValue == WideNavigationRailValue.Expanded
+    val selectedRequester = remember { FocusRequester() }
+    val colors = MaterialTheme.colorScheme
 
-    Surface(
-        modifier = modifier
-            .width(width)
-            .fillMaxHeight()
-            .onFocusChanged {
-                expanded = it.hasFocus
-                onFocusChanged(it.hasFocus)
-            },
-        color = if (expanded) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        tonalElevation = if (expanded) 2.dp else 0.dp,
-    ) {
-        Column(
-            modifier = Modifier
+    WideNavigationRail(
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .onFocusChanged {
+                    hasFocus = it.hasFocus
+                    onFocusChanged(it.hasFocus)
+                }.focusRequester(focusRequester)
                 .focusProperties {
-                    @OptIn(ExperimentalComposeUiApi::class)
-                    enter = { selectedFocusRequester ?: FocusRequester.Default }
-                    @OptIn(ExperimentalComposeUiApi::class)
-                    exit = { direction ->
-                        if (direction == FocusDirection.Left) {
-                            FocusRequester.Cancel
-                        } else {
-                            FocusRequester.Default
-                        }
-                    }
-                }
-                .focusGroup()
-                .padding(horizontal = 12.dp, vertical = dimens.overscanVertical),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                    onEnter = { selectedRequester.requestFocus() }
+                    onExit = { if (requestedFocusDirection == FocusDirection.Left) cancelFocusChange() }
+                }.focusGroup(),
+        state = state,
+        colors = WideNavigationRailDefaults.colors(containerColor = if (expanded) colors.surfaceContainer else colors.background),
+        header = { TvRailLogo() },
+        arrangement = LastItemAtBottom,
+    ) {
+        tabs.forEach { tab ->
+            val selected = tab.route == selectedRoute
+            TvRailItem(
+                selected = selected,
+                icon = tab.icon(selected),
+                label = stringResource(tab.labelRes),
+                expanded = expanded,
+                onClick = { onSelect(tab.route) },
+                modifier = if (selected) Modifier.focusRequester(selectedRequester) else Modifier,
+            )
+        }
+        val settingsSelected = selectedRoute == TV_SETTINGS_ROUTE
+        TvRailItem(
+            selected = settingsSelected,
+            icon = if (settingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
+            label = stringResource(R.string.settings),
+            expanded = expanded,
+            onClick = { onSelect(TV_SETTINGS_ROUTE) },
+            modifier = if (settingsSelected) Modifier.focusRequester(selectedRequester) else Modifier,
+        )
+    }
+}
+
+/**
+ * One destination on [TvNavRail], in M3's rail item colours. M3's own rail item draws its ripple on
+ * the indicator and passes it presses alone, so it never shows focus; a Surface draws the theme's
+ * focus ring on its pill shape instead. Collapsed it shows the icon, expanded the label beside it.
+ */
+@Composable
+private fun TvRailItem(
+    selected: Boolean,
+    icon: ImageVector,
+    label: String,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = WideNavigationRailItemDefaults.colors()
+    val motion = MaterialTheme.motionScheme
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+        shape = CircleShape,
+        color = if (selected) colors.selectedIndicatorColor else Color.Transparent,
+        contentColor = if (selected) colors.selectedIconColor else colors.unselectedIconColor,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            Icon(imageVector = icon, contentDescription = label)
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn(motion.defaultEffectsSpec()) + expandHorizontally(motion.defaultSpatialSpec()),
+                exit = fadeOut(motion.fastEffectsSpec()) + shrinkHorizontally(motion.fastSpatialSpec()),
             ) {
-                // Two-layer brand badge (tight crop) tinted from the active
-                // color scheme, so the logo follows all 28 theme modes.
-                Box {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_flow_badge_shape),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(width = 48.dp, height = 36.dp),
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_flow_badge_glyph),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(width = 48.dp, height = 36.dp),
-                    )
-                }
-                AnimatedVisibility(
-                    visible = expanded,
-                    enter = fadeIn() + expandHorizontally(),
-                    exit = fadeOut() + shrinkHorizontally(),
-                ) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 1,
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            TvDestination.primary.forEach { destination ->
-                TvRailItem(
-                    destination = destination,
-                    selected = destination == selected,
-                    expanded = expanded,
-                    onClick = { onSelected(destination) },
-                    modifier = if (destination == selected && selectedFocusRequester != null) {
-                        Modifier.focusRequester(selectedFocusRequester)
-                    } else {
-                        Modifier
-                    },
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (selected) colors.selectedTextColor else colors.unselectedTextColor,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 12.dp, end = 8.dp),
                 )
             }
         }
     }
 }
 
+/** The two-layer brand badge, tinted from the scheme so it follows every theme. */
 @Composable
-private fun TvRailItem(
-    destination: TvDestination,
-    selected: Boolean,
-    expanded: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var focused by remember { mutableStateOf(false) }
+private fun TvRailLogo() {
+    Box(modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 8.dp)) {
+        Icon(
+            painter = painterResource(R.drawable.ic_flow_badge_shape),
+            contentDescription = stringResource(R.string.app_name),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(width = 40.dp, height = 30.dp),
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_flow_badge_glyph),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(width = 40.dp, height = 30.dp),
+        )
+    }
+}
 
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .onFocusChanged { focused = it.isFocused },
-        shape = CircleShape,
-        color = when {
-            focused -> MaterialTheme.colorScheme.inverseSurface
-            selected -> MaterialTheme.colorScheme.secondaryContainer
-            else -> Color.Transparent
-        },
-        contentColor = when {
-            focused -> MaterialTheme.colorScheme.inverseOnSurface
-            selected -> MaterialTheme.colorScheme.onSecondaryContainer
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
+/** The tabs from the top, and the last item (Settings) on the rail's floor, as Google's TV rail places it. */
+private object LastItemAtBottom : Arrangement.Vertical {
+    override fun Density.arrange(
+        totalSize: Int,
+        sizes: IntArray,
+        outPositions: IntArray,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = destination.icon,
-                contentDescription = stringResource(destination.labelRes),
-                modifier = Modifier.size(26.dp),
-            )
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn() + expandHorizontally(),
-                exit = fadeOut() + shrinkHorizontally(),
-            ) {
-                Text(
-                    text = stringResource(destination.labelRes),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        var top = 0
+        sizes.forEachIndexed { index, size ->
+            if (index == sizes.lastIndex && index > 0) {
+                outPositions[index] = (totalSize - size).coerceAtLeast(top)
+            } else {
+                outPositions[index] = top
+                top += size
             }
         }
     }

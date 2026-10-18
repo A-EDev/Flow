@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.tv.navigation
 import android.net.Uri
 import io.github.aedev.flow.ui.screens.music.collection.MUSIC_COLLECTION_ARG as COLLECTION_ROUTE_ARG
 
-/** Detail routes layered over the top-level [TvDestination] tabs. */
+/** Detail routes layered over the rail's root destinations. */
 object TvRoutes {
     const val CHANNEL_ARG = "channelRef"
     const val CHANNEL = "channel?ref={$CHANNEL_ARG}"
