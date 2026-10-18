@@ -2,10 +2,13 @@ package io.github.aedev.flow.ui.components.musicplayer.controls
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,20 +17,39 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -55,6 +77,11 @@ fun PlayerPlaybackControls(
     var pendingPlayPauseState by remember { mutableStateOf<Boolean?>(null) }
     val hapticFeedback = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    // On a remote the player opens with play/pause focused, where OK does the expected thing.
+    val playPauseFocusRequester = remember { FocusRequester() }
+    if (LocalDpadNavigation.current) {
+        LaunchedEffect(Unit) { playPauseFocusRequester.requestFocus() }
+    }
 
     LaunchedEffect(lastClicked, clickTrigger) {
         if (lastClicked != null) {
@@ -176,6 +203,7 @@ fun PlayerPlaybackControls(
             iconSize = 36.dp,
             cornerRadius = playPauseCorner,
             isBuffering = isBuffering,
+            modifier = Modifier.focusRequester(playPauseFocusRequester),
         )
 
         ElasticControlButton(
@@ -214,18 +242,39 @@ private fun RowScope.ElasticControlButton(
     isBuffering: Boolean = false,
     onLongPressStart: (() -> Unit)? = null,
     onLongPressEnd: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val currentOnClick by rememberUpdatedState(onClick)
     val currentOnPressedChange by rememberUpdatedState(onPressedChange)
     val currentLongPressStart by rememberUpdatedState(onLongPressStart)
     val currentLongPressEnd by rememberUpdatedState(onLongPressEnd)
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(cornerRadius)
+    // The gesture below is touch only; these give the button a focus stop, a key press and a click
+    // action, so a remote's OK, a keyboard's Enter and TalkBack reach it too.
     Box(
         modifier =
-            Modifier
+            modifier
                 .weight(weight)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(cornerRadius))
+                .clip(shape)
                 .background(containerColor)
+                .indication(interactionSource, ripple(focusRingShape = shape, enablePressIndication = false))
+                .semantics {
+                    role = Role.Button
+                    onClick {
+                        currentOnClick()
+                        true
+                    }
+                }.onKeyEvent { event ->
+                    val isConfirm = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+                    if (isConfirm && event.type == KeyEventType.KeyUp) {
+                        currentOnClick()
+                        true
+                    } else {
+                        false
+                    }
+                }.focusable(interactionSource = interactionSource)
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
