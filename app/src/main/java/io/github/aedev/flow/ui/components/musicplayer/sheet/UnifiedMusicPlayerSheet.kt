@@ -2,8 +2,6 @@ package io.github.aedev.flow.ui.components.musicplayer.sheet
 
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -37,7 +35,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Density
@@ -47,26 +44,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import io.github.aedev.flow.data.local.MiniBarSwipeAction
-import io.github.aedev.flow.data.local.MusicPlainControlColors
-import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.ui.components.musicplayer.common.musicPlayerTurnsLight
-import io.github.aedev.flow.ui.components.musicplayer.common.playerBackdropColors
-import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicControlColorScheme
-import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicPlayerColorScheme
+import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicPlayerAppearance
 import io.github.aedev.flow.ui.components.musicplayer.full.FullMusicPlayerContent
 import io.github.aedev.flow.ui.components.musicplayer.mini.MiniPlayerContent
 import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSheetDragGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSheetMotionController
-import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetSettleSpring
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetVerticalDragGesture
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarSwipe
 import io.github.aedev.flow.ui.components.shared.rememberMediaMiniBarSwipeHandler
-import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isMediumWidth
 import kotlinx.coroutines.flow.first
@@ -102,7 +91,6 @@ internal fun UnifiedMusicPlayerSheet(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -121,21 +109,9 @@ internal fun UnifiedMusicPlayerSheet(
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val displayTrack = currentTrack ?: track
 
-    val playerPreferences = remember { PlayerPreferences(context) }
-    val backgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
-        initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
-    )
-    val hideArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
-    val sleepTimerButton by playerPreferences.musicSleepTimerButton.collectAsState(initial = false)
-    val followLightTheme by playerPreferences.musicPlayerFollowLightTheme.collectAsState(initial = false)
-    val palette = rememberMediaPalette(displayTrack.highResThumbnailUrl)
-    val lightPlayer = musicPlayerTurnsLight(backgroundStyle, followLightTheme, MaterialTheme.colorScheme.surface)
-    val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle, lightPlayer)
-    val backdrop = remember(palette, lightPlayer) { playerBackdropColors(palette.base, palette.accent, lightPlayer) }
-    val artworkControlColors by playerPreferences.musicArtworkControlColors.collectAsState(initial = true)
-    val plainControlColors by playerPreferences.musicPlainControlColors.collectAsState(initial = MusicPlainControlColors.MONOCHROME)
-    val controlScheme =
-        rememberMusicControlColorScheme(playerScheme, MaterialTheme.colorScheme, artworkControlColors, plainControlColors)
+    val appearance = rememberMusicPlayerAppearance(displayTrack.highResThumbnailUrl)
+    val playerScheme = appearance.playerScheme
+    val controlScheme = appearance.controlScheme
 
     val motionController =
         remember(state) {
@@ -469,11 +445,11 @@ internal fun UnifiedMusicPlayerSheet(
                         FullMusicPlayerContent(
                             track = track,
                             isPlayerSheetExpanded = state.isExpanded,
-                            palette = palette,
-                            backdrop = backdrop,
-                            backgroundStyle = backgroundStyle,
-                            hideArtwork = hideArtwork,
-                            sleepTimerButton = sleepTimerButton,
+                            palette = appearance.palette,
+                            backdrop = appearance.backdrop,
+                            backgroundStyle = appearance.backgroundStyle,
+                            hideArtwork = appearance.hideArtwork,
+                            sleepTimerButton = appearance.sleepTimerButton,
                             controlScheme = controlScheme,
                         )
                     }
