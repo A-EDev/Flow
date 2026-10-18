@@ -665,7 +665,7 @@
     <string name="select_threads_count_desc">حدد عدد التقسيمات (١-٨):</string>
     <string name="support_donations_title">الدعم والتبرعات</string>
     <string name="support_flow_dev_title">إدعم تطوير Flow</string>
-    <string name="support_flow_dev_desc">إذا كان Flow مفيدًا لك، يمكنك دعمه عبر Patreon أو بالعملات الرقمية أدناه. شكرًا لك!</string>
+    <string name="support_flow_dev_desc">إذا كان Flow مفيدًا لك، يمكنك دعمه عبر Open Collective, Patreon أو بالعملات الرقمية أدناه. شكرًا لك!</string>
     <string name="thank_you_support_message">شكراً لدعمكم! ❤️</string>
     <string name="address_copied_toast">تم نسخ العنوان إلى الحافظة</string>
     <string name="donation_address_clip_label">عنوان التبرع</string>
@@ -1614,7 +1614,7 @@
     <string name="live_chat_jump_to_latest">إنتقل إلى أحدث رسالة دردشة</string>
     <string name="donation_prompt_title">هل تستمتع بFlow؟</string>
     <string name="donation_prompt_message">Flow مجاني ومفتوح المصدر وخالٍ من الإعلانات. إذا كان Flow يستحق مكانًا على هاتفك، فإن القليل من الدعم يساعد على استمراره.</string>
-    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_methods">Open Collective · Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">إدعم التطوير</string>
     <string name="donation_prompt_later">رُبما لاحقاً</string>
     <string name="donation_prompt_never">لا تظهر مجدداً</string>
