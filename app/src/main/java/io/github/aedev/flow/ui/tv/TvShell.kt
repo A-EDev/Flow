@@ -22,13 +22,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
@@ -75,7 +79,9 @@ fun TvShell(
     }
     val currentRoot = currentRoute?.takeIf { it in rootRoutes } ?: lastRoot
     var railHasFocus by remember { mutableStateOf(false) }
+    var contentHasFocus by remember { mutableStateOf(false) }
     val railFocusRequester = remember { FocusRequester() }
+    val contentFocusRequester = remember { FocusRequester() }
     val rootHistory = remember { mutableStateListOf<String>() }
 
     fun navigateToRoot(route: String) {
@@ -87,6 +93,10 @@ fun TvShell(
     }
 
     fun selectRoot(route: String) {
+        if (route == currentRoot && !isOnDetailRoute) {
+            TabScrollEventBus.emitScrollToTop(route)
+            return
+        }
         if (route != currentRoot) {
             rootHistory.remove(route)
             if (!isOnDetailRoute) {
@@ -103,6 +113,13 @@ fun TvShell(
                 Modifier
                     .fillMaxSize()
                     .padding(start = dimens.railCollapsedWidth)
+                    .onFocusChanged { contentHasFocus = it.hasFocus }
+                    // A page composes its first focusable item when its data arrives, which is a new
+                    // layout; until something holds focus, each one offers focus to the page, so the
+                    // remote starts on the content instead of the rail.
+                    .onGloballyPositioned {
+                        if (!railHasFocus && !contentHasFocus) contentFocusRequester.requestFocus()
+                    }.focusRequester(contentFocusRequester)
                     .focusRestorer()
                     .focusGroup(),
         ) {
@@ -117,6 +134,7 @@ fun TvShell(
                     searchViewModel = searchViewModel,
                     onPlayVideo = onPlayVideo,
                     onPlayPlaylist = onPlayPlaylist,
+                    onSelectRoot = ::selectRoot,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

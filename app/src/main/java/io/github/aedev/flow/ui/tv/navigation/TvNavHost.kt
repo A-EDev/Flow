@@ -42,6 +42,7 @@ fun TvNavHost(
     searchViewModel: SearchViewModel,
     onPlayVideo: (Video) -> Unit,
     onPlayPlaylist: (List<Video>, String) -> Unit,
+    onSelectRoot: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val openChannel: (String) -> Unit = { channelRef ->
@@ -57,6 +58,8 @@ fun TvNavHost(
             TvHomeScreen(
                 viewModel = homeViewModel,
                 onVideoClick = onPlayVideo,
+                onPlayPlaylist = onPlayPlaylist,
+                onOpenLibrary = { onSelectRoot(FlowTab.Library.route) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -96,7 +99,7 @@ fun TvNavHost(
             TvSubscriptionsScreen(
                 viewModel = subscriptionsViewModel,
                 onVideoClick = onPlayVideo,
-                onChannelClick = openChannel,
+                onChannelClick = { channel -> openChannel(channel.url.ifBlank { channel.id }) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
