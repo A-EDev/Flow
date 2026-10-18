@@ -361,10 +361,10 @@ class BackupCoordinator
                         failed(R.string.import_failed_template, e)
                     }
                 NotificationHelper.cancelImportNotification(context)
-                _operation.value = outcome
                 if (notify && outcome is BackupOperation.Succeeded && NotificationHelper.hasNotificationPermission(context)) {
                     NotificationHelper.showImportComplete(context, label, 0, outcome.message)
                 }
+                _operation.value = outcome
             }
             return true
         }
