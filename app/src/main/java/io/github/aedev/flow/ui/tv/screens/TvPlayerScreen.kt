@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,6 +96,7 @@ fun TvPlayerScreen(
     val scrubController = remember { TvScrubController() }
     val overlayState by overlayController.state.collectAsStateWithLifecycle()
     var scrubUiState by remember { mutableStateOf(TvScrubController.ScrubState()) }
+    var seekCount by remember { mutableIntStateOf(0) }
 
     val rootFocusRequester = remember { FocusRequester() }
     val seekBarFocusRequester = remember { FocusRequester() }
@@ -133,6 +135,7 @@ fun TvPlayerScreen(
 
     fun commitScrub() {
         scrubController.commit()?.let(manager::seekTo)
+        seekCount++
         scrubUiState = scrubController.current
         overlayController.onUserInteraction()
     }
@@ -187,10 +190,12 @@ fun TvPlayerScreen(
 
             TvPlayerAction.SEEK_BACK -> {
                 manager.seekTo((manager.getCurrentPosition() - MEDIA_KEY_SEEK_MS).coerceAtLeast(0L))
+                seekCount++
             }
 
             TvPlayerAction.SEEK_FORWARD -> {
                 manager.seekTo(manager.getCurrentPosition() + MEDIA_KEY_SEEK_MS)
+                seekCount++
             }
 
             TvPlayerAction.NEXT -> {
@@ -404,7 +409,9 @@ fun TvPlayerScreen(
                 durationProvider = { manager.getDuration().coerceAtLeast(0L) },
                 bufferedFractionProvider = { manager.playerState.value.bufferedPercentage / 100f },
                 scrubTargetMs = scrubUiState.takeIf { it.isScrubbing }?.targetMs,
-                active = overlayState.mode != TvOverlayMode.HIDDEN,
+                active = overlayState.mode != TvOverlayMode.HIDDEN &&
+                    (playerState.isPlaying || scrubUiState.isScrubbing),
+                refreshKey = seekCount,
                 focusRequester = seekBarFocusRequester,
                 onFocusChanged = { seekBarFocused = it },
                 marks = seekBarMarks,

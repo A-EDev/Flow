@@ -38,8 +38,8 @@ import kotlinx.coroutines.isActive
  * Focusable D-pad seek bar.
  *
  * Perf contract: position/duration arrive as providers, never as hot state.
- * A frame loop exists only while [active] (overlay visible + lifecycle STARTED)
- * and its tick is read solely inside the draw lambda — per-frame work is a
+ * A frame loop exists only while [active] (overlay visible, playing or scrubbing,
+ * lifecycle STARTED) and its tick is read solely inside the draw lambda — per-frame work is a
  * draw-phase invalidation of this one node, zero recomposition. Time labels
  * derive seconds from the same tick, so they recompose at most once per second.
  * Key handling lives in the screen's onPreviewKeyEvent, not here.
@@ -51,6 +51,7 @@ fun TvSeekBar(
     bufferedFractionProvider: () -> Float,
     scrubTargetMs: Long?,
     active: Boolean,
+    refreshKey: Any?,
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -60,8 +61,12 @@ fun TvSeekBar(
     val frameTick = remember { mutableLongStateOf(0L) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(active, lifecycleOwner) {
-        if (!active) return@LaunchedEffect
+    // Paused, the position only moves on a seek, so one frame per [refreshKey] change is enough.
+    LaunchedEffect(active, refreshKey, lifecycleOwner) {
+        if (!active) {
+            withFrameMillis { frameTick.longValue = it }
+            return@LaunchedEffect
+        }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 withFrameMillis { frameTick.longValue = it }
