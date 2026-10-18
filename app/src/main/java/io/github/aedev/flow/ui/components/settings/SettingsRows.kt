@@ -1,15 +1,21 @@
 package io.github.aedev.flow.ui.components.settings
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -19,6 +25,7 @@ import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSelectionRow
 import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -33,7 +40,7 @@ fun SettingsGroupScope.switch(
     summary: String? = null,
     icon: ImageVector? = null,
     @DrawableRes iconRes: Int? = null,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     FlowSwitchRow(
         title = stringResource(entry.title),
         supportingText = summary ?: entry.summaryText(),
@@ -57,7 +64,7 @@ fun SettingsGroupScope.switch(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     @DrawableRes iconRes: Int? = null,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     val checked by state.collectAsStateWithLifecycle()
     FlowSwitchRow(
         title = stringResource(entry.title),
@@ -81,7 +88,7 @@ fun SettingsGroupScope.choice(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     valueText: @Composable () -> String?,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     FlowNavRow(
         title = stringResource(entry.title),
         supportingText = valueText() ?: entry.summaryText(),
@@ -106,7 +113,7 @@ fun SettingsGroupScope.nav(
     selected: Boolean = false,
     icon: ImageVector? = null,
     @DrawableRes iconRes: Int? = null,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     FlowNavRow(
         title = stringResource(entry.title),
         supportingText = value ?: entry.summaryText(),
@@ -125,7 +132,7 @@ fun SettingsGroupScope.info(
     entry: SettingEntry,
     value: String?,
     icon: ImageVector? = null,
-) = row(entry.key) { shape -> InfoRow(stringResource(entry.title), value ?: entry.summaryText(), icon, shape) }
+) = entryRow(entry) { shape -> InfoRow(stringResource(entry.title), value ?: entry.summaryText(), icon, shape) }
 
 /** [info] for a status that is not a setting, so it stays out of settings search. */
 fun SettingsGroupScope.info(
@@ -143,7 +150,18 @@ private fun InfoRow(
     icon: ImageVector?,
     shape: Shape,
 ) {
+    // A remote scrolls a page only by moving focus, so on one these rows take focus despite doing nothing.
+    val focusModifier =
+        if (LocalDpadNavigation.current) {
+            val interactionSource = remember { MutableInteractionSource() }
+            Modifier
+                .indication(interactionSource, ripple(focusRingShape = shape))
+                .focusable(interactionSource = interactionSource)
+        } else {
+            Modifier
+        }
     SegmentedListItem(
+        modifier = focusModifier,
         verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -182,7 +200,7 @@ fun <T> SettingsGroupScope.toggleGroup(
     enabled: Boolean = true,
     summary: String? = null,
     preview: (@Composable () -> Unit)? = null,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     SettingsToggleGroupRow(
         title = stringResource(entry.title),
         summary = summary ?: entry.summaryText(),
@@ -202,7 +220,7 @@ fun <T> SettingsGroupScope.toggleGroup(
     state: StateFlow<T>,
     onSelected: (T) -> Unit,
     enabled: Boolean = true,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     val selected by state.collectAsStateWithLifecycle()
     SettingsToggleGroupRow(
         title = stringResource(entry.title),
@@ -228,7 +246,7 @@ fun SettingsGroupScope.slider(
     steps: Int = 0,
     enabled: Boolean = true,
     summary: String? = null,
-) = row(entry.key) { shape ->
+) = entryRow(entry) { shape ->
     SettingsSliderRow(
         title = stringResource(entry.title),
         summary = summary ?: entry.summaryText(),

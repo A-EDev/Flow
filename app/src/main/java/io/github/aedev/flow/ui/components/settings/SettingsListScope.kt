@@ -31,6 +31,7 @@ annotation class SettingsDsl
 class SettingsListScope internal constructor(
     private val lazy: LazyListScope,
     private val keys: SettingsKeyRecorder,
+    private val onTv: Boolean = false,
 ) {
     /** A free-standing item, such as a preview card or a notice between groups. */
     fun item(
@@ -72,7 +73,7 @@ class SettingsListScope internal constructor(
         @StringRes footer: Int? = null,
         rows: SettingsGroupScope.() -> Unit,
     ) {
-        val built = SettingsGroupScope().apply(rows).rows
+        val built = SettingsGroupScope(onTv).apply(rows).rows
         if (built.isEmpty()) return
         if (header != null) header(key = key, text = header)
         built.forEachIndexed { index, row ->
@@ -91,9 +92,11 @@ class SettingsListScope internal constructor(
     }
 }
 
-/** The rows of one [SettingsListScope.group]. */
+/** The rows of one [SettingsListScope.group]. A row whose entry is not for this device ([onTv]) is left out. */
 @SettingsDsl
-class SettingsGroupScope internal constructor() {
+class SettingsGroupScope internal constructor(
+    private val onTv: Boolean = false,
+) {
     internal val rows = mutableListOf<SettingsRowSpec>()
 
     /** A row drawn by the caller in the [Shape] its position in the group calls for. */
@@ -102,6 +105,14 @@ class SettingsGroupScope internal constructor() {
         content: @Composable (shape: Shape) -> Unit,
     ) {
         rows += SettingsRowSpec(key, content)
+    }
+
+    /** [row] for an indexed option, skipped where the option does not exist. */
+    internal fun entryRow(
+        entry: SettingEntry,
+        content: @Composable (shape: Shape) -> Unit,
+    ) {
+        if (entry.availability.shownOn(onTv)) row(entry.key, content)
     }
 }
 

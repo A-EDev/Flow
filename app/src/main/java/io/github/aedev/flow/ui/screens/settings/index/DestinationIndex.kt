@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.index
 
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.settings.SettingAvailability
 import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 
@@ -8,13 +9,35 @@ import io.github.aedev.flow.ui.components.settings.SettingsDestination
 internal object DestinationIndex {
     private const val KEY_PREFIX = "dest."
 
+    /** Pages about phone hardware or features TV leaves out: widgets, the navigation bar, downloads, notifications. */
+    private val notOnTv =
+        setOf(
+            SettingsDestination.WIDGETS,
+            SettingsDestination.NAVIGATION_BAR,
+            SettingsDestination.DOWNLOADS,
+            SettingsDestination.LOCAL_MEDIA,
+            SettingsDestination.NOTIFICATIONS,
+        )
+
     fun entry(destination: SettingsDestination): SettingEntry =
         SettingEntry(
             key = KEY_PREFIX + destination.id,
             title = destination.titleRes,
             destination = destination.parent ?: SettingsDestination.HOME,
             summary = summaryOf(destination),
+            availability =
+                when (destination) {
+                    in notOnTv -> SettingAvailability.NotOnTv
+                    SettingsDestination.REMOTE_GUIDE -> SettingAvailability.TvOnly
+                    else -> SettingAvailability.Always
+                },
         )
+
+    /** Whether [option] can be reached on a TV ([tv]) or elsewhere: it and every page above it exist there. */
+    fun isReachable(
+        option: SettingEntry,
+        tv: Boolean,
+    ): Boolean = option.availability.shownOn(tv) && option.destination.path.all { entry(it).availability.shownOn(tv) }
 
     /** The page a destination entry stands for, or null for an option entry. */
     fun destinationOf(entry: SettingEntry): SettingsDestination? =
@@ -66,5 +89,6 @@ internal object DestinationIndex {
             SettingsDestination.WIDGETS -> R.string.settings_widgets_summary
             SettingsDestination.ABOUT -> R.string.settings_about_summary
             SettingsDestination.DIAGNOSTICS -> R.string.settings_item_diagnostics_subtitle
+            SettingsDestination.REMOTE_GUIDE -> R.string.tv_remote_guide_subtitle
         }
 }
