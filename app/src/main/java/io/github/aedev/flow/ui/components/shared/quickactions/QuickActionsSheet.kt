@@ -49,6 +49,8 @@ import io.github.aedev.flow.ui.components.shared.FlowModalSheetDefaults
 import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
+import io.github.aedev.flow.ui.components.shared.FlowSheetPresenter
+import io.github.aedev.flow.ui.components.shared.LocalFlowSheetPresenter
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
@@ -92,7 +94,8 @@ class QuickActionsSheetController internal constructor(
  * A media item's menu: an M3 modal sheet that opens half way when its content is taller than half
  * the screen and expands as it is dragged or scrolled up. Every way out animates the sheet away.
  * [page] names the page on show, so switching pages keeps one sheet and resets its scroll; on a page
- * ([onBack] set) back returns to the menu instead of closing it.
+ * ([onBack] set) back returns to the menu instead of closing it. A [LocalFlowSheetPresenter] shows
+ * the same content its own way instead.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +105,11 @@ fun QuickActionsSheet(
     onBack: (() -> Unit)? = null,
     content: @Composable ColumnScope.(QuickActionsSheetController) -> Unit,
 ) {
+    val presenter = LocalFlowSheetPresenter.current
+    if (presenter != null) {
+        PresentedQuickActionsSheet(presenter, onDismiss, page, onBack, content)
+        return
+    }
     val sheetState = rememberFlowSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
@@ -127,6 +135,31 @@ fun QuickActionsSheet(
         contentWindowInsets = FlowModalSheetDefaults.contentWindowInsets,
     ) {
         BackHandler(enabled = onBack != null) { onBack?.invoke() }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(bottom = QuickActionsDefaults.BottomPadding),
+        ) {
+            content(controller)
+        }
+    }
+}
+
+/** A presenter has no hide animation of its own to wait for, so every way out closes at once. */
+@Composable
+private fun PresentedQuickActionsSheet(
+    presenter: FlowSheetPresenter,
+    onDismiss: () -> Unit,
+    page: Any?,
+    onBack: (() -> Unit)?,
+    content: @Composable ColumnScope.(QuickActionsSheetController) -> Unit,
+) {
+    val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val controller = remember { QuickActionsSheetController(hideThen = { after -> after() }, onDismiss = { latestOnDismiss() }) }
+    val scrollState = remember(page) { ScrollState(initial = 0) }
+    presenter.Present(onDismiss = { latestOnDismiss() }, onBack = onBack) {
         Column(
             modifier =
                 Modifier

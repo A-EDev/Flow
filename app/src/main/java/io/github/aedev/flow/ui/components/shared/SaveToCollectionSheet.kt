@@ -59,6 +59,13 @@ fun SaveToCollectionSheet(
     onCreateNew: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val presenter = LocalFlowSheetPresenter.current
+    if (presenter != null) {
+        presenter.Present(onDismiss = onDismiss, onBack = null) {
+            CollectionSheetContent(title, entries, placeholderIcon, createLabel, emptyLabel, onToggle, onCreateNew)
+        }
+        return
+    }
     val configuration = LocalConfiguration.current
     val maxHeight = configuration.screenHeightDp.dp * SHEET_MAX_HEIGHT_FRACTION
 
@@ -68,98 +75,119 @@ fun SaveToCollectionSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
-        Column(
+        CollectionSheetContent(
+            title = title,
+            entries = entries,
+            placeholderIcon = placeholderIcon,
+            createLabel = createLabel,
+            emptyLabel = emptyLabel,
+            onToggle = onToggle,
+            onCreateNew = onCreateNew,
+            modifier =
+                Modifier
+                    .heightIn(max = maxHeight)
+                    .navigationBarsPadding(),
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CollectionSheetContent(
+    title: String,
+    entries: List<CollectionSheetEntry>,
+    placeholderIcon: ImageVector,
+    createLabel: String,
+    emptyLabel: String,
+    onToggle: (CollectionSheetEntry) -> Unit,
+    onCreateNew: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(SheetTitlePadding),
+        )
+
+        HorizontalDivider()
+
+        LazyColumn(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .navigationBarsPadding(),
+                    .weight(1f, fill = false),
+            contentPadding = SheetListPadding,
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(SheetTitlePadding),
-            )
-
-            HorizontalDivider()
-
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false),
-                contentPadding = SheetListPadding,
-            ) {
-                if (entries.isEmpty()) {
-                    item(key = "empty", contentType = "empty") {
-                        Text(
-                            text = emptyLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(SheetTitlePadding),
-                        )
-                    }
-                } else {
-                    items(
-                        items = entries,
-                        key = CollectionSheetEntry::id,
-                        contentType = { "collection" },
-                    ) { entry ->
-                        MediaRow(
-                            title = entry.name,
-                            subtitle = entry.supporting,
-                            titleMaxLines = 1,
-                            onClick = { onToggle(entry) },
-                            trailing = {
-                                Icon(
-                                    imageVector =
-                                        if (entry.isSaved) {
-                                            Icons.Filled.Bookmark
-                                        } else {
-                                            Icons.Outlined.BookmarkBorder
-                                        },
-                                    contentDescription = null,
-                                    tint =
-                                        if (entry.isSaved) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                    modifier = Modifier.size(SaveIndicatorSize),
-                                )
-                            },
-                        ) {
-                            CollectionThumbnail(
-                                thumbnailUrl = entry.thumbnailUrl,
-                                placeholder = placeholderIcon,
+            if (entries.isEmpty()) {
+                item(key = "empty", contentType = "empty") {
+                    Text(
+                        text = emptyLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(SheetTitlePadding),
+                    )
+                }
+            } else {
+                items(
+                    items = entries,
+                    key = CollectionSheetEntry::id,
+                    contentType = { "collection" },
+                ) { entry ->
+                    MediaRow(
+                        title = entry.name,
+                        subtitle = entry.supporting,
+                        titleMaxLines = 1,
+                        onClick = { onToggle(entry) },
+                        trailing = {
+                            Icon(
+                                imageVector =
+                                    if (entry.isSaved) {
+                                        Icons.Filled.Bookmark
+                                    } else {
+                                        Icons.Outlined.BookmarkBorder
+                                    },
+                                contentDescription = null,
+                                tint =
+                                    if (entry.isSaved) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                modifier = Modifier.size(SaveIndicatorSize),
                             )
-                        }
+                        },
+                    ) {
+                        CollectionThumbnail(
+                            thumbnailUrl = entry.thumbnailUrl,
+                            placeholder = placeholderIcon,
+                        )
                     }
                 }
+            }
 
-                item(key = "create", contentType = "create") {
-                    val buttonHeight = ButtonDefaults.MediumContainerHeight
-                    FilledTonalButton(
-                        onClick = onCreateNew,
-                        shapes = ButtonDefaults.shapesFor(buttonHeight),
-                        contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(CreateButtonPadding)
-                                .heightIn(min = buttonHeight),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
-                        )
-                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
-                        Text(
-                            text = createLabel,
-                            style = ButtonDefaults.textStyleFor(buttonHeight),
-                        )
-                    }
+            item(key = "create", contentType = "create") {
+                val buttonHeight = ButtonDefaults.MediumContainerHeight
+                FilledTonalButton(
+                    onClick = onCreateNew,
+                    shapes = ButtonDefaults.shapesFor(buttonHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(CreateButtonPadding)
+                            .heightIn(min = buttonHeight),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
+                    )
+                    Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                    Text(
+                        text = createLabel,
+                        style = ButtonDefaults.textStyleFor(buttonHeight),
+                    )
                 }
             }
         }
