@@ -117,7 +117,12 @@ fun FlowSearchField(
                         ),
                     lineLimits = TextFieldLineLimits.SingleLine,
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    // A remote moving focus through the field must not raise the keyboard; OK on it does.
+                    keyboardOptions =
+                        KeyboardOptions(
+                            imeAction = ImeAction.Search,
+                            showKeyboardOnFocus = if (LocalDpadNavigation.current) false else null,
+                        ),
                     onKeyboardAction = { onSearch(state.text.toString()) },
                 )
             }

@@ -107,7 +107,10 @@ fun TvSearchScreen(
             .collect(musicViewModel::onQueryChange)
     }
     LaunchedEffect(systemKeyboard) {
-        if (systemKeyboard) fieldFocusRequester.requestFocus()
+        if (systemKeyboard) {
+            fieldFocusRequester.requestFocus()
+            softwareKeyboard?.show()
+        }
     }
 
     val voiceLauncher =
