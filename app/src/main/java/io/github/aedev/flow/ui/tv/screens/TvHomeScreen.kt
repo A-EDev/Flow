@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
@@ -41,7 +42,6 @@ import io.github.aedev.flow.ui.tv.components.TvShimmerRow
 import io.github.aedev.flow.ui.tv.components.TvVideoCard
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-import io.github.aedev.flow.ui.tv.toTvVideo
 import io.github.aedev.flow.ui.tv.tvWatchProgress
 
 private const val HOME_GRID_COLUMNS = 3
@@ -109,7 +109,7 @@ fun TvHomeScreen(
                                 key = { it.videoId },
                                 title = stringResource(R.string.tv_continue_watching),
                             ) { entry ->
-                                val video = remember(entry) { entry.toTvVideo() }
+                                val video = remember(entry) { entry.toVideo() }
                                 TvVideoCard(
                                     video = video,
                                     onClick = { onVideoClick(video) },

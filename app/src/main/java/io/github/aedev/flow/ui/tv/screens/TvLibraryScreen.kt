@@ -33,7 +33,10 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toMusicTrack
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.playlist.PlaylistListOrder
 import io.github.aedev.flow.data.playlist.sortedFor
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
@@ -47,8 +50,6 @@ import io.github.aedev.flow.ui.tv.components.TvVideoCard
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
 import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-import io.github.aedev.flow.ui.tv.toTvMusicTrack
-import io.github.aedev.flow.ui.tv.toTvVideo
 import io.github.aedev.flow.ui.tv.tvWatchProgress
 
 private const val LIBRARY_GRID_COLUMNS = 3
@@ -127,12 +128,12 @@ fun TvLibraryScreen(
             when (selectedSection) {
                 TvLibrarySection.HISTORY -> {
                     TvLibraryMixedContent(
-                        musicTracks = history.filter { it.isMusic }.map { it.toTvMusicTrack() },
+                        musicTracks = history.filter { it.isMusic }.map { it.toMusicTrack() },
                         musicSource = stringResource(TvLibrarySection.HISTORY.titleRes),
                         videos =
                             history
                                 .filterNot { it.isMusic }
-                                .map { entry -> entry.toTvVideo() to entry.tvWatchProgress() },
+                                .map { entry -> entry.toVideo() to entry.tvWatchProgress() },
                         onVideoClick = onVideoClick,
                         onPlayTrack = onPlayTrack,
                     )
@@ -140,12 +141,12 @@ fun TvLibraryScreen(
 
                 TvLibrarySection.LIKES -> {
                     TvLibraryMixedContent(
-                        musicTracks = liked.filter { it.isMusic }.map(LikedVideoInfo::toTvMusicTrack),
+                        musicTracks = liked.filter { it.isMusic }.map(LikedVideoInfo::toMusicTrack),
                         musicSource = stringResource(TvLibrarySection.LIKES.titleRes),
                         videos =
                             liked
                                 .filterNot { it.isMusic }
-                                .map { info -> info.toTvVideo() to null },
+                                .map { info -> info.toVideo() to null },
                         onVideoClick = onVideoClick,
                         onPlayTrack = onPlayTrack,
                     )
@@ -153,7 +154,7 @@ fun TvLibraryScreen(
 
                 TvLibrarySection.WATCH_LATER -> {
                     TvLibraryMixedContent(
-                        musicTracks = watchLater.filter { it.isMusic }.map(Video::toTvMusicTrack),
+                        musicTracks = watchLater.filter { it.isMusic }.map(Video::toMusicTrack),
                         musicSource = stringResource(TvLibrarySection.WATCH_LATER.titleRes),
                         videos = watchLater.filterNot { it.isMusic }.map { it to null },
                         onVideoClick = onVideoClick,
