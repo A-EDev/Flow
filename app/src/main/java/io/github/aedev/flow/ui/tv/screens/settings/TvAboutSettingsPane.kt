@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.donation.OPEN_COLLECTIVE_URL
 import io.github.aedev.flow.ui.tv.components.TvNavRow
 import io.github.aedev.flow.ui.tv.components.TvSectionHeader
 import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
@@ -46,7 +47,6 @@ private const val FLOW_RELEASES_URL = "https://github.com/Flow-Tube/Flow/release
 private const val FLOW_GITHUB_URL = "https://github.com/Flow-Tube/Flow"
 private const val FLOW_REDDIT_URL = "https://www.reddit.com/r/Flow_Official/"
 private const val FLOW_CREATOR_URL = "https://github.com/A-EDev"
-private const val FLOW_DONATION_URL = "https://patreon.com/A_EDev"
 private const val FLOW_LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 private const val NEWPIPE_EXTRACTOR_URL = "https://github.com/TeamNewPipe/NewPipeExtractor"
 
@@ -81,7 +81,7 @@ fun TvAboutSettingsPane(modifier: Modifier = Modifier) {
                     label = stringResource(R.string.donate_item_title),
                     supportingText = stringResource(R.string.support_dev_subtitle),
                     leadingIcon = Icons.Outlined.VolunteerActivism,
-                    onClick = { context.openUrl(FLOW_DONATION_URL) },
+                    onClick = { context.openUrl(OPEN_COLLECTIVE_URL) },
                 )
             }
 
