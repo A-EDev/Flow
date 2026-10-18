@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.CopyOnWriteArrayList
 
 class BackupCoordinatorTest {
     private val context: Context = mockk(relaxed = true)
@@ -115,5 +116,23 @@ class BackupCoordinatorTest {
 
             coVerify { repository.exportMasterBackup(first, any(), any(), picks) }
             coVerify { favourites.restore(picks) }
+        }
+
+    @Test
+    fun `the outcome is published after the last notification call`() =
+        runBlocking {
+            coEvery { repository.importMasterBackup(second, any(), any(), any()) } returns Result.success(Unit)
+            val coordinator = coordinator()
+            val seen = CopyOnWriteArrayList<BackupOperation>()
+            every { NotificationHelper.hasNotificationPermission(any()) } answers {
+                seen += coordinator.operation.value
+                false
+            }
+
+            coordinator.importMaster(second)
+            withTimeout(2_000) { coordinator.operation.first { it is BackupOperation.Succeeded } }
+
+            assertThat(seen).isNotEmpty()
+            assertThat(seen.filterIsInstance<BackupOperation.Succeeded>()).isEmpty()
         }
 }
