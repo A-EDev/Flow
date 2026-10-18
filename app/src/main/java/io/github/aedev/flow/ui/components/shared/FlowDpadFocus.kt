@@ -1,0 +1,63 @@
+package io.github.aedev.flow.ui.components.shared
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
+
+/**
+ * True where a remote's D-pad moves focus instead of a finger, as on Android TV. Shared components
+ * read it to lift the focused item and to keep one focus stop per item. It is false on phones and
+ * tablets, so nothing there changes.
+ */
+val LocalDpadNavigation = staticCompositionLocalOf { false }
+
+object FocusLiftDefaults {
+    /** Cards and tiles: Google's TV focus scale for medium-sized items. */
+    const val CARD_SCALE = 1.05f
+
+    /** Icon buttons and other small targets, which need a larger step to read as focused. */
+    const val SMALL_SCALE = 1.1f
+}
+
+/**
+ * Scales the item up while it holds D-pad focus and raises it over its neighbours, the TV
+ * counterpart of [pressScale]. A no-op unless [LocalDpadNavigation] is on.
+ *
+ * Pass the same [interactionSource] as the item's clickable. The scale is read inside
+ * [graphicsLayer], so the animation never recomposes; only the z-order flips in composition.
+ */
+@Composable
+fun Modifier.focusLift(
+    interactionSource: InteractionSource,
+    liftedScale: Float = FocusLiftDefaults.CARD_SCALE,
+): Modifier {
+    if (!LocalDpadNavigation.current) return this
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val scale =
+        animateFloatAsState(
+            targetValue = if (isFocused) liftedScale else 1f,
+            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+            label = "focusLift",
+        )
+    return zIndex(if (isFocused) 1f else 0f)
+        .graphicsLayer {
+            scaleX = scale.value
+            scaleY = scale.value
+        }
+}
+
+/**
+ * Keeps a secondary target inside an item, such as a card's avatar or ⋮ button, out of D-pad focus,
+ * so the remote moves card to card. On TV the item's long press or the Menu key reaches the same
+ * actions.
+ */
+@Composable
+fun Modifier.skipDpadFocus(): Modifier = if (LocalDpadNavigation.current) focusProperties { canFocus = false } else this
