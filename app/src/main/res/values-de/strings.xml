@@ -648,7 +648,7 @@
     <string name="category_movies">Filme</string>
     <string name="category_live">Live</string>
     <string name="settings_continue_watching_title">Zur „Weiter ansehen“-Liste hinzufügen</string>
-    <string name="settings_continue_watching_subtitle">Zeige auf dem Startbildschirm eine Leiste mit Videos an, die gerade bearbeitet werden.</string>
+    <string name="settings_continue_watching_subtitle">Zeige auf dem Startbildschirm eine Leiste mit angefangenen Videos an.</string>
     <string name="continue_watching_title">Weiter ansehen</string>
     <string name="player_settings_mini_player_continue_watching_title">Weiter ansehen (Mini-Player)</string>
     <string name="player_settings_mini_player_continue_watching_subtitle">Das zuletzt angesehene Video automatisch anzeigen</string>
