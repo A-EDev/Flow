@@ -36,7 +36,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
+import io.github.aedev.flow.ui.components.shared.focusLift
+import io.github.aedev.flow.ui.components.shared.onMenuKey
 import io.github.aedev.flow.ui.components.shared.pressScale
+import io.github.aedev.flow.ui.components.shared.skipDpadFocus
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 
@@ -98,7 +101,8 @@ internal fun CardReasonLabel(reason: String) {
 
 /**
  * The whole card opens the video, and a long press opens its quick actions. TalkBack announces the
- * long press by name, since the gesture alone is undiscoverable.
+ * long press by name, since the gesture alone is undiscoverable. On a D-pad the card lifts on focus
+ * and the Menu key opens the quick actions too.
  */
 @Composable
 internal fun Modifier.videoCardClickable(
@@ -107,9 +111,11 @@ internal fun Modifier.videoCardClickable(
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     return pressScale(interactionSource)
+        .focusLift(interactionSource)
+        .onMenuKey { state.sheets.showQuickActions = true }
         .combinedClickable(
             interactionSource = interactionSource,
-            indication = ripple(),
+            indication = ripple(focusRingShape = MaterialTheme.shapes.large),
             onClickLabel = null,
             onLongClickLabel = stringResource(R.string.more_options),
             onLongClick = { state.sheets.showQuickActions = true },
@@ -121,7 +127,7 @@ internal fun Modifier.videoCardClickable(
 @Composable
 internal fun Modifier.videoCardChannelClickable(state: VideoCardState): Modifier {
     val navigator = LocalMediaNavigator.current
-    return clickable(
+    return skipDpadFocus().clickable(
         role = Role.Button,
         onClickLabel = stringResource(R.string.go_to_channel),
     ) { state.openChannel(navigator) }
@@ -141,7 +147,7 @@ internal fun VideoCardSideActions(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.offset(y = -alignTo)) {
-        IconButton(onClick = { state.sheets.showQuickActions = true }) {
+        IconButton(onClick = { state.sheets.showQuickActions = true }, modifier = Modifier.skipDpadFocus()) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = stringResource(R.string.more_options),
@@ -153,6 +159,7 @@ internal fun VideoCardSideActions(
             IconToggleButton(
                 checked = isWatched,
                 onCheckedChange = { if (!isWatched) onWatched(state.video) },
+                modifier = Modifier.skipDpadFocus(),
             ) {
                 Icon(
                     imageVector = if (isWatched) Icons.Filled.Visibility else Icons.Outlined.Visibility,

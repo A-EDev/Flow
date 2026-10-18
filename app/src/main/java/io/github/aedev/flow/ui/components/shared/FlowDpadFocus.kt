@@ -10,6 +10,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.zIndex
 
 /**
@@ -61,3 +66,22 @@ fun Modifier.focusLift(
  */
 @Composable
 fun Modifier.skipDpadFocus(): Modifier = if (LocalDpadNavigation.current) focusProperties { canFocus = false } else this
+
+/**
+ * Runs [onMenu] when the remote's Menu key is released while this item or something inside it holds
+ * focus: the TV way to open an item's quick actions. A no-op unless [LocalDpadNavigation] is on.
+ */
+@Composable
+fun Modifier.onMenuKey(onMenu: () -> Unit): Modifier =
+    if (LocalDpadNavigation.current) {
+        onKeyEvent { event ->
+            if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
+                onMenu()
+                true
+            } else {
+                false
+            }
+        }
+    } else {
+        this
+    }
