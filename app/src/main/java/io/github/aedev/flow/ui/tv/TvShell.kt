@@ -15,7 +15,6 @@ import androidx.compose.material3.WideNavigationRailDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,14 +41,12 @@ import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.tv.components.TvNavRail
 import io.github.aedev.flow.ui.tv.music.TvMiniPlayer
-import io.github.aedev.flow.ui.tv.navigation.TvBackAction
-import io.github.aedev.flow.ui.tv.navigation.TvBackModel
 import io.github.aedev.flow.ui.tv.navigation.TvNavHost
 import io.github.aedev.flow.ui.tv.navigation.TvNavigation
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /**
- * TV browse shell: content + optional music strip laid out against the collapsed rail width; the
+ * TV browse shell: content + optional mini player laid out against the collapsed rail width; the
  * rail lies over them, so its focus expansion never reflows the page. Coming back from the rail
  * returns focus to the item it left.
  */
@@ -85,7 +82,13 @@ fun TvShell(
     var contentHasFocus by remember { mutableStateOf(false) }
     val railFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
-    val rootHistory = remember { mutableStateListOf<String>() }
+
+    // Registered before the NavHost, so a page's own Back (a settings sub-page, a list mode) and the
+    // NavHost's pop come first: a detail route pops, another root returns to the start tab. Only on the
+    // start tab itself does Back reach this, moving focus to the rail, and from the rail the app exits.
+    BackHandler(enabled = !isOnDetailRoute && currentRoot == navigation.startTab.route && !railHasFocus) {
+        railFocusRequester.requestFocus(FocusDirection.Left)
+    }
 
     fun navigateToRoot(route: String) {
         navController.navigate(route) {
@@ -99,13 +102,6 @@ fun TvShell(
         if (route == currentRoot && !isOnDetailRoute) {
             TabScrollEventBus.emitScrollToTop(route)
             return
-        }
-        if (route != currentRoot) {
-            rootHistory.remove(route)
-            if (!isOnDetailRoute) {
-                rootHistory.remove(currentRoot)
-                rootHistory.add(currentRoot)
-            }
         }
         navigateToRoot(route)
     }
@@ -177,22 +173,5 @@ fun TvShell(
             onOpenNowPlaying = onExpandMusic,
             modifier = Modifier.align(Alignment.CenterStart),
         )
-
-        val backAction =
-            TvBackModel.resolve(
-                isOnDetailRoute = isOnDetailRoute,
-                hasTabHistory = rootHistory.isNotEmpty(),
-                isOnStartTab = currentRoot == navigation.startTab.route,
-                railHasFocus = railHasFocus,
-            )
-        BackHandler(enabled = backAction != TvBackAction.EXIT) {
-            when (backAction) {
-                TvBackAction.POP_DETAIL -> navController.popBackStack()
-                TvBackAction.POP_TAB -> navigateToRoot(rootHistory.removeAt(rootHistory.lastIndex))
-                TvBackAction.GO_START -> navigateToRoot(navigation.startTab.route)
-                TvBackAction.FOCUS_RAIL -> railFocusRequester.requestFocus(FocusDirection.Left)
-                TvBackAction.EXIT -> Unit
-            }
-        }
     }
 }
