@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -68,6 +71,8 @@ fun TvNavRail(
     focusRequester: FocusRequester,
     onOtherEntry: () -> Boolean,
     modifier: Modifier = Modifier,
+    nowPlayingTitle: String? = null,
+    onOpenNowPlaying: () -> Unit = {},
 ) {
     val state = rememberWideNavigationRailState()
     var hasFocus by remember { mutableStateOf(false) }
@@ -109,6 +114,16 @@ fun TvNavRail(
                 modifier = if (selected) Modifier.focusRequester(selectedRequester) else Modifier,
             )
         }
+        // Music keeps playing under the browse screens; this is the one stop away from its full player.
+        nowPlayingTitle?.let { title ->
+            TvRailItem(
+                selected = false,
+                icon = Icons.Rounded.GraphicEq,
+                label = title,
+                expanded = expanded,
+                onClick = onOpenNowPlaying,
+            )
+        }
         val settingsSelected = selectedRoute == TV_SETTINGS_ROUTE
         TvRailItem(
             selected = settingsSelected,
@@ -146,7 +161,7 @@ private fun TvRailItem(
         contentColor = if (selected) colors.selectedIconColor else colors.unselectedIconColor,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(imageVector = icon, contentDescription = label)
@@ -160,7 +175,11 @@ private fun TvRailItem(
                     style = MaterialTheme.typography.labelLarge,
                     color = if (selected) colors.selectedTextColor else colors.unselectedTextColor,
                     maxLines = 1,
-                    modifier = Modifier.padding(start = 12.dp, end = 8.dp),
+                    overflow = TextOverflow.Ellipsis,
+                    modifier =
+                        Modifier
+                            .widthIn(max = RailLabelMaxWidth)
+                            .padding(start = 12.dp, end = 8.dp),
                 )
             }
         }
@@ -185,6 +204,9 @@ private fun TvRailLogo() {
         )
     }
 }
+
+/** Keeps a long song title from widening the open rail past M3's wide-rail width. */
+private val RailLabelMaxWidth = 200.dp
 
 /** The tabs from the top, and the last item (Settings) on the rail's floor, as Google's TV rail places it. */
 private object LastItemAtBottom : Arrangement.Vertical {

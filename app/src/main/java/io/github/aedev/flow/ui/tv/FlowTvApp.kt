@@ -34,7 +34,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.tv.components.TvSheetPresenter
-import io.github.aedev.flow.ui.tv.music.TvMusicNowPlayingScreen
+import io.github.aedev.flow.ui.tv.music.TvMusicNowPlaying
 import io.github.aedev.flow.ui.tv.navigation.TvMediaNavigator
 import io.github.aedev.flow.ui.tv.screens.TvPlayerScreen
 import io.github.aedev.flow.ui.tv.theme.FlowTvTheme
@@ -145,8 +145,8 @@ fun FlowTvApp(
                     val video = activeVideo
                     val visibleMusicTrack = activeMusicTrack.takeIf { musicSessionActive }
                     if (video == null && musicExpanded && visibleMusicTrack != null) {
-                        TvMusicNowPlayingScreen(
-                            viewModel = musicPlayerViewModel,
+                        TvMusicNowPlaying(
+                            track = visibleMusicTrack,
                             onCollapse = { musicExpanded = false },
                         )
                     } else if (video == null) {

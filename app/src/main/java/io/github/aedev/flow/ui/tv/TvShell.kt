@@ -34,13 +34,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.TabScrollEventBus
+import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
 import io.github.aedev.flow.ui.tv.components.TvNavRail
-import io.github.aedev.flow.ui.tv.components.TvNowPlayingStrip
+import io.github.aedev.flow.ui.tv.music.TvMiniPlayer
 import io.github.aedev.flow.ui.tv.navigation.TvBackAction
 import io.github.aedev.flow.ui.tv.navigation.TvBackModel
 import io.github.aedev.flow.ui.tv.navigation.TvNavHost
@@ -142,10 +143,14 @@ fun TvShell(
                 )
             }
             activeMusicTrack?.let { track ->
-                TvNowPlayingStrip(
+                TvMiniPlayer(
                     track = track,
                     onExpand = onExpandMusic,
                     onDismiss = onDismissMusic,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = MediaMiniBarDefaults.BottomSpacer),
                 )
             }
         }
@@ -168,6 +173,8 @@ fun TvShell(
             onFocusChanged = { railHasFocus = it },
             focusRequester = railFocusRequester,
             onOtherEntry = { contentFocusRequester.requestFocus() },
+            nowPlayingTitle = activeMusicTrack?.title,
+            onOpenNowPlaying = onExpandMusic,
             modifier = Modifier.align(Alignment.CenterStart),
         )
 
