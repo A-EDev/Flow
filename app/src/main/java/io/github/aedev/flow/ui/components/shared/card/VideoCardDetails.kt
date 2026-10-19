@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,11 +111,9 @@ internal fun Modifier.videoCardClickable(
     onClick: () -> Unit,
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
-    val focusListener = LocalVideoCardFocusListener.current
     return pressScale(interactionSource)
         .focusLift(interactionSource)
         .onMenuKey { state.sheets.showQuickActions = true }
-        .then(if (focusListener != null) Modifier.onFocusChanged { if (it.isFocused) focusListener(state.video) } else Modifier)
         .combinedClickable(
             interactionSource = interactionSource,
             indication = ripple(focusRingShape = MaterialTheme.shapes.large),
