@@ -2767,7 +2767,9 @@
     <string name="search_filter_recently_uploaded">télécharger récemment</string>
     <string name="search_filter_watch_any">Regarder ou pas</string>
     <string name="search_filter_unwatched">Pas regarder</string>
-    <string name="search_watch_empty_watched">Pas de vidéos regarder ici</string>
+    <plurals name="search_watch_empty_watched">
+        <item quantity="one">Pas de vidéos regarder ici</item>
+    </plurals>
     <string name="home_load_more_failed">Impossible de chargez plus de vidéos</string>
     <string name="home_load_more_failed_body">Vérifiez votre connection</string>
     <plurals name="subscriptions_refresh_checks_template">
