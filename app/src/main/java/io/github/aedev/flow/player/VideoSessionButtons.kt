@@ -78,16 +78,18 @@ internal class VideoSessionButtons(
             override fun onConnect(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo,
-            ): MediaSession.ConnectionResult =
-                MediaSession.ConnectionResult
-                    .AcceptedResultBuilder(session)
-                    .setAvailableSessionCommands(
-                        MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
-                            .buildUpon()
-                            .add(REPEAT)
-                            .add(SHUFFLE)
-                            .build(),
-                    ).build()
+            ): MediaSession.ConnectionResult {
+                val defaults = super.onConnect(session, controller)
+                if (!defaults.isAccepted) return defaults
+                return MediaSession.ConnectionResult.accept(
+                    defaults.availableSessionCommands
+                        .buildUpon()
+                        .add(REPEAT)
+                        .add(SHUFFLE)
+                        .build(),
+                    defaults.availablePlayerCommands,
+                )
+            }
 
             override fun onCustomCommand(
                 session: MediaSession,
