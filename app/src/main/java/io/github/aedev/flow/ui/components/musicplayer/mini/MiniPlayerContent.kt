@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -33,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -77,6 +80,7 @@ internal fun MiniPlayerContent(
     // and smooth progress ring stop forcing frames nobody can see. Values still update.
     animationsEnabled: Boolean = true,
     showPrevious: Boolean = false,
+    onOpen: (() -> Unit)? = null,
 ) {
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -100,99 +104,119 @@ internal fun MiniPlayerContent(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val ringTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        val ringFillColor = MaterialTheme.colorScheme.primary
-        Box(
+        // With [onOpen] the cover and titles are one target of their own, beside the transport buttons,
+        // so a remote reaches each of them; a touch host opens the player from the whole bar instead.
+        Row(
             modifier =
                 Modifier
-                    .size(ArtworkRingSize)
-                    .drawBehind {
-                        val stroke = ProgressRingStroke.toPx()
-                        val inset = stroke / 2f
-                        val arcSize = Size(size.width - stroke, size.height - stroke)
-                        drawArc(
-                            color = ringTrackColor,
-                            startAngle = -90f,
-                            sweepAngle = 360f,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(width = stroke, cap = StrokeCap.Round),
-                        )
-                        if (animatedProgress > 0f) {
+                    .weight(1f)
+                    .then(
+                        if (onOpen == null) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .clickable(interactionSource = null, indication = ripple(focusRingShape = CircleShape), onClick = onOpen)
+                        },
+                    ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            val ringTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+            val ringFillColor = MaterialTheme.colorScheme.primary
+            Box(
+                modifier =
+                    Modifier
+                        .size(ArtworkRingSize)
+                        .drawBehind {
+                            val stroke = ProgressRingStroke.toPx()
+                            val inset = stroke / 2f
+                            val arcSize = Size(size.width - stroke, size.height - stroke)
                             drawArc(
-                                color = ringFillColor,
+                                color = ringTrackColor,
                                 startAngle = -90f,
-                                sweepAngle = 360f * animatedProgress,
+                                sweepAngle = 360f,
                                 useCenter = false,
                                 topLeft = Offset(inset, inset),
                                 size = arcSize,
                                 style = Stroke(width = stroke, cap = StrokeCap.Round),
                             )
-                        }
-                    },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(ArtworkSize)
-                        .clip(CircleShape),
+                            if (animatedProgress > 0f) {
+                                drawArc(
+                                    color = ringFillColor,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f * animatedProgress,
+                                    useCenter = false,
+                                    topLeft = Offset(inset, inset),
+                                    size = arcSize,
+                                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                                )
+                            }
+                        },
+                contentAlignment = Alignment.Center,
             ) {
-                AsyncImage(
-                    model = track.listThumbnailUrl,
-                    contentDescription = stringResource(R.string.album_art),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                if (playerState.isPlaying && animationsEnabled) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(ArtworkScrimNowPlaying),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PlayingWaveform(
-                            color = ArtworkScrimContent,
-                            barCount = 3,
-                            barWidth = 2.5.dp,
-                            barSpacing = 1.5.dp,
-                            staggerMillis = 120,
-                        )
+                Box(
+                    modifier =
+                        Modifier
+                            .size(ArtworkSize)
+                            .clip(CircleShape),
+                ) {
+                    AsyncImage(
+                        model = track.listThumbnailUrl,
+                        contentDescription = stringResource(R.string.album_art),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                    if (playerState.isPlaying && animationsEnabled) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(ArtworkScrimNowPlaying),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PlayingWaveform(
+                                color = ArtworkScrimContent,
+                                barCount = 3,
+                                barWidth = 2.5.dp,
+                                barSpacing = 1.5.dp,
+                                staggerMillis = 120,
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                color = MaterialTheme.colorScheme.onSurface,
-                overflow = TextOverflow.Ellipsis,
-                modifier =
-                    if (animationsEnabled) {
-                        Modifier.basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            repeatDelayMillis = 2500,
-                        )
-                    } else {
-                        Modifier
-                    },
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = track.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = track.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier =
+                        if (animationsEnabled) {
+                            Modifier.basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                repeatDelayMillis = 2500,
+                            )
+                        } else {
+                            Modifier
+                        },
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = track.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         Row(
