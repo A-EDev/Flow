@@ -7,6 +7,7 @@ package io.github.aedev.flow.data.lyrics.paxsenix
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import io.github.aedev.flow.data.lyrics.LyricsMatching
 import io.github.aedev.flow.data.lyrics.TTMLParser
 import io.github.aedev.flow.data.lyrics.paxsenix.models.AppleMusicSearchResponse
 import io.github.aedev.flow.data.lyrics.paxsenix.models.LyricsResponse
@@ -242,7 +243,6 @@ object Paxsenix {
         artist: String,
         duration: Int,
     ): List<Pair<SearchResult, Double>> {
-        val durationMs = duration * 1000
         val cleanupRegex = Regex("""\s*\(.*?\)|\s*\[.*?\]""")
         val cleanedTitle = title.replace(cleanupRegex, "").lowercase().trim()
         val cleanedArtist = cleanArtist(artist).lowercase()
@@ -250,17 +250,18 @@ object Paxsenix {
         val targetIsRemix = title.contains("remix", ignoreCase = true)
 
         return results
+            .filter { LyricsMatching.sameVersion(title, it.displayName) }
             .map { result ->
                 var score = 0.0
                 val resultTitle = result.displayName
                 val resultArtist = result.displayArtist
 
-                result.duration?.let { d ->
-                    val diff = abs(d - durationMs)
+                result.duration?.takeIf { duration > 0 }?.let { d ->
+                    val diff = abs(d - duration)
                     when {
-                        diff <= 2000 -> score += 100
-                        diff <= 5000 -> score += 50
-                        diff <= 10000 -> score += 10
+                        diff <= 2 -> score += 100
+                        diff <= 5 -> score += 50
+                        diff <= 10 -> score += 10
                         else -> score -= 50
                     }
                 }

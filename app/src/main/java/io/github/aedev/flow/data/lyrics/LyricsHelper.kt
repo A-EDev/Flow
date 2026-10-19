@@ -109,8 +109,8 @@ class LyricsHelper
                 LyricsCacheManager.evictLyrics(targetContext, videoId)
             }
 
-            val cleanedTitle = LyricsUtils.cleanTitle(title)
-            val cleanedArtist = LyricsUtils.cleanArtist(artist)
+            val cleanedTitle = LyricsMatching.cleanTitle(title)
+            val cleanedArtist = LyricsMatching.cleanArtist(artist)
             Log.d(TAG, "Cache miss. Querying providers: cleanedTitle=\"$cleanedTitle\", cleanedArtist=\"$cleanedArtist\"")
 
             val orderString = playerPreferences.lyricsProviderOrder.first()
@@ -318,8 +318,8 @@ class LyricsHelper
             album: String? = null,
             onCandidate: suspend (LyricsCandidate) -> Unit,
         ) {
-            val cleanedTitle = LyricsUtils.cleanTitle(title)
-            val cleanedArtist = LyricsUtils.cleanArtist(artist)
+            val cleanedTitle = LyricsMatching.cleanTitle(title)
+            val cleanedArtist = LyricsMatching.cleanArtist(artist)
             val orderString = playerPreferences.lyricsProviderOrder.first()
             val enabledStates = playerPreferences.allLyricsProviderEnabledStates().first()
             val orderedProviders =
