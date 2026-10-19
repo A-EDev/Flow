@@ -5,6 +5,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockCategories
+import io.github.aedev.flow.data.sponsordetection.SponsorModelRepository
+import io.github.aedev.flow.data.sponsordetection.SponsorModelState
 import io.github.aedev.flow.discord.DiscordLinkResult
 import io.github.aedev.flow.discord.DiscordPresenceController
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
@@ -27,10 +29,13 @@ class IntegrationsViewModel
     constructor(
         private val preferences: PlayerPreferences,
         private val discord: DiscordPresenceController,
+        private val sponsorModel: SponsorModelRepository,
     ) : SettingsViewModel() {
         val sponsorBlock = preferences.sponsorBlockEnabled.asState(false)
         val submitButton = preferences.sbSubmitEnabled.asState(false)
         val userId = preferences.sbUserId.asState(null)
+        val onDeviceDetection = preferences.sponsorOnDeviceEnabled.asState(false)
+        val sponsorModelState = sponsorModel.state
         val deArrow = preferences.deArrowEnabled.asState(false)
         val deArrowBadge = preferences.deArrowBadgeEnabled.asState(false)
         val dislikes = preferences.rytdEnabled.asState(true)
@@ -65,6 +70,20 @@ class IntegrationsViewModel
             category: String,
             colorArgb: Int?,
         ) = write { preferences.setSbColorForCategory(category, colorArgb) }
+
+        init {
+            sponsorModel.refresh()
+        }
+
+        fun setOnDeviceDetection(value: Boolean) =
+            write {
+                preferences.setSponsorOnDeviceEnabled(value)
+                if (value && sponsorModel.state.value !is SponsorModelState.Installed) sponsorModel.download()
+            }
+
+        fun downloadSponsorModel() = sponsorModel.download()
+
+        fun deleteSponsorModel() = sponsorModel.delete()
 
         fun setSubmitButton(value: Boolean) = write { preferences.setSbSubmitEnabled(value) }
 

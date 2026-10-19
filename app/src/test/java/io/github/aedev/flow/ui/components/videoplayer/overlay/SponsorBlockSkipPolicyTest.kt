@@ -41,4 +41,37 @@ class SponsorBlockSkipPolicyTest {
 
         assertThat(active).isNull()
     }
+
+    @Test
+    fun `on-device prediction gets a skip button even when the category auto-skips`() {
+        val prediction =
+            SponsorBlockSegment(category = "sponsor", segment = listOf(10f, 20f), uuid = "flow-ml-video-0", actionType = "skip")
+
+        val active =
+            findActiveManualSponsorSegment(
+                sponsorSegments = listOf(prediction),
+                currentPositionMs = 15_000L,
+                skippedUuids = emptySet(),
+                categoryActions = mapOf("sponsor" to SponsorBlockAction.SKIP),
+                playbackEnded = false,
+            )
+
+        assertThat(active).isEqualTo(prediction)
+    }
+
+    @Test
+    fun `database sponsor segment that auto-skips gets no skip button`() {
+        val sponsor = SponsorBlockSegment("sponsor", listOf(10f, 20f), "db-id", "skip")
+
+        val active =
+            findActiveManualSponsorSegment(
+                sponsorSegments = listOf(sponsor),
+                currentPositionMs = 15_000L,
+                skippedUuids = emptySet(),
+                categoryActions = mapOf("sponsor" to SponsorBlockAction.SKIP),
+                playbackEnded = false,
+            )
+
+        assertThat(active).isNull()
+    }
 }

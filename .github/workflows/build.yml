@@ -115,6 +115,17 @@ jobs:
           ./gradlew :app:compileGithubDebugAndroidTestKotlin
           --build-cache --stacktrace
 
+      - name: Cache ONNX Runtime package
+        id: ort_cache
+        uses: actions/cache@v4
+        with:
+          path: app/libs/onnxruntime-android-1.29.0.aar
+          key: onnxruntime-aar-${{ hashFiles('tools/onnxruntime/**') }}
+
+      - name: Build ONNX Runtime package
+        if: ${{ steps.ort_cache.outputs.cache-hit != 'true' }}
+        run: tools/onnxruntime/build-onnxruntime-android.sh
+
       - name: Lint GitHub nightly
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: >

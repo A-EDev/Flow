@@ -40,6 +40,7 @@ internal fun IntegrationsScreen(
     val sponsorBlock by viewModel.sponsorBlock.collectAsStateWithLifecycle()
     val submitButton by viewModel.submitButton.collectAsStateWithLifecycle()
     val userId by viewModel.userId.collectAsStateWithLifecycle()
+    val modelState by viewModel.sponsorModelState.collectAsStateWithLifecycle()
     val segments by viewModel.segments.collectAsStateWithLifecycle()
     val deArrow by viewModel.deArrow.collectAsStateWithLifecycle()
     val discordState by viewModel.discordState.collectAsStateWithLifecycle()
@@ -66,6 +67,13 @@ internal fun IntegrationsScreen(
             onEditUserId = { dialog = IntegrationsDialog.USER_ID },
             onPickColour = { colourCategory = it },
         )
+        if (sponsorBlock) {
+            sponsorModelSection(
+                viewModel = viewModel,
+                modelState = modelState,
+                onDelete = { dialog = IntegrationsDialog.DELETE_SPONSOR_MODEL },
+            )
+        }
         group(key = "integrations.scrobbling.group", header = R.string.scrobbling_title) {
             nav(
                 DestinationIndex.entry(SettingsDestination.SCROBBLING),

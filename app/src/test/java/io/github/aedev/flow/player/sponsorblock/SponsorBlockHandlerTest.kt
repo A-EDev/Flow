@@ -174,4 +174,12 @@ class SponsorBlockHandlerTest {
             handler.loadSegmentsFromList("next", emptyList())
             assertThat(events).containsExactly(true, false, true, false, true, false).inOrder()
         }
+
+    @Test
+    fun `on-device prediction is never skipped automatically`() {
+        val prediction =
+            SponsorBlockSegment(category = "sponsor", segment = listOf(10f, 20f), uuid = "flow-ml-video-0", actionType = "skip")
+
+        assertThat(handlerWith(prediction).checkForSkip(15_000L)).isNull()
+    }
 }
