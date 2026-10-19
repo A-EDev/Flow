@@ -486,7 +486,8 @@ class Media3MusicService : MediaLibraryService() {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
-                                    lyricsHelper.getLyrics(videoId, title, artist, 180, null)
+                                    val durationSeconds = ((item.mediaMetadata.durationMs ?: 0L) / 1000L).toInt()
+                                    lyricsHelper.getLyrics(videoId, title, artist, durationSeconds, null)
                                 } catch (e: Exception) {
                                     Log.w(TAG, "Lyrics pre-warm background task encountered error: ${e.message}")
                                 }
