@@ -2637,7 +2637,9 @@
     <string name="search_filter_watch_any">Смотреть или нет</string>
     <string name="search_filter_unwatched">Непросмотренный</string>
     <string name="search_filter_watched">Просмотрено</string>
-    <string name="search_watch_empty_unwatched">Здесь нет непросмотренных видео</string>
+    <plurals name="search_watch_empty_unwatched">
+        <item quantity="one">Здесь нет непросмотренных видео</item>
+    </plurals>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
@@ -2850,7 +2852,9 @@
     <string name="category_learning">Обучение</string>
     <string name="category_fashion">Мода</string>
     <string name="categories_chart_source">Музыкальные чарты YouTube</string>
-    <string name="categories_rate_limited">В данный момент YouTube ограничивает количество запросов. Попробуйте ещё раз через несколько минут.</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="one">В данный момент YouTube ограничивает количество запросов. Попробуйте ещё раз через несколько минут.</item>
+    </plurals>
     <string name="categories_shelf_see_all">Посмотреть все</string>
     <string name="categories_shelf_back">Вернуться ко всем полкам</string>
     <string name="proxy_settings_bypass_vpn">Отключите прокси в VPN</string>
