@@ -15,7 +15,7 @@ data class TvDimens(
     val overscanVertical: Dp = 27.dp,
     val railCollapsedWidth: Dp = 96.dp,
     val feedCardMinWidth: Dp = 184.dp,
-    val feedMaxColumns: Int = 4,
+    val feedMaxColumns: Int = 3,
     val spotlightHeight: Dp = 176.dp,
     val sidePanelWidth: Dp = 400.dp,
 )
