@@ -72,9 +72,11 @@ class BetterLyrics(
 
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        return@withContext Result.failure(
-                            Exception("BetterLyrics API returned ${response.code}"),
-                        )
+                        // Songs nobody has looked up yet need an API key (401). That is a miss for
+                        // this song, not a refused client, so it must not bench the provider.
+                        val uncached = response.code == 401 && response.body.string().contains("Uncached", ignoreCase = true)
+                        val reason = if (uncached) "no cached lyrics for this song" else "API returned ${response.code}"
+                        return@withContext Result.failure(Exception("BetterLyrics $reason"))
                     }
 
                     val body = response.body?.string()
