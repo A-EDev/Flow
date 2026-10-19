@@ -4625,8 +4625,8 @@
     <string name="search_filter_watch_any">تمت مشاهدته أم لا</string>
     <string name="search_filter_unwatched">لم تتم مشاهدته</string>
     <string name="search_filter_watched">تمت مشاهدته</string>
-    <string name="search_watch_empty_watched">لا توجد مقاطع فيديو تمت مشاهدتها هنا</string>
-    <string name="search_watch_empty_unwatched">لا توجد مقاطع فيديو غير مشاهدة هنا</string>
+    <string name="search_watch_empty_watched">لا توجد فيديوهات تمت مشاهدتها</string>
+    <string name="search_watch_empty_unwatched">لا توجد فيديوهات غير مشاهدة</string>
     <string name="deep_flow_on_search_title">إظهار في البحث</string>
     <string name="deep_flow_on_search_subtitle">مفتاح تبديل Deep Flow فوق عمليات البحث الأخيرة</string>
     <string name="support_flow_open_collective">ادعم Flow على Open Collective</string>
