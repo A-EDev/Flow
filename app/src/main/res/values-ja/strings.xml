@@ -224,4 +224,16 @@
     <string name="autoplay_next">次の動画を自動再生</string>
     <string name="subtitle_style">字幕のスタイル</string>
     <string name="subscriptions_quick_access_title">クイックアクセス</string>
+    <string name="trending">急上昇</string>
+    <string name="section_featured_on">収録プレイリスト</string>
+    <string name="section_fans_also_like">おすすめのアーティスト</string>
+    <string name="action_play_all">すべて再生</string>
+    <string name="section_artists_for_you">おすすめのアーティスト</string>
+    <string name="section_daily_discover">毎日のおすすめ</string>
+    <string name="section_quick_picks">おすすめ</string>
+    <string name="section_speed_dial">クイックアクセス</string>
+    <string name="section_charts_in">%1$s のチャート</string>
+    <string name="section_top_artists_in">%1$s で人気のアーティスト</string>
+    <string name="similar_to">似ているかも</string>
+    <string name="music_home_your_subscriptions">登録チャンネル</string>
 </resources>
