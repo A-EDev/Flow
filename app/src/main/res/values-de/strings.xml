@@ -2012,7 +2012,9 @@
     <string name="category_learning">Lernen</string>
     <string name="category_fashion">Mode</string>
     <string name="categories_chart_source">YouTube Music Charts</string>
-    <string name="categories_rate_limited">YouTube begrenzt Anfragen im Moment. Versuche es in ein paar Minuten erneut.</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="one">YouTube begrenzt Anfragen im Moment. Versuche es in ein paar Minuten erneut.</item>
+    </plurals>
     <string name="proxy_settings_bypass_vpn">Überspringe den Proxy mit VPN</string>
     <string name="proxy_settings_bypass_vpn_subtitle">Direkt verbinden während eine VPN eingeschaltet ist</string>
     <string name="proxy_settings_vpn_paused">Proxy pausiert</string>
