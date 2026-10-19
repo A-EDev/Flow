@@ -2,13 +2,11 @@ package io.github.aedev.flow.data.lyrics
 
 import android.util.Log
 import com.google.gson.Gson
-import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 /**
  * LyricsPlus/Binimum provider, adapted from Metrolist.
@@ -16,16 +14,10 @@ import java.util.concurrent.TimeUnit
  * This source often has fuller word-level lyrics than LRCLib and can fill gaps
  * that BetterLyrics/SimpMusic miss.
  */
-class LyricsPlusProvider : LyricsProvider {
+class LyricsPlusProvider(
+    private val client: OkHttpClient,
+) : LyricsProvider {
     override val name = "LyricsPlus"
-
-    private val client: OkHttpClient
-        get() =
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
 
     private val gson = Gson()
 

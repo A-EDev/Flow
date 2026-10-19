@@ -1,5 +1,7 @@
 package io.github.aedev.flow.data.lyrics
 
+import okhttp3.OkHttpClient
+
 class LyricsProviderRegistry(
     private val providerMap: Map<String, LyricsProvider>,
 ) {
@@ -7,15 +9,15 @@ class LyricsProviderRegistry(
         LyricsProviderOrder.resolve(orderString).mapNotNull { providerMap[it] }
 
     companion object {
-        fun default(): LyricsProviderRegistry {
+        fun create(client: OkHttpClient): LyricsProviderRegistry {
             val providers =
                 listOf(
-                    BetterLyricsProvider(),
-                    LyricsPlusProvider(),
-                    SimpMusicLyricsProvider(),
-                    KuGouLyricsProvider(),
-                    PaxsenixLyricsProvider(),
-                    LrcLibLyricsProvider(),
+                    BetterLyricsProvider(client),
+                    LyricsPlusProvider(client),
+                    SimpMusicLyricsProvider(client),
+                    KuGouLyricsProvider(client),
+                    PaxsenixLyricsProvider(client),
+                    LrcLibLyricsProvider(client),
                     YouTubeSubtitleLyricsProvider(),
                     YouTubeLyricsProvider(),
                 )

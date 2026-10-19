@@ -8,13 +8,16 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.di.MetadataClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +26,7 @@ class LyricsHelper
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
+        @MetadataClient client: OkHttpClient,
     ) {
         companion object {
             private const val TAG = "LyricsHelper"
@@ -35,7 +39,9 @@ class LyricsHelper
             private const val MEMORY_CACHE_SIZE = 32
         }
 
-        private val registry = LyricsProviderRegistry.default()
+        // Bounded per call too: a provider's blocking request would otherwise outlive its timeout.
+        private val registry =
+            LyricsProviderRegistry.create(client.newBuilder().callTimeout(PER_PROVIDER_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
         private val playerPreferences = PlayerPreferences(context)
         private val cache: MutableMap<String, List<LyricsEntry>> =
             Collections.synchronizedMap(

@@ -10,28 +10,15 @@ import io.github.aedev.flow.data.lyrics.kugou.models.DownloadLyricsResponse
 import io.github.aedev.flow.data.lyrics.kugou.models.Keyword
 import io.github.aedev.flow.data.lyrics.kugou.models.SearchLyricsResponse
 import io.github.aedev.flow.data.lyrics.kugou.models.SearchSongResponse
-import io.github.aedev.flow.network.AppProxyManager
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.min
 
-object KuGou {
-    private const val TAG = "KuGou"
-    private const val PAGE_SIZE = 8
-    private const val HEAD_CUT_LIMIT = 30
-    private const val DURATION_TOLERANCE = 8
-
-    private val client: OkHttpClient
-        get() =
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-
+class KuGou(
+    private val client: OkHttpClient,
+) {
     private val gson = Gson()
 
     suspend fun getLyrics(
@@ -202,7 +189,14 @@ object KuGou {
                 filteredLines.dropLast(tailCutLine).joinToString("\n")
             }
 
-    @Suppress("RegExpRedundantEscape")
-    private val ACCEPTED_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\].*".toRegex()
-    private val BANNED_REGEX = ".+].+[:：].+".toRegex()
+    private companion object {
+        const val TAG = "KuGou"
+        const val PAGE_SIZE = 8
+        const val HEAD_CUT_LIMIT = 30
+        const val DURATION_TOLERANCE = 8
+
+        @Suppress("RegExpRedundantEscape")
+        val ACCEPTED_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\].*".toRegex()
+        val BANNED_REGEX = ".+].+[:：].+".toRegex()
+    }
 }

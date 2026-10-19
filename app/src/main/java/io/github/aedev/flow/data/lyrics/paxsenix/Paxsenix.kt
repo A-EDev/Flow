@@ -4,62 +4,28 @@
 
 package io.github.aedev.flow.data.lyrics.paxsenix
 
-import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.lyrics.LyricsMatching
 import io.github.aedev.flow.data.lyrics.TTMLParser
 import io.github.aedev.flow.data.lyrics.paxsenix.models.AppleMusicSearchResponse
 import io.github.aedev.flow.data.lyrics.paxsenix.models.LyricsResponse
 import io.github.aedev.flow.data.lyrics.paxsenix.models.SearchResult
-import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
-object Paxsenix {
-    private const val TAG = "Paxsenix"
-    private const val PAXSENIX_BASE = "https://lyrics.paxsenix.org"
-    private const val APPLE_MUSIC_API_BASE = "https://amp-api.music.apple.com/v1/catalog/us"
-    private const val TITLE_NOISE_WORDS =
-        "official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit"
-
-    @Volatile
-    private var initialized = false
-    private var appVersion: String = "Unknown"
-
-    private val client: OkHttpClient
-        get() =
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-
+class Paxsenix(
+    private val client: OkHttpClient,
+) {
     private val gson = Gson()
 
-    @Volatile
-    private var tokenManager: AppleTokenManager? = null
-
-    fun init(context: Context) {
-        if (initialized) return
-        synchronized(this) {
-            if (initialized) return
-            appVersion =
-                try {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
-                } catch (e: Exception) {
-                    "Unknown"
-                }
-            tokenManager = AppleTokenManager()
-            initialized = true
-        }
-    }
+    private val tokenManager = AppleTokenManager(client)
 
     private val titleCleanupPatterns =
         listOf(
@@ -146,12 +112,11 @@ object Paxsenix {
 
     private suspend fun search(query: String): List<SearchResult> {
         return try {
-            val tm = tokenManager ?: return emptyList()
-            val token = tm.getToken() ?: return emptyList()
+            val token = tokenManager.getToken() ?: return emptyList()
             val results = searchWithToken(token, query)
             if (results == null) {
-                tm.clearToken()
-                val newToken = tm.getToken() ?: return emptyList()
+                tokenManager.clearToken()
+                val newToken = tokenManager.getToken() ?: return emptyList()
                 searchWithToken(newToken, query) ?: emptyList()
             } else {
                 results
@@ -302,7 +267,7 @@ object Paxsenix {
                 Request
                     .Builder()
                     .url(url)
-                    .header("User-Agent", "Flow/$appVersion")
+                    .header("User-Agent", "Flow/${BuildConfig.VERSION_NAME}")
                     .build()
 
             val response = client.newCall(request).execute()
@@ -394,7 +359,9 @@ object Paxsenix {
         }
     }
 
-    private class AppleTokenManager {
+    private class AppleTokenManager(
+        private val httpClient: OkHttpClient,
+    ) {
         @Volatile
         private var cachedToken: String? = null
         private val mutex = Mutex()
@@ -403,14 +370,6 @@ object Paxsenix {
             mutex.withLock {
                 cachedToken?.let { return it }
                 try {
-                    val httpClient =
-                        AppProxyManager
-                            .applyTo(OkHttpClient.Builder())
-                            .connectTimeout(10, TimeUnit.SECONDS)
-                            .readTimeout(10, TimeUnit.SECONDS)
-                            .followRedirects(true)
-                            .build()
-
                     val mainRequest =
                         Request
                             .Builder()
@@ -449,5 +408,13 @@ object Paxsenix {
         fun clearToken() {
             cachedToken = null
         }
+    }
+
+    private companion object {
+        const val TAG = "Paxsenix"
+        const val PAXSENIX_BASE = "https://lyrics.paxsenix.org"
+        const val APPLE_MUSIC_API_BASE = "https://amp-api.music.apple.com/v1/catalog/us"
+        const val TITLE_NOISE_WORDS =
+            "official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit"
     }
 }
