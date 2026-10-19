@@ -56,12 +56,6 @@ class SurfaceManager {
         surfaceHolder = holder
         Log.d(TAG, "attachVideoSurface: stored holder. Player instance is ${if (player == null) "null" else "not null"}")
 
-        // A real surface is back, drop any placeholder we were using
-        placeholderSurface?.let { placeholder ->
-            runCatching { placeholder.release() }
-            placeholderSurface = null
-        }
-
         if (player == null) {
             Log.d(TAG, "Player not initialized yet; surface will be attached later")
             return false
@@ -74,11 +68,15 @@ class SurfaceManager {
                     val existingSurface = runCatching { surfaceHolder?.surface }.getOrNull()
                     if (existingSurface != null && existingSurface.isValid && existingSurface == surface) {
                         Log.d(TAG, "Surface already attached and ready — skipping redundant setVideoSurface (update fallback)")
+                        releasePlaceholder()
                         return@runCatching true
                     }
                 }
                 Log.d(TAG, "Attempting to attach surface ${surface.hashCode()} to player (forceAttach=$forceAttach)")
                 player.setVideoSurface(surface)
+                // The codec may still be drawing into the placeholder until setVideoSurface
+                // returns; releasing it earlier abandons its buffer queue and kills the codec.
+                releasePlaceholder()
                 Log.d(TAG, "Surface attached to player via getSurface() (NewPipe approach)")
                 surfaceReadyFlow.value = true
                 setSurfaceReady(true)
@@ -114,9 +112,10 @@ class SurfaceManager {
             if (player != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 if (context != null) {
                     // Try to reuse the placeholder surface if valid
+                    var stalePlaceholder: PlaceholderSurface? = null
                     if (placeholderSurface == null || placeholderSurface?.isValid == false) {
                         try {
-                            runCatching { placeholderSurface?.release() }
+                            stalePlaceholder = placeholderSurface
                             placeholderSurface = PlaceholderSurface.newInstance(context, false)
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to create placeholder surface", e)
@@ -129,6 +128,7 @@ class SurfaceManager {
                     } ?: run {
                         player.clearVideoSurface()
                     }
+                    stalePlaceholder?.let { runCatching { it.release() } }
                 } else {
                     player.clearVideoSurface()
                 }
@@ -152,6 +152,7 @@ class SurfaceManager {
                 val surface = holder.surface
                 if (surface != null && surface.isValid) {
                     player?.setVideoSurface(surface)
+                    if (player != null) releasePlaceholder()
                     Log.d(TAG, "Reattached preserved surface ${surface.hashCode()}")
                     setSurfaceReady(true)
                     true
@@ -165,6 +166,13 @@ class SurfaceManager {
             }
         }
         return false
+    }
+
+    private fun releasePlaceholder() {
+        placeholderSurface?.let { placeholder ->
+            runCatching { placeholder.release() }
+            placeholderSurface = null
+        }
     }
 
     /**
@@ -238,10 +246,7 @@ class SurfaceManager {
             Log.w(TAG, "Failed to clear surface during release", e)
         }
 
-        placeholderSurface?.let { surface ->
-            runCatching { surface.release() }
-        }
-        placeholderSurface = null
+        releasePlaceholder()
 
         isSurfaceReady = false
         surfaceReadyFlow.value = false
