@@ -1746,7 +1746,9 @@
     <string name="content_settings_subs_collaborations_title">合作影片</string>
     <string name="content_settings_subs_collaborations_subtitle">與你訂閱的頻道合作製作的影片</string>
     <string name="categories_chart_source">YouTube Music 排行榜</string>
-    <string name="categories_rate_limited">YouTube 目前限制了請求次數，請幾分鐘後再試。</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="other">YouTube 目前限制了請求次數，請幾分鐘後再試。</item>
+    </plurals>
     <string name="proxy_settings_bypass_vpn">使用 VPN 時略過代理伺服器</string>
     <string name="proxy_settings_bypass_vpn_subtitle">VPN 開啟期間直接連線</string>
     <string name="proxy_settings_vpn_paused">代理伺服器已暫停</string>
@@ -4108,8 +4110,12 @@
     <string name="search_filter_watch_any">不限</string>
     <string name="search_filter_unwatched">未觀看</string>
     <string name="search_filter_watched">已觀看</string>
-    <string name="search_watch_empty_watched">這裡沒有已觀看的影片</string>
-    <string name="search_watch_empty_unwatched">這裡沒有未觀看的影片</string>
+    <plurals name="search_watch_empty_watched">
+        <item quantity="other">這裡沒有已觀看的影片</item>
+    </plurals>
+    <plurals name="search_watch_empty_unwatched">
+        <item quantity="other">這裡沒有未觀看的影片</item>
+    </plurals>
     <string name="deep_flow_on_search_title">在搜尋中顯示</string>
     <string name="deep_flow_on_search_subtitle">在最近搜尋上方顯示 Deep Flow 開關</string>
     <string name="support_flow_open_collective">在 Open Collective 上支持 Flow</string>
