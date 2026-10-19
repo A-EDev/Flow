@@ -518,12 +518,8 @@
     <string name="search_filter_watch_any">Watched or not</string>
     <string name="search_filter_unwatched">Unwatched</string>
     <string name="search_filter_watched">Watched</string>
-    <plurals name="search_watch_empty_watched">
-        <item quantity="one">No watched videos</item>
-    </plurals>
-    <plurals name="search_watch_empty_unwatched">
-        <item quantity="one">No unwatched videos</item>
-    </plurals>
+    <string name="search_watch_empty_watched">No watched videos here</string>
+    <string name="search_watch_empty_unwatched">No unwatched videos here</string>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
@@ -1217,9 +1213,7 @@
     <string name="category_learning">Learning</string>
     <string name="category_fashion">Fashion</string>
     <string name="categories_chart_source">YouTube Music charts</string>
-    <plurals name="categories_rate_limited">
-        <item quantity="one">YouTube is limiting requests right now. Try again later.</item>
-    </plurals>
+    <string name="categories_rate_limited">YouTube is limiting requests right now. Try again in a few minutes.</string>
     <string name="categories_shelf_see_all">See all</string>
     <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
@@ -1325,6 +1319,8 @@
     <string name="player_settings_dearrow_subtitle">Swap clickbait titles and thumbnails for community ones</string>
     <string name="dearrow_badge">DeArrow</string>
     <string name="dearrow_badge_toggle">Show DeArrow Badge</string>
+    <string name="dearrow_random_frame">Use a video frame</string>
+    <string name="dearrow_random_frame_subtitle">When nothing is submitted, show a frame from the video</string>
     <string name="dearrow_badge_toggle_subtitle">Display a badge on thumbnails corrected by DeArrow</string>
     <string name="global_loop">Global Video Loop</string>
     <string name="global_loop_subtitle">Loop all videos by default</string>
@@ -3460,6 +3456,8 @@
     <string name="error_failed_to_load_media">Failed to load media: %1$s</string>
     <string name="error_failed_to_load_media_invalid_streams">Failed to load media: Invalid streams</string>
     <string name="error_playback_retry_hint">Try again later or check your network connection.</string>
+    <string name="error_video_decoder_failed">The video decoder stopped working</string>
+    <string name="error_video_decoder_failed_hint">Tap Retry to load the video again.</string>
     <string name="download_waiting_for_wifi">Waiting for WiFi</string>
     <string name="notification_download_saved_elsewhere">Saved to %1$s. The chosen folder can\'t be used.</string>
     <string name="download_failed_try_again">Download failed. Please try again.</string>

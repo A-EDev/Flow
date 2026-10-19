@@ -39,6 +39,7 @@ fun VideoThumbnailImage(
     portrait: Boolean = false,
     placeholderKey: MemoryCache.Key? = null,
     onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
+    onModelLoaded: ((Any) -> Unit)? = null,
 ) {
     val quality = LocalThumbnailQuality.current
     val models =
@@ -67,6 +68,7 @@ fun VideoThumbnailImage(
         contentScale = contentScale,
         placeholderKey = placeholderKey,
         onImageKey = onImageKey,
+        onModelLoaded = onModelLoaded,
     )
 }
 
@@ -86,6 +88,7 @@ private fun SafeAsyncImage(
     contentScale: ContentScale = ContentScale.Fit,
     placeholderKey: MemoryCache.Key? = null,
     onImageKey: ((MemoryCache.Key?) -> Unit)? = null,
+    onModelLoaded: ((Any) -> Unit)? = null,
 ) {
     var index by remember(models) { mutableStateOf(0) }
     val currentModel = models.getOrNull(index)
@@ -120,7 +123,15 @@ private fun SafeAsyncImage(
                 contentDescription = contentDescription,
                 modifier = modifier,
                 contentScale = contentScale,
-                onSuccess = onImageKey?.let { report -> { state -> report(state.result.memoryCacheKey) } },
+                onSuccess =
+                    if (onImageKey == null && onModelLoaded == null) {
+                        null
+                    } else {
+                        { state ->
+                            onImageKey?.invoke(state.result.memoryCacheKey)
+                            onModelLoaded?.invoke(currentModel)
+                        }
+                    },
                 onError = {
                     index = if (index < models.lastIndex) index + 1 else models.size
                 },

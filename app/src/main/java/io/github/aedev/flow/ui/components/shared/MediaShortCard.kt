@@ -32,8 +32,10 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.FeedGridLayout
+import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
-import io.github.aedev.flow.ui.components.shared.card.rememberCardTitle
+import io.github.aedev.flow.ui.components.shared.card.rememberOriginalTitle
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -72,6 +74,11 @@ fun MediaShortCard(
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
+    val preferences = LocalVideoCardPreferences.current
+    // Title only: DeArrow frames are landscape, and a reel poster is portrait.
+    val deArrowTitle = rememberDeArrowResult(video, preferences.deArrowEnabled, useRandomFrame = false)?.title
+    val originalTitle = rememberOriginalTitle(video.id, preferences.originalTitlesEnabled && deArrowTitle == null)
+    val title = deArrowTitle ?: originalTitle ?: video.title
     Column(
         modifier =
             modifier
@@ -104,7 +111,7 @@ fun MediaShortCard(
         }
         Spacer(modifier = Modifier.height(TitleSpacing))
         Text(
-            text = rememberCardTitle(video),
+            text = title,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
@@ -128,6 +135,7 @@ fun MediaShortCard(
         val quickActions = sharedQuickActionsViewModel()
         VideoQuickActionsBottomSheet(
             video = video,
+            title = title,
             onDismiss = { showQuickActions = false },
             onRemoveFromCollection = { quickActions.removeFromSavedShorts(video) }.takeIf { removableFromSavedShorts },
             removeFromCollectionLabel = stringResource(R.string.remove_from_saved_shorts).takeIf { removableFromSavedShorts },

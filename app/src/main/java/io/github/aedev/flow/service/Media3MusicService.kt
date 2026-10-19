@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -63,6 +64,7 @@ import io.github.aedev.flow.player.MusicPlaybackDiagnostics
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
+import io.github.aedev.flow.player.PlaylistQueueOrder
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -153,6 +155,7 @@ class Media3MusicService : MediaLibraryService() {
             .setUsage(C.USAGE_MEDIA)
             .build()
     private var handlesAudioFocus = true
+    private var applyingSavedShuffle = false
     private lateinit var connectivityObserver: NetworkConnectivityObserver
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -426,11 +429,18 @@ class Media3MusicService : MediaLibraryService() {
 
         player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
         setVideoDecoding(false)
+        // Shuffle rearranges the queue itself, so the list on screen is the play order. With this
+        // order, the player's shuffle flag reorders nothing on its own, whichever controller sets it.
+        player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
 
         player.addListener(
             object : Player.Listener {
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     updateNotification()
+                    // A connected app rearranges the queue it shows; without one (a media button
+                    // started the service), this order is the only one, so rearrange it here.
+                    val appConnected = io.github.aedev.flow.player.EnhancedMusicPlayerManager.playerInstance.value != null
+                    if (shuffleModeEnabled && !applyingSavedShuffle && !appConnected) shuffleFromCurrentItem()
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
@@ -451,13 +461,6 @@ class Media3MusicService : MediaLibraryService() {
                         startListenSession(mediaItem?.mediaId)
                     }
                     applyLoudnessGain()
-
-                    if (
-                        reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                        reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
-                    ) {
-                        player.seekTo(0L)
-                    }
 
                     mediaItem?.let { item ->
                         val videoId = item.mediaId
@@ -878,6 +881,13 @@ class Media3MusicService : MediaLibraryService() {
         player.seekTo(index, if (fromStart) 0L else failed.resumePositionMs)
         player.prepare()
         player.play()
+    }
+
+    private fun shuffleFromCurrentItem() {
+        val order = List(player.mediaItemCount) { it }
+        if (order.size < 2) return
+        val target = PlaylistQueueOrder.shuffleFromCurrent(order, player.currentMediaItemIndex).items
+        PlaylistQueueOrder.movesTo(order, target)?.forEach { (from, to) -> player.moveMediaItem(from, to) }
     }
 
     private fun skipPastFailedItem(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
@@ -1574,6 +1584,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(if (isLiked) R.string.unlike else R.string.like))
                 .setCustomIconResId(if (isLiked) R.drawable.ic_like_filled else R.drawable.ic_like)
                 .setSessionCommand(CommandToggleLike)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .setEnabled(true)
                 .build()
 
@@ -1592,6 +1603,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.shuffle))
                 .setCustomIconResId(if (shuffleOn) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle)
                 .setSessionCommand(CommandToggleShuffle)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .build()
 
         val repeatButton =
@@ -1600,6 +1612,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.repeat))
                 .setCustomIconResId(repeatIconResId)
                 .setSessionCommand(CommandToggleRepeat)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .build()
 
         val closeButton =
@@ -1608,10 +1621,13 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.close))
                 .setCustomIconResId(R.drawable.ic_close)
                 .setSessionCommand(CommandStop)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .setEnabled(true)
                 .build()
 
-        mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton, closeButton))
+        // The Android 13+ card shows only the first two overflow buttons next to previous and next;
+        // the rest stay for older notifications, Auto and Wear (#1347).
+        mediaLibrarySession.setMediaButtonPreferences(listOf(shuffleButton, repeatButton, likeButton, closeButton))
     }
 
     @OptIn(UnstableApi::class)
@@ -1628,6 +1644,10 @@ class Media3MusicService : MediaLibraryService() {
                 if (restored == null) {
                     result.setException(IllegalStateException("No saved music queue to resume"))
                 } else {
+                    // A queue saved shuffled is already in its shuffled order.
+                    applyingSavedShuffle = true
+                    player.shuffleModeEnabled = restored.shuffleEnabled
+                    applyingSavedShuffle = false
                     result.set(musicResumptionItems(restored))
                 }
             }

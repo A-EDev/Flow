@@ -43,6 +43,7 @@ fun MediaThumbnail(
     durationSeconds: Int? = null,
     showWatchProgress: Boolean = false,
     placeholder: ImageVector? = null,
+    onModelLoaded: ((Any) -> Unit)? = null,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val openOrigin = rememberMediaOpenOrigin(videoId, shape)
@@ -76,6 +77,7 @@ fun MediaThumbnail(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             onImageKey = reportImageKey,
+            onModelLoaded = onModelLoaded,
         )
 
         if (durationSeconds != null && durationSeconds > 0) {

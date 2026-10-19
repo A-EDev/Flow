@@ -101,7 +101,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -373,6 +375,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     @Volatile private var videoMediaSession: MediaSession? = null
+    private var videoSessionButtonsJob: Job? = null
 
     fun getVideoMediaSession(): MediaSession? = videoMediaSession
 
@@ -438,13 +441,31 @@ class EnhancedPlayerManager private constructor() {
                     override fun hasPreviousMediaItem(): Boolean = this@EnhancedPlayerManager.hasPrevious()
                 }
 
+            val controls =
+                VideoSessionButtons(
+                    context = appCtx,
+                    currentState = { _playerState.value.toVideoSessionState() },
+                    onLoop = { target ->
+                        toggleLoop(target.videoLoop)
+                        if (queue.loopEnabled != target.queueLoop) toggleQueueLoop(target.queueLoop)
+                    },
+                    onShuffle = ::toggleQueueShuffle,
+                )
             val builder =
                 MediaSession
                     .Builder(appCtx, sessionPlayer)
                     .setId("flow_video_session")
                     .setBitmapLoader(sessionArtworkBitmapLoader(appCtx))
+                    .setCallback(controls.callback)
             if (sessionActivity != null) builder.setSessionActivity(sessionActivity)
             videoMediaSession = builder.build()
+            videoSessionButtonsJob =
+                scope.launch {
+                    _playerState
+                        .map { it.toVideoSessionState() }
+                        .distinctUntilChanged()
+                        .collect { state -> videoMediaSession?.setMediaButtonPreferences(controls.buttons(state)) }
+                }
             Log.d(TAG, "Video MediaSession created")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create video MediaSession", e)
@@ -452,6 +473,8 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun releaseVideoMediaSession() {
+        videoSessionButtonsJob?.cancel()
+        videoSessionButtonsJob = null
         try {
             videoMediaSession?.release()
         } catch (e: Exception) {
@@ -459,6 +482,14 @@ class EnhancedPlayerManager private constructor() {
         }
         videoMediaSession = null
     }
+
+    private fun EnhancedPlayerState.toVideoSessionState() =
+        VideoSessionControls.State(
+            videoLooping = isLooping,
+            queueLooping = isQueueLooping,
+            queueShuffled = isQueueShuffled,
+            queueSize = queueSize,
+        )
 
     /**
      * Set to true while PlaybackRefocusEffect is recovering from a screen-off/on cycle.
@@ -489,6 +520,9 @@ class EnhancedPlayerManager private constructor() {
 
     private val _playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent: SharedFlow<Unit> = _playbackAbandonedEvent.asSharedFlow()
+
+    private val _decoderFailureEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val decoderFailureEvent: SharedFlow<Unit> = _decoderFailureEvent.asSharedFlow()
 
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
@@ -622,6 +656,7 @@ class EnhancedPlayerManager private constructor() {
                 isPlayingDeviceFile = { currentLocalFilePath != null },
                 onStreamExpired = { onStreamsDenied() },
                 onPlaybackAbandoned = { if (!skipAbandonedVideo()) scope.launch { _playbackAbandonedEvent.emit(Unit) } },
+                onDecoderGaveUp = { scope.launch { _decoderFailureEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
                 getFailedStreamUrls = {
                     qualityManager?.let { qm ->
@@ -928,6 +963,7 @@ class EnhancedPlayerManager private constructor() {
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
                     surfaceManager?.setSurfaceReady(true)
+                    errorHandler?.onFirstFrameRendered()
                     surfaceFirstFrameWatchdog?.cancel()
                     surfaceFirstFrameWatchdog = null
                     pendingSurfaceFirstFrameStartedAtMs.takeIf { it > 0L }?.let { startedAtMs ->
@@ -1224,7 +1260,7 @@ class EnhancedPlayerManager private constructor() {
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
-        errorHandler?.resetExpiryCounter()
+        errorHandler?.resetForNewVideo()
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
         sabrPreferred = false

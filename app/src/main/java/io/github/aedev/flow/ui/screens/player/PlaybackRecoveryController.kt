@@ -33,6 +33,9 @@ internal class PlaybackRecoveryController(
                     ?.id
                     ?.let { videoId -> abandonReportedPlayback(videoId) }
             }.launchIn(scope)
+        playerManager.decoderFailureEvent
+            .onEach { reportDecoderFailure() }
+            .launchIn(scope)
     }
 
     fun onPlaybackRequested() = playerManager.resetStreamRecovery()
@@ -49,6 +52,18 @@ internal class PlaybackRecoveryController(
                 isLoading = false,
                 error = context.getString(R.string.error_all_stream_sources_failed),
                 errorHint = context.getString(R.string.error_playback_retry_hint),
+            )
+        }
+    }
+
+    /** A device fault, not a broken video, so the video is not marked unplayable. */
+    private fun reportDecoderFailure() {
+        cancelLoad()
+        uiState.update {
+            it.copy(
+                isLoading = false,
+                error = context.getString(R.string.error_video_decoder_failed),
+                errorHint = context.getString(R.string.error_video_decoder_failed_hint),
             )
         }
     }

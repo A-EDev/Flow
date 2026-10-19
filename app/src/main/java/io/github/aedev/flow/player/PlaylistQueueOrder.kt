@@ -98,4 +98,36 @@ internal object PlaylistQueueOrder {
     ): Int =
         items.indexOf(target).takeIf { it >= 0 }
             ?: items.indexOfFirst { keySelector(it) == keySelector(target) }
+
+    /**
+     * The `moveMediaItem(from, to)` calls, applied in order, that turn [current] into [target], or
+     * null when the two don't hold the same items.
+     */
+    fun <K> movesTo(
+        current: List<K>,
+        target: List<K>,
+    ): List<Pair<Int, Int>>? {
+        if (current.groupingBy { it }.eachCount() != target.groupingBy { it }.eachCount()) return null
+        val working = current.toMutableList()
+        val moves = mutableListOf<Pair<Int, Int>>()
+        target.forEachIndexed { toIndex, key ->
+            val fromIndex = (toIndex until working.size).first { working[it] == key }
+            if (fromIndex != toIndex) {
+                working.add(toIndex, working.removeAt(fromIndex))
+                moves += fromIndex to toIndex
+            }
+        }
+        return moves
+    }
+
+    /** [items] put in the order of [order], or null when the two don't hold the same items. */
+    fun <T, K> alignTo(
+        items: List<T>,
+        order: List<K>,
+        keySelector: (T) -> K,
+    ): List<T>? {
+        if (items.size != order.size) return null
+        val byKey = items.groupBy(keySelector).mapValues { (_, matches) -> ArrayDeque(matches) }
+        return order.map { key -> byKey[key]?.removeFirstOrNull() ?: return null }
+    }
 }

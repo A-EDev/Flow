@@ -5,6 +5,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -31,12 +35,15 @@ internal fun VideoCardThumbnail(
     width: Dp = Dp.Unspecified,
 ) {
     val video = state.video
+    // DeArrow answers 204 for a frame it has not rendered yet, and the image falls back to YouTube's.
+    var deArrowFrameShown by remember(state.deArrowFrameUrl) { mutableStateOf(false) }
     MediaThumbnail(
         videoId = video.id,
         thumbnailUrl = state.thumbnailUrl,
         width = width,
         shape = shape,
         showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
+        onModelLoaded = state.deArrowFrameUrl?.let { frame -> { loaded -> deArrowFrameShown = loaded == frame } },
         modifier = modifier,
     ) {
         val badgeModifier = Modifier.padding(MediaThumbnailDefaults.BadgePadding)
@@ -53,7 +60,7 @@ internal fun VideoCardThumbnail(
                 modifier = badgeModifier.align(Alignment.TopStart),
             )
         }
-        if (state.showDeArrowBadge) {
+        if (state.deArrowBadgeEnabled && (state.deArrowTitle || deArrowFrameShown)) {
             MediaIconBadge(
                 icon = Icons.Outlined.AutoFixHigh,
                 contentDescription = stringResource(R.string.dearrow_badge),
