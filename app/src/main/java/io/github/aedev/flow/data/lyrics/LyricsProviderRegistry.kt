@@ -13,6 +13,7 @@ class LyricsProviderRegistry(
             val providers =
                 listOf(
                     BetterLyricsProvider(client),
+                    LrcRedLyricsProvider(client),
                     LyricsPlusProvider(client),
                     SimpMusicLyricsProvider(client),
                     KuGouLyricsProvider(client),

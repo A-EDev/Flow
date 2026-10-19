@@ -9,7 +9,7 @@ import okhttp3.Request
 import java.net.URLEncoder
 
 /**
- * LyricsPlus/Binimum provider, adapted from Metrolist.
+ * LyricsPlus provider, adapted from Metrolist.
  *
  * This source often has fuller word-level lyrics than LRCLib and can fill gaps
  * that BetterLyrics/SimpMusic miss.
@@ -45,15 +45,6 @@ class LyricsPlusProvider(
         val isBackground: Boolean = false,
     )
 
-    private data class BinimumLyricsApiResponse(
-        val results: List<BinimumLyricsResult> = emptyList(),
-    )
-
-    private data class BinimumLyricsResult(
-        val timing_type: String? = null,
-        val lyricsUrl: String? = null,
-    )
-
     override suspend fun getLyrics(
         id: String,
         title: String,
@@ -63,9 +54,7 @@ class LyricsPlusProvider(
     ): Result<List<LyricsEntry>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                fetchBinimumLyrics(title, artist, duration, album)
-                    ?.takeIf { entries -> entries.any { !it.words.isNullOrEmpty() } }
-                    ?: fetchLyricsPlus(title, artist, duration, album)
+                fetchLyricsPlus(title, artist, duration, album)
                     ?: throw IllegalStateException("LyricsPlus lyrics unavailable")
             }
         }
@@ -92,34 +81,6 @@ class LyricsPlusProvider(
             convertLyricsPlus(gson.fromJson(body, LyricsPlusResponse::class.java))
         } catch (e: Exception) {
             Log.d(TAG, "LyricsPlus failed: ${e.message}")
-            null
-        }
-    }
-
-    private fun fetchBinimumLyrics(
-        title: String,
-        artist: String,
-        duration: Int,
-        album: String?,
-    ): List<LyricsEntry>? {
-        if (title.isBlank() || artist.isBlank()) return null
-
-        return try {
-            val url =
-                buildString {
-                    append(BINIMUM_API_BASE_URL)
-                    append("?track=${title.urlEncoded()}")
-                    append("&artist=${artist.urlEncoded()}")
-                    if (duration > 0) append("&duration=$duration")
-                    if (!album.isNullOrBlank()) append("&album=${album.urlEncoded()}")
-                }
-            val body = executeGet(url) ?: return null
-            val response = gson.fromJson(body, BinimumLyricsApiResponse::class.java)
-            val selected = response.results.firstOrNull { !it.lyricsUrl.isNullOrBlank() } ?: return null
-            val ttml = executeGet(selected.lyricsUrl!!) ?: return null
-            TTMLParser.parseTTMLToLyricsEntries(ttml).takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            Log.d(TAG, "Binimum lyrics failed: ${e.message}")
             null
         }
     }
@@ -202,7 +163,6 @@ class LyricsPlusProvider(
     companion object {
         private const val TAG = "LyricsPlusProvider"
         private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        private const val BINIMUM_API_BASE_URL = "https://lyrics-api.binimum.org/"
 
         // The other public mirrors (atomix.one, prjktla.my.id, lyricsplus-seven.vercel.app) were
         // all down on 2026-10-19: no connection, 502 and DEPLOYMENT_DISABLED.

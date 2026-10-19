@@ -9,6 +9,7 @@ internal object LyricsProviderOrder {
     val DEFAULT: List<String> =
         listOf(
             "BetterLyrics",
+            LrcRedLyricsProvider.NAME,
             "LyricsPlus",
             "SimpMusic",
             "KuGou",

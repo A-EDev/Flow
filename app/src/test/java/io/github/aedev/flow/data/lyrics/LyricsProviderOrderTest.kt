@@ -17,13 +17,13 @@ class LyricsProviderOrderTest {
     }
 
     @Test
-    fun `a provider the saved order lacks joins after its default predecessor`() {
-        val saved = LyricsProviderOrder.DEFAULT.filter { it != "LyricsPlus" }.reversed()
+    fun `an order saved before lrc red existed gets it right after BetterLyrics`() {
+        val saved = listOf("LyricsPlus", "BetterLyrics", "KuGou", "SimpMusic", "Paxsenix", "LrcLib", "YouTubeSubtitle", "YouTube")
 
         val resolved = LyricsProviderOrder.resolve(saved.joinToString(","))
 
-        assertThat(resolved.indexOf("LyricsPlus")).isEqualTo(resolved.indexOf("BetterLyrics") + 1)
-        assertThat(resolved.filter { it != "LyricsPlus" }).isEqualTo(saved)
+        assertThat(resolved.indexOf("LrcRed")).isEqualTo(resolved.indexOf("BetterLyrics") + 1)
+        assertThat(resolved.filter { it in saved }).isEqualTo(saved)
     }
 
     @Test
