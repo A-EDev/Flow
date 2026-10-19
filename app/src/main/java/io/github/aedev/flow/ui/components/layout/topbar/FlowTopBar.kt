@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.shared.skipDpadFocus
 
 /**
  * Which screens show the app-shell actions ([FlowGlobalActions]).
@@ -99,9 +98,8 @@ fun FlowTopBar(
                     leading()
                 }
 
-                // On a D-pad the remote's Back key does this, so the arrow is not a focus stop.
                 onBack != null -> {
-                    IconButton(onClick = onBack, modifier = Modifier.skipDpadFocus()) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.btn_back),
