@@ -1,29 +1,41 @@
-package io.github.aedev.flow.ui.components.musicplayer.controls
+package io.github.aedev.flow.ui.components.shared
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,15 +60,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
-import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class PlaybackButtonType { PREVIOUS, PLAY_PAUSE, NEXT }
 
+/**
+ * Previous, play/pause and next as the music player draws them: elastic pills that trade width as one
+ * is pressed, with a play/pause that morphs its corners between playing and paused.
+ */
 @Composable
-fun PlayerPlaybackControls(
+fun MediaPlaybackControls(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPreviousClick: () -> Unit,
@@ -64,6 +78,7 @@ fun PlayerPlaybackControls(
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
     onPreviewDirectionChange: (SkipDirection?) -> Unit = {},
+    playPauseFocusRequester: FocusRequester? = null,
 ) {
     var isPressed by remember { mutableStateOf(false) }
     var isPreviousPressed by remember { mutableStateOf(false) }
@@ -77,10 +92,12 @@ fun PlayerPlaybackControls(
     var pendingPlayPauseState by remember { mutableStateOf<Boolean?>(null) }
     val hapticFeedback = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    // On a remote the player opens with play/pause focused, where OK does the expected thing.
-    val playPauseFocusRequester = remember { FocusRequester() }
-    if (LocalDpadNavigation.current) {
-        LaunchedEffect(Unit) { playPauseFocusRequester.requestFocus() }
+    // On a remote the player opens with play/pause focused, where OK does the expected thing. A host
+    // that passes its own requester places focus itself.
+    val ownPlayPauseFocus = remember { FocusRequester() }
+    val playPauseFocus = playPauseFocusRequester ?: ownPlayPauseFocus
+    if (playPauseFocusRequester == null && LocalDpadNavigation.current) {
+        LaunchedEffect(Unit) { ownPlayPauseFocus.requestFocus() }
     }
 
     LaunchedEffect(lastClicked, clickTrigger) {
@@ -203,7 +220,7 @@ fun PlayerPlaybackControls(
             iconSize = 36.dp,
             cornerRadius = playPauseCorner,
             isBuffering = isBuffering,
-            modifier = Modifier.focusRequester(playPauseFocusRequester),
+            modifier = Modifier.focusRequester(playPauseFocus),
         )
 
         ElasticControlButton(

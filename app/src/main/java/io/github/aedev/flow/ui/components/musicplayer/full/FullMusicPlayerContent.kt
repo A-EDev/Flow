@@ -36,8 +36,6 @@ import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
 import io.github.aedev.flow.ui.components.musicplayer.common.PlayerBackdropColors
-import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
-import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerPlaybackControls
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.DEFAULT_LYRICS_TEXT_SIZE
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.LARGE_LYRICS_TEXT_SIZE
@@ -50,7 +48,9 @@ import io.github.aedev.flow.ui.components.musicplayer.queue.queuePullUpGesture
 import io.github.aedev.flow.ui.components.musicplayer.queue.rememberQueuePullUpState
 import io.github.aedev.flow.ui.components.musicplayer.sheet.AudioSettingsSheet
 import io.github.aedev.flow.ui.components.shared.MediaPalette
+import io.github.aedev.flow.ui.components.shared.MediaPlaybackControls
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
+import io.github.aedev.flow.ui.components.shared.SkipDirection
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicVideoSwitchViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
@@ -324,7 +324,7 @@ internal fun FullMusicPlayerContent(
                 },
                 controls = { modifier ->
                     MaterialTheme(colorScheme = controlScheme) {
-                        PlayerPlaybackControls(
+                        MediaPlaybackControls(
                             isPlaying = uiState.isPlaying,
                             isBuffering = uiState.isBuffering && isPlayerSheetExpanded,
                             onPreviousClick = { viewModel.skipToPrevious() },
