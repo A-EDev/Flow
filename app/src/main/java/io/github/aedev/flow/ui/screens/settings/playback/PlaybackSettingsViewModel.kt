@@ -8,7 +8,7 @@ import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.SpeedSwipeSide
-import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
+import io.github.aedev.flow.data.lyrics.LyricsProviderOrder
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.flow.combine
@@ -29,7 +29,6 @@ class PlaybackSettingsViewModel
         private val preferences: PlayerPreferences,
     ) : SettingsViewModel() {
         private val overlay = PlayerOverlayPreferences()
-        private val lyricsRegistry = LyricsProviderRegistry.default()
 
         val backgroundPlay = preferences.backgroundPlayEnabled.asState(DEFAULT_BACKGROUND_PLAY_ENABLED)
         val autoplay = preferences.autoplayEnabled.asState(true)
@@ -104,8 +103,8 @@ class PlaybackSettingsViewModel
         val pauseMusicWhenMuted = preferences.pauseMusicWhenMuted.asState(false)
         val lyricsProviders =
             combine(preferences.lyricsProviderOrder, preferences.allLyricsProviderEnabledStates()) { order, enabled ->
-                lyricsRegistry.getOrderedProviders(order).map { LyricsProviderState(it.name, enabled[it.name] ?: true) }
-            }.asState(lyricsRegistry.getOrderedProviders("").map { LyricsProviderState(it.name, true) })
+                LyricsProviderOrder.resolve(order).map { LyricsProviderState(it, enabled[it] ?: true) }
+            }.asState(LyricsProviderOrder.DEFAULT.map { LyricsProviderState(it, true) })
 
         fun setBackgroundPlay(value: Boolean) = write { preferences.setBackgroundPlayEnabled(value) }
 
@@ -242,8 +241,7 @@ class PlaybackSettingsViewModel
             enabled: Boolean,
         ) = write { preferences.setLyricsProviderEnabled(name, enabled) }
 
-        fun setLyricsProviderOrder(names: List<String>) =
-            write { preferences.setLyricsProviderOrder(lyricsRegistry.serializeProviderOrder(names)) }
+        fun setLyricsProviderOrder(names: List<String>) = write { preferences.setLyricsProviderOrder(LyricsProviderOrder.serialize(names)) }
 
         companion object {
             const val ORIGINAL_AUDIO = "original"
