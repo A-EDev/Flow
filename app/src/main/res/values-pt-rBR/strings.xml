@@ -3407,7 +3407,9 @@
     <string name="mini_bar_swipe_subtitle">Para a barra de música e a barra de fundo de vídeo</string>
     <string name="mini_bar_nothing_next">Nada depois</string>
     <string name="mini_bar_nothing_previous">Nada antes disso</string>
-    <string name="categories_rate_limited">YouTube está limitando as requisições agora. Tente novamente daqui alguns minutos.</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="one">YouTube está limitando as requisições agora. Tente novamente daqui alguns minutos.</item>
+    </plurals>
     <string name="player_settings_double_tap_seek_off">Desativado</string>
     <string name="player_settings_seek_zone_width_dialog_body">Quanto um toque duplo percorre em cada lado.</string>
     <string name="player_settings_seek_zone_normal">Normal</string>
