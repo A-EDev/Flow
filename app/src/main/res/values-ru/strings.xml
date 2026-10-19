@@ -6,7 +6,7 @@
     <string name="view_all_button_label">Все</string>
     <string name="subscribed">Вы подписаны</string>
     <string name="no_subscriptions_yet">Подписок пока нет</string>
-    <string name="empty_subscriptions_body">Подпишитесь на каналы, чтобы видеть их\nпоследние видео здесь</string>
+    <string name="empty_subscriptions_body">Подпишитесь на каналы, чтобы видеть здесь их новые видео</string>
     <string name="home_refresh_feed">Обновить ленту</string>
     <string name="retry">Повторить</string>
     <string name="shorts">Shorts</string>
@@ -1290,7 +1290,7 @@
     <string name="sync_error_peer_also_receive">Другое устройство также настроено на прием. Установите его в режим отправки и попробуйте отсканировать снова.</string>
     <string name="stats_disclaimer">Статистика основана на истории просмотра в этом приложении. Фактические данные могут отличаться.</string>
     <string name="sync_send_show_qr_hint">Отсканируйте на другом устройстве. Используйте, если на другом устройстве есть камера.</string>
-    <string name="sync_error_qr_expired">Срок действия этого QR-кода истек. Обновите код на другом устройстве и попробуйте снова.</string>
+    <string name="sync_error_qr_expired">Срок действия этого кода истек. Попросите другое устройство создать новый код. Если коды продолжают сразу же становиться недействительными, проверьте, правильно ли установлены дата и время на обоих устройствах.</string>
     <string name="import_yt_music_playlist_desc">Импорт плейлиста из CSV-файла YouTube Music Архиватора. Он отобразится в разделе «Музыкальные плейлисты».</string>
     <string name="import_master_backup_desc">Восстановите данные приложения и движка из единого файла полной резервной копии</string>
     <string name="sync_error_no_network">Нет подключения к Wi-Fi/LAN. Подключите оба устройства к одной сети или точке доступа.</string>
@@ -1322,7 +1322,7 @@
     <string name="support_flow_dev_desc">Если вам полезен Flow, вы можете поддержать разработку и сделать пожертвование на Patreon или через указанные ниже криптовалютные адреса. Ваша поддержка помогает проекту оставаться в живых!</string>
     <string name="support_flow_patreon">Поддержать Flow на Patreon</string>
     <string name="thank_you_support_message">Спасибо за вашу поддержку! ❤️</string>
-    <string name="deep_flow_save_history_subtitle">Сохранять просмотренные видео в истории, но не обучать движок на их основе. Отключите, чтобы ничего не сохранять.</string>
+    <string name="deep_flow_save_history_subtitle">Сохранять историю просмотров, не используя её для формирования рекомендаций</string>
     <string name="deep_flow_save_history_title">Записывать историю просмотра</string>
     <string name="player_background_style_title">Фон музыкального плеера</string>
     <string name="player_background_style_default">Поверхность по умолчанию</string>
@@ -1351,7 +1351,7 @@
     <string name="download_menu_style_compact_desc">Редактируемый заголовок и выпадающие списки</string>
     <string name="content_settings_share_without_text_title">Делиться ссылками без текста</string>
     <string name="content_settings_share_without_text_subtitle">Поделиться только ссылкой на видео без сообщения «Посмотрите это видео»</string>
-    <string name="content_settings_navbar_hide_on_scroll_subtitle">Скрывать нижнюю панель навигации при прокрутке. Отключите, чтобы она всегда оставалась видимой.</string>
+    <string name="content_settings_navbar_hide_on_scroll_subtitle">Скрывать панель навигации при прокрутке вниз</string>
     <string name="content_settings_subs_show_checked_count_subtitle">Показать, сколько видео было проверено с времени последнего обновления</string>
     <string name="content_settings_subs_show_checked_count_title">Счетчик проверенных видео</string>
     <string name="datetime_title">Отображение даты и времени</string>
@@ -1391,7 +1391,7 @@
     <string name="player_live_label">Прямой эфир</string>
     <string name="player_action_dislike">Не нравится</string>
     <string name="player_settings_queue_autoplay">Автоматически воспроизводить видео в очереди</string>
-    <string name="player_settings_queue_autoplay_subtitle">Автоматически включать следующее видео в плейлисте или очереди «Смотреть позже». Когда опция отключена, переключать ролики можно вручную.</string>
+    <string name="player_settings_queue_autoplay_subtitle">Воспроизвести следующее видео из плейлиста или списка «Смотреть позже»</string>
     <string name="player_settings_autoplay_countdown_title">Задержка автовоспроизведения</string>
     <string name="player_settings_autoplay_countdown_none">Нет (сразу переключать)</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Показать обратный отсчет перед автоматическим переключением. Во время отсчета можно перезапустить текущий ролик, отменить переход или сразу включить следующий.</string>
@@ -1949,7 +1949,7 @@
     <string name="discord_presence_privacy_section">Конфиденциальность и риски</string>
     <string name="discord_presence_privacy_title">Конфиденциальность</string>
     <string name="discord_presence_privacy_body">Если функция включена, Flow передает в Discord название видео, трансляции или трека, имя автора или исполнителя, обложку и время воспроизведения. По умолчанию настройка отключена. Токен сессии Discord зашифрован через Android Keystore и не попадает в логи приложения.</string>
-    <string name="discord_presence_gateway_warning">Flow использует неофициальное селф-бот подключение через токен вашего аккаунта Discord, а не OAuth. Это нарушает условия использования Discord и может привести к блокировке или удалению аккаунта. Сторонние клиенты также могут вызывать ложные срабатывания систем безопасности: сброс пароля, капчу, верификацию по номеру телефона или предупреждения об утечке токена.</string>
+    <string name="discord_presence_gateway_warning">Этот способ выполняет вход с использованием вашего токена Discord вместо стандартной процедуры авторизации. Это нарушает Условия использования Discord и может привести к ограничению или блокировке вашего аккаунта.</string>
     <string name="discord_presence_risk_dialog_title">Принять риски для аккаунта Discord?</string>
     <string name="discord_presence_risk_dialog_body">При подключении выполняется вход в Discord, а Flow получает токен вашего аккаунта. Flow защищает его шифрованием Android Keystore и отправляет только в Discord, но этот неофициальный метод (селф-бот) нарушает условия использования Discord. Ваш аккаунт может быть заблокирован или удален, также возможны требования сброса пароля, капчи или верификации по телефону.</string>
     <string name="discord_presence_risk_accept">Я понимаю риски, подключить</string>
@@ -2540,8 +2540,8 @@
     </plurals>
     <string name="onboarding_imported_count">%2$s: %1$d импортировано</string>
     <plurals name="subscriptions_last_refreshed_template">
-        <item quantity="one">Последнее обновление %1$s - %2$d видео проверено</item>
-        <item quantity="few">Последнее обновление %1$s - %2$d видео проверено</item>
+        <item quantity="one">Последнее обновление %1$s - %2$d видео проверен</item>
+        <item quantity="few">Последнее обновление %1$s - %2$d видео проверены</item>
         <item quantity="many">Последнее обновление %1$s - %2$d видео проверено</item>
         <item quantity="other">Последнее обновление %1$s - %2$d видео проверено</item>
     </plurals>
@@ -2550,10 +2550,10 @@
     <string name="home_load_more_failed_body">Проверьте свое соединение</string>
     <string name="home_refresh_failed">Не удалось обновить вашу ленту</string>
     <plurals name="subscriptions_refresh_checks_template">
-        <item quantity="one">Последнее обновление %1$s - %2$d видео проверено</item>
-        <item quantity="few">Последнее обновление %1$s - %2$d видео проверены</item>
-        <item quantity="many">Последнее обновление %1$s - %2$d видео проверены</item>
-        <item quantity="other">Последнее обновление %1$s - %2$d видео проверены</item>
+        <item quantity="one">Последнее обновление %1$d - %2$d видео проверено</item>
+        <item quantity="few">Последнее обновление %1$d - %2$d видео проверены</item>
+        <item quantity="many">Последнее обновление %1$d- %2$d видео проверены</item>
+        <item quantity="other">Последнее обновление %1$d- %2$d видео проверены</item>
     </plurals>
     <string name="channel_groups_sheet_title">Группы каналов</string>
     <string name="music_player_tab_lyrics">Текст песни</string>
@@ -2578,7 +2578,7 @@
     <string name="start_radio_desc">Запустить станцию на основе этой песни</string>
     <string name="transcript">Расшифровка</string>
     <string name="transcript_show">Показать расшифровку</string>
-    <string name="transcript_subtitle">Читать расшифровку во время просмотра</string>
+    <string name="transcript_subtitle">Читать расшифровку во время просмотра.</string>
     <string name="transcript_unavailable">Для этого видео нет расшифровки</string>
     <string name="transcript_search_hint">Поиск по расшифровке</string>
     <string name="transcript_no_matches">По вашему запросу ничего не найдено</string>
@@ -2836,9 +2836,9 @@
     <string name="content_settings_channel_shorts_tab_title">Вкладка «Шортс» на каналах</string>
     <string name="content_settings_channel_shorts_tab_subtitle">Сохраняйте вкладку «Шортс» на канале, пока короткие видео скрыты.</string>
     <string name="content_settings_hide_watched_shorts_title">Скрыть просмотренные шортсы</string>
-    <string name="content_settings_hide_watched_shorts_subtitle">Храните отработанные шортсы вне полок и лотка для подачи шортс.</string>
-    <string name="settings_open_music_player_on_play_title">Открыть полноэкранный плеер, чтобы прослушать новые песни.</string>
-    <string name="settings_open_music_player_on_play_summary">Функция Off сохраняет новую песню в мини-плеере.</string>
+    <string name="content_settings_hide_watched_shorts_subtitle">Храните отработанные шортсы вне полок и лотка для подачи шортс</string>
+    <string name="settings_open_music_player_on_play_title">Открыть полноэкранный плеер, чтобы прослушать новые песни</string>
+    <string name="settings_open_music_player_on_play_summary">Функция Off сохраняет новую песню в мини-плеере</string>
     <string name="content_settings_live_chat_enabled_title">Онлайн-чат</string>
     <string name="content_settings_live_chat_enabled_subtitle">Отображение чата в прямых трансляциях</string>
     <string name="content_settings_subs_collaborations_title">Колоборации</string>
@@ -2848,7 +2848,7 @@
     <string name="nav_rail_state_expanded">Расширенный</string>
     <string name="nav_rail_state_collapsed">Разрушено</string>
     <string name="category_news">Новости</string>
-    <string name="category_sports">Шортс</string>
+    <string name="category_sports">Шортсы</string>
     <string name="category_learning">Обучение</string>
     <string name="category_fashion">Мода</string>
     <string name="categories_chart_source">Музыкальные чарты YouTube</string>
@@ -2867,7 +2867,7 @@
     <string name="player_settings_video_codec_fallback">Резервный кодек</string>
     <string name="player_settings_video_codec_fallback_auto">Автоматический</string>
     <string name="player_settings_video_codec_fallback_dialog_body">Используется, когда видео недоступно в предпочитаемом вами кодеке. В автоматическом режиме обычно выбирается H.264.</string>
-    <string name="player_settings_video_codec_fallback_auto_desc">Пусть приложение выберет само (предпочитает H.264).</string>
+    <string name="player_settings_video_codec_fallback_auto_desc">Пусть приложение выберет само (предпочитает H.264)</string>
     <string name="player_settings_double_tap_seek_off">Выключить</string>
     <string name="player_settings_seek_zone_width">Ширина зоны поиска</string>
     <string name="player_settings_seek_zone_width_dialog_body">Насколько сильно нужно нажать на каждую сторону при двойном нажатии.</string>
@@ -2966,13 +2966,13 @@
         <item quantity="other">Импортировано плейлистов «%1$s» с %2$d видео</item>
     </plurals>
     <string name="concurrent_downloads_title">Загрузок за один раз</string>
-    <string name="concurrent_downloads_summary">Сколько файлов загрузить одновременно?</string>
+    <string name="concurrent_downloads_summary">Сколько файлов загрузить одновременно</string>
     <string name="download_location_not_writable">Сохранить там невозможно. Использовать %1$s</string>
     <string name="support_flow_open_collective">Поддержка Flow на Open Collective</string>
     <string name="about_notices">Уведомления об открытом исходном коде</string>
     <string name="about_notices_summary">Списки слов и код из других проектов.</string>
     <string name="playlist_downloading_template">Загрузка: %1$s</string>
-    <string name="playlist_download_queue_empty">Не удалось добавить в очередь загрузки из этого плейлиста.</string>
+    <string name="playlist_download_queue_empty">Не удалось добавить в очередь загрузки из этого плейлиста</string>
     <string name="onboarding_channels_results_header">Каналы</string>
     <string name="onboarding_step_interests">Интересное</string>
     <string name="onboarding_step_channels">Каналы</string>
@@ -3004,10 +3004,10 @@
     <string name="onboarding_alerts_title">Никогда не пропускать новые загрузки</string>
     <string name="onboarding_alerts_subtitle">Получать уведомления о новых публикациях на ваших каналах.</string>
     <string name="onboarding_alerts_allow">Разрешить уведомления</string>
-    <string name="onboarding_alerts_allow_summary">Android спрашивает вас один раз.</string>
+    <string name="onboarding_alerts_allow_summary">Android спрашивает вас один раз</string>
     <string name="onboarding_alerts_allowed">Допустимый</string>
     <string name="onboarding_alerts_new_videos">Уведомления о новых видео</string>
-    <string name="onboarding_alerts_new_videos_summary">Из каналов, на которые вы подписаны.</string>
+    <string name="onboarding_alerts_new_videos_summary">Из каналов, на которые вы подписаны</string>
     <string name="onboarding_alerts_background">Проверить в фоне</string>
     <string name="onboarding_alerts_background_summary">Пусть оповещения приходят вовремя</string>
     <string name="onboarding_alerts_footnote">Вы можете изменить эти параметры в любое время в настройках.</string>
@@ -3028,7 +3028,7 @@
     <string name="note_insert_time">Вставьте %1$s</string>
     <string name="notes_title">Примечания</string>
     <string name="mini_bar_swipe_subtitle">Для музыкальной панели и фоновой видеопанели</string>
-    <string name="onboarding_ready_subtitle">Ваша трансляция готова. По мере просмотра изображение становится чётче</string>
+    <string name="onboarding_ready_subtitle">Ваша трансляция готова. По мере просмотра изображение становится чётче.</string>
     <plurals name="onboarding_ready_interests">
         <item quantity="one">%d процент</item>
         <item quantity="few">%d процента</item>
@@ -3299,5 +3299,205 @@
     <string name="widget_no_on_repeat">Здесь будут отображаться песни, которые вы часто слушаете повторно</string>
     <string name="widget_unlike">Убрать из понравившегося</string>
     <string name="widget_open_player">Открыть плеер</string>
-    <string name="widget_short_badge">Шорты</string>
+    <string name="widget_short_badge">Шортс</string>
+    <plurals name="widget_minutes_left">
+        <item quantity="one">Осталось %d мин.</item>
+        <item quantity="few">Осталось %d мин.</item>
+        <item quantity="many">Осталось %d мин.</item>
+        <item quantity="other">Осталось %d мин.</item>
+    </plurals>
+    <plurals name="widget_downloads_in_progress">
+        <item quantity="one">Загрузка: %d</item>
+        <item quantity="few">Загрузка: %d</item>
+        <item quantity="many">Загрузка: %d</item>
+        <item quantity="other">Загрузка: %d</item>
+    </plurals>
+    <string name="widget_browse_downloads">Просмотр загрузок</string>
+    <string name="widget_shuffle">Перемешать</string>
+    <string name="widget_identify_song">Определить песню</string>
+    <string name="widget_open_music">Открыть Музыку</string>
+    <string name="widget_config_shortcuts">Сочетания клавиш</string>
+    <string name="widget_config_shortcuts_footer">Выберите до четырёх вариантов. Поиск доступен всегда.</string>
+    <string name="widget_playlist_label">Плейлист</string>
+    <string name="widget_playlist_description">«Смотреть позже» или любой плейлист — до начала воспроизведения всего одно касание</string>
+    <string name="widget_choose_playlist">Выберите плейлист</string>
+    <string name="widget_config_playlist">Ваши плейлисты</string>
+    <string name="widget_playlist_empty">Здесь пока ничего нет</string>
+    <string name="widget_refresh">Обновить</string>
+    <plurals name="widget_playlist_songs">
+        <item quantity="one">%d песня</item>
+        <item quantity="few">%d песни</item>
+        <item quantity="many">%d песен</item>
+        <item quantity="other">%d песен</item>
+    </plurals>
+    <plurals name="widget_playlist_videos">
+        <item quantity="one">%d видео</item>
+        <item quantity="few">%d видео</item>
+        <item quantity="many">%d видео</item>
+        <item quantity="other">%d видео</item>
+    </plurals>
+    <string name="widget_week_label">Ваша неделя</string>
+    <string name="widget_week_description">То, что вы смотрели и слушали за последние семь дней</string>
+    <string name="widget_week_title">Последние 7 дней</string>
+    <string name="widget_week_top_artist">Лучший Артист этого месяца</string>
+    <string name="settings_widgets_title">Виджеты</string>
+    <string name="settings_widgets_summary">Добавить Flow на главный экран</string>
+    <string name="settings_widgets_add_header">Добавить на главный экран</string>
+    <string name="settings_widgets_footer">Нажмите на элемент, чтобы разместить его, или выполните долгое нажатие на главном экране.</string>
+    <plurals name="ui_downloading_videos">
+        <item quantity="one">Скачивается %1$d видеоролик</item>
+        <item quantity="few">Скачивается %1$d видеоролика</item>
+        <item quantity="many">Скачивается %1$d видеороликов</item>
+        <item quantity="other">Скачивается %1$d видеороликов</item>
+    </plurals>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+        <item quantity="one">Загружен %1$d трек из %2$s</item>
+        <item quantity="few">Загружены %1$d трека из %2$s</item>
+        <item quantity="many">Загружено %1$d треков из %2$s</item>
+        <item quantity="other">Загружено %1$d треков из %2$s</item>
+    </plurals>
+    <plurals name="toast_downloaded_tracks">
+        <item quantity="one">Загружен %1$d трек</item>
+        <item quantity="few">Загружено %1$d трека</item>
+        <item quantity="many">Загружено %1$d треков</item>
+        <item quantity="other">Загружено %1$d треков</item>
+    </plurals>
+    <plurals name="notification_new_videos_from_subscriptions">
+        <item quantity="one">%1$d новое видео от ваших подписок</item>
+        <item quantity="few">%1$d новых видео от ваших подписок</item>
+        <item quantity="many">%1$d новых видео от ваших подписок</item>
+        <item quantity="other">%1$d новых видео от ваших подписок</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%1$d мин.</item>
+        <item quantity="few">%1$d мин.</item>
+        <item quantity="many">%1$d мин.</item>
+        <item quantity="other">%1$d мин.</item>
+    </plurals>
+    <string name="settings_widgets_unsupported">Ваш лаунчер не может добавлять виджеты для приложений. Чтобы добавить виджет, нажмите и удерживайте свободное место на главном экране.</string>
+    <string name="settings_keywords_widgets">главный экран, лаунчер, виджет, «сейчас играет», проигрыватель пластинок</string>
+    <string name="crash_title">Flow неожиданно закрылся</string>
+    <string name="crash_subtitle">Этот отчет остается на вашем устройстве, пока вы им не поделитесь.</string>
+    <string name="crash_summary_error">Ошибка</string>
+    <string name="crash_summary_message">Сообщение</string>
+    <string name="crash_summary_where">Где</string>
+    <string name="crash_summary_version">Версия</string>
+    <string name="crash_summary_when">Когда</string>
+    <string name="crash_full_report">Полный отчёт</string>
+    <string name="crash_copy">Копировать отчёт</string>
+    <string name="crash_share">Поделиться отчетом</string>
+    <string name="crash_report">Отчет</string>
+    <string name="crash_continue">Продолжить</string>
+    <string name="crash_report_copied">Полный отчёт скопирован. Вставьте его в поле «Журналы» (Logs).</string>
+    <string name="subtitle_load_failed">Не удалось загрузить субтитры %1$s — попробуйте ещё раз</string>
+    <string name="subtitle_translation_unavailable">Перевод недоступен — отобразить %1$s</string>
+    <string name="sb_segment_notice">сегмент %1$s</string>
+    <string name="sb_off_for_video">Для этого видео SponsorBlock отключён</string>
+    <string name="sb_on_for_video">Для этого видео включен SponsorBlock</string>
+    <plurals name="sb_video_segments">
+        <item quantity="one">%d сегмент в этом видео</item>
+        <item quantity="few">%d йсегмент в этом видео</item>
+        <item quantity="many">%d-й сегмент в этом видео</item>
+        <item quantity="other">%d-й сегмент в этом видео</item>
+    </plurals>
+    <string name="notification_channel_downloads_name">Загрузки Flow</string>
+    <string name="notification_download_paused">Приостановлено — %1$s</string>
+    <string name="notification_download_paused_hint">нажмите, чтобы возобновить</string>
+    <string name="notification_download_progress">%1$d%% • %2$s / %3$s</string>
+    <plurals name="notification_downloads_active">
+        <item quantity="one">Загрузка %1$d элемента</item>
+        <item quantity="few">Загрузка %1$d элементов</item>
+        <item quantity="many">Загрузка %1$d элементов</item>
+        <item quantity="other">Загрузка %1$d элементов</item>
+    </plurals>
+    <plurals name="notification_downloads_paused">
+        <item quantity="one">Загрузка %1$d приостановлена</item>
+        <item quantity="few">Загрузка %1$d элементов приостановлена</item>
+        <item quantity="many">Загрузка %1$d элементов приостановлена</item>
+        <item quantity="other">Загрузка %1$d элементов приостановлена</item>
+    </plurals>
+    <string name="update_downloading_notification">Загрузка Flow %1$s</string>
+    <string name="update_ready_notification">Flow %1$s готов</string>
+    <string name="update_ready_notification_text">Проверено. Нажмите для установки.</string>
+    <string name="update_title">Flow %1$s здесь</string>
+    <string name="update_version_change">%1$s → %2$s</string>
+    <string name="update_not_now">Не сейчас</string>
+    <string name="update_skip_version">Пропустить эту версию</string>
+    <string name="update_open_github">Открыть на GitHub</string>
+    <string name="update_action_download">загрузить</string>
+    <string name="update_action_downloading">Загрузка</string>
+    <string name="update_action_downloading_percent">Загрузка: %1$d%%</string>
+    <string name="update_action_verifying">Проверка файла</string>
+    <string name="update_action_allow">Разрешить установку</string>
+    <string name="update_action_install">Установить обновление</string>
+    <string name="update_action_installing">Установка</string>
+    <string name="update_permission_notice">Разрешите приложению Flow устанавливать обновления. Android запрашивает это один раз.</string>
+    <string name="update_failed_network">Загрузка остановилась. Проверьте подключение и попробуйте снова.</string>
+    <string name="update_failed_storage">Для обновления недостаточно места.</string>
+    <string name="update_failed_checksum">Файл не соответствовал релизу, поэтому был удален. Попробуйте еще раз.</string>
+    <string name="update_failed_package">Этот файл не был обновлением Flow, поэтому его удалили.</string>
+    <string name="update_failed_install">Android не удалось установить обновление. Попробуйте ещё раз.</string>
+    <string name="error_channel_link_not_found">Не удалось найти канал, на который ведет эта ссылка</string>
+    <string name="error_failed_to_load_artist">Не удалось загрузить этого Артиста</string>
+    <string name="error_local_file_missing">Этого файла больше нет на вашем устройстве</string>
+    <string name="local_sort_date_added">Дата добавления</string>
+    <string name="local_filter_length_medium">от 4 до 20 мин.</string>
+    <string name="local_filter_quality_any">Любое качество</string>
+    <string name="local_filter_quality_sd">SD</string>
+    <string name="local_filter_quality_hd">HD</string>
+    <string name="local_filter_quality_full_hd">Full HD</string>
+    <string name="local_filter_quality_4k">4K</string>
+    <string name="local_filter_portrait">Портрет</string>
+    <string name="local_filter_unwatched">Непросмотренное</string>
+    <string name="local_view_all">Все</string>
+    <string name="local_view_folders">Папки</string>
+    <string name="local_grid_view">Показать в виде сетки</string>
+    <plurals name="local_hidden_count">
+        <item quantity="one">Скрыт %1$d файл</item>
+        <item quantity="few">Скрыто %1$d файла</item>
+        <item quantity="many">Скрыто %1$d файлов</item>
+        <item quantity="other">Скрыто %1$d файлов</item>
+    </plurals>
+    <string name="local_manage">Управлять</string>
+    <string name="local_partial_access_title">Flow видит только те видео, которые вы выбрали</string>
+    <string name="local_partial_access_body">Предоставьте доступ ко всем видео, чтобы увидеть остальное.</string>
+    <string name="local_open_settings">Открыть настройки</string>
+    <string name="local_permission_denied_body">Предоставьте доступ к видео и музыке в настройках приложения, чтобы увидеть их здесь.</string>
+    <string name="local_load_failed">Не удалось прочитать файлы на этом устройстве</string>
+    <plurals name="local_videos_count">
+        <item quantity="one">%1$d видеоролик</item>
+        <item quantity="few">%1$d видеоролика</item>
+        <item quantity="many">%1$d видеороликов</item>
+        <item quantity="other">%1$d видеороликов</item>
+    </plurals>
+    <plurals name="local_songs_count">
+        <item quantity="one">%1$d песня</item>
+        <item quantity="few">%1$d песни</item>
+        <item quantity="many">%1$d песен</item>
+        <item quantity="other">%1$d песен</item>
+    </plurals>
+    <string name="local_menu_hide_folder">Скрыть эту папку</string>
+    <string name="local_menu_delete_trash">Переместить в корзину на 30 дней</string>
+    <string name="local_menu_delete_permanent">Удалит это с данного устройства</string>
+    <plurals name="local_files_trashed">
+        <item quantity="one">%1$d файл перемещен в корзину</item>
+        <item quantity="few">%1$d файла перемещены в корзину</item>
+        <item quantity="many">%1$d файлов перемещены в корзину</item>
+        <item quantity="other">%1$d файлов перемещены в корзину</item>
+    </plurals>
+    <plurals name="local_files_deleted">
+        <item quantity="one">Удалён %1$d файл</item>
+        <item quantity="few">Удалёно %1$d файла</item>
+        <item quantity="many">Удалёно %1$d файлов</item>
+        <item quantity="other">Удалёно %1$d файлов</item>
+    </plurals>
+    <string name="local_delete_failed">Не удалось удалить этот файл</string>
+    <string name="local_folder_hidden">Скрыто %1$s</string>
+    <string name="local_detail_folder">Папка</string>
+    <string name="local_detail_resolution">Разрешение</string>
+    <string name="local_detail_frame_rate">Частота кадров</string>
+    <string name="local_detail_added">Добавлен</string>
+    <string name="local_detail_fps">%1$s фпс</string>
+    <string name="local_detail_resolution_value">%1$d × %2$d</string>
+    <string name="settings_local_media_title">Местные СМИ</string>
 </resources>
