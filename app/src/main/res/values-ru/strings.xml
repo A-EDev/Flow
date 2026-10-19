@@ -3016,4 +3016,8 @@
     <string name="music_watch_video">Смотреть видео</string>
     <string name="music_video_failed">Не удалось загрузить музыкальное видео.</string>
     <string name="music_video_unavailable">У этой песни нет музыкального видео</string>
+    <string name="channel_add_to_group">Добавить в группу</string>
+    <string name="music_player_lyrics_full_screen">Полноэкранный режим текста песни</string>
+    <string name="player_appearance_artwork_control_colors_title">Адаптировать элементы к цветам обложки</string>
+    <string name="player_appearance_plain_control_colors_title">Цвета элементов управления</string>
 </resources>
