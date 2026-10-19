@@ -27,11 +27,10 @@ private val navigationEntries =
 
 private val searchEntries =
     listOf(
-        TvGuideEntry(R.string.tv_guide_key_dpad, R.string.tv_guide_search_keyboard),
-        TvGuideEntry(R.string.tv_guide_key_ok, R.string.tv_guide_search_type),
-        TvGuideEntry(R.string.tv_guide_key_edit, R.string.tv_guide_search_edit),
+        TvGuideEntry(R.string.tv_guide_key_ok, R.string.tv_guide_search_field),
         TvGuideEntry(R.string.tv_guide_key_voice, R.string.tv_guide_search_voice),
-        TvGuideEntry(R.string.tv_guide_key_right, R.string.tv_guide_search_results),
+        TvGuideEntry(R.string.tv_guide_key_down, R.string.tv_guide_search_down),
+        TvGuideEntry(R.string.tv_guide_key_ok, R.string.tv_guide_search_open),
     )
 
 private val playbackEntries =

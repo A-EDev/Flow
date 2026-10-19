@@ -1,5 +1,8 @@
 package io.github.aedev.flow.ui.components.shared
 
+import android.view.inputmethod.InputMethodManager
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
@@ -26,6 +29,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,15 +39,21 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.getSystemService
 import io.github.aedev.flow.R
 import kotlinx.coroutines.flow.drop
 
@@ -55,9 +65,6 @@ import kotlinx.coroutines.flow.drop
  * that API applies `Modifier.sizeIn(minWidth = 360.dp, minHeight = 56.dp, maxWidth = 720.dp)`
  * internally and exposes no height parameter, so the 40 dp pill this app uses is not reachable
  * through it. Everything else — shape, colours, type, motion — still comes from the theme.
- *
- * [readOnly] shows the query without taking focus or raising a keyboard, for a surface that edits
- * [state] another way, as TV's D-pad keyboard does.
  */
 @Composable
 fun FlowSearchField(
@@ -71,12 +78,18 @@ fun FlowSearchField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     releaseFocusWithKeyboard: Boolean = false,
-    readOnly: Boolean = false,
 ) {
     if (releaseFocusWithKeyboard) ReleaseFocusWhenKeyboardCloses()
+    val dpad = LocalDpadNavigation.current
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = MaterialTheme.shapes.extraLarge
     Surface(
-        modifier = modifier.height(PillHeight),
-        shape = MaterialTheme.shapes.extraLarge,
+        modifier =
+            modifier
+                .height(PillHeight)
+                .then(if (dpad) Modifier.indication(interactionSource, ripple(focusRingShape = shape)) else Modifier),
+        shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
@@ -104,13 +117,29 @@ fun FlowSearchField(
                 }
                 BasicTextField(
                     state = state,
-                    readOnly = readOnly,
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
-                            .focusProperties { canFocus = !readOnly }
-                            .onFocusChanged { if (it.isFocused) onFieldFocused() },
+                            .onFocusChanged { if (it.isFocused) onFieldFocused() }
+                            // A tap raises the keyboard on its own; a remote's OK has to ask the platform for it, as
+                            // the keyboard controller only drives the legacy text input session this field doesn't use.
+                            .then(
+                                if (dpad) {
+                                    Modifier.onPreviewKeyEvent { event ->
+                                        if (event.key != Key.DirectionCenter) return@onPreviewKeyEvent false
+                                        if (event.type ==
+                                            KeyEventType.KeyUp
+                                        ) {
+                                            view.context.getSystemService<InputMethodManager>()?.showSoftInput(view, 0)
+                                        }
+                                        true
+                                    }
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    interactionSource = interactionSource,
                     textStyle =
                         LocalTextStyle.current.merge(
                             MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
@@ -121,13 +150,13 @@ fun FlowSearchField(
                     keyboardOptions =
                         KeyboardOptions(
                             imeAction = ImeAction.Search,
-                            showKeyboardOnFocus = if (LocalDpadNavigation.current) false else null,
+                            showKeyboardOnFocus = if (dpad) false else null,
                         ),
                     onKeyboardAction = { onSearch(state.text.toString()) },
                 )
             }
 
-            if (state.text.isNotEmpty() && !readOnly) {
+            if (state.text.isNotEmpty()) {
                 IconButton(
                     onClick = {
                         state.clearText()

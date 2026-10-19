@@ -7,28 +7,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.delete
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -44,9 +42,10 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.components.search.SearchSuggestionsPanel
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
-import io.github.aedev.flow.ui.components.shared.MediaKindSelector
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.screens.music.MusicSearchBody
 import io.github.aedev.flow.ui.screens.music.MusicSearchViewModel
@@ -56,16 +55,15 @@ import io.github.aedev.flow.ui.screens.search.launchVoiceSearch
 import io.github.aedev.flow.ui.screens.search.rememberSearchState
 import io.github.aedev.flow.ui.screens.search.rememberSearchSubmitter
 import io.github.aedev.flow.ui.tv.components.TvScreenFrame
-import io.github.aedev.flow.ui.tv.input.TvKeyboard
+import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.flow.drop
 
-private val KeyboardPaneWidth = 336.dp
-private val KindSelectorMaxWidth = 360.dp
+private val KindSelectorWidth = 320.dp
 
 /**
- * TV search: the query, the Videos and Music switch and the D-pad keyboard on the start side; the
- * phone's suggestions and results beside them. Both kinds read the one query, so switching kind keeps
- * what was typed.
+ * TV search: the query, voice search and the Videos and Music switch across the top, the phone's
+ * suggestions and results under them. OK on the field raises the system keyboard, which types in
+ * every language. Both kinds read the one query, so switching kind keeps what was typed.
  */
 @Composable
 fun TvSearchScreen(
@@ -83,6 +81,7 @@ fun TvSearchScreen(
     musicViewModel: MusicSearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val dimens = LocalTvDimens.current
     val softwareKeyboard = LocalSoftwareKeyboardController.current
     val uiState by viewModel.uiState.collectAsState()
     val state = rememberSearchState(viewModel)
@@ -91,12 +90,11 @@ fun TvSearchScreen(
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
     val gridState = rememberLazyGridState()
     var kind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
-    var systemKeyboard by remember { mutableStateOf(false) }
-    val fieldFocusRequester = remember { FocusRequester() }
-    val keyboardFocusRequester = remember { FocusRequester() }
     val text = state.textFieldState
+    val kinds = MediaKind.entries.map { FlowToggleOption(it, stringResource(it.labelRes), it.icon) }
 
     fun submit() {
+        softwareKeyboard?.hide()
         val query = text.text.toString()
         if (kind == MediaKind.Music) musicViewModel.performSearch(query) else submitVideo(query, uiState.filters)
     }
@@ -105,12 +103,6 @@ fun TvSearchScreen(
         snapshotFlow { text.text.toString() }
             .drop(1)
             .collect(musicViewModel::onQueryChange)
-    }
-    LaunchedEffect(systemKeyboard) {
-        if (systemKeyboard) {
-            fieldFocusRequester.requestFocus()
-            softwareKeyboard?.show()
-        }
     }
 
     val voiceLauncher =
@@ -127,104 +119,79 @@ fun TvSearchScreen(
         }
 
     TvScreenFrame(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .width(KeyboardPaneWidth)
-                        .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = SearchBarHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 FlowSearchField(
                     state = text,
                     placeholder = stringResource(R.string.search_videos_channels_placeholder),
-                    readOnly = !systemKeyboard,
-                    focusRequester = fieldFocusRequester,
-                    onSearch = {
-                        systemKeyboard = false
-                        submit()
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged {
-                                if (systemKeyboard && !it.hasFocus) {
-                                    systemKeyboard = false
-                                    softwareKeyboard?.hide()
-                                    keyboardFocusRequester.requestFocus()
-                                }
-                            },
+                    onSearch = { submit() },
+                    modifier = Modifier.weight(1f),
                 )
-                TvKeyboard(
-                    onInput = { char -> text.edit { append(char) } },
-                    onDelete = { text.edit { if (length > 0) delete(length - 1, length) } },
-                    onClear = { text.clearText() },
-                    onSearch = ::submit,
-                    onSystemKeyboard = { systemKeyboard = true },
-                    onVoice = { launchVoiceSearch(context, voiceLauncher::launch) },
-                    modifier = Modifier.focusRequester(keyboardFocusRequester),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                MediaKindSelector(
-                    options = MediaKind.entries,
+                IconButton(onClick = { launchVoiceSearch(context, voiceLauncher::launch) }) {
+                    Icon(imageVector = Icons.Rounded.Mic, contentDescription = stringResource(R.string.voice_search_cd))
+                }
+                FlowConnectedToggleGroup(
+                    options = kinds,
                     selected = kind,
                     onSelected = { kind = it },
-                    label = { stringResource(it.labelRes) },
-                    icon = { it.icon },
-                    modifier = Modifier.widthIn(max = KindSelectorMaxWidth),
+                    modifier = Modifier.width(KindSelectorWidth),
                 )
-                if (kind == MediaKind.Music) {
-                    MusicSearchBody(
-                        viewModel = musicViewModel,
-                        onTrackClick = onPlayTrack,
-                        onAlbumClick = onOpenAlbum,
-                        onArtistClick = onOpenArtist,
-                        onPlaylistClick = onOpenMusicPlaylist,
-                        onMoodClick = onOpenMood,
-                        onMoodsSeeAll = onOpenMoods,
-                        dismissSearchInput = {},
-                        onSuggestionPicked = {},
-                    )
-                } else if (uiState.query.isBlank() || state.isTyping) {
-                    SearchSuggestionsPanel(
-                        query = state.query,
-                        history = state.matchingHistory,
-                        suggestions = state.suggestions,
-                        onSubmit = { suggestion ->
-                            text.setTextAndPlaceCursorAtEnd(suggestion)
-                            submitVideo(suggestion, uiState.filters)
-                        },
-                        onHistorySelect = { item ->
-                            text.setTextAndPlaceCursorAtEnd(item.query)
-                            submitVideo(item.query, item.filters?.availableWith(false) ?: uiState.filters)
-                        },
-                        onFill = text::setTextAndPlaceCursorAtEnd,
-                        onDeleteHistoryItem = state::deleteHistoryItem,
-                        onClearHistory = state::clearHistory,
-                    )
-                } else {
-                    SearchResultsBody(
-                        viewModel = viewModel,
-                        filters = uiState.filters,
-                        shortsEnabled = false,
-                        // The results share the screen with the keyboard: rows fit that pane, a grid would not.
-                        isGridMode = true,
-                        feedColumns = HomeFeedColumns.AUTO,
-                        pagingItems = pagingItems,
-                        gridState = gridState,
-                        quickActions = quickActions,
-                        onVideoClick = onVideoClick,
-                        onChannelClick = onChannelClick,
-                        onPlaylistClick = onPlaylistClick,
-                        onShortsQueue = {},
-                        dismissKeyboard = state::stopTyping,
-                    )
-                }
+            }
+            if (kind == MediaKind.Music) {
+                MusicSearchBody(
+                    viewModel = musicViewModel,
+                    onTrackClick = onPlayTrack,
+                    onAlbumClick = onOpenAlbum,
+                    onArtistClick = onOpenArtist,
+                    onPlaylistClick = onOpenMusicPlaylist,
+                    onMoodClick = onOpenMood,
+                    onMoodsSeeAll = onOpenMoods,
+                    dismissSearchInput = {},
+                    onSuggestionPicked = {},
+                )
+            } else if (uiState.query.isBlank() || state.isTyping) {
+                SearchSuggestionsPanel(
+                    query = state.query,
+                    history = state.matchingHistory,
+                    suggestions = state.suggestions,
+                    onSubmit = { suggestion ->
+                        text.setTextAndPlaceCursorAtEnd(suggestion)
+                        submitVideo(suggestion, uiState.filters)
+                    },
+                    onHistorySelect = { item ->
+                        text.setTextAndPlaceCursorAtEnd(item.query)
+                        submitVideo(item.query, item.filters?.availableWith(false) ?: uiState.filters)
+                    },
+                    onFill = text::setTextAndPlaceCursorAtEnd,
+                    onDeleteHistoryItem = state::deleteHistoryItem,
+                    onClearHistory = state::clearHistory,
+                )
+            } else {
+                SearchResultsBody(
+                    viewModel = viewModel,
+                    filters = uiState.filters,
+                    shortsEnabled = false,
+                    isGridMode = false,
+                    feedColumns = HomeFeedColumns.AUTO,
+                    pagingItems = pagingItems,
+                    gridState = gridState,
+                    quickActions = quickActions,
+                    onVideoClick = onVideoClick,
+                    onChannelClick = onChannelClick,
+                    onPlaylistClick = onPlaylistClick,
+                    onShortsQueue = {},
+                    dismissKeyboard = state::stopTyping,
+                    maxAutoColumns = dimens.feedMaxColumns,
+                    minCellWidth = dimens.feedCardMinWidth,
+                )
             }
         }
     }
 }
+
+/** The phone pages under the bar keep a 16 dp margin; the bar lines up with them. */
+private val SearchBarHorizontalPadding = 16.dp

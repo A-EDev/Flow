@@ -3032,11 +3032,6 @@
     <string name="interface_mode_tv">TV</string>
     <string name="interface_mode_tv_summary">Always use the remote-friendly television interface</string>
     <string name="tv_player_queue">Queue</string>
-    <string name="tv_keyboard_space">Space</string>
-    <string name="tv_keyboard_delete">Delete</string>
-    <string name="tv_keyboard_clear">Clear</string>
-    <string name="tv_keyboard_voice">Voice search</string>
-    <string name="tv_keyboard_system">Other languages</string>
     <string name="tv_remote_guide_title">Remote &amp; keypad guide</string>
     <string name="tv_remote_guide_subtitle">A quick reference for navigating Flow from the couch</string>
     <string name="tv_guide_navigation_title">Navigation</string>
@@ -3047,9 +3042,7 @@
     <string name="tv_guide_key_back">Back</string>
     <string name="tv_guide_key_left_edge">Left edge</string>
     <string name="tv_guide_key_rail">Rail</string>
-    <string name="tv_guide_key_edit">Edit keys</string>
     <string name="tv_guide_key_voice">Mic</string>
-    <string name="tv_guide_key_right">Right</string>
     <string name="tv_guide_key_left_right">Left / Right</string>
     <string name="tv_guide_key_hold">Hold</string>
     <string name="tv_guide_key_up">Up</string>
@@ -3060,11 +3053,10 @@
     <string name="tv_guide_back">Close the active panel, return to the previous screen, or move toward Home before exiting.</string>
     <string name="tv_guide_left_edge">Move left from the content boundary to open the navigation rail.</string>
     <string name="tv_guide_rail">Use Up and Down to choose a destination, OK to open it, and Right to return to content.</string>
-    <string name="tv_guide_search_keyboard">Move across the on-screen keyboard and filter rows.</string>
-    <string name="tv_guide_search_type">Enter the focused letter or activate a filter, suggestion, or result.</string>
-    <string name="tv_guide_search_edit">Use Space, Delete, and Clear on the bottom keyboard row to edit the query.</string>
+    <string name="tv_guide_search_field">On the search field, open the TV keyboard to type in any language.</string>
+    <string name="tv_guide_search_down">Move from the search bar into suggestions and results.</string>
+    <string name="tv_guide_search_open">Open the focused suggestion or result.</string>
     <string name="tv_guide_search_voice">Start voice search when the TV has a supported microphone service.</string>
-    <string name="tv_guide_search_results">Move from the keyboard into filters and results; use Up and Down between sections.</string>
     <string name="tv_guide_player_toggle">Play or pause and reveal the transport controls.</string>
     <string name="tv_guide_player_seek">Seek backward or forward; the seek bar shows the pending position.</string>
     <string name="tv_guide_player_hold">Hold Left or Right to accelerate scrubbing, then release to commit.</string>
