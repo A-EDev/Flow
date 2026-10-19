@@ -326,6 +326,7 @@ class PlayerPreferences(
         val MUSIC_VIDEO_SWITCH = booleanPreferencesKey("music_video_switch")
         val ANIMATED_ARTWORK = booleanPreferencesKey("animated_artwork")
         val MUSIC_REPEAT_MODE = intPreferencesKey("music_repeat_mode")
+        val MUSIC_SHUFFLE_ENABLED = booleanPreferencesKey("music_shuffle_enabled")
         val PAUSE_MUSIC_WHEN_MUTED = booleanPreferencesKey("pause_music_when_muted")
         val ANIMATED_ARTWORK_WIFI_ONLY = booleanPreferencesKey("animated_artwork_wifi_only")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
@@ -2213,6 +2214,17 @@ class PlayerPreferences(
     suspend fun setMusicRepeatMode(mode: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_REPEAT_MODE] = mode
+        }
+    }
+
+    val musicShuffleEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_SHUFFLE_ENABLED] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicShuffleEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_SHUFFLE_ENABLED] = enabled
         }
     }
 

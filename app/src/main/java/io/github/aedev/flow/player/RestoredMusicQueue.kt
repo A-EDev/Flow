@@ -8,7 +8,6 @@ internal data class RestoredMusicQueue(
     val queue: List<MusicTrack>,
     val index: Int,
     val track: MusicTrack?,
-    val shuffleEnabled: Boolean,
     val automix: List<MusicTrack>,
     /** Where the restored track picks up; 0 starts it over. */
     val resumePositionMs: Long,
@@ -29,7 +28,6 @@ internal fun restoredMusicQueue(saved: QueuePersistence.QueueState): RestoredMus
         queue = saved.queue,
         index = saved.currentIndex.coerceIn(0, saved.queue.size - 1),
         track = track,
-        shuffleEnabled = saved.shuffleEnabled,
         automix = saved.automix,
         resumePositionMs = if (track != null && resumesInside) position else 0L,
     )

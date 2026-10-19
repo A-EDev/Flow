@@ -114,4 +114,44 @@ class PlaylistQueueOrderTest {
         assertEquals(1, result.currentIndex)
         assertEquals("c", result.items[result.currentIndex])
     }
+
+    @Test
+    fun `moves turn the player's order into the target`() {
+        val current = listOf("a", "b", "c", "d", "e")
+        val target = listOf("c", "e", "a", "d", "b")
+
+        val moves = PlaylistQueueOrder.movesTo(current, target)!!
+        val applied = current.toMutableList()
+        moves.forEach { (from, to) -> applied.add(to, applied.removeAt(from)) }
+
+        assertEquals(target, applied)
+    }
+
+    @Test
+    fun `moves handle repeated items and refuse different ones`() {
+        val moves = PlaylistQueueOrder.movesTo(listOf("a", "b", "a"), listOf("a", "a", "b"))!!
+        val applied = mutableListOf("a", "b", "a")
+        moves.forEach { (from, to) -> applied.add(to, applied.removeAt(from)) }
+
+        assertEquals(listOf("a", "a", "b"), applied)
+        assertEquals(null, PlaylistQueueOrder.movesTo(listOf("a", "b"), listOf("a", "c")))
+        assertEquals(emptyList<Pair<Int, Int>>(), PlaylistQueueOrder.movesTo(listOf("a", "b"), listOf("a", "b")))
+    }
+
+    @Test
+    fun `align follows the player's order, keeping repeats apart`() {
+        val first = "x" to 1
+        val second = "x" to 2
+        val queue = listOf(first, "y" to 3, second)
+
+        val aligned = PlaylistQueueOrder.alignTo(queue, listOf("y", "x", "x")) { it.first }
+
+        assertEquals(listOf("y" to 3, first, second), aligned)
+    }
+
+    @Test
+    fun `align refuses a player holding other items`() {
+        assertEquals(null, PlaylistQueueOrder.alignTo(listOf("a", "b"), listOf("a", "c")) { it })
+        assertEquals(null, PlaylistQueueOrder.alignTo(listOf("a", "b"), listOf("a")) { it })
+    }
 }

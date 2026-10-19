@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -63,6 +64,7 @@ import io.github.aedev.flow.player.MusicPlaybackDiagnostics
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
+import io.github.aedev.flow.player.PlaylistQueueOrder
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -153,6 +155,7 @@ class Media3MusicService : MediaLibraryService() {
             .setUsage(C.USAGE_MEDIA)
             .build()
     private var handlesAudioFocus = true
+    private var applyingSavedShuffle = false
     private lateinit var connectivityObserver: NetworkConnectivityObserver
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -308,9 +311,14 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
         observeEqualizer()
-        // The service, not a saved queue, owns repeat: it outlives the app's process and is saved
-        // the moment it changes, so a restart or a new song keeps it.
-        lifecycleScope.launch { player.repeatMode = prefs.musicRepeatMode.first() }
+        // The service, not a saved queue, owns repeat and shuffle: it outlives the app's process and
+        // saves them the moment they change, so a restart or a new song keeps them.
+        lifecycleScope.launch {
+            player.repeatMode = prefs.musicRepeatMode.first()
+            applyingSavedShuffle = true
+            player.shuffleModeEnabled = prefs.musicShuffleEnabled.first()
+            applyingSavedShuffle = false
+        }
         videoSwitch.attach(lifecycleScope, prefs.musicVideoSwitch)
 
         lifecycleScope.launch {
@@ -426,11 +434,19 @@ class Media3MusicService : MediaLibraryService() {
 
         player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
         setVideoDecoding(false)
+        // Shuffle rearranges the queue itself, so the list on screen is the play order. With this
+        // order, the player's shuffle flag reorders nothing on its own, whichever controller sets it.
+        player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
 
         player.addListener(
             object : Player.Listener {
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     updateNotification()
+                    lifecycleScope.launch { prefs.setMusicShuffleEnabled(shuffleModeEnabled) }
+                    // A connected app rearranges the queue it shows; without one (a media button
+                    // started the service), this order is the only one, so rearrange it here.
+                    val appConnected = io.github.aedev.flow.player.EnhancedMusicPlayerManager.playerInstance.value != null
+                    if (shuffleModeEnabled && !applyingSavedShuffle && !appConnected) shuffleFromCurrentItem()
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
@@ -871,6 +887,13 @@ class Media3MusicService : MediaLibraryService() {
         player.seekTo(index, if (fromStart) 0L else failed.resumePositionMs)
         player.prepare()
         player.play()
+    }
+
+    private fun shuffleFromCurrentItem() {
+        val order = List(player.mediaItemCount) { it }
+        if (order.size < 2) return
+        val target = PlaylistQueueOrder.shuffleFromCurrent(order, player.currentMediaItemIndex).items
+        PlaylistQueueOrder.movesTo(order, target)?.forEach { (from, to) -> player.moveMediaItem(from, to) }
     }
 
     private fun skipPastFailedItem(failed: MusicPlaybackRecoveryPlanner.FailedItem) {

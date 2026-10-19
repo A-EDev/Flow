@@ -297,8 +297,9 @@ object EnhancedMusicPlayerManager {
     }
 
     private fun setupPlayerListener(controller: Player) {
-        // The service owns repeat; the button shows what the player will actually do.
+        // The service owns repeat and shuffle; the buttons show what the player will actually do.
         _repeatMode.value = RepeatMode.fromPlayer(controller.repeatMode)
+        _shuffleEnabled.value = controller.shuffleModeEnabled
         controller.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -336,6 +337,13 @@ object EnhancedMusicPlayerManager {
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     _repeatMode.value = RepeatMode.fromPlayer(repeatMode)
+                }
+
+                // Every shuffle, from the app, the card, a headset or the car, lands here.
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    val turnedOn = shuffleModeEnabled && !_shuffleEnabled.value
+                    _shuffleEnabled.value = shuffleModeEnabled
+                    if (turnedOn) shuffleQueue() else triggerQueueSave()
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -788,9 +796,14 @@ object EnhancedMusicPlayerManager {
 
             Log.d("EnhancedMusicPlayer", "Restoring saved queue: ${restored.queue.size} tracks")
 
-            _queue.value = restored.queue
+            // The service may have rearranged a resumed queue (a shuffle while the app was closed).
+            val playerOrder = controller?.let { c -> List(c.mediaItemCount) { c.getMediaItemAt(it).mediaId } }
+            _queue.value =
+                playerOrder
+                    ?.takeIf { resumedBySystem }
+                    ?.let { order -> PlaylistQueueOrder.alignTo(restored.queue, order) { it.videoId } }
+                    ?: restored.queue
             _currentQueueIndex.value = restored.index
-            _shuffleEnabled.value = restored.shuffleEnabled
             _automixItems.value = restored.automix
 
             if (controller != null && loadedItem != null) {
@@ -940,10 +953,8 @@ object EnhancedMusicPlayerManager {
      */
     fun toggleShuffle() {
         scope.launch {
-            val enabling = !_shuffleEnabled.value
-            player?.shuffleModeEnabled = false
-            _shuffleEnabled.value = enabling
-            if (enabling) shuffleQueue()
+            val controller = player ?: return@launch
+            controller.shuffleModeEnabled = !controller.shuffleModeEnabled
         }
     }
 
