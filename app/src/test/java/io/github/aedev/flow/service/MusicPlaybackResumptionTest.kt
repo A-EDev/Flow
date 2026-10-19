@@ -26,6 +26,7 @@ class MusicPlaybackResumptionTest {
         queue = queue,
         index = index,
         track = track,
+        shuffleEnabled = false,
         automix = emptyList(),
         resumePositionMs = positionMs,
     )

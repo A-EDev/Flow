@@ -311,14 +311,9 @@ class Media3MusicService : MediaLibraryService() {
         initializePlayer()
         initializeSession()
         observeEqualizer()
-        // The service, not a saved queue, owns repeat and shuffle: it outlives the app's process and
-        // saves them the moment they change, so a restart or a new song keeps them.
-        lifecycleScope.launch {
-            player.repeatMode = prefs.musicRepeatMode.first()
-            applyingSavedShuffle = true
-            player.shuffleModeEnabled = prefs.musicShuffleEnabled.first()
-            applyingSavedShuffle = false
-        }
+        // The service, not a saved queue, owns repeat: it outlives the app's process and is saved
+        // the moment it changes, so a restart or a new song keeps it.
+        lifecycleScope.launch { player.repeatMode = prefs.musicRepeatMode.first() }
         videoSwitch.attach(lifecycleScope, prefs.musicVideoSwitch)
 
         lifecycleScope.launch {
@@ -442,7 +437,6 @@ class Media3MusicService : MediaLibraryService() {
             object : Player.Listener {
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     updateNotification()
-                    lifecycleScope.launch { prefs.setMusicShuffleEnabled(shuffleModeEnabled) }
                     // A connected app rearranges the queue it shows; without one (a media button
                     // started the service), this order is the only one, so rearrange it here.
                     val appConnected = io.github.aedev.flow.player.EnhancedMusicPlayerManager.playerInstance.value != null
@@ -1650,6 +1644,10 @@ class Media3MusicService : MediaLibraryService() {
                 if (restored == null) {
                     result.setException(IllegalStateException("No saved music queue to resume"))
                 } else {
+                    // A queue saved shuffled is already in its shuffled order.
+                    applyingSavedShuffle = true
+                    player.shuffleModeEnabled = restored.shuffleEnabled
+                    applyingSavedShuffle = false
                     result.set(musicResumptionItems(restored))
                 }
             }

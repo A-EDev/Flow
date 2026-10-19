@@ -805,6 +805,8 @@ object EnhancedMusicPlayerManager {
                     ?: restored.queue
             _currentQueueIndex.value = restored.index
             _automixItems.value = restored.automix
+            // A queue the service resumed already carries its shuffle; otherwise it comes back with it.
+            if (!resumedBySystem) applySavedShuffle(controller, restored.shuffleEnabled)
 
             if (controller != null && loadedItem != null) {
                 syncCurrentTrackFromMediaItem(controller, loadedItem)
@@ -951,6 +953,15 @@ object EnhancedMusicPlayerManager {
      * Shuffle is app-owned state, not ExoPlayer's shuffle mode: enabling it physically
      * rearranges the queue so the listed order always matches the playback order.
      */
+    /** The saved queue is already in its shuffled order, so turning the flag back on must not reshuffle it. */
+    private fun applySavedShuffle(
+        controller: Player?,
+        enabled: Boolean,
+    ) {
+        _shuffleEnabled.value = enabled
+        if (controller != null && controller.shuffleModeEnabled != enabled) controller.shuffleModeEnabled = enabled
+    }
+
     fun toggleShuffle() {
         scope.launch {
             val controller = player ?: return@launch
