@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -49,11 +50,14 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.ApplyStats
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import io.github.aedev.flow.utils.copyPlainText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** The steps that run once a session is live: QR connection, verification, merge consent, outcome. */
+
+private val QrMaxWidthWithRemote = 240.dp
 
 @Composable
 internal fun SyncQrContent(
@@ -64,12 +68,36 @@ internal fun SyncQrContent(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    // A remote focuses the actions first, and TV scrolls a focused item to a third of the way down; above
+    // the code, capped to phone-camera size, they leave all of it on screen.
+    val dpad = LocalDpadNavigation.current
     var remaining by remember { mutableLongStateOf(s.ttlSeconds) }
     LaunchedEffect(s.expiresAtEpochSeconds) {
         while (true) {
             remaining = (s.expiresAtEpochSeconds - System.currentTimeMillis() / 1000).coerceAtLeast(0)
             delay(1000)
         }
+    }
+
+    val actions: @Composable () -> Unit = {
+        SyncActionRow(
+            confirmLabel = stringResource(R.string.sync_copy_connection_data),
+            onConfirm = {
+                val connectionData = onPrepareConnectionData() ?: s.qrText
+                scope.launch {
+                    clipboard.copyPlainText(
+                        label = context.getString(R.string.sync_connection_data_label),
+                        text = connectionData,
+                        sensitive = true,
+                    )
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        Toast.makeText(context, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            dismissLabel = stringResource(R.string.sync_cancel_session),
+            onDismiss = onCancel,
+        )
     }
 
     Text(
@@ -83,10 +111,12 @@ internal fun SyncQrContent(
         textAlign = TextAlign.Center,
     )
 
+    if (dpad) actions()
+
     // The code stays dark-on-light so any camera can read it, and sits on a tonal plate so it reads
     // as a deliberate element in both themes. Rounding only ever clips the quiet zone, never the
     // finder patterns.
-    SyncCard {
+    SyncCard(modifier = if (dpad) Modifier.widthIn(max = QrMaxWidthWithRemote) else Modifier) {
         QrCodeImage(
             text = s.qrText,
             modifier =
@@ -143,24 +173,7 @@ internal fun SyncQrContent(
         )
     }
 
-    SyncActionRow(
-        confirmLabel = stringResource(R.string.sync_copy_connection_data),
-        onConfirm = {
-            val connectionData = onPrepareConnectionData() ?: s.qrText
-            scope.launch {
-                clipboard.copyPlainText(
-                    label = context.getString(R.string.sync_connection_data_label),
-                    text = connectionData,
-                    sensitive = true,
-                )
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                    Toast.makeText(context, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
-                }
-            }
-        },
-        dismissLabel = stringResource(R.string.sync_cancel_session),
-        onDismiss = onCancel,
-    )
+    if (!dpad) actions()
 }
 
 /** The 6-digit short authentication string, spaced so two people can read it aloud reliably. */

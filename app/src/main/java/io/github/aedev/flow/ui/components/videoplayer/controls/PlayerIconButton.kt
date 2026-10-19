@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledIconButton
@@ -33,6 +34,7 @@ internal fun PlayerPillIconButton(
     containerColor: Color = PlayerScrimAffordance,
     contentColor: Color = PlayerScrimContent,
     haptic: HapticFeedbackType? = HapticFeedbackType.ContextClick,
+    interactionSource: MutableInteractionSource? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     FilledIconButton(
@@ -47,6 +49,7 @@ internal fun PlayerPillIconButton(
                 contentColor = contentColor,
             ),
         modifier = modifier.size(buttonSize),
+        interactionSource = interactionSource,
     ) {
         Icon(
             imageVector = icon,

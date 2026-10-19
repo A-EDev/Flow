@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -13,15 +14,24 @@ import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import io.github.aedev.flow.ui.components.layout.rememberFlowPaneScaffoldDirective
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
+import io.github.aedev.flow.ui.components.shared.dpadFocusOnEnter
 import io.github.aedev.flow.ui.screens.settings.home.SettingsHomeScreen
 import kotlinx.coroutines.launch
 
@@ -40,11 +50,17 @@ fun SettingsHost(
     onOpenDonations: () -> Unit,
     onOpenRecap: () -> Unit,
     onOpenUpdate: () -> Unit,
+    options: SettingsHostOptions = SettingsHostOptions(),
 ) {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = rememberFlowPaneScaffoldDirective())
     val scope = rememberCoroutineScope()
     var stack by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var startConsumed by rememberSaveable { mutableStateOf(false) }
+    val dpad = LocalDpadNavigation.current
+    val listFocus = remember { FocusRequester() }
+    val selectedRowFocus = remember { FocusRequester() }
+    val pageFocus = remember { FocusRequester() }
+    var pageHasFocus by remember { mutableStateOf(false) }
 
     val twoPane =
         navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Expanded &&
@@ -52,6 +68,8 @@ fun SettingsHost(
     val current = stack.lastOrNull()?.let(SettingsTarget::decode) ?: SettingsTarget(SettingsDestination.APPEARANCE)
 
     fun open(target: SettingsTarget) {
+        // A new page takes focus as it enters; the one already open beside the list has to be asked.
+        if (dpad && twoPane && target.destination == current.destination) pageFocus.requestFocus()
         stack = target.destination.path
             .dropLast(1)
             .map { SettingsTarget(it).encode() } + target.encode()
@@ -86,21 +104,38 @@ fun SettingsHost(
         }
     }
 
+    // Beside the list, OK on a page moves a remote into it; Back from that page's top level returns to
+    // the page's row, or to the list when that row has scrolled away. Registered before the pages, so a page's own Back comes first.
+    BackHandler(enabled = dpad && twoPane && stack.size <= 1 && pageHasFocus) {
+        if (!selectedRowFocus.requestFocus()) listFocus.requestFocus()
+    }
+
     NavigableListDetailPaneScaffold(
         navigator = navigator,
         listPane = {
-            AnimatedPane {
+            AnimatedPane(modifier = Modifier.focusRequester(listFocus).dpadFocusGroup()) {
                 SettingsHomeScreen(
                     selected = if (twoPane) current.destination.root else null,
                     onOpen = ::open,
                     onOpenDonations = onOpenDonations,
                     onOpenUpdate = onOpenUpdate,
                     onBack = onExit,
+                    selectedRowFocus = selectedRowFocus,
                 )
             }
         },
         detailPane = {
-            AnimatedPane {
+            AnimatedPane(
+                modifier =
+                    if (dpad) {
+                        Modifier
+                            .onFocusChanged { pageHasFocus = it.hasFocus }
+                            .focusRequester(pageFocus)
+                            .dpadFocusGroup()
+                    } else {
+                        Modifier
+                    },
+            ) {
                 val spec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = current,
@@ -108,12 +143,15 @@ fun SettingsHost(
                     contentKey = { it.destination },
                     label = "settingsDetail",
                 ) { target ->
-                    SettingsDetail(
-                        target = target,
-                        onBack = if (twoPane && stack.size <= 1) null else ::back,
-                        onNavigate = ::push,
-                        onOpenRecap = onOpenRecap,
-                    )
+                    Box(modifier = dpadFocusOnEnter()) {
+                        SettingsDetail(
+                            target = target,
+                            onBack = if (twoPane && stack.size <= 1) null else ::back,
+                            onNavigate = ::push,
+                            onOpenRecap = onOpenRecap,
+                            options = options,
+                        )
+                    }
                 }
             }
         },
@@ -121,3 +159,12 @@ fun SettingsHost(
 
     BackHandler(enabled = stack.size > 1) { stack = stack.dropLast(1) }
 }
+
+/**
+ * Pages a host draws in place of the shared ones, or adds: TV has no camera, so its Sync page only
+ * hosts, and it supplies the remote's key guide.
+ */
+@Immutable
+class SettingsHostOptions(
+    val pages: Map<SettingsDestination, @Composable (onBack: (() -> Unit)?) -> Unit> = emptyMap(),
+)

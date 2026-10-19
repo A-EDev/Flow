@@ -48,7 +48,12 @@ internal fun SettingsDetail(
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
     onOpenRecap: () -> Unit,
+    options: SettingsHostOptions = SettingsHostOptions(),
 ) {
+    options.pages[target.destination]?.let { page ->
+        page(onBack)
+        return
+    }
     when (target.destination) {
         SettingsDestination.HOME,
         SettingsDestination.APPEARANCE,
@@ -185,7 +190,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.ABOUT -> {
-            AboutScreen(onBack = onBack, highlight = target.highlight)
+            AboutScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.REMOTE_GUIDE -> {
+            Unit
         }
 
         SettingsDestination.DIAGNOSTICS -> {

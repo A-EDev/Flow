@@ -41,13 +41,30 @@ sealed interface SettingAvailability {
         val sdk: Int,
     ) : SettingAvailability
 
+    /** Means nothing on a TV, such as home-screen widgets or the phone's navigation bar. */
+    data object NotOnTv : SettingAvailability
+
+    /** Only on a TV, such as the remote's key guide. */
+    data object TvOnly : SettingAvailability
+
     fun isAvailable(
         githubFeatures: Boolean,
         sdk: Int,
+        tv: Boolean = false,
     ): Boolean =
         when (this) {
             Always -> true
             GithubOnly -> githubFeatures
             is MinSdk -> sdk >= this.sdk
+            NotOnTv -> !tv
+            TvOnly -> tv
+        }
+
+    /** Whether a page row for this option appears on a TV ([tv]) or elsewhere; the build checks stay with each page. */
+    fun shownOn(tv: Boolean): Boolean =
+        when (this) {
+            NotOnTv -> !tv
+            TvOnly -> tv
+            else -> true
         }
 }

@@ -16,6 +16,8 @@ import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.SearchableSetting
 import io.github.aedev.flow.ui.screens.settings.index.SettingsIndex
 
@@ -26,9 +28,11 @@ private const val BREADCRUMB_SEPARATOR = " › "
 internal fun rememberSearchableSettings(): List<SearchableSetting> {
     val resources = LocalContext.current.resources
     val configuration = LocalConfiguration.current
-    return remember(configuration) {
+    val onTv = LocalDpadNavigation.current
+    return remember(configuration, onTv) {
         SettingsIndex.all
-            .filter { it.availability.isAvailable(githubFeatures = BuildConfig.UPDATER_ENABLED, sdk = Build.VERSION.SDK_INT) }
+            .filter { it.availability.isAvailable(githubFeatures = BuildConfig.UPDATER_ENABLED, sdk = Build.VERSION.SDK_INT, tv = onTv) }
+            .filter { DestinationIndex.isReachable(it, onTv) }
             .map { it.resolve(resources) }
     }
 }

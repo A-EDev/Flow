@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.channel
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,9 +12,14 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import io.github.aedev.flow.ui.theme.extendedColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,10 +29,19 @@ internal fun ChannelTabRow(
     tabs: List<String>,
     onTabSelected: (Int) -> Unit,
 ) {
+    val selectedTabFocus = remember { FocusRequester() }
+    val dpad = LocalDpadNavigation.current
     // A scrollable tab row sizes its divider to the tabs, which on a tablet ends mid-screen.
     Column(modifier = Modifier.fillMaxWidth()) {
         SecondaryScrollableTabRow(
             selectedTabIndex = selectedIndex,
+            // A remote comes into the row on the open tab, not on whichever tab is nearest.
+            modifier =
+                if (dpad) {
+                    Modifier.focusProperties { onEnter = { selectedTabFocus.requestFocus() } }.focusGroup()
+                } else {
+                    Modifier
+                },
             edgePadding = 0.dp,
             containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -43,7 +58,10 @@ internal fun ChannelTabRow(
                 Tab(
                     selected = selectedIndex == index,
                     onClick = { onTabSelected(index) },
-                    modifier = Modifier.height(44.dp),
+                    modifier =
+                        Modifier
+                            .height(44.dp)
+                            .then(if (selectedIndex == index) Modifier.focusRequester(selectedTabFocus) else Modifier),
                     selectedContentColor = MaterialTheme.colorScheme.onSurface,
                     unselectedContentColor = MaterialTheme.extendedColors.textSecondary,
                 ) {

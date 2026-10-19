@@ -1,10 +1,5 @@
 package io.github.aedev.flow.ui.components.musicplayer.common
 
-enum class SkipDirection {
-    NEXT,
-    PREVIOUS,
-}
-
 fun formatTime(milliseconds: Long): String {
     val seconds = (milliseconds / 1000).toInt()
     val minutes = seconds / 60

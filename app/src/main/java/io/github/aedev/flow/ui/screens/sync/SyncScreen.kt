@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import io.github.aedev.flow.sync.protocol.SyncRole
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.dpadFocusOnEnter
 
 /** Where the user is in the pre-session setup. Once a session starts, [SyncState] drives the UI. */
 private enum class Step {
@@ -98,10 +100,15 @@ private fun SyncState.title(step: Step): String =
         is SyncState.Failed -> stringResource(R.string.sync_failed_title)
     }
 
+/**
+ * Device sync. [hostOnly] is for a device without a camera, such as a TV: it always shows its code for
+ * the other device to scan, so sending and receiving skip the step that picks who scans.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
     onBack: (() -> Unit)?,
+    hostOnly: Boolean = false,
     viewModel: SyncViewModel = hiltViewModel(),
 ) {
     val onNavigateBack = onBack ?: {}
@@ -139,6 +146,10 @@ fun SyncScreen(
     }
 
     val atStart = state is SyncState.Idle && step == Step.CHOOSER
+    val screenKey = state.screenKey(step)
+    val scrollState = rememberScrollState()
+    // Each step opens at its top, not at the offset a long step such as the collection list left.
+    LaunchedEffect(screenKey) { scrollState.scrollTo(0) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     BackHandler(enabled = !atStart || onBack != null, onBack = ::goBack)
 
@@ -162,7 +173,7 @@ fun SyncScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .imePadding()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 16.dp)
                     .padding(bottom = LocalFlowBottomInsets.current.contentBottom),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -170,7 +181,7 @@ fun SyncScreen(
             // Keyed on which step is showing, not on the state itself: `Transferring` changes on
             // every progress tick and would otherwise cross-fade the screen a few times a second.
             AnimatedContent(
-                targetState = state.screenKey(step),
+                targetState = screenKey,
                 transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
                 label = "syncStep",
                 contentAlignment = Alignment.TopCenter,
@@ -178,7 +189,11 @@ fun SyncScreen(
                 Column(
                     // Capped so the flow stays a readable column on tablets and unfolded devices
                     // instead of stretching every card the full width of the display.
-                    modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 520.dp)
+                            .then(dpadFocusOnEnter()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
@@ -186,6 +201,7 @@ fun SyncScreen(
                         state = state,
                         step = step,
                         selected = selected,
+                        hostOnly = hostOnly,
                         onStepChange = { step = it },
                         onSelectedChange = { selected = it },
                         onHost = { role -> viewModel.host(role, selected.toList()) },
@@ -214,6 +230,7 @@ private fun SyncStepContent(
     state: SyncState,
     step: Step,
     selected: Set<String>,
+    hostOnly: Boolean,
     onStepChange: (Step) -> Unit,
     onSelectedChange: (Set<String>) -> Unit,
     onHost: (SyncRole) -> Unit,
@@ -230,6 +247,7 @@ private fun SyncStepContent(
             SyncSetupStep(
                 step = step,
                 selected = selected,
+                hostOnly = hostOnly,
                 onStepChange = onStepChange,
                 onSelectedChange = onSelectedChange,
                 onHost = onHost,
@@ -282,6 +300,7 @@ private fun SyncStepContent(
 private fun SyncSetupStep(
     step: Step,
     selected: Set<String>,
+    hostOnly: Boolean,
     onStepChange: (Step) -> Unit,
     onSelectedChange: (Set<String>) -> Unit,
     onHost: (SyncRole) -> Unit,
@@ -291,7 +310,7 @@ private fun SyncSetupStep(
         Step.CHOOSER -> {
             SyncChooserContent(
                 onSend = { onStepChange(Step.SEND_SELECT) },
-                onReceive = { onStepChange(Step.RECEIVE_TRANSPORT) },
+                onReceive = { if (hostOnly) onHost(SyncRole.RECEIVER) else onStepChange(Step.RECEIVE_TRANSPORT) },
             )
         }
 
@@ -299,7 +318,7 @@ private fun SyncSetupStep(
             SyncSelectContent(
                 selected = selected,
                 onSelectedChange = onSelectedChange,
-                onContinue = { onStepChange(Step.SEND_TRANSPORT) },
+                onContinue = { if (hostOnly) onHost(SyncRole.SENDER) else onStepChange(Step.SEND_TRANSPORT) },
             )
         }
 

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -41,9 +42,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.screens.settings.index.AboutIndex
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 
 private enum class AboutDialog { CHANGELOG, DEVICE, NOTICES }
 
@@ -60,11 +64,12 @@ private val HeaderPadding = 24.dp
 private val HeaderSpacing = 8.dp
 private val AvatarSize = 48.dp
 
-/** The app's version, where to find and reach the project, and its licences. */
+/** The app's version, where to find and reach the project, and its licences; on a TV, the remote's key guide. */
 @Composable
 internal fun AboutScreen(
     onBack: (() -> Unit)?,
     highlight: String?,
+    onNavigate: (SettingsTarget) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     var dialog by rememberSaveable { mutableStateOf<AboutDialog?>(null) }
@@ -81,6 +86,11 @@ internal fun AboutScreen(
         }
         group(key = "about.app", header = R.string.section_app) {
             nav(AboutIndex.changelog, icon = Icons.Outlined.History, showChevron = false, onClick = { dialog = AboutDialog.CHANGELOG })
+            nav(
+                DestinationIndex.entry(SettingsDestination.REMOTE_GUIDE),
+                icon = Icons.Outlined.SettingsRemote,
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.REMOTE_GUIDE)) },
+            )
         }
         group(key = "about.contact", header = R.string.section_contact) {
             nav(AboutIndex.website, icon = Icons.Outlined.Public, showChevron = false, onClick = { open(WEBSITE_URL) })

@@ -35,7 +35,7 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.size.Precision
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
+import io.github.aedev.flow.ui.components.shared.SkipDirection
 import kotlinx.coroutines.launch
 
 internal val PlayerArtworkCornerRadius = 12.dp

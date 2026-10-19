@@ -279,15 +279,15 @@ class MainActivity : ComponentActivity() {
                                 val openMusicPlayerRequest by links.musicPlayerRequest
                                 val pendingRoute by links.route
 
-                                if (appUiRoot == AppUiRoot.TV) {
-                                    SideEffect { splashController.contentReady = true }
-                                    FlowTvApp(
-                                        deeplinkVideoId = deeplinkVideoId,
-                                        isShort = isDeeplinkShort,
-                                        onDeeplinkConsumed = links::consumeVideo,
-                                    )
-                                } else {
-                                    ProvideChannelGroupLabels {
+                                ProvideChannelGroupLabels {
+                                    if (appUiRoot == AppUiRoot.TV) {
+                                        SideEffect { splashController.contentReady = true }
+                                        FlowTvApp(
+                                            deeplinkVideoId = deeplinkVideoId,
+                                            isShort = isDeeplinkShort,
+                                            onDeeplinkConsumed = links::consumeVideo,
+                                        )
+                                    } else {
                                         FlowApp(
                                             currentTheme = theme.themeMode,
                                             themeVariant = theme.themeVariant,

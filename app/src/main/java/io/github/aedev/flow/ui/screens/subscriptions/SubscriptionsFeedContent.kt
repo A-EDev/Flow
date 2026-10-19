@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.subscriptions
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,12 +29,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
+import io.github.aedev.flow.ui.components.FeedCardMinWidth
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
@@ -43,6 +45,7 @@ import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
 private val GroupRowHorizontalPadding = 12.dp
@@ -75,6 +78,9 @@ internal fun SubscriptionsFeedContent(
     onRetryFailedChannels: () -> Unit,
     onDismissFailedChannels: () -> Unit,
     modifier: Modifier = Modifier,
+    maxAutoColumns: Int = FEED_MAX_AUTO_COLUMNS,
+    minCellWidth: Dp = FeedCardMinWidth,
+    showShorts: Boolean = true,
 ) {
     val pullRefreshState = rememberPullToRefreshState()
 
@@ -91,7 +97,7 @@ internal fun SubscriptionsFeedContent(
         modifier = modifier.fillMaxSize(),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference)
+            val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, maxAutoColumns, minCellWidth)
             val listMode = !state.isFullWidthView
             val plan =
                 rememberFeedGridPlan(
@@ -106,7 +112,7 @@ internal fun SubscriptionsFeedContent(
             LazyVerticalGrid(
                 columns = plan.cells,
                 state = gridState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().dpadFocusGroup(),
                 contentPadding = plan.contentPadding(top = FeedTopPadding, bottom = flowBottomContentPadding()),
                 verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
             ) {
@@ -186,7 +192,7 @@ internal fun SubscriptionsFeedContent(
                     }
                 }
 
-                if (state.isShortsShelfEnabled && state.shorts.isNotEmpty()) {
+                if (showShorts && state.isShortsShelfEnabled && state.shorts.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column {
                             MediaShortsShelf(

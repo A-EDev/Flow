@@ -77,6 +77,7 @@ internal fun PlayerTransportControls(
     actions: PlayerControlActions,
     modifier: Modifier = Modifier,
     isLayerVisible: () -> Boolean = { true },
+    playPauseModifier: Modifier = Modifier,
 ) {
     val showIndicator by remember(showBufferingSpinner, isLayerVisible) {
         derivedStateOf { showBufferingSpinner && isLayerVisible() }
@@ -139,7 +140,7 @@ internal fun PlayerTransportControls(
                     ),
                 interactionSource = playPauseInteractionSource,
                 modifier =
-                    Modifier
+                    playPauseModifier
                         .size(PlayPauseButtonSize)
                         .pressScale(playPauseInteractionSource, pressedScale = 0.88f),
             ) {

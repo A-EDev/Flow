@@ -124,6 +124,7 @@ fun ChannelScreen(
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    showShorts: Boolean = true,
     viewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -239,7 +240,7 @@ fun ChannelScreen(
                             uiState = uiState,
                             communityUiState = communityUiState,
                             tabStates = tabStates,
-                            showShortsTab = showShortsTab,
+                            showShortsTab = showShorts && showShortsTab,
                             onFilterSelected = viewModel::selectTabFilter,
                             subscribedChannelIds = subscribedChannelIds,
                             channelNote = channelNote.takeIf { notesEnabled },

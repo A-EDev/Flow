@@ -200,7 +200,7 @@ fun LibraryScreen(
     }
 }
 
-private fun LazyListScope.libraryShelves(
+internal fun LazyListScope.libraryShelves(
     viewModel: LibraryViewModel,
     sections: List<LibrarySection>,
     onOpenSection: (LibrarySection) -> Unit,

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 
 /** The thumbnail across the full width with the details beneath: feeds and grids. */
@@ -113,7 +114,7 @@ internal fun VideoCardStacked(
             }
         }
 
-        if (cardPreferences.actionsEnabled || cardPreferences.markWatchedEnabled) {
+        if (!LocalDpadNavigation.current && (cardPreferences.actionsEnabled || cardPreferences.markWatchedEnabled)) {
             VideoCardFeedback(
                 state = state,
                 showRating = cardPreferences.actionsEnabled,

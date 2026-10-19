@@ -28,11 +28,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
+import io.github.aedev.flow.ui.components.shared.dpadDownTo
 import io.github.aedev.flow.ui.theme.ArtworkScrimAffordance
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 
@@ -49,6 +51,7 @@ fun MusicHeroTopBar(
     showTitle: Boolean,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    contentFocus: FocusRequester = FocusRequester.Default,
     actions: @Composable RowScope.(IconButtonColors) -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -75,7 +78,7 @@ fun MusicHeroTopBar(
             }
         },
         navigationIcon = {
-            IconButton(onClick = onBack, colors = iconColors) {
+            IconButton(onClick = onBack, colors = iconColors, modifier = Modifier.dpadDownTo(contentFocus)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(R.string.btn_back),

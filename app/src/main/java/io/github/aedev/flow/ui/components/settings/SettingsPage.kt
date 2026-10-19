@@ -32,6 +32,7 @@ import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import kotlinx.coroutines.flow.first
 
 internal val SettingsMaxContentWidth = FlowMaxContentWidth
@@ -100,6 +101,7 @@ fun SettingsPage(
             if (header != null) {
                 SettingsColumnFrame(Modifier.padding(horizontal = SettingsHorizontalPadding)) { header() }
             }
+            val onTv = LocalDpadNavigation.current
             CompositionLocalProvider(LocalSettingsHighlight provides highlight) {
                 LazyColumn(
                     state = listState,
@@ -109,7 +111,7 @@ fun SettingsPage(
                         PaddingValues(bottom = flowBottomContentPadding(SettingsBottomSpacing)),
                 ) {
                     keys.reset()
-                    SettingsListScope(this, keys).content()
+                    SettingsListScope(this, keys, onTv = onTv).content()
                 }
             }
         }

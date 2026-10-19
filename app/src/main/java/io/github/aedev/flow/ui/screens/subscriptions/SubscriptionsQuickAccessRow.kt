@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
 
 private val RowHorizontalPadding = 12.dp
 private val AvatarSpacing = 12.dp
@@ -56,6 +57,7 @@ internal fun SubscriptionsQuickAccessRow(
         }
 
         LazyRow(
+            modifier = Modifier.dpadFocusGroup(),
             contentPadding =
                 PaddingValues(
                     start = RowHorizontalPadding,
