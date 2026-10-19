@@ -518,8 +518,12 @@
     <string name="search_filter_watch_any">Watched or not</string>
     <string name="search_filter_unwatched">Unwatched</string>
     <string name="search_filter_watched">Watched</string>
-    <string name="search_watch_empty_watched">No watched videos here</string>
-    <string name="search_watch_empty_unwatched">No unwatched videos here</string>
+    <plurals name="search_watch_empty_watched">
+        <item quantity="one">No watched videos</item>
+    </plurals>
+    <plurals name="search_watch_empty_unwatched">
+        <item quantity="one">No unwatched videos</item>
+    </plurals>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
@@ -1213,7 +1217,9 @@
     <string name="category_learning">Learning</string>
     <string name="category_fashion">Fashion</string>
     <string name="categories_chart_source">YouTube Music charts</string>
-    <string name="categories_rate_limited">YouTube is limiting requests right now. Try again in a few minutes.</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="one">YouTube is limiting requests right now. Try again later.</item>
+    </plurals>
     <string name="categories_shelf_see_all">See all</string>
     <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
@@ -3865,7 +3871,6 @@
     </plurals>
     <string name="settings_custom_theme_in_use">In use</string>
     <string name="settings_custom_theme_export_failed">The theme could not be saved</string>
-
     <!-- Your taste -->
     <string name="taste_title">Your taste</string>
     <string name="taste_summary">How Flow sees you, and what shapes your feed</string>
@@ -3923,7 +3928,6 @@
     <string name="diagnostics_engine_queries_none">None yet</string>
     <string name="taste_starter_searches">Starter searches</string>
     <string name="taste_starter_searches_detail">%1$s. Used until Flow learns what you watch.</string>
-
     <!-- Flow Recap -->
     <string name="recap_title">Flow Recap</string>
     <string name="recap_summary">What you watched and listened to, month by month</string>
@@ -4085,7 +4089,6 @@
         <item quantity="one">Imported %1$s, %2$d video</item>
         <item quantity="other">Imported %1$s, %2$d videos</item>
     </plurals>
-
     <!-- Watch later: remove watched videos (#1060) -->
     <string name="content_settings_remove_watched_watch_later_title">Remove watched videos</string>
     <string name="content_settings_remove_watched_watch_later_subtitle">Take videos out of Watch later once you finish them</string>
