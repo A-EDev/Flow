@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.tv.player
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,6 +11,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,8 +26,14 @@ import androidx.compose.material.icons.outlined.ClosedCaption
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalToggleButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -45,16 +53,13 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
-import io.github.aedev.flow.ui.components.shared.FocusLiftDefaults
+import io.github.aedev.flow.ui.components.shared.MediaPlaybackControls
 import io.github.aedev.flow.ui.components.shared.MediaSeekBar
-import io.github.aedev.flow.ui.components.shared.focusLift
+import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlActions
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerPillIconButton
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerTransportControls
 import io.github.aedev.flow.ui.components.videoplayer.controls.ScrimEdge
 import io.github.aedev.flow.ui.components.videoplayer.controls.playerEdgeScrim
-import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import io.github.aedev.flow.ui.theme.PlayerScrimEdgeGradient
@@ -63,10 +68,12 @@ import io.github.aedev.flow.utils.formatDuration
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 private val AvatarSize = 40.dp
-private val UtilityButtonSize = 48.dp
+private val UtilityButtonWidth = 64.dp
+private val UtilityButtonHeight = 56.dp
 private val UtilityIconSize = 24.dp
-private val TransportWidth = 200.dp
+private val TransportWidth = 320.dp
 private val ScrimLeadIn = 120.dp
+private val UpNextLeadIn = 48.dp
 
 /** The panels and toggles the TV control row opens; the play actions come in [PlayerControlActions]. */
 internal class TvPlayerUtilityActions(
@@ -80,19 +87,16 @@ internal class TvPlayerUtilityActions(
 
 /**
  * TV's player controls, built from the phone player's parts: its edge scrim behind everything, the
- * title block, the current chapter, the phone's seek bar and transport, and its round icon buttons
- * for the panels. The focused utility names itself under the row, so each stays a single icon.
+ * title block, the current chapter and the phone's seek bar, then the music player's M3E transport and
+ * a connected group of tonal buttons for the panels.
  */
 @Composable
 internal fun BoxScope.TvPlayerControls(
     visible: Boolean,
     video: Video,
     isPlaying: Boolean,
-    hasEnded: Boolean,
     isBuffering: Boolean,
     isLive: Boolean,
-    hasPrevious: Boolean,
-    hasNext: Boolean,
     subtitlesAvailable: Boolean,
     subtitlesOn: Boolean,
     positionMs: () -> Long,
@@ -119,7 +123,8 @@ internal fun BoxScope.TvPlayerControls(
         exit = fadeOut(motion.fastEffectsSpec()) + slideOutVertically(motion.fastSpatialSpec()) { it / 4 },
     ) {
         // The phone player's edge scrim (D4: the one gradient the redesign allows, in the player). It starts
-        // well above the title so the text sits on enough of it over a bright frame.
+        // well above the title so the text sits on enough of it over a bright frame. The up-next row needs
+        // that height for its cards, so while it is open the title steps aside.
         Column(
             modifier =
                 Modifier
@@ -128,12 +133,12 @@ internal fun BoxScope.TvPlayerControls(
                     .padding(
                         start = dimens.overscanHorizontal,
                         end = dimens.overscanHorizontal,
-                        top = ScrimLeadIn,
+                        top = if (upNextShown) UpNextLeadIn else ScrimLeadIn,
                         bottom = dimens.overscanVertical,
                     ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TvPlayerTitle(video = video, isLive = isLive)
+            if (!upNextShown) TvPlayerTitle(video = video, isLive = isLive)
             val displayedPositionMs = { scrubTargetMs ?: positionMs() }
             val chapterTitle by remember(chapters) {
                 derivedStateOf {
@@ -174,17 +179,14 @@ internal fun BoxScope.TvPlayerControls(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayerTransportControls(
+                MediaPlaybackControls(
                     isPlaying = isPlaying,
-                    hasEnded = hasEnded,
-                    showBufferingSpinner = isBuffering,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
-                    showSkipButtons = true,
-                    showFrameStep = false,
-                    actions = playActions,
+                    isBuffering = isBuffering,
+                    onPreviousClick = playActions.onPrevious,
+                    onPlayPauseToggle = playActions.onPlayPause,
+                    onNextClick = playActions.onNext,
+                    playPauseFocusRequester = playPauseFocusRequester,
                     modifier = Modifier.width(TransportWidth),
-                    playPauseModifier = Modifier.focusRequester(playPauseFocusRequester),
                 )
                 Spacer(Modifier.weight(1f))
                 TvPlayerUtilities(
@@ -272,6 +274,8 @@ private fun TvPlayerTimes(
     }
 }
 
+/** The panels as one connected group of tonal M3E toggle buttons; captions stay checked while they show. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TvPlayerUtilities(
     isLive: Boolean,
@@ -279,48 +283,58 @@ private fun TvPlayerUtilities(
     subtitlesOn: Boolean,
     actions: TvPlayerUtilityActions,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (subtitlesAvailable) {
-            TvPlayerUtility(
-                icon = Icons.Outlined.ClosedCaption,
-                label = stringResource(R.string.filter_subtitles),
-                onClick = actions.onCaptions,
-                active = subtitlesOn,
-            )
+    val utilities =
+        buildList {
+            if (subtitlesAvailable) {
+                add(
+                    TvPlayerUtility(Icons.Outlined.ClosedCaption, R.string.filter_subtitles, actions.onCaptions, subtitlesOn),
+                )
+            }
+            add(TvPlayerUtility(Icons.AutoMirrored.Outlined.PlaylistAdd, R.string.save, actions.onSave))
+            if (isLive) {
+                add(TvPlayerUtility(Icons.Outlined.Forum, R.string.live_chat, actions.onLiveChat))
+            } else {
+                add(TvPlayerUtility(Icons.AutoMirrored.Outlined.Comment, R.string.comments, actions.onComments))
+            }
+            add(TvPlayerUtility(Icons.Outlined.Info, R.string.description, actions.onInfo))
+            add(TvPlayerUtility(Icons.Outlined.Settings, R.string.player_settings, actions.onSettings))
         }
-        TvPlayerUtility(Icons.AutoMirrored.Outlined.PlaylistAdd, stringResource(R.string.save), actions.onSave)
-        if (isLive) {
-            TvPlayerUtility(Icons.Outlined.Forum, stringResource(R.string.live_chat), actions.onLiveChat)
-        } else {
-            TvPlayerUtility(Icons.AutoMirrored.Outlined.Comment, stringResource(R.string.comments), actions.onComments)
+    Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+        utilities.forEachIndexed { index, utility ->
+            TvPlayerUtilityButton(utility = utility, shapes = connectedButtonShapes(index, utilities.size))
         }
-        TvPlayerUtility(Icons.Outlined.Info, stringResource(R.string.description), actions.onInfo)
-        TvPlayerUtility(Icons.Outlined.Settings, stringResource(R.string.player_settings), actions.onSettings)
     }
 }
 
-/** One of the phone player's round buttons; on focus it lifts and its name appears beneath it. */
+private class TvPlayerUtility(
+    val icon: ImageVector,
+    @param:StringRes val labelRes: Int,
+    val onClick: () -> Unit,
+    val checked: Boolean = false,
+)
+
+/** One button of the group; the focused one names itself beneath, so each stays a single icon. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TvPlayerUtility(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    active: Boolean = false,
+private fun TvPlayerUtilityButton(
+    utility: TvPlayerUtility,
+    shapes: ToggleButtonShapes,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    val label = stringResource(utility.labelRes)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        PlayerPillIconButton(
-            onClick = onClick,
-            icon = icon,
-            contentDescription = label,
-            buttonSize = UtilityButtonSize,
-            iconSize = UtilityIconSize,
+        ToggleButton(
+            checked = utility.checked,
+            onCheckedChange = { utility.onClick() },
+            shapes = shapes,
+            colors = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors(),
+            contentPadding = PaddingValues(0.dp),
             interactionSource = interactionSource,
-            containerColor = if (active) MaterialTheme.colorScheme.primary else PlayerScrimAffordance,
-            contentColor = if (active) MaterialTheme.colorScheme.onPrimary else PlayerScrimContent,
-            modifier = Modifier.focusLift(interactionSource, FocusLiftDefaults.SMALL_SCALE),
-        )
+            modifier = Modifier.size(width = UtilityButtonWidth, height = UtilityButtonHeight),
+        ) {
+            Icon(imageVector = utility.icon, contentDescription = label, modifier = Modifier.size(UtilityIconSize))
+        }
         Text(
             text = if (focused) label else "",
             style = MaterialTheme.typography.labelMedium,

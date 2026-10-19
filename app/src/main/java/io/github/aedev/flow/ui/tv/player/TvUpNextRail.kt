@@ -3,7 +3,6 @@ package io.github.aedev.flow.ui.tv.player
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
@@ -22,7 +21,10 @@ import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import io.github.aedev.flow.ui.tv.focus.ProvideTvRowPivot
 
-private val UpNextCardWidth = 184.dp
+/** Three cards across and the edge of a fourth, so the row reads as one that scrolls on. */
+private const val UP_NEXT_CARD_FRACTION = 0.31f
+
+private val UpNextCardSpacing = 16.dp
 
 /**
  * The row under the player controls: the rest of the queue when one is playing, otherwise the related
@@ -61,15 +63,16 @@ internal fun TvUpNextRail(
             ProvideTvRowPivot {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth().dpadFocusGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(UpNextCardSpacing),
                 ) {
                     itemsIndexed(videos, key = { index, video -> "${video.id}_$index" }) { index, video ->
                         MediaVideoCard(
                             video = video,
                             onClick = { onVideoClick(video) },
+                            useInternalPadding = false,
                             modifier =
                                 Modifier
-                                    .width(UpNextCardWidth)
+                                    .fillParentMaxWidth(UP_NEXT_CARD_FRACTION)
                                     .then(if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier),
                         )
                     }
