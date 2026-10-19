@@ -490,6 +490,9 @@ class EnhancedPlayerManager private constructor() {
     private val _playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent: SharedFlow<Unit> = _playbackAbandonedEvent.asSharedFlow()
 
+    private val _decoderFailureEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val decoderFailureEvent: SharedFlow<Unit> = _decoderFailureEvent.asSharedFlow()
+
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
 
@@ -622,6 +625,7 @@ class EnhancedPlayerManager private constructor() {
                 isPlayingDeviceFile = { currentLocalFilePath != null },
                 onStreamExpired = { onStreamsDenied() },
                 onPlaybackAbandoned = { if (!skipAbandonedVideo()) scope.launch { _playbackAbandonedEvent.emit(Unit) } },
+                onDecoderGaveUp = { scope.launch { _decoderFailureEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
                 getFailedStreamUrls = {
                     qualityManager?.let { qm ->

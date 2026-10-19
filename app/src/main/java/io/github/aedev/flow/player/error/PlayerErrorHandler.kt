@@ -45,6 +45,7 @@ class PlayerErrorHandler(
     private val onPlaybackShutdown: () -> Unit,
     private val onStreamExpired: () -> Unit,
     private val onPlaybackAbandoned: () -> Unit,
+    private val onDecoderGaveUp: () -> Unit,
     private val onGatedCodecFallback: (Long) -> Boolean,
     private val getFailedStreamUrls: () -> Set<String>,
     private val markStreamFailed: (String) -> Unit,
@@ -426,6 +427,7 @@ class PlayerErrorHandler(
                 error = appContext.getString(R.string.error_playback_device, error.message.orEmpty()),
                 isPlaying = false,
             )
+        onDecoderGaveUp()
         return false
     }
 
