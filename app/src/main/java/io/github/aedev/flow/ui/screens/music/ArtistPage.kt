@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +62,7 @@ import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.dpadDownTo
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
@@ -108,6 +111,7 @@ fun ArtistPage(
     onStartRadio: (MusicTrack) -> Unit = {},
 ) {
     val scrollState = rememberLazyListState()
+    val contentFocus = remember { FocusRequester() }
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -176,8 +180,10 @@ fun ArtistPage(
                     title = artistDetails.name,
                     showTitle = showBarTitle,
                     onBack = onBackClick,
+                    contentFocus = contentFocus,
                 ) { iconColors ->
                     IconButton(
+                        modifier = Modifier.dpadDownTo(contentFocus),
                         onClick = {
                             clipboardManager.setText(AnnotatedString("https://music.youtube.com/channel/${artistDetails.channelId}"))
                             Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
@@ -195,7 +201,7 @@ fun ArtistPage(
             LazyColumn(
                 state = scrollState,
                 contentPadding = PaddingValues(bottom = flowBottomContentPadding(32.dp)),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().focusRequester(contentFocus),
             ) {
                 item(key = "hero") {
                     val topTracks = artistDetails.topTracks

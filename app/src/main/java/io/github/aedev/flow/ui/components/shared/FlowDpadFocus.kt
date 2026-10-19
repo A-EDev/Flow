@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -75,6 +76,34 @@ fun Modifier.focusLift(
  */
 @Composable
 fun Modifier.skipDpadFocus(): Modifier = if (LocalDpadNavigation.current) focusProperties { canFocus = false } else this
+
+/**
+ * Sends Down from a button on a bar laid over scrolling content into [target], that content. The
+ * content runs under the bar, so its focus area starts above the bar's buttons and the D-pad finds
+ * nothing below them. A no-op unless [LocalDpadNavigation] is on.
+ */
+@Composable
+fun Modifier.dpadDownTo(target: FocusRequester): Modifier = if (LocalDpadNavigation.current) focusProperties { down = target } else this
+
+/**
+ * Lets a remote reach a shelf's full-width header from the row of cards under it. The D-pad picks the
+ * nearest item by centre, and a card always lines up better with the cards of the next shelf than with
+ * a header spanning the page, so the header was skipped both ways. Down into the row from above stops
+ * at [header] first, and Up out of the row goes to it. A no-op unless [LocalDpadNavigation] is on.
+ */
+@Composable
+fun Modifier.dpadShelfRow(
+    header: FocusRequester,
+    headerHasFocus: () -> Boolean,
+): Modifier =
+    if (LocalDpadNavigation.current) {
+        focusProperties {
+            onEnter = { if (requestedFocusDirection == FocusDirection.Down && !headerHasFocus()) header.requestFocus() }
+            onExit = { if (requestedFocusDirection == FocusDirection.Up) header.requestFocus() }
+        }.focusGroup()
+    } else {
+        this
+    }
 
 /**
  * Runs [onMenu] when the remote's Menu key is released while this item or something inside it holds

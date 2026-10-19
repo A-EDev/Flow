@@ -139,9 +139,11 @@ internal fun MusicCollectionHeaderPane(
         modifier = modifier.fillMaxSize().padding(start = 16.dp, bottom = 16.dp + LocalFlowBottomInsets.current.navigationBottom),
     ) {
         Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CollectionArtwork(state.artworkUrl, Modifier.fillMaxWidth())
-            CollectionTitleBlock(state, actions, centered = false)
-            Spacer(Modifier.weight(1f))
+            // The cover gives way when the pane is short, as on a TV, so the actions under it stay on screen.
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CollectionArtwork(state.artworkUrl, Modifier.weight(1f, fill = false))
+                CollectionTitleBlock(state, actions, centered = false)
+            }
             CollectionSecondaryActions(state, actions)
             CollectionPrimaryActions(actions)
         }

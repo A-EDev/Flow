@@ -23,9 +23,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -37,6 +43,7 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShimmerBone
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
+import io.github.aedev.flow.ui.components.shared.dpadShelfRow
 
 private const val PLACEHOLDER_CARD_COUNT = 2
 private const val PLACEHOLDER_STAGGER_MS = 120
@@ -90,6 +97,8 @@ internal fun LibraryShelf(
     horizontalInset: Dp = 16.dp,
     content: LazyListScope.(cardWidth: Dp) -> Unit,
 ) {
+    val headerFocus = remember { FocusRequester() }
+    var headerHasFocus by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val cardWidth = libraryShelfCardWidth(maxWidth)
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -98,10 +107,19 @@ internal fun LibraryShelf(
                 icon = icon,
                 showChevron = onTitleClick != null,
                 horizontalInset = horizontalInset,
-                modifier = if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier,
+                modifier =
+                    if (onTitleClick != null) {
+                        Modifier
+                            .focusRequester(headerFocus)
+                            .onFocusChanged { headerHasFocus = it.isFocused }
+                            .clickable(onClick = onTitleClick)
+                    } else {
+                        Modifier
+                    },
             )
 
             LazyRow(
+                modifier = if (onTitleClick != null) Modifier.dpadShelfRow(headerFocus) { headerHasFocus } else Modifier,
                 contentPadding = PaddingValues(horizontal = horizontalInset),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
