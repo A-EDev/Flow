@@ -6,6 +6,7 @@ import org.w3c.dom.Node
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.math.roundToLong
 
 object TTMLParser {
     private const val TTML_PARAMETER_NS = "http://www.w3.org/ns/ttml#parameter"
@@ -544,38 +545,33 @@ object TTMLParser {
         return result
     }
 
+    /**
+     * TTML offset times ("9.446s", "9446ms"), clock times ("0:01:02.345") and the shapes Apple
+     * Music TTML actually uses: bare seconds ("9.446") and minutes with seconds ("1:02.345").
+     */
     private fun parseTime(timeStr: String?): Long {
-        if (timeStr.isNullOrBlank()) return 0L
-        try {
-            if (timeStr.endsWith("ms")) {
-                return timeStr.replace("ms", "").toLongOrNull() ?: 0L
-            }
-            if (timeStr.endsWith("s")) {
-                val secStr = timeStr.replace("s", "")
-                val secDouble = secStr.toDoubleOrNull() ?: 0.0
-                return (secDouble * 1000).toLong()
-            }
-            if (timeStr.contains(":")) {
-                val parts = timeStr.trim().split(":")
-                if (parts.size == 3) {
-                    val h = parts[0].toLongOrNull() ?: 0L
-                    val m = parts[1].toLongOrNull() ?: 0L
-
-                    val sParts = parts[2].split(".")
-                    val s = sParts[0].toLongOrNull() ?: 0L
-                    var ms = 0L
-                    if (sParts.size > 1) {
-                        var msStr = sParts[1]
-                        if (msStr.length > 3) msStr = msStr.substring(0, 3)
-                        while (msStr.length < 3) msStr += "0"
-                        ms = msStr.toLongOrNull() ?: 0L
-                    }
-                    return (h * 3600000) + (m * 60000) + (s * 1000) + ms
+        val time = timeStr?.trim().orEmpty()
+        if (time.isEmpty()) return 0L
+        val seconds =
+            when {
+                time.endsWith("ms") -> {
+                    time.removeSuffix("ms").toDoubleOrNull()?.div(1000)
                 }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return 0L
+
+                time.endsWith("s") -> {
+                    time.removeSuffix("s").toDoubleOrNull()
+                }
+
+                ':' in time -> {
+                    val parts = time.split(':').map { it.toDoubleOrNull() ?: return 0L }
+                    if (parts.size > 3) return 0L
+                    parts.fold(0.0) { total, part -> total * 60 + part }
+                }
+
+                else -> {
+                    time.toDoubleOrNull()
+                }
+            } ?: return 0L
+        return (seconds * 1000).roundToLong()
     }
 }
