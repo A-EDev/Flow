@@ -98,12 +98,20 @@ fun TvShell(
         }
     }
 
+    // Navigating to a root with restoreState brings back the pages last opened over it, so the root the
+    // remote is already under, and the start root (always at the bottom of the stack), are popped to instead.
     fun selectRoot(route: String) {
-        if (route == currentRoot && !isOnDetailRoute) {
-            TabScrollEventBus.emitScrollToTop(route)
-            return
-        }
-        navigateToRoot(route)
+        val popped =
+            when {
+                route == currentRoute -> {
+                    TabScrollEventBus.emitScrollToTop(route)
+                    true
+                }
+                route == currentRoot -> navController.popBackStack(route, inclusive = false)
+                route == navigation.startTab.route -> navController.popBackStack(route, inclusive = false, saveState = true)
+                else -> false
+            }
+        if (!popped) navigateToRoot(route)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
