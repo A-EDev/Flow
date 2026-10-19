@@ -1,160 +1,114 @@
 package io.github.aedev.flow.data.repository
 
-import android.util.LruCache
-import com.google.gson.Gson
 import io.github.aedev.flow.data.model.DeArrowContent
-import io.github.aedev.flow.data.model.DeArrowResult
-import io.github.aedev.flow.network.AppProxyManager
-import kotlinx.coroutines.Dispatchers
+import io.github.aedev.flow.di.NetworkIoDispatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- * Fetches DeArrow branding data from the SponsorBlock API.
+ * DeArrow branding (community titles and thumbnails, https://dearrow.ajay.app/) per video.
  *
- * DeArrow replaces clickbait titles and thumbnails with community-submitted,
- * more accurate alternatives. See https://dearrow.ajay.app/
- *
- * Results are cached in-memory (LRU, 200 entries) to prevent redundant network calls.
+ * A video nobody has submitted for answers 404 with a usable body (the random frame time), so 404
+ * is cached like any answer. One request per video per [TTL_MS]: concurrent asks share a request
+ * and [MAX_PARALLEL] keeps a fast scroll from filling the network pool.
  */
-object DeArrowRepository {
-    private val client: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
-    private val gson = Gson()
+@Singleton
+class DeArrowRepository internal constructor(
+    private val client: OkHttpClient,
+    private val dispatcher: CoroutineDispatcher,
+    private val clockMs: () -> Long,
+) {
+    @Inject
+    constructor(
+        client: OkHttpClient,
+        @NetworkIoDispatcher dispatcher: CoroutineDispatcher,
+    ) : this(client, dispatcher, { System.nanoTime() / 1_000_000 })
 
-    private const val BRANDING_BASE_URL = "https://sponsor.ajay.app/api/branding"
-    private const val THUMBNAIL_BASE_URL = "https://dearrow-thumb.ajay.app/api/v1/getThumbnail"
-
-    /**
-     * LRU cache mapping videoId -> DeArrowResult (null = fetched but no useful data).
-     * Capacity: 200 entries ≈ a few home page loads.
-     */
-    private val cache = LruCache<String, Optional<DeArrowResult>>(200)
-
-    /** Wrapper to distinguish "cache miss" from "cached null" */
-    private class Optional<T>(
-        val value: T?,
+    private class Entry(
+        val content: DeArrowContent?,
+        val atMs: Long,
     )
 
-    /**
-     * Returns the DeArrow result for [videoId], or null if:
-     *  - DeArrow has no data for this video
-     *  - The network request failed
-     *
-     * Results are cached so the same video is only fetched once per session.
-     */
-    suspend fun getDeArrowResult(videoId: String): DeArrowResult? =
-        withContext(Dispatchers.IO) {
-            // Cache hit
-            cache.get(videoId)?.let { return@withContext it.value }
-
-            try {
-                val request =
-                    Request
-                        .Builder()
-                        .url("$BRANDING_BASE_URL?videoID=$videoId")
-                        .header("User-Agent", "FlowYouTube/1.0")
-                        .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        return@withContext null
-                    }
-                    val body = response.body?.string()
-                    if (body.isNullOrBlank()) {
-                        cache.put(videoId, Optional(null))
-                        return@withContext null
-                    }
-                    val parsed = parseResponse(body, videoId)
-                    cache.put(videoId, Optional(parsed))
-                    return@withContext parsed
-                }
-            } catch (e: Exception) {
-                return@withContext null
-            }
+    private val answers =
+        object : LinkedHashMap<String, Entry>(CAPACITY, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?) = size > CAPACITY
         }
+    private val inFlight = ConcurrentHashMap<String, CompletableDeferred<DeArrowContent?>>()
+    private val permits = Semaphore(MAX_PARALLEL)
 
-    fun getCachedDeArrowResult(videoId: String): DeArrowResult? = cache.get(videoId)?.value
+    /** What a request already answered, for a card's first frame. */
+    fun cached(videoId: String): DeArrowContent? = fresh(videoId)?.content
 
-    private fun parseResponse(
-        json: String,
-        videoId: String,
-    ): DeArrowResult? =
+    suspend fun branding(videoId: String): DeArrowContent? {
+        fresh(videoId)?.let { return it.content }
+        val mine = CompletableDeferred<DeArrowContent?>()
+        inFlight.putIfAbsent(videoId, mine)?.let { return it.await() }
         try {
-            val content = gson.fromJson(json, DeArrowContent::class.java)
-            extractResult(content, videoId)
-        } catch (e: Exception) {
-            null
+            val content = permits.withPermit { fetch(videoId) }
+            mine.complete(content)
+            return content
+        } catch (e: CancellationException) {
+            mine.complete(null)
+            throw e
+        } finally {
+            inFlight.remove(videoId, mine)
         }
+    }
 
-    /**
-     * Picks the best title and thumbnail from [content]:
-     * - Prefers locked entries (manually verified) over voted ones
-     * - Ignores entries with negative votes (downvoted)
-     * - Ignores "original" entries (these just mean "keep as-is")
-     */
-    private fun extractResult(
-        content: DeArrowContent,
-        videoId: String,
-    ): DeArrowResult? {
-        val title =
-            content.titles
-                .filter { !it.original && (it.votes >= 0 || it.locked) }
-                .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
-                ?.title
-                ?.let(::stripCaseMarkers)
-
-        val bestThumb =
-            content.thumbnails
-                .filter { !it.original && (it.votes >= 0 || it.locked) }
-                .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
-
-        val thumbnailUrl =
-            when {
-                bestThumb?.thumbnail != null -> {
-                    bestThumb.thumbnail
+    private suspend fun fetch(videoId: String): DeArrowContent? =
+        withContext(dispatcher) {
+            val url =
+                BRANDING_URL
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addQueryParameter("videoID", videoId)
+                    .build()
+            try {
+                client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+                    if (!response.isSuccessful && response.code != 404) return@use null
+                    parse(response.body.string()).also { store(videoId, it) }
                 }
-
-                bestThumb?.timestamp != null -> {
-                    "$THUMBNAIL_BASE_URL?videoID=$videoId&time=${bestThumb.timestamp}"
-                }
-
-                else -> {
-                    null
-                }
+            } catch (e: IOException) {
+                null
             }
-
-        return if (title == null && thumbnailUrl == null) {
-            null
-        } else {
-            DeArrowResult(title = title, thumbnailUrl = thumbnailUrl)
         }
+
+    @Synchronized
+    private fun fresh(videoId: String): Entry? {
+        val entry = answers[videoId] ?: return null
+        if (clockMs() - entry.atMs < TTL_MS) return entry
+        answers.remove(videoId)
+        return null
     }
 
-    /** Removes a cached entry, forcing a fresh fetch next time. */
-    fun invalidate(videoId: String) {
-        cache.remove(videoId)
+    @Synchronized
+    private fun store(
+        videoId: String,
+        content: DeArrowContent?,
+    ) {
+        answers[videoId] = Entry(content, clockMs())
     }
 
-    /** Clears the entire in-memory cache. */
-    fun clearCache() {
-        cache.evictAll()
+    internal companion object {
+        const val BRANDING_URL = "https://sponsor.ajay.app/api/branding"
+        const val CAPACITY = 1_000
+        const val MAX_PARALLEL = 4
+        const val TTL_MS = 60 * 60 * 1000L
+
+        private val json = Json { ignoreUnknownKeys = true }
+
+        fun parse(body: String): DeArrowContent? = runCatching { json.decodeFromString<DeArrowContent>(body) }.getOrNull()
     }
 }
-
-/**
- * DeArrow submitters prefix a word with `>` to keep its casing when titles are auto-formatted; the
- * marker is formatting metadata, never part of the title.
- */
-internal fun stripCaseMarkers(title: String): String =
-    buildString(title.length) {
-        var atWordStart = true
-        title.forEachIndexed { i, c ->
-            val isMarker =
-                c == '>' && atWordStart &&
-                    title.getOrNull(i + 1)?.isWhitespace() == false
-            if (!isMarker) append(c)
-            atWordStart = c.isWhitespace()
-        }
-    }

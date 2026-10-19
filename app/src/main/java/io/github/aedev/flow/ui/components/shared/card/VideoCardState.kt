@@ -20,7 +20,9 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.OriginalTitleRepository
+import io.github.aedev.flow.ui.components.LocalDeArrow
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.LocalThumbnailQuality
@@ -118,6 +120,7 @@ val LocalVideoCardActions = staticCompositionLocalOf { VideoCardActions.None }
 @Composable
 fun ProvideVideoCardState(
     originalTitles: OriginalTitleRepository?,
+    deArrow: DeArrowRepository?,
     quickActions: QuickActionsViewModel = sharedQuickActionsViewModel(),
     content: @Composable () -> Unit,
 ) {
@@ -177,6 +180,7 @@ fun ProvideVideoCardState(
         LocalVideoCardActions provides actions,
         LocalThumbnailQuality provides thumbnailQuality,
         LocalOriginalTitles provides originalTitles,
+        LocalDeArrow provides deArrow,
         content = content,
     )
 }
@@ -233,7 +237,7 @@ internal class VideoCardState(
 @Composable
 internal fun rememberVideoCardState(video: Video): VideoCardState {
     val preferences = LocalVideoCardPreferences.current
-    val deArrow = rememberDeArrowResult(video.id, preferences.deArrowEnabled)
+    val deArrow = rememberDeArrowResult(video, preferences.deArrowEnabled, useRandomFrame = true)
     val originalTitle = rememberOriginalTitle(video.id, preferences.originalTitlesEnabled && deArrow?.title == null)
     val collaborators = rememberCollaboratorItems(video)
     val channelName = rememberCollaboratorChannelDisplayName(video.channelName, collaborators)

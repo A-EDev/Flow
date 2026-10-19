@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
@@ -41,7 +40,7 @@ internal fun rememberPlayerVideoMetadata(
     deArrowEnabled: Boolean,
     context: Context,
 ): PlayerVideoMetadata {
-    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled && !LocalMediaIds.isLocal(video.id))
+    val deArrowResult = rememberDeArrowResult(video, deArrowEnabled, useRandomFrame = false)
     val cachedOriginal = rememberKnownOriginalTitle(video.id, LocalVideoCardPreferences.current.originalTitlesEnabled)
     val resolvedVideoTitle = deArrowResult?.title ?: cachedOriginal ?: video.title
     val needsCollaboratorResolution = video.needsCollaboratorResolution()
