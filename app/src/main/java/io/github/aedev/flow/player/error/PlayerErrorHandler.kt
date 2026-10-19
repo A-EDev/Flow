@@ -2,9 +2,11 @@ package io.github.aedev.flow.player.error
 
 import android.content.Context
 import android.util.Log
+import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -76,6 +78,8 @@ class PlayerErrorHandler(
             setRecoveryState = setRecoveryState,
             reloadPlaybackManager = reloadPlaybackManager,
         )
+
+    private val decoderRecovery = VideoDecoderRecoveryPolicy()
 
     // ── Public entry point ────────────────────────────────────────────────────
 
@@ -211,7 +215,7 @@ class PlayerErrorHandler(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
             -> {
-                handleDecoderError(error)
+                if (handleDecoderError(error, player)) return true
             }
 
             // ── DRM ────────────────────────────────────────────────────────
@@ -249,8 +253,13 @@ class PlayerErrorHandler(
         stateFlow.value = stateFlow.value.copy(isBuffering = true, error = null)
     }
 
-    fun resetExpiryCounter() {
+    fun resetForNewVideo() {
         denialRecovery.resetExpiryCounter()
+        decoderRecovery.reset()
+    }
+
+    fun onFirstFrameRendered() {
+        decoderRecovery.onFirstFrameRendered()
     }
 
     fun hasGivenUp(): Boolean = denialRecovery.hasGivenUp()
@@ -368,7 +377,11 @@ class PlayerErrorHandler(
         reloadPlaybackManager()
     }
 
-    private fun handleDecoderError(error: PlaybackException) {
+    /** Returns true when the error was recovered in place and needs no notification. */
+    private fun handleDecoderError(
+        error: PlaybackException,
+        player: ExoPlayer?,
+    ): Boolean {
         Log.e(TAG, "Decoder/renderer error: ${error.errorCode}")
         PlayerDiagnostics.logError(TAG, "Decoder error (${error.errorCode}): ${error.message}", error.cause)
 
@@ -391,8 +404,19 @@ class PlayerErrorHandler(
                 PlayerDiagnostics.logInfo(TAG, "Switched to backup audio track: ${alternativeAudio.format?.mimeType}")
                 setRecoveryState()
                 reloadPlaybackManager()
-                return
+                return false
             }
+        }
+
+        if (player != null &&
+            decoderRecovery.onDecoderError(error.errorCode, error.isFormatHandled()) ==
+            VideoDecoderRecoveryPolicy.Decision.REPREPARE
+        ) {
+            Log.w(TAG, "Decoder error — re-preparing in place at ${player.currentPosition}ms")
+            PlayerDiagnostics.logWarning(TAG, "Decoder failed (${error.errorCode}); re-preparing in place")
+            setRecoveryState()
+            player.prepare()
+            return true
         }
 
         Log.e(TAG, "Decoder error — no alternatives available, stopping playback")
@@ -402,6 +426,12 @@ class PlayerErrorHandler(
                 error = appContext.getString(R.string.error_playback_device, error.message.orEmpty()),
                 isPlaying = false,
             )
+        return false
+    }
+
+    private fun PlaybackException.isFormatHandled(): Boolean {
+        val exo = this as? ExoPlaybackException ?: return true
+        return exo.type != ExoPlaybackException.TYPE_RENDERER || exo.rendererFormatSupport == C.FORMAT_HANDLED
     }
 
     private fun handleDrmError(error: PlaybackException) {

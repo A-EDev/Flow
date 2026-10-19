@@ -928,6 +928,7 @@ class EnhancedPlayerManager private constructor() {
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
                     surfaceManager?.setSurfaceReady(true)
+                    errorHandler?.onFirstFrameRendered()
                     surfaceFirstFrameWatchdog?.cancel()
                     surfaceFirstFrameWatchdog = null
                     pendingSurfaceFirstFrameStartedAtMs.takeIf { it > 0L }?.let { startedAtMs ->
@@ -1224,7 +1225,7 @@ class EnhancedPlayerManager private constructor() {
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
-        errorHandler?.resetExpiryCounter()
+        errorHandler?.resetForNewVideo()
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
         sabrPreferred = false
