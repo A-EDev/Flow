@@ -3,20 +3,25 @@ package io.github.aedev.flow.ui.tv.navigation
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.music.model.toVideo
+import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.screens.channel.ChannelScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
+import io.github.aedev.flow.ui.screens.library.DownloadsScreen
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
@@ -48,6 +53,14 @@ fun TvNavHost(
 ) {
     val openChannel: (String) -> Unit = { channelRef ->
         navController.navigate(TvRoutes.channel(channelRef))
+    }
+    val downloadsTitle = stringResource(R.string.library_downloads_label)
+    val playDownloadedVideos: (List<DownloadedVideo>, Int) -> Unit = { videos, index ->
+        onPlayPlaylist(videos.map { it.video }, index, downloadsTitle, false)
+    }
+    val playDownloadedMusic: (List<DownloadedTrack>, Int) -> Unit = { tracks, index ->
+        val queue = tracks.map { it.track }
+        musicPlayerViewModel.loadAndPlayTrack(queue[index], queue, downloadsTitle)
     }
 
     NavHost(
@@ -95,8 +108,25 @@ fun TvNavHost(
                 onOpenPlaylists = { kind -> navController.navigate(TvRoutes.playlists(kind)) },
                 onOpenPlaylist = { navController.navigate(TvRoutes.playlist(it)) },
                 onOpenMusicPlaylist = { navController.navigate(TvRoutes.musicCollection(it)) },
+                onOpenDownloads = { navController.navigate(TvRoutes.DOWNLOADS) },
+                onDownloadedVideoClick = playDownloadedVideos,
+                onDownloadedMusicClick = playDownloadedMusic,
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        composable(TvRoutes.DOWNLOADS) {
+            TvScreenFrame {
+                DownloadsScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onVideoClick = playDownloadedVideos,
+                    onMusicClick = playDownloadedMusic,
+                    onOpenCollection = { summary ->
+                        val id = summary.collection.id
+                        navController.navigate(if (summary.collection.kind.isMusic) TvRoutes.musicCollection(id) else TvRoutes.playlist(id))
+                    },
+                    onHomeClick = { onSelectRoot(startRoute) },
+                )
+            }
         }
         composable(TvRoutes.HISTORY) {
             TvScreenFrame {

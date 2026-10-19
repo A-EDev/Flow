@@ -9,12 +9,11 @@ import io.github.aedev.flow.ui.components.settings.SettingsDestination
 internal object DestinationIndex {
     private const val KEY_PREFIX = "dest."
 
-    /** Pages about phone hardware or features TV leaves out: widgets, the navigation bar, downloads, notifications. */
+    /** Pages about phone hardware or features TV leaves out: widgets, the navigation bar, local media, notifications. */
     private val notOnTv =
         setOf(
             SettingsDestination.WIDGETS,
             SettingsDestination.NAVIGATION_BAR,
-            SettingsDestination.DOWNLOADS,
             SettingsDestination.LOCAL_MEDIA,
             SettingsDestination.NOTIFICATIONS,
         )

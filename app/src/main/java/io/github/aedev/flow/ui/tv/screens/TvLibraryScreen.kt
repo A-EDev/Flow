@@ -16,7 +16,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.library.LibrarySection
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaKind
@@ -25,8 +28,8 @@ import io.github.aedev.flow.ui.screens.library.libraryShelves
 import io.github.aedev.flow.ui.screens.library.visibleContentSections
 import io.github.aedev.flow.ui.tv.components.TvScreenFrame
 
-/** Downloads, local media and saved Shorts stay off TV, as the July redesign decided. */
-private val NOT_ON_TV = setOf(LibrarySection.DOWNLOADS, LibrarySection.LOCAL_MEDIA, LibrarySection.SAVED_SHORTS)
+/** Local media and saved Shorts stay off TV, as the July redesign decided. */
+private val NOT_ON_TV = setOf(LibrarySection.LOCAL_MEDIA, LibrarySection.SAVED_SHORTS)
 
 private val ShelfSpacing = 24.dp
 
@@ -42,6 +45,9 @@ fun TvLibraryScreen(
     onOpenPlaylists: (MediaKind?) -> Unit,
     onOpenPlaylist: (String) -> Unit,
     onOpenMusicPlaylist: (String) -> Unit,
+    onOpenDownloads: () -> Unit,
+    onDownloadedVideoClick: (List<DownloadedVideo>, Int) -> Unit,
+    onDownloadedMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -52,7 +58,7 @@ fun TvLibraryScreen(
     TvScreenFrame(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = PaddingValues(bottom = flowBottomContentPadding(extra = 24.dp)),
             verticalArrangement = Arrangement.spacedBy(ShelfSpacing),
         ) {
             val hidden = hiddenSections ?: return@LazyColumn
@@ -78,6 +84,7 @@ fun TvLibraryScreen(
                         LibrarySection.WATCH_LATER -> onOpenPlaylist(PlaylistRepository.WATCH_LATER_ID)
                         LibrarySection.LIKED_VIDEOS -> onOpenPlaylist(PlaylistRepository.LIKED_VIDEOS_ID)
                         LibrarySection.LIKED_MUSIC -> onOpenMusicPlaylist(PlaylistRepository.LIKED_MUSIC_ID)
+                        LibrarySection.DOWNLOADS -> onOpenDownloads()
                         else -> Unit
                     }
                 },
@@ -85,8 +92,8 @@ fun TvLibraryScreen(
                 onMusicClick = onMusicClick,
                 onPlaylistClick = onOpenPlaylist,
                 onMusicPlaylistClick = onOpenMusicPlaylist,
-                onDownloadedVideoClick = { _, _ -> },
-                onDownloadedMusicClick = { _, _ -> },
+                onDownloadedVideoClick = onDownloadedVideoClick,
+                onDownloadedMusicClick = onDownloadedMusicClick,
                 onSavedShortClick = onVideoClick,
             )
         }

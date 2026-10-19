@@ -26,6 +26,8 @@ object TvRoutes {
 
     const val HISTORY = "history"
 
+    const val DOWNLOADS = "downloads"
+
     const val PLAYLISTS_KIND_ARG = "kind"
     const val PLAYLISTS = "playlists?kind={$PLAYLISTS_KIND_ARG}"
 
