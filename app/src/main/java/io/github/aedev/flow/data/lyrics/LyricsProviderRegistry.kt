@@ -19,6 +19,7 @@ class LyricsProviderRegistry(
                     KuGouLyricsProvider(client),
                     PaxsenixLyricsProvider(client),
                     LrcLibLyricsProvider(client),
+                    UnisonLyricsProvider(client),
                     YouTubeSubtitleLyricsProvider(),
                     YouTubeLyricsProvider(),
                 )

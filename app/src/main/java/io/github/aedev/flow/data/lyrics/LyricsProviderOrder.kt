@@ -15,6 +15,7 @@ internal object LyricsProviderOrder {
             "KuGou",
             "Paxsenix",
             "LrcLib",
+            UnisonLyricsProvider.NAME,
             "YouTubeSubtitle",
             "YouTube",
         )
