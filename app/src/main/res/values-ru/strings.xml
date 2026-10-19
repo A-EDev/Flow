@@ -2737,7 +2737,6 @@
     <string name="note_copy_text">Скопировать текст</string>
     <string name="note_copied">Примечание скопировано</string>
     <string name="note_deleted">Примечание удалено</string>
-    <string name="note_unknown_video"/>
     <string name="note_video_title">Примечание к этому видео</string>
     <string name="content_settings_notes_title">Личные примечания</string>
     <string name="content_settings_notes_subtitle">Создать личные примечания к каналам и видео</string>
