@@ -49,6 +49,14 @@ internal object IntegrationsIndex {
             keywords = R.string.settings_keywords_dearrow,
             destination = page,
         )
+    val deArrowRandomFrame =
+        SettingEntry(
+            key = "integrations.dearrow.random_frame",
+            title = R.string.dearrow_random_frame,
+            summary = R.string.dearrow_random_frame_subtitle,
+            section = R.string.player_settings_dearrow,
+            destination = page,
+        )
     val deArrowBadge =
         SettingEntry(
             key = "integrations.dearrow.badge",
@@ -84,5 +92,5 @@ internal object IntegrationsIndex {
             destination = page,
         )
 
-    val all = listOf(sponsorBlock, segments, contribute, userId, deArrow, deArrowBadge, dislikes, discord, discordAccount)
+    val all = listOf(sponsorBlock, segments, contribute, userId, deArrow, deArrowRandomFrame, deArrowBadge, dislikes, discord, discordAccount)
 }

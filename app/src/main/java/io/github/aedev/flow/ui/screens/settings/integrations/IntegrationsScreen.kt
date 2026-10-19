@@ -75,6 +75,7 @@ internal fun IntegrationsScreen(
         }
         group(key = "integrations.dearrow.group", header = R.string.player_settings_dearrow) {
             switch(IntegrationsIndex.deArrow, viewModel.deArrow, viewModel::setDeArrow, icon = Icons.Outlined.AutoFixHigh)
+            switch(IntegrationsIndex.deArrowRandomFrame, viewModel.deArrowRandomFrame, viewModel::setDeArrowRandomFrame, enabled = deArrow)
             switch(IntegrationsIndex.deArrowBadge, viewModel.deArrowBadge, viewModel::setDeArrowBadge, enabled = deArrow)
         }
         group(key = "integrations.dislikes.group", header = R.string.player_settings_rytd_title) {

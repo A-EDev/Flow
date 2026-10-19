@@ -49,6 +49,7 @@ data class VideoCardPreferences(
     val upcomingReminderIds: Set<String> = emptySet(),
     val showWatchProgress: Boolean = true,
     val originalTitlesEnabled: Boolean = false,
+    val deArrowRandomFrame: Boolean = true,
 )
 
 /**
@@ -149,6 +150,8 @@ fun ProvideVideoCardState(
                 cardPreferences.copy(showWatchProgress = showWatchProgress)
             }.combine(playerPreferences.originalTitles) { cardPreferences, originalTitles ->
                 cardPreferences.copy(originalTitlesEnabled = originalTitles)
+            }.combine(playerPreferences.deArrowRandomFrame) { cardPreferences, randomFrame ->
+                cardPreferences.copy(deArrowRandomFrame = randomFrame)
             }.distinctUntilChanged()
         }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(VideoCardPreferences())
@@ -237,7 +240,7 @@ internal class VideoCardState(
 @Composable
 internal fun rememberVideoCardState(video: Video): VideoCardState {
     val preferences = LocalVideoCardPreferences.current
-    val deArrow = rememberDeArrowResult(video, preferences.deArrowEnabled, useRandomFrame = true)
+    val deArrow = rememberDeArrowResult(video, preferences.deArrowEnabled, preferences.deArrowRandomFrame)
     val originalTitle = rememberOriginalTitle(video.id, preferences.originalTitlesEnabled && deArrow?.title == null)
     val collaborators = rememberCollaboratorItems(video)
     val channelName = rememberCollaboratorChannelDisplayName(video.channelName, collaborators)

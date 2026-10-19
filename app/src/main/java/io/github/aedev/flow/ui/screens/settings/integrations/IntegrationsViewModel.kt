@@ -33,6 +33,7 @@ class IntegrationsViewModel
         val userId = preferences.sbUserId.asState(null)
         val deArrow = preferences.deArrowEnabled.asState(false)
         val deArrowBadge = preferences.deArrowBadgeEnabled.asState(false)
+        val deArrowRandomFrame = preferences.deArrowRandomFrame.asState(true)
         val dislikes = preferences.rytdEnabled.asState(true)
         val discordState = discord.settingsState
 
@@ -77,6 +78,8 @@ class IntegrationsViewModel
         fun setDeArrow(value: Boolean) = write { preferences.setDeArrowEnabled(value) }
 
         fun setDeArrowBadge(value: Boolean) = write { preferences.setDeArrowBadgeEnabled(value) }
+
+        fun setDeArrowRandomFrame(value: Boolean) = write { preferences.setDeArrowRandomFrame(value) }
 
         fun setDislikes(value: Boolean) = write { preferences.setRytdEnabled(value) }
 

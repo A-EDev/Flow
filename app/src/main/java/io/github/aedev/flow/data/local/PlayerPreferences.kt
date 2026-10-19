@@ -256,6 +256,7 @@ class PlayerPreferences(
         // DeArrow
         val DEARROW_ENABLED = booleanPreferencesKey("dearrow_enabled")
         val DEARROW_BADGE_ENABLED = booleanPreferencesKey("dearrow_badge_enabled")
+        val DEARROW_RANDOM_FRAME = booleanPreferencesKey("dearrow_random_frame")
 
         // Notification preferences
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
@@ -1729,6 +1730,17 @@ class PlayerPreferences(
     suspend fun setDeArrowBadgeEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEARROW_BADGE_ENABLED] = enabled
+        }
+    }
+
+    /** DeArrow's own default: a video with no thumbnail submission shows a frame from the video. */
+    val deArrowRandomFrame: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.DEARROW_RANDOM_FRAME] ?: true }
+
+    suspend fun setDeArrowRandomFrame(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEARROW_RANDOM_FRAME] = enabled
         }
     }
 
