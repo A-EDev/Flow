@@ -2647,4 +2647,6 @@
     <string name="search_feature_3d">3D</string>
     <string name="search_feature_location">Локация</string>
     <string name="search_feature_purchased">Приобретено</string>
+    <string name="subscriptions_failed_channels_copy_logs">Копировать логи</string>
+    <string name="content_settings_channel_group_badge_title">Показывать аватар группы на аватарках каналов</string>
 </resources>
