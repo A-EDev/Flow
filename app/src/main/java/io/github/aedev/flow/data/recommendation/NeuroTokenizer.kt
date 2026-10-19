@@ -2935,21 +2935,17 @@ internal class NeuroTokenizer {
      * "Python Engineer"       → ["python"]      (engineer not in list, python is)
      * "Binging with Babish"   → []              (no topic words)
      * "History Matters"       → ["history"]
+     * "央視新聞"               → ["新聞"]        (央視 = a brand, 新聞 = news)
      */
     fun tokenizeChannelName(channelName: String): List<String> {
-        val rawOriginal =
-            NeuroText
-                .fold(channelName)
-                .split(WHITESPACE_REGEX)
-                .map { word -> word.trim { !it.isLetterOrDigit() } }
-                .filter { it.length > 1 }
+        val rawOriginal = nameWords(channelName)
 
         if (rawOriginal.isEmpty()) return emptyList()
 
         if (rawOriginal.size == 1) {
             val word = rawOriginal[0].lowercase()
             val lemma = keyOf(word)
-            return if (lemma in alwaysTopical || word in alwaysTopical) {
+            return if (isChannelTopic(lemma) || isChannelTopic(word)) {
                 listOf(lemma)
             } else {
                 emptyList()
@@ -2962,12 +2958,21 @@ internal class NeuroTokenizer {
             val lemma = keyOf(lower)
 
             when {
-                lemma in alwaysTopical -> topical.add(lemma)
-                lower in alwaysTopical -> topical.add(lower)
+                isChannelTopic(lemma) -> topical.add(lemma)
+                isChannelTopic(lower) -> topical.add(lower)
             }
         }
         return topical.distinct()
     }
+
+    private fun isChannelTopic(word: String): Boolean = word in alwaysTopical || word in NeuroLanguages.channelTopics
+
+    /** Words of a channel name; scripts written without spaces are split by the word breaker. */
+    private fun nameWords(name: String): List<String> =
+        NeuroText
+            .words(NeuroText.fold(name))
+            .map { word -> word.trim { !NeuroText.isWordChar(it) } }
+            .filter { it.length > 1 }
 
     /**
      * Builds a flat list of all meaningful words from the video's title,
@@ -2986,12 +2991,7 @@ internal class NeuroTokenizer {
             .filter { it.length > 1 }
             .forEach { words.add(it) }
 
-        NeuroText
-            .fold(video.channelName)
-            .split(WHITESPACE_REGEX)
-            .map { it.trim { c -> !c.isLetterOrDigit() } }
-            .filter { it.length > 1 }
-            .forEach { words.add(it) }
+        words.addAll(nameWords(video.channelName))
 
         if (!video.description.isNullOrBlank()) {
             video.description

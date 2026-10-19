@@ -41,5 +41,14 @@ class NeuroTextSegmentationTest {
     fun thaiTitlesSplitIntoWords() = assertTopics("สอนเล่นกีตาร์สำหรับมือใหม่", "กีตาร์", "สำหรับ")
 
     @Test
+    fun chineseChannelNamesGiveTheirTopicalWords() {
+        listOf("央視新聞" to "新聞", "央视新闻" to "新闻", "英文教室 科技" to "科技").forEach { (name, topic) ->
+            val topics = tokenizer.tokenizeChannelName(name)
+            assertTrue("$topic not in $topics for \"$name\"", topic in topics)
+        }
+        assertTrue(tokenizer.tokenizeChannelName("小明").isEmpty())
+    }
+
+    @Test
     fun spacedScriptsAreUntouched() = assertTopics("Pixel 10 Pro camera test", "pixel", "camera")
 }
