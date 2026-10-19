@@ -112,6 +112,23 @@ internal object NeuroLanguages {
         }
     }
 
+    private val TOPICAL_LANGUAGES = listOf("zh")
+
+    /**
+     * Words of channel names in scripts written without spaces that name a topic, folded
+     * (`resources/neuro/topical`). English has [NeuroTokenizer]'s own list. Read once per process.
+     */
+    val channelTopics: Set<String> by lazy {
+        buildSet {
+            TOPICAL_LANGUAGES.forEach { language ->
+                val stream = NeuroLanguages::class.java.getResourceAsStream("/neuro/topical/$language.txt") ?: return@forEach
+                stream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapTo(this) { NeuroText.fold(it.trim()) }
+                }
+            }
+        }
+    }
+
     /**
      * The language of [pieces], the folded whitespace-separated pieces of a title, or null when
      * unsure. Scripts used by one language decide alone; Latin titles need two function words and a
