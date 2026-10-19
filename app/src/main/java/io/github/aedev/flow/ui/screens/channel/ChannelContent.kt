@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.channel
 
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -68,6 +70,7 @@ import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FeedShelfActions
 import io.github.aedev.flow.ui.components.shared.FeedShelfSections
 import io.github.aedev.flow.ui.components.shared.FeedShelfSlots
+import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -176,6 +179,20 @@ internal fun ChannelContent(
         headerOffsetPx = headerOffsetPx.coerceIn(-collapsingHeaderHeightPx, 0f)
     }
 
+    // A remote moves focus instead of scrolling. Content scrolled under the header would hide the item
+    // it focuses, and Down from the tabs would find no list below them, so on a D-pad the content sits
+    // under the header and the header folds away while focus is in the content.
+    val dpad = LocalDpadNavigation.current
+    var contentHasFocus by remember { mutableStateOf(false) }
+    val headerFoldSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    if (dpad) {
+        LaunchedEffect(contentHasFocus, collapsingHeaderHeightPx) {
+            val target = if (contentHasFocus) -collapsingHeaderHeightPx else 0f
+            animate(headerOffsetPx, target, animationSpec = headerFoldSpec) { value, _ -> headerOffsetPx = value }
+        }
+    }
+    val contentTopInset = if (dpad) 0.dp else visibleHeaderHeightDp
+
     val nestedScrollConnection =
         remember(collapsingHeaderHeightPx) {
             object : NestedScrollConnection {
@@ -246,18 +263,25 @@ internal fun ChannelContent(
             Modifier
                 .fillMaxSize()
                 .clipToBounds()
-                .nestedScroll(nestedScrollConnection),
+                .then(if (dpad) Modifier else Modifier.nestedScroll(nestedScrollConnection)),
     ) {
         HorizontalPager(
             state = pagerState,
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
+                    .then(
+                        if (dpad) {
+                            Modifier.padding(top = visibleHeaderHeightDp).onFocusChanged { contentHasFocus = it.hasFocus }
+                        } else {
+                            Modifier
+                        },
+                    ).graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
             verticalAlignment = Alignment.Top,
-            userScrollEnabled = true,
+            // Off on a D-pad, which also stops focus at a row's edge from paging to the next tab.
+            userScrollEnabled = !dpad,
         ) { page ->
-            val listPadding = PaddingValues(top = visibleHeaderHeightDp, bottom = flowBottomContentPadding())
+            val listPadding = PaddingValues(top = contentTopInset, bottom = flowBottomContentPadding())
             val tab = visibleTabs.getOrElse(page) { visibleTabs.first() }
 
             when {
@@ -298,7 +322,7 @@ internal fun ChannelContent(
                         uiState = uiState,
                         listState = searchListState,
                         contentPadding = listPadding,
-                        topInset = visibleHeaderHeightDp,
+                        topInset = contentTopInset,
                         isGridView = isGridView,
                         columnPreference = columnPreference,
                         onVideoClick = onVideoClick,
@@ -313,7 +337,7 @@ internal fun ChannelContent(
                         listState = homeListState,
                         columnPreference = columnPreference,
                         contentPadding = listPadding,
-                        topInset = visibleHeaderHeightDp,
+                        topInset = contentTopInset,
                         actions =
                             FeedShelfActions(
                                 onVideoClick = onVideoClick,
@@ -374,7 +398,7 @@ internal fun ChannelContent(
                         hasFilterBar = tabStates[tab.kind]?.filters.orEmpty().isNotEmpty(),
                         listState = listStateFor(tab.kind),
                         contentPadding = listPadding,
-                        topInset = visibleHeaderHeightDp,
+                        topInset = contentTopInset,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onPlaylistClick = onPlaylistClick,
