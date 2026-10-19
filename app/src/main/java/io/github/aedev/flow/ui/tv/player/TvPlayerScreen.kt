@@ -7,9 +7,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -26,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -35,8 +31,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.subtitle.SubtitleChoice
-import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
 import io.github.aedev.flow.ui.components.videoplayer.VideoPlayerSurface
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlActions
@@ -57,11 +51,8 @@ import io.github.aedev.flow.ui.tv.player.state.TvPlayerOverlayController
 import io.github.aedev.flow.ui.tv.player.state.TvScrubController
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
 
 private const val MEDIA_KEY_SEEK_MS = 10_000L
-
-private enum class TvPlayerFocusTarget { PLAY_PAUSE, SEEK_BAR, UP_NEXT }
 
 /**
  * Full-screen TV player: the phone player's surface, captions, seek bar, transport, skip button,
@@ -245,38 +236,21 @@ fun TvPlayerScreen(
             )
         }
 
-    LaunchedEffect(overlayState.mode, overlayState.lastInteractionAtMs, playerState.isPlaying, scrubUiState.isScrubbing) {
-        val deadline =
-            overlayController.autoHideDeadline(
-                isPlaying = playerState.isPlaying,
-                isScrubbing = scrubUiState.isScrubbing,
-            ) ?: return@LaunchedEffect
-        val waitMs = deadline - SystemClock.uptimeMillis()
-        if (waitMs > 0) delay(waitMs)
-        overlayController.hide()
-    }
-
-    LaunchedEffect(overlayState.mode) {
-        when (overlayState.mode) {
-            TvOverlayMode.HIDDEN -> {
-                upNextShown = false
-                rootFocusRequester.requestFocus()
+    TvOverlayAutoHideEffect(overlayController, overlayState, playerState.isPlaying, scrubUiState.isScrubbing)
+    TvOverlayFocusEffect(
+        mode = overlayState.mode,
+        rootFocusRequester = rootFocusRequester,
+        transportTarget = {
+            val target = pendingFocusTarget
+            pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
+            when (target) {
+                TvPlayerFocusTarget.SEEK_BAR -> seekBarFocusRequester
+                TvPlayerFocusTarget.PLAY_PAUSE -> playPauseFocusRequester
+                TvPlayerFocusTarget.UP_NEXT -> upNextFocusRequester
             }
-
-            TvOverlayMode.TRANSPORT -> {
-                when (pendingFocusTarget) {
-                    TvPlayerFocusTarget.SEEK_BAR -> seekBarFocusRequester
-                    TvPlayerFocusTarget.PLAY_PAUSE -> playPauseFocusRequester
-                    TvPlayerFocusTarget.UP_NEXT -> upNextFocusRequester
-                }.requestFocus()
-                pendingFocusTarget = TvPlayerFocusTarget.PLAY_PAUSE
-            }
-
-            TvOverlayMode.PANEL -> {
-                Unit
-            }
-        }
-    }
+        },
+        onHidden = { upNextShown = false },
+    )
 
     LaunchedEffect(video.id) {
         rootFocusRequester.requestFocus()
@@ -409,52 +383,15 @@ fun TvPlayerScreen(
             AutoplayCountdownOverlay()
         }
 
-        if (overlayState.mode == TvOverlayMode.HIDDEN && (uiState.isLoading || playerState.isBuffering)) {
-            FlowLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-        }
-
-        uiState.error?.let { error ->
-            Surface(
-                modifier = Modifier.align(Alignment.Center).widthIn(max = 560.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                FlowErrorState(
-                    error = uiState.errorHint?.let { hint -> "$error\n$hint" } ?: error,
-                    onRetry = viewModel::retryLoadVideo,
-                )
-            }
-        }
+        TvPlayerStatus(
+            loading = overlayState.mode == TvOverlayMode.HIDDEN && (uiState.isLoading || playerState.isBuffering),
+            error = uiState.error?.let { error -> uiState.errorHint?.let { hint -> "$error\n$hint" } ?: error },
+            onRetry = viewModel::retryLoadVideo,
+            modifier = Modifier.align(Alignment.Center),
+        )
     }
 
     if (showSave) {
         SaveVideoSheet(video = video, onDismiss = { showSave = false })
-    }
-}
-
-/**
- * Comments load once per video, the first time their panel opens; live chat polls only while its panel
- * shows and the player is resumed, as on the phone.
- */
-@Composable
-private fun TvPlayerSheetEffects(
-    videoId: String,
-    screenState: io.github.aedev.flow.ui.screens.player.state.PlayerScreenState,
-    viewModel: VideoPlayerViewModel,
-    commentsEnabled: Boolean,
-) {
-    var commentsLoadedFor by remember { mutableStateOf<String?>(null) }
-    val commentsOpen = screenState.activeSheet is PlayerSheet.Comments
-    LaunchedEffect(videoId, commentsOpen) {
-        if (!commentsOpen || !commentsEnabled || commentsLoadedFor == videoId) return@LaunchedEffect
-        commentsLoadedFor = videoId
-        viewModel.loadComments(videoId)
-    }
-
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(viewModel, lifecycle) {
-        combine(lifecycle.currentStateFlow, snapshotFlow { screenState.activeSheet is PlayerSheet.LiveChat }) { state, shown ->
-            shown && state.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
-        }.collect(viewModel::setLiveChatPanelVisible)
     }
 }
