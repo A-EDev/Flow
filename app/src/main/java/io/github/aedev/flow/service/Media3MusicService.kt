@@ -452,13 +452,6 @@ class Media3MusicService : MediaLibraryService() {
                     }
                     applyLoudnessGain()
 
-                    if (
-                        reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                        reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
-                    ) {
-                        player.seekTo(0L)
-                    }
-
                     mediaItem?.let { item ->
                         val videoId = item.mediaId
                         val title = item.mediaMetadata.title?.toString()
