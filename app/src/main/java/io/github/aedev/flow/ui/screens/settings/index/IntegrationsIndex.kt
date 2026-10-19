@@ -92,5 +92,6 @@ internal object IntegrationsIndex {
             destination = page,
         )
 
-    val all = listOf(sponsorBlock, segments, contribute, userId, deArrow, deArrowRandomFrame, deArrowBadge, dislikes, discord, discordAccount)
+    val all =
+        listOf(sponsorBlock, segments, contribute, userId, deArrow, deArrowRandomFrame, deArrowBadge, dislikes, discord, discordAccount)
 }

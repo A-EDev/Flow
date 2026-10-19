@@ -73,7 +73,11 @@ class DeArrowRepositoryTest {
     fun `cards asking at the same time share one request`() =
         runBlocking {
             val gate = CountDownLatch(1)
-            val deArrow = repository(gate) { 200 to """{"titles":[{"title":"t","votes":1,"locked":false,"original":false}],"thumbnails":[]}""" }
+            val deArrow =
+                repository(gate) {
+                    200 to
+                        """{"titles":[{"title":"t","votes":1,"locked":false,"original":false}],"thumbnails":[]}"""
+                }
 
             val asks = (1..5).map { async(Dispatchers.IO) { deArrow.branding("abc123def45") } }
             Thread.sleep(200)

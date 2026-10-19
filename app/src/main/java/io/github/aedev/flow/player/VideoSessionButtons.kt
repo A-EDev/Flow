@@ -41,9 +41,24 @@ internal object VideoSessionControls {
     /** Off, then the whole queue, then this video; a single video goes straight to looping itself. */
     fun nextLoop(state: State): LoopTarget =
         when (state.repeat) {
-            Repeat.OFF -> if (state.hasQueue) LoopTarget(videoLoop = false, queueLoop = true) else LoopTarget(videoLoop = true, queueLoop = false)
-            Repeat.QUEUE -> LoopTarget(videoLoop = true, queueLoop = false)
-            Repeat.ONE -> LoopTarget(videoLoop = false, queueLoop = false)
+            Repeat.OFF -> {
+                if (state.hasQueue) {
+                    LoopTarget(
+                        videoLoop = false,
+                        queueLoop = true,
+                    )
+                } else {
+                    LoopTarget(videoLoop = true, queueLoop = false)
+                }
+            }
+
+            Repeat.QUEUE -> {
+                LoopTarget(videoLoop = true, queueLoop = false)
+            }
+
+            Repeat.ONE -> {
+                LoopTarget(videoLoop = false, queueLoop = false)
+            }
         }
 }
 

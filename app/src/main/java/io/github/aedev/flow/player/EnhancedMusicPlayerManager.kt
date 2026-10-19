@@ -949,10 +949,6 @@ object EnhancedMusicPlayerManager {
         }
     }
 
-    /**
-     * Shuffle is app-owned state, not ExoPlayer's shuffle mode: enabling it physically
-     * rearranges the queue so the listed order always matches the playback order.
-     */
     /** The saved queue is already in its shuffled order, so turning the flag back on must not reshuffle it. */
     private fun applySavedShuffle(
         controller: Player?,
@@ -962,6 +958,10 @@ object EnhancedMusicPlayerManager {
         if (controller != null && controller.shuffleModeEnabled != enabled) controller.shuffleModeEnabled = enabled
     }
 
+    /**
+     * The player's shuffle flag says whether shuffle is on; turning it on physically rearranges the
+     * queue, so the listed order always matches the playback order.
+     */
     fun toggleShuffle() {
         scope.launch {
             val controller = player ?: return@launch

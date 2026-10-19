@@ -53,7 +53,11 @@ class DeArrowBrandingPolicyTest {
         val content =
             DeArrowContent(
                 titles = listOf(DeArrowTitle("Locked title", votes = 1, locked = true), DeArrowTitle("Popular title", votes = 9)),
-                thumbnails = listOf(DeArrowThumbnail(timestamp = 3.5, votes = 2, locked = true), DeArrowThumbnail(timestamp = 80.0, votes = 7)),
+                thumbnails =
+                    listOf(
+                        DeArrowThumbnail(timestamp = 3.5, votes = 2, locked = true),
+                        DeArrowThumbnail(timestamp = 80.0, votes = 7),
+                    ),
                 randomTime = 0.5,
                 videoDuration = 100.0,
             )

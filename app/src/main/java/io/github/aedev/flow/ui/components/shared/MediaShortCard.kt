@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.FeedGridLayout
-import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.rememberOriginalTitle
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
