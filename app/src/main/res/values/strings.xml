@@ -518,12 +518,8 @@
     <string name="search_filter_watch_any">Watched or not</string>
     <string name="search_filter_unwatched">Unwatched</string>
     <string name="search_filter_watched">Watched</string>
-    <plurals name="search_watch_empty_watched">
-        <item quantity="one">No watched videos</item>
-    </plurals>
-    <plurals name="search_watch_empty_unwatched">
-        <item quantity="one">No unwatched videos</item>
-    </plurals>
+    <string name="search_watch_empty_watched">No watched videos here</string>
+    <string name="search_watch_empty_unwatched">No unwatched videos here</string>
     <string name="search_feature_hd">HD</string>
     <string name="search_feature_4k">4K</string>
     <string name="search_feature_hdr">HDR</string>
@@ -1217,9 +1213,7 @@
     <string name="category_learning">Learning</string>
     <string name="category_fashion">Fashion</string>
     <string name="categories_chart_source">YouTube Music charts</string>
-    <plurals name="categories_rate_limited">
-        <item quantity="one">YouTube is limiting requests right now. Try again later.</item>
-    </plurals>
+    <string name="categories_rate_limited">YouTube is limiting requests right now. Try again in a few minutes.</string>
     <string name="categories_shelf_see_all">See all</string>
     <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
