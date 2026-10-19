@@ -1590,6 +1590,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(if (isLiked) R.string.unlike else R.string.like))
                 .setCustomIconResId(if (isLiked) R.drawable.ic_like_filled else R.drawable.ic_like)
                 .setSessionCommand(CommandToggleLike)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .setEnabled(true)
                 .build()
 
@@ -1608,6 +1609,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.shuffle))
                 .setCustomIconResId(if (shuffleOn) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle)
                 .setSessionCommand(CommandToggleShuffle)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .build()
 
         val repeatButton =
@@ -1616,6 +1618,7 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.repeat))
                 .setCustomIconResId(repeatIconResId)
                 .setSessionCommand(CommandToggleRepeat)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .build()
 
         val closeButton =
@@ -1624,10 +1627,13 @@ class Media3MusicService : MediaLibraryService() {
                 .setDisplayName(getString(R.string.close))
                 .setCustomIconResId(R.drawable.ic_close)
                 .setSessionCommand(CommandStop)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
                 .setEnabled(true)
                 .build()
 
-        mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton, closeButton))
+        // The Android 13+ card shows only the first two overflow buttons next to previous and next;
+        // the rest stay for older notifications, Auto and Wear (#1347).
+        mediaLibrarySession.setMediaButtonPreferences(listOf(shuffleButton, repeatButton, likeButton, closeButton))
     }
 
     @OptIn(UnstableApi::class)
