@@ -4294,7 +4294,9 @@
     <string name="mini_bar_nothing_next">Далі нічого немає</string>
     <string name="mini_bar_nothing_previous">Нічого перед цим</string>
     <string name="categories_chart_source">Чарти YouTube Music</string>
-    <string name="categories_rate_limited">YouTube наразі обмежує кількість запитів. Спробуйте ще раз за кілька хвилин.</string>
+    <plurals name="categories_rate_limited">
+        <item quantity="one">YouTube наразі обмежує кількість запитів. Спробуйте ще раз за кілька хвилин.</item>
+    </plurals>
     <string name="import_takeout_step_history">Історія перегляду</string>
     <string name="import_takeout_step_subscriptions">Підписки</string>
     <string name="import_takeout_step_activity">Вподобання та пошуки</string>
@@ -4370,8 +4372,12 @@
     <string name="search_filter_watch_any">Переглянуто чи ні</string>
     <string name="search_filter_unwatched">Не переглянуто</string>
     <string name="search_filter_watched">Переглянуто</string>
-    <string name="search_watch_empty_watched">Тут немає переглянутих відео</string>
-    <string name="search_watch_empty_unwatched">Тут немає непереглянутих відео</string>
+    <plurals name="search_watch_empty_watched">
+        <item quantity="one">Тут немає переглянутих відео</item>
+    </plurals>
+    <plurals name="search_watch_empty_unwatched">
+        <item quantity="one">Тут немає непереглянутих відео</item>
+    </plurals>
     <string name="deep_flow_on_search_title">Показати у результатах пошуку</string>
     <string name="deep_flow_on_search_subtitle">Перемикач «Deep Flow» над останніми пошуковими запитами</string>
 </resources>
