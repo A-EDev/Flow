@@ -34,7 +34,18 @@ ANDROID TV: SEARCH, MUSIC AND SETTINGS
 - Downloads appear in Library with their own page, and Downloads settings are available on TV
 - Sync works on TV as the host device, since TVs have no camera to scan a code
 
+PLAYBACK AND NOTIFICATIONS
+- The music media card shows shuffle and repeat, and like and close stay on older Android, Auto and Wear
+- Shuffle from the media card, a headset, a watch or the car now shuffles the queue you see in the app
+- The video notification has repeat, and shuffle while a queue is playing
+- DeArrow shows a frame from the video when nobody has submitted a thumbnail, as DeArrow itself does, with a switch to turn that off
+- DeArrow titles also appear on Shorts cards
+
 FIXES
+- Fix a paused video not playing again after the screen was off for a while
+- Fix a video stopping for good after a decoder error; it now recovers once, then offers Retry
+- Fix a short glitch at the start of the next song when one song plays into the next
+- Fix DeArrow looking a video up again every time its card scrolled back into view
 - Fix the music player's playback buttons not responding to a keyboard, a remote or TalkBack
 - Fix the TV seek bar redrawing every frame while paused
 - Fix Open Collective not opening from About on TV
