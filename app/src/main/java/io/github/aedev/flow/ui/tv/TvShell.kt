@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -79,6 +80,9 @@ fun TvShell(
     }
     val currentRoot = currentRoute?.takeIf { it in rootRoutes } ?: lastRoot
     var railHasFocus by remember { mutableStateOf(false) }
+    // Set when the rail took focus only because the page had nothing to hold it yet, as while it loads;
+    // the page takes it back once it can, unless the remote has been used in the rail since.
+    var railHoldsFocusForPage by remember { mutableStateOf(false) }
     var contentHasFocus by remember { mutableStateOf(false) }
     val railFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
@@ -125,7 +129,7 @@ fun TvShell(
                     // layout; until something holds focus, each one offers focus to the page, so the
                     // remote starts on the content instead of the rail.
                     .onGloballyPositioned {
-                        if (!railHasFocus && !contentHasFocus) contentFocusRequester.requestFocus()
+                        if ((!railHasFocus || railHoldsFocusForPage) && !contentHasFocus) contentFocusRequester.requestFocus()
                     }.focusRequester(contentFocusRequester)
                     .focusRestorer()
                     .focusGroup(),
@@ -174,12 +178,21 @@ fun TvShell(
             tabs = navigation.tabs,
             selectedRoute = currentRoot,
             onSelect = ::selectRoot,
-            onFocusChanged = { railHasFocus = it },
+            onFocusChanged = {
+                railHasFocus = it
+                if (!it) railHoldsFocusForPage = false
+            },
             focusRequester = railFocusRequester,
-            onOtherEntry = { contentFocusRequester.requestFocus() },
+            onOtherEntry = { contentFocusRequester.requestFocus().also { taken -> railHoldsFocusForPage = !taken } },
             nowPlayingTitle = activeMusicTrack?.title,
             onOpenNowPlaying = onExpandMusic,
-            modifier = Modifier.align(Alignment.CenterStart),
+            modifier =
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .onPreviewKeyEvent {
+                        railHoldsFocusForPage = false
+                        false
+                    },
         )
     }
 }
