@@ -199,6 +199,14 @@ class MusicCollectionViewModel
             }
         }
 
+        /** Moves this stored playlist to the video library; the page stays open on it. */
+        fun moveToVideos() {
+            viewModelScope.launch {
+                playlists.moveToLibrary(collectionId, isMusic = false)
+                _messages.send(CollectionMessage(stringRes = R.string.playlist_moved_to_videos))
+            }
+        }
+
         /** Takes songs out of your playlist, or unlikes them from Liked music, with an Undo. */
         fun removeTracks(videoIds: Set<String>) {
             if (videoIds.isEmpty()) return
@@ -385,11 +393,12 @@ class MusicCollectionViewModel
             }
         }
 
+        /** A playlist saved only to Videos opens from YouTube here, and saving it moves it to Music. */
         private suspend fun loadStoredOrRemote() {
             val stored = playlists.getPlaylistEntity(collectionId)
             when {
                 stored?.isUserCreated == true -> observeStored(MusicCollectionKind.OWN)
-                stored != null -> loadSaved()
+                stored != null && stored.isMusic -> loadSaved()
                 else -> loadRemote()
             }
         }

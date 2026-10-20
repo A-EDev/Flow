@@ -3272,6 +3272,10 @@
     <string name="toast_removed_from_playlist">Removed from playlist</string>
     <string name="toast_failed_to_remove_track">Failed to remove track</string>
     <string name="toast_saved_playlist_to_music_library">Playlist saved to your music library</string>
+    <string name="playlist_move_to_music">Move to Music</string>
+    <string name="playlist_move_to_videos">Move to Videos</string>
+    <string name="playlist_moved_to_music">Moved to Music</string>
+    <string name="playlist_moved_to_videos">Moved to Videos</string>
     <string name="toast_failed_to_save_playlist">Failed to save playlist</string>
     <string name="toast_removed_playlist_from_library">Playlist removed from library</string>
     <string name="toast_failed_to_merge_playlist">Failed to merge playlist</string>

@@ -171,6 +171,7 @@ fun PlaylistDetailScreen(
             onExport = { exportLauncher.launch(viewModel.exportFileName) },
             onEdit = { dialog = PlaylistDialog.Edit },
             onDelete = { dialog = PlaylistDialog.Delete },
+            onMoveLibrary = viewModel::moveToOtherLibrary,
         )
 
     Scaffold(

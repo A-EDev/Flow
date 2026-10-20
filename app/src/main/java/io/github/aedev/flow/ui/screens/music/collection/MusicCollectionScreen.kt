@@ -231,6 +231,7 @@ private fun CollectionContent(
                     onDelete = { sheet = CollectionSheet.Delete },
                     onExport = { exportLauncher.launch(viewModel.exportFileName) },
                     onSaveAsPlaylist = viewModel::saveAsPlaylist,
+                    onMoveToVideos = viewModel::moveToVideos,
                 ),
         )
     val sortChip: @Composable () -> Unit = {

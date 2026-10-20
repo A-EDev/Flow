@@ -26,9 +26,11 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.SaveAs
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
@@ -88,6 +90,8 @@ internal data class PlaylistHeaderState(
     val downloadProgress: Float? = null,
     /** Saved as a downloaded collection; downloading again picks up only what is new. */
     val isDownloaded: Boolean = false,
+    /** The library a stored playlist sits in, offered a move to the other; null hides the move. */
+    val isInMusicLibrary: Boolean? = null,
 )
 
 /** What the header's buttons do; a missing capability in [PlaylistHeaderState] hides its button. */
@@ -101,6 +105,7 @@ internal class PlaylistHeaderActions(
     val onExport: () -> Unit,
     val onEdit: () -> Unit,
     val onDelete: () -> Unit,
+    val onMoveLibrary: () -> Unit,
 )
 
 /** The header at the top of the list, on windows too narrow for a side pane. */
@@ -243,7 +248,7 @@ private fun PlaylistSecondaryActions(
         IconButton(onClick = actions.onShare) {
             Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
         }
-        if (state.canEdit || state.canExport) PlaylistOverflowMenu(state, actions)
+        if (state.canEdit || state.canExport || state.isInMusicLibrary != null) PlaylistOverflowMenu(state, actions)
     }
 }
 
@@ -265,6 +270,18 @@ private fun PlaylistOverflowMenu(
                     onClick = {
                         open = false
                         actions.onExport()
+                    },
+                )
+            }
+            state.isInMusicLibrary?.let { inMusic ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (inMusic) R.string.playlist_move_to_videos else R.string.playlist_move_to_music)) },
+                    leadingIcon = {
+                        Icon(if (inMusic) Icons.Outlined.VideoLibrary else Icons.Outlined.LibraryMusic, contentDescription = null)
+                    },
+                    onClick = {
+                        open = false
+                        actions.onMoveLibrary()
                     },
                 )
             }

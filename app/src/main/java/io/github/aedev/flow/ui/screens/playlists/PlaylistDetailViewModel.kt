@@ -156,22 +156,35 @@ class PlaylistDetailViewModel
         fun saveToLibrary() {
             viewModelScope.launch {
                 val state = _uiState.value
-                repository.saveExternalVideoPlaylist(
-                    id = playlistId,
-                    name = state.playlistName,
-                    description = state.description,
-                    thumbnailUrl = state.thumbnailUrl.ifEmpty { state.videos.firstOrNull()?.thumbnailUrl ?: "" },
-                )
+                val thumbnailUrl = state.thumbnailUrl.ifEmpty { state.videos.firstOrNull()?.thumbnailUrl ?: "" }
+                if (state.isFromMusic) {
+                    repository.saveExternalMusicPlaylist(playlistId, state.playlistName, state.description, thumbnailUrl)
+                } else {
+                    repository.saveExternalVideoPlaylist(playlistId, state.playlistName, state.description, thumbnailUrl)
+                }
                 repository.addVideosToPlaylist(playlistId, state.videos)
-                _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
-                _messages.send(PlaylistUiMessage(stringRes = R.string.ui_playlist_saved_to_library))
+                _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true, isInMusicLibrary = state.isFromMusic) }
+                val saved = if (state.isFromMusic) R.string.toast_saved_playlist_to_music_library else R.string.ui_playlist_saved_to_library
+                _messages.send(PlaylistUiMessage(stringRes = saved))
+            }
+        }
+
+        /** Moves this stored playlist between the video and music libraries. */
+        fun moveToOtherLibrary() {
+            val toMusic = _uiState.value.isInMusicLibrary?.not() ?: return
+            viewModelScope.launch {
+                repository.moveToLibrary(playlistId, isMusic = toMusic)
+                _uiState.update { it.copy(isInMusicLibrary = toMusic) }
+                _messages.send(
+                    PlaylistUiMessage(stringRes = if (toMusic) R.string.playlist_moved_to_music else R.string.playlist_moved_to_videos),
+                )
             }
         }
 
         fun unsaveFromLibrary() {
             viewModelScope.launch {
                 repository.unsaveExternalPlaylist(playlistId)
-                _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
+                _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false, isInMusicLibrary = null) }
                 _messages.send(PlaylistUiMessage(stringRes = R.string.ui_playlist_removed_from_library))
             }
         }
@@ -404,6 +417,7 @@ class PlaylistDetailViewModel
 
         private suspend fun loadLocalPlaylist(localInfo: PlaylistInfo) {
             val isSaved = repository.isExternalPlaylistSaved(playlistId)
+            val isMusic = repository.getPlaylistEntity(playlistId)?.isMusic
             _uiState.update {
                 it.copy(
                     playlistName = localInfo.name,
@@ -412,6 +426,7 @@ class PlaylistDetailViewModel
                     thumbnailUrl = localInfo.thumbnailUrl,
                     isLocalPlaylist = true,
                     isSaved = isSaved,
+                    isInMusicLibrary = isMusic.takeIf { playlistId != PlaylistRepository.SAVED_SHORTS_ID },
                     isWatchLater = false,
                     isLoading = false,
                     errorMessage = null,
@@ -462,6 +477,7 @@ class PlaylistDetailViewModel
                         thumbnailUrl = musicDetails.thumbnailUrl,
                         isLocalPlaylist = false,
                         isSaved = false,
+                        isFromMusic = true,
                         isWatchLater = false,
                         isLoading = false,
                         errorMessage = null,

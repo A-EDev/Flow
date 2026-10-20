@@ -26,6 +26,10 @@ data class PlaylistDetailUiState(
     /** Liked videos: read from the likes, where removing a video unlikes it. */
     val isLikes: Boolean = false,
     val isCourse: Boolean = false,
+    /** The library a stored playlist sits in, so it can move to the other; null where it can't move. */
+    val isInMusicLibrary: Boolean? = null,
+    /** Read through YouTube Music, so saving it puts it in the music library. */
+    val isFromMusic: Boolean = false,
     val isLoading: Boolean = true,
     /** Later pages of a YouTube playlist are still arriving. */
     val isLoadingMore: Boolean = false,
