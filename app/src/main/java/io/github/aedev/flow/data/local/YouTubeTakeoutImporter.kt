@@ -55,6 +55,7 @@ internal class YouTubeTakeoutImporter(
         val searches = mutableListOf<TakeoutSearch>()
         var watches = 0
         val learnable = LinkedHashMap<String, VideoHistoryEntry>()
+        val musicVideoIds = HashSet<String>()
     }
 
     suspend fun import(
@@ -73,12 +74,17 @@ internal class YouTubeTakeoutImporter(
                 val subscriptionsImported = saveSubscriptions(found.subscriptions, onProgress)
                 // The library first: its rows carry titles, which a playlist's bare video ids would otherwise claim.
                 val librarySongsImported = saveMusicLibrary(found.librarySongs)
-                val (playlistsImported, playlistVideosImported) = savePlaylists(found)
+                found.librarySongs.mapTo(found.musicVideoIds) { it.videoId }
+                found.likes
+                    .orEmpty()
+                    .filter { it.isMusic }
+                    .mapTo(found.musicVideoIds) { it.videoId }
+                val playlists = savePlaylists(found)
                 val likesImported = found.likes?.let { saveLikes(it) } ?: 0
                 val searchesImported = saveSearches(found.searches)
 
                 val counts =
-                    listOf(subscriptionsImported, found.watches, playlistsImported, librarySongsImported, likesImported, searchesImported)
+                    listOf(subscriptionsImported, found.watches, playlists.count, librarySongsImported, likesImported, searchesImported)
                 if (counts.all { it == 0 }) return@withContext Result.failure(Exception("no_content"))
                 if (found.watches > 0) runCatching { learnFromHistory(found.learnable.values) }
 
@@ -86,16 +92,17 @@ internal class YouTubeTakeoutImporter(
                     buildList {
                         if (subscriptionsImported > 0) add(plural(R.plurals.import_takeout_part_subscriptions, subscriptionsImported))
                         if (found.watches > 0) add(plural(R.plurals.import_takeout_part_history, found.watches))
-                        if (playlistsImported > 0) {
+                        if (playlists.count > 0) {
                             add(
                                 context.resources.getQuantityString(
                                     R.plurals.import_takeout_part_playlists,
-                                    playlistsImported,
-                                    playlistsImported,
-                                    playlistVideosImported,
+                                    playlists.count,
+                                    playlists.count,
+                                    playlists.videos,
                                 ),
                             )
                         }
+                        if (playlists.music > 0) add(plural(R.plurals.import_takeout_part_music_playlists, playlists.music))
                         if (librarySongsImported > 0) add(plural(R.plurals.import_takeout_part_music_library, librarySongsImported))
                         if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
                         if (searchesImported > 0) add(plural(R.plurals.import_takeout_part_searches, searchesImported))
@@ -218,6 +225,7 @@ internal class YouTubeTakeoutImporter(
         if (watches.isEmpty()) return
         val entries = watches.map { it.toHistoryEntry() }
         viewHistory.bulkSaveHistoryEntries(entries)
+        watches.filter { it.isMusic }.mapTo(found.musicVideoIds) { it.videoId }
         entries.forEach { entry ->
             if (found.learnable.size < NEURO_CANDIDATE_LIMIT && entry.title.isNotBlank()) found.learnable.putIfAbsent(entry.videoId, entry)
         }
@@ -261,8 +269,14 @@ internal class YouTubeTakeoutImporter(
         return imported.size
     }
 
-    /** Returns how many playlists were saved and how many videos they hold. */
-    private suspend fun savePlaylists(found: Found): Pair<Int, Int> {
+    private data class SavedPlaylists(
+        val count: Int,
+        val videos: Int,
+        val music: Int,
+    )
+
+    /** Returns how many playlists were saved, how many videos they hold and how many went to Music. */
+    private suspend fun savePlaylists(found: Found): SavedPlaylists {
         validateYouTubeTakeoutPlaylistCount(
             videoFileCount = found.playlistVideos.size,
             metadataTitleCount = found.playlistsByDirectory.values.sumOf { it.size },
@@ -270,6 +284,7 @@ internal class YouTubeTakeoutImporter(
         val fallbackName = context.getString(R.string.imported_playlist_fallback)
         var playlists = 0
         var videos = 0
+        var music = 0
         found.playlistVideos.keys
             .groupBy { it.takeoutParentPath() }
             .forEach { (directory, files) ->
@@ -278,26 +293,29 @@ internal class YouTubeTakeoutImporter(
                 resolveYouTubeTakeoutPlaylistNames(files, infos.map { it.title }, fallbackName).forEach { (file, name) ->
                     val info = unclaimed.firstOrNull { it.title == name }?.also(unclaimed::remove)
                     val videoIds = found.playlistVideos.getValue(file)
-                    savePlaylist(file, name, info, videoIds)
+                    if (savePlaylist(file, name, info, videoIds, found.musicVideoIds)) music++
                     playlists++
                     videos += videoIds.size
                 }
             }
-        return playlists to videos
+        return SavedPlaylists(playlists, videos, music)
     }
 
     /**
      * Saved under its YouTube id, so importing the same export again fills the same playlist instead
      * of adding a copy, and dated when YouTube made it, so "Newest" orders playlists the way YouTube
-     * does. A file `playlists.csv` doesn't describe is keyed by its own name.
+     * does. A file `playlists.csv` doesn't describe is keyed by its own name. Returns whether it went to
+     * the music library; one an earlier import put in Videos moves there too, but never back out.
      */
     private suspend fun savePlaylist(
         file: String,
         name: String,
         info: TakeoutPlaylistInfo?,
         videoIds: List<String>,
-    ) {
+        knownMusic: Set<String>,
+    ): Boolean {
         val isWatchLater = name.equals("watch later", ignoreCase = true)
+        val isMusic = !isWatchLater && isTakeoutMusicPlaylist(videoIds, knownMusic)
         val playlistId =
             when {
                 isWatchLater -> PlaylistRepository.WATCH_LATER_ID
@@ -312,10 +330,12 @@ internal class YouTubeTakeoutImporter(
                 thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first()),
                 isPrivate = isWatchLater,
                 createdAt = info?.createdAt ?: System.currentTimeMillis(),
-                isMusic = false,
+                isMusic = isMusic,
                 isUserCreated = true,
             )
-        fillPlaylist(entity, videoIds.map { videoEntity(it, title = "", artists = "", isMusic = false) })
+        fillPlaylist(entity, videoIds.map { videoEntity(it, title = "", artists = "", isMusic = it in knownMusic) })
+        if (isMusic) database.playlistDao().setPlaylistIsMusic(playlistId, isMusic = true)
+        return isMusic
     }
 
     /** The songs saved to the YouTube Music library, as one music playlist that a second import fills again. */

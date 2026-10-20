@@ -1742,6 +1742,10 @@
         <item quantity="one">%1$d playlist (%2$d videos)</item>
         <item quantity="other">%1$d playlists (%2$d videos)</item>
     </plurals>
+    <plurals name="import_takeout_part_music_playlists">
+        <item quantity="one">%d playlist in Music</item>
+        <item quantity="other">%d playlists in Music</item>
+    </plurals>
     <plurals name="import_takeout_part_music_library">
         <item quantity="one">%d YouTube Music library song</item>
         <item quantity="other">%d YouTube Music library songs</item>
