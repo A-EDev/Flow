@@ -4,61 +4,31 @@
 
 package io.github.aedev.flow.data.lyrics.paxsenix
 
-import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.lyrics.LyricsMatching
 import io.github.aedev.flow.data.lyrics.TTMLParser
 import io.github.aedev.flow.data.lyrics.paxsenix.models.AppleMusicSearchResponse
 import io.github.aedev.flow.data.lyrics.paxsenix.models.LyricsResponse
 import io.github.aedev.flow.data.lyrics.paxsenix.models.SearchResult
-import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
-object Paxsenix {
-    private const val TAG = "Paxsenix"
-    private const val PAXSENIX_BASE = "https://lyrics.paxsenix.org"
-    private const val APPLE_MUSIC_API_BASE = "https://amp-api.music.apple.com/v1/catalog/us"
-    private const val TITLE_NOISE_WORDS =
-        "official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit"
-
-    @Volatile
-    private var initialized = false
-    private var appVersion: String = "Unknown"
-
-    private val client: OkHttpClient
-        get() =
-            AppProxyManager
-                .applyTo(OkHttpClient.Builder())
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-
+class Paxsenix(
+    private val client: OkHttpClient,
+) {
     private val gson = Gson()
 
-    @Volatile
-    private var tokenManager: AppleTokenManager? = null
-
-    fun init(context: Context) {
-        if (initialized) return
-        synchronized(this) {
-            if (initialized) return
-            appVersion =
-                try {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
-                } catch (e: Exception) {
-                    "Unknown"
-                }
-            tokenManager = AppleTokenManager()
-            initialized = true
-        }
-    }
+    private val tokenManager = AppleTokenManager(client)
 
     private val titleCleanupPatterns =
         listOf(
@@ -144,13 +114,19 @@ object Paxsenix {
         }
 
     private suspend fun search(query: String): List<SearchResult> {
+        // The public iTunes Search needs no token and finds the same Apple Music ids; the token
+        // scraped from Apple's web player is the fallback.
+        runCatching { searchItunes(query) }
+            .onFailure { Log.w(TAG, "iTunes search error: ${it.message}") }
+            .getOrNull()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
         return try {
-            val tm = tokenManager ?: return emptyList()
-            val token = tm.getToken() ?: return emptyList()
+            val token = tokenManager.getToken() ?: return emptyList()
             val results = searchWithToken(token, query)
             if (results == null) {
-                tm.clearToken()
-                val newToken = tm.getToken() ?: return emptyList()
+                tokenManager.clearToken()
+                val newToken = tokenManager.getToken() ?: return emptyList()
                 searchWithToken(newToken, query) ?: emptyList()
             } else {
                 results
@@ -159,6 +135,29 @@ object Paxsenix {
             Log.e(TAG, "Search error: ${e.message}")
             emptyList()
         }
+    }
+
+    private fun searchItunes(query: String): List<SearchResult> {
+        val url =
+            ITUNES_SEARCH_URL
+                .toHttpUrl()
+                .newBuilder()
+                .addQueryParameter("term", query)
+                .addQueryParameter("media", "music")
+                .addQueryParameter("entity", "song")
+                .addQueryParameter("limit", "25")
+                .build()
+        val request =
+            Request
+                .Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .build()
+        val body =
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) response.body.string() else null
+            } ?: return emptyList()
+        return parseItunesSearch(body)
     }
 
     private fun searchWithToken(
@@ -242,7 +241,6 @@ object Paxsenix {
         artist: String,
         duration: Int,
     ): List<Pair<SearchResult, Double>> {
-        val durationMs = duration * 1000
         val cleanupRegex = Regex("""\s*\(.*?\)|\s*\[.*?\]""")
         val cleanedTitle = title.replace(cleanupRegex, "").lowercase().trim()
         val cleanedArtist = cleanArtist(artist).lowercase()
@@ -250,17 +248,18 @@ object Paxsenix {
         val targetIsRemix = title.contains("remix", ignoreCase = true)
 
         return results
+            .filter { LyricsMatching.sameVersion(title, it.displayName) }
             .map { result ->
                 var score = 0.0
                 val resultTitle = result.displayName
                 val resultArtist = result.displayArtist
 
-                result.duration?.let { d ->
-                    val diff = abs(d - durationMs)
+                result.duration?.takeIf { duration > 0 }?.let { d ->
+                    val diff = abs(d - duration)
                     when {
-                        diff <= 2000 -> score += 100
-                        diff <= 5000 -> score += 50
-                        diff <= 10000 -> score += 10
+                        diff <= 2 -> score += 100
+                        diff <= 5 -> score += 50
+                        diff <= 10 -> score += 10
                         else -> score -= 50
                     }
                 }
@@ -301,7 +300,7 @@ object Paxsenix {
                 Request
                     .Builder()
                     .url(url)
-                    .header("User-Agent", "Flow/$appVersion")
+                    .header("User-Agent", "Flow/${BuildConfig.VERSION_NAME}")
                     .build()
 
             val response = client.newCall(request).execute()
@@ -393,7 +392,9 @@ object Paxsenix {
         }
     }
 
-    private class AppleTokenManager {
+    private class AppleTokenManager(
+        private val httpClient: OkHttpClient,
+    ) {
         @Volatile
         private var cachedToken: String? = null
         private val mutex = Mutex()
@@ -402,14 +403,6 @@ object Paxsenix {
             mutex.withLock {
                 cachedToken?.let { return it }
                 try {
-                    val httpClient =
-                        AppProxyManager
-                            .applyTo(OkHttpClient.Builder())
-                            .connectTimeout(10, TimeUnit.SECONDS)
-                            .readTimeout(10, TimeUnit.SECONDS)
-                            .followRedirects(true)
-                            .build()
-
                     val mainRequest =
                         Request
                             .Builder()
@@ -448,5 +441,45 @@ object Paxsenix {
         fun clearToken() {
             cachedToken = null
         }
+    }
+
+    @Serializable
+    private data class ItunesSearch(
+        val results: List<ItunesSong> = emptyList(),
+    )
+
+    @Serializable
+    private data class ItunesSong(
+        val trackId: Long = 0,
+        val trackName: String? = null,
+        val artistName: String? = null,
+        val collectionName: String? = null,
+        val trackTimeMillis: Long? = null,
+    )
+
+    internal companion object {
+        private const val TAG = "Paxsenix"
+        private const val ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
+        private val json = Json { ignoreUnknownKeys = true }
+
+        fun parseItunesSearch(body: String): List<SearchResult> =
+            json
+                .decodeFromString<ItunesSearch>(body)
+                .results
+                .filter { it.trackId > 0 && !it.trackName.isNullOrBlank() }
+                .map { song ->
+                    SearchResult(
+                        id = song.trackId.toString(),
+                        trackName = song.trackName,
+                        artistName = song.artistName,
+                        albumName = song.collectionName,
+                        duration = song.trackTimeMillis?.div(1000)?.toInt(),
+                    )
+                }
+
+        private const val PAXSENIX_BASE = "https://lyrics.paxsenix.org"
+        private const val APPLE_MUSIC_API_BASE = "https://amp-api.music.apple.com/v1/catalog/us"
+        private const val TITLE_NOISE_WORDS =
+            "official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit"
     }
 }

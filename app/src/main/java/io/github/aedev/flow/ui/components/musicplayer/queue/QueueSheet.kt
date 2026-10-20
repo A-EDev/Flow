@@ -36,6 +36,7 @@ internal fun QueueSheet(
     shuffleEnabled: Boolean,
     repeatMode: RepeatMode,
     downloadedTrackIds: Set<String>,
+    swipes: QueueSwipes,
     actions: QueueActions,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
@@ -87,6 +88,7 @@ internal fun QueueSheet(
                 isRadioLoading = isRadioLoading,
                 endlessRadioEnabled = endlessRadioEnabled,
                 downloadedTrackIds = downloadedTrackIds,
+                swipes = swipes,
                 actions = actions,
                 modifier = Modifier.weight(1f),
             )

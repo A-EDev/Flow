@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RemovedQueueEntry
 
 /**
@@ -52,6 +53,11 @@ sealed interface QuickActionUndo {
     /** A video swiped out of the player's queue. */
     data class QueueRemoval(
         val entry: RemovedQueueEntry,
+    ) : QuickActionUndo
+
+    /** A song swiped out of the music queue. */
+    data class MusicQueueRemoval(
+        val removed: EnhancedMusicPlayerManager.RemovedQueueTrack,
     ) : QuickActionUndo
 
     /** A download queued because the viewer opened the video. */

@@ -3499,5 +3499,36 @@
     <string name="local_detail_added">Добавлен</string>
     <string name="local_detail_fps">%1$s фпс</string>
     <string name="local_detail_resolution_value">%1$d × %2$d</string>
-    <string name="settings_local_media_title">Местные СМИ</string>
+    <string name="settings_local_media_title">Местные новости</string>
+    <string name="settings_local_media_summary">Скрытые папки и короткие аудиозаписи</string>
+    <string name="settings_local_media_keywords">локальные, устройство, файлы, автономный режим, скрытые, папки, голосовые заметки, записи</string>
+    <string name="local_setting_hide_app_audio">Скрыть голосовые заметки и записи</string>
+    <string name="local_setting_hide_app_audio_desc">Папки с приложениями для чата, диктофоном и рингтонами</string>
+    <string name="local_setting_min_audio">Скрыть аудиофайл короче</string>
+    <string name="local_setting_min_audio_off">Показать все длины</string>
+    <string name="local_setting_hidden_folders">Скрытые папки</string>
+    <plurals name="delete_downloads_dialog_text">
+        <item quantity="one">Удалить %1$d загрузку с этого устройства?</item>
+        <item quantity="few">Удалить %1$d загрузки с этого устройства?</item>
+        <item quantity="many">Удалить %1$d загрузок с этого устройства?</item>
+        <item quantity="other">Удалить %1$d загрузок с этого устройства?</item>
+    </plurals>
+    <string name="downloads_sort_newest">Новейшие</string>
+    <string name="playlist_type_saved">Сохранить с YouTube</string>
+    <plurals name="playlist_videos_removed">
+        <item quantity="one">Удален %1$d видеоролик</item>
+        <item quantity="few">Удалено %1$d видеоролика</item>
+        <item quantity="many">Удалено %1$d видеороликов</item>
+        <item quantity="other">Удалено %1$d видеороликов</item>
+    </plurals>
+    <string name="download_failed_no_audio">В этом загруженном файле нет аудиофайлов.</string>
+    <string name="download_failed_refused">YouTube отклонил загрузку. Попробуйте позже.</string>
+    <string name="settings_navigation_bar_title">Панель навигации</string>
+    <string name="font_import_too_large">Размер файлов шрифтов может достигать 1 МБ.</string>
+    <string name="settings_shorts_tab_disabled_summary">В разделе «Ленты и контент» функция показа коротких роликов отключена.</string>
+    <string name="settings_content_country_summary">Страна, используемая для отображения трендов, графиков и рекомендаций</string>
+    <string name="thumbnail_quality_low_desc">Минимум данных, более щадящий режим для карт большого объёма</string>
+    <string name="settings_keywords_thumbnails">миниатюра, изображения, экономия трафика, использование данных, скрыть миниатюры, без изображений</string>
+    <string name="settings_quality_wifi">Через Wi-Fi</string>
+    <string name="settings_quality_mobile">через мобильный интернет</string>
 </resources>

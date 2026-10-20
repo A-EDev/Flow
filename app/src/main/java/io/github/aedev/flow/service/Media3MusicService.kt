@@ -15,9 +15,11 @@ import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
@@ -162,10 +164,14 @@ class Media3MusicService : MediaLibraryService() {
     private var wifiLock: WifiManager.WifiLock? = null
 
     /**
-     * Coroutine job that defers WakeLock/WifiLock release by 30 seconds after playback pauses.
+     * Coroutine job that defers WakeLock/WifiLock release by 12 seconds after playback pauses.
      * Prevents the CPU from entering deep sleep during brief buffering/focus-loss events.
      */
     private var lockReleaseJob: Job? = null
+
+    private var offloadState = MusicOffloadState()
+    private var appliedOffload: Boolean? = null
+    private var isOffloaded = false
 
     private var automixJob: Job? = null
 
@@ -241,6 +247,9 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var queuePersistence: QueuePersistence
+
+    @Inject
+    lateinit var lyricsHelper: io.github.aedev.flow.data.lyrics.LyricsHelper
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -378,8 +387,28 @@ class Media3MusicService : MediaLibraryService() {
     private fun observeEqualizer() {
         lifecycleScope.launch { equalizerRepository.processingSpec.collect(equalizer::setSpec) }
         lifecycleScope.launch {
-            equalizerRepository.needsProcessing.collect { processing -> player.setOffloadEnabled(!processing) }
+            equalizerRepository.needsProcessing.collect { processing -> updateOffload { it.copy(processing = processing) } }
         }
+    }
+
+    /** Applies [change] to what offload depends on; tracks are reselected only when the answer flips. */
+    private fun updateOffload(change: (MusicOffloadState) -> MusicOffloadState) {
+        offloadState = change(offloadState)
+        val allowed = offloadState.allowed
+        if (allowed == appliedOffload) return
+        appliedOffload = allowed
+        player.setOffloadEnabled(allowed)
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun observeOffload() {
+        player.addAudioOffloadListener(
+            object : ExoPlayer.AudioOffloadListener {
+                override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                    isOffloaded = isOffloadedPlayback
+                }
+            },
+        )
     }
 
     private fun initializePlayer() {
@@ -427,7 +456,8 @@ class Media3MusicService : MediaLibraryService() {
         Log.i(TAG, "Audio session initialized - Session ID: $currentAudioSessionId")
         audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
 
-        player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
+        updateOffload { it.copy(processing = equalizerRepository.needsProcessing.value) }
+        observeOffload()
         setVideoDecoding(false)
         // Shuffle rearranges the queue itself, so the list on screen is the play order. With this
         // order, the player's shuffle flag reorders nothing on its own, whichever controller sets it.
@@ -483,10 +513,8 @@ class Media3MusicService : MediaLibraryService() {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
-                                    val helper =
-                                        io.github.aedev.flow.data.lyrics
-                                            .LyricsHelper(this@Media3MusicService)
-                                    helper.getLyrics(videoId, title, artist, 180, null, this@Media3MusicService)
+                                    val durationSeconds = ((item.mediaMetadata.durationMs ?: 0L) / 1000L).toInt()
+                                    lyricsHelper.getLyrics(videoId, title, artist, durationSeconds, null)
                                 } catch (e: Exception) {
                                     Log.w(TAG, "Lyrics pre-warm background task encountered error: ${e.message}")
                                 }
@@ -557,7 +585,15 @@ class Media3MusicService : MediaLibraryService() {
                     reason: Int,
                 ) {
                     updateLocks(isPlaybackActive())
-                    if (playWhenReady) pausedForMute = false
+                    if (playWhenReady) {
+                        pausedForMute = false
+                        updateOffload { it.copy(pausedLong = false) }
+                    }
+                }
+
+                override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+                    val changed = MusicOffloadState.changesPlayback(playbackParameters.speed, playbackParameters.pitch)
+                    updateOffload { it.copy(playbackChanged = changed) }
                 }
 
                 override fun onDeviceVolumeChanged(
@@ -1226,7 +1262,7 @@ class Media3MusicService : MediaLibraryService() {
 
         mediaLibrarySession =
             MediaLibrarySession
-                .Builder(this, player, LibrarySessionCallback())
+                .Builder(this, offloadResumingPlayer(), LibrarySessionCallback())
                 .setSessionActivity(pendingIntent)
                 .setBitmapLoader(sessionArtworkBitmapLoader(this))
                 .build()
@@ -1235,6 +1271,20 @@ class Media3MusicService : MediaLibraryService() {
 
         updateNotification()
     }
+
+    /** The session's player: a resume from a controller turns offload back on before playback starts. */
+    private fun offloadResumingPlayer(): Player =
+        object : ForwardingPlayer(player) {
+            override fun play() {
+                updateOffload { it.copy(pausedLong = false) }
+                super.play()
+            }
+
+            override fun setPlayWhenReady(playWhenReady: Boolean) {
+                if (playWhenReady) updateOffload { it.copy(pausedLong = false) }
+                super.setPlayWhenReady(playWhenReady)
+            }
+        }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
         mediaLibrarySession.takeUnless {
@@ -1329,6 +1379,9 @@ class Media3MusicService : MediaLibraryService() {
                 delay(12_000L)
                 if (!isPlaybackActive()) {
                     releaseLocks()
+                    // The system keeps the audio hardware awake for as long as a paused offloaded
+                    // track exists (#1367); leaving offload makes the player release it.
+                    if (isOffloaded) updateOffload { it.copy(pausedLong = true) }
                     if (!isAppInForeground()) {
                         stopSelf()
                     }

@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.QueueSwipeAction
 import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
@@ -49,6 +50,8 @@ class PlayerAppearanceViewModel
         val miniPlayerNextPrev = preferences.miniPlayerShowNextPrevControls.asState(false)
         val miniBarSwipeLeft = preferences.miniBarSwipeLeftAction.asState(MiniBarSwipeAction.CLOSE)
         val miniBarSwipeRight = preferences.miniBarSwipeRightAction.asState(MiniBarSwipeAction.CLOSE)
+        val queueSwipeLeft = preferences.queueSwipeLeftAction.asState(QueueSwipeAction.PLAY_NEXT)
+        val queueSwipeRight = preferences.queueSwipeRightAction.asState(QueueSwipeAction.REMOVE)
 
         fun setSliderStyle(value: SliderStyle) = write { preferences.setSliderStyle(value) }
 
@@ -99,6 +102,10 @@ class PlayerAppearanceViewModel
         fun setMiniBarSwipeLeft(value: MiniBarSwipeAction) = write { preferences.setMiniBarSwipeLeftAction(value) }
 
         fun setMiniBarSwipeRight(value: MiniBarSwipeAction) = write { preferences.setMiniBarSwipeRightAction(value) }
+
+        fun setQueueSwipeLeft(value: QueueSwipeAction) = write { preferences.setQueueSwipeLeftAction(value) }
+
+        fun setQueueSwipeRight(value: QueueSwipeAction) = write { preferences.setQueueSwipeRightAction(value) }
     }
 
 /** The three mini player sizes the setting offers, stored as the player's scale factor. */

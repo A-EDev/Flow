@@ -26,11 +26,15 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.onRepeatShelf
 import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.components.musicplayer.queue.QueueSwipes
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -50,6 +54,7 @@ class MusicPlayerViewModel
         private val viewHistory: ViewHistory,
         private val musicBrain: MusicBrainEngine,
         private val scrobbler: Scrobbler,
+        private val lyricsHelper: LyricsHelper,
         localLyrics: LocalLyricsReader,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
@@ -63,8 +68,11 @@ class MusicPlayerViewModel
         private val _currentPositionMs = MutableStateFlow(0L)
         val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
-        private val lyricsHelper = LyricsHelper(context)
         private val playerPreferences = PlayerPreferences(context)
+
+        internal val queueSwipes: StateFlow<QueueSwipes> =
+            combine(playerPreferences.queueSwipeLeftAction, playerPreferences.queueSwipeRightAction, ::QueueSwipes)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), QueueSwipes())
 
         private var isInitialized = false
         private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -454,6 +462,8 @@ class MusicPlayerViewModel
             val target = if (index > current) current + 1 else current
             if (index != target) EnhancedMusicPlayerManager.moveMediaItem(index, target)
         }
+
+        fun removeFromQueue(index: Int): EnhancedMusicPlayerManager.RemovedQueueTrack? = EnhancedMusicPlayerManager.removeFromQueue(index)
 
         fun moveQueueTrackToEnd(index: Int) {
             val lastIndex = _uiState.value.queue.size - 1

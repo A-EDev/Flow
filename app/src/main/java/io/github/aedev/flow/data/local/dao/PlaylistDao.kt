@@ -88,6 +88,12 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists WHERE id = :id")
     suspend fun getPlaylist(id: String): PlaylistEntity?
 
+    @Query("UPDATE playlists SET isMusic = :isMusic WHERE id = :id")
+    suspend fun setPlaylistIsMusic(
+        id: String,
+        isMusic: Boolean,
+    )
+
     @Query("SELECT * FROM playlists WHERE id = :id")
     fun observePlaylist(id: String): Flow<PlaylistEntity?>
 

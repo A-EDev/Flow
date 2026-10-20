@@ -949,6 +949,10 @@
     <string name="mini_bar_swipe_left">Swipe left</string>
     <string name="mini_bar_swipe_right">Swipe right</string>
     <string name="mini_bar_swipe_subtitle">For the music bar and the background video bar</string>
+    <string name="queue_swipe_left">Queue swipe left</string>
+    <string name="queue_swipe_right">Queue swipe right</string>
+    <string name="queue_swipe_subtitle">For songs in Up next</string>
+    <string name="queue_move_to_end">Move to end</string>
     <string name="mini_bar_nothing_next">Nothing up next</string>
     <string name="mini_bar_nothing_previous">Nothing before this</string>
     <string name="skip_button_title">Show Skip Buttons</string>
@@ -983,6 +987,22 @@
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
     <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
+    <string name="lyrics_provider_lrc_red">lrc.red</string>
+    <string name="lyrics_provider_kugou">KuGou</string>
+    <string name="lyrics_provider_paxsenix">Apple Music (Paxsenix)</string>
+    <string name="lyrics_provider_unison">Unison</string>
+    <string name="lyrics_provider_youtube_captions">YouTube captions</string>
+    <string name="lyrics_provider_youtube_music">YouTube Music</string>
+    <string name="lyrics_provider_better_lyrics_desc">Word sync · Apple Music lyrics</string>
+    <string name="lyrics_provider_lrc_red_desc">Word sync · matched by recording</string>
+    <string name="lyrics_provider_lyrics_plus_desc">Word sync</string>
+    <string name="lyrics_provider_simpmusic_desc">Word sync · matched by video</string>
+    <string name="lyrics_provider_kugou_desc">Line sync · strong for Chinese songs</string>
+    <string name="lyrics_provider_paxsenix_desc">Word sync</string>
+    <string name="lyrics_provider_lrclib_desc">Line sync · open database</string>
+    <string name="lyrics_provider_unison_desc">Community lyrics · small catalogue</string>
+    <string name="lyrics_provider_youtube_captions_desc">Line sync · the video\'s captions</string>
+    <string name="lyrics_provider_youtube_music_desc">Plain text · the Lyrics tab</string>
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_system_default">System Default</string>
     <string name="theme_desc_system_default">Follows your device between light and dark.</string>
@@ -1721,6 +1741,10 @@
     <plurals name="import_takeout_part_playlists">
         <item quantity="one">%1$d playlist (%2$d videos)</item>
         <item quantity="other">%1$d playlists (%2$d videos)</item>
+    </plurals>
+    <plurals name="import_takeout_part_music_playlists">
+        <item quantity="one">%d playlist in Music</item>
+        <item quantity="other">%d playlists in Music</item>
     </plurals>
     <plurals name="import_takeout_part_music_library">
         <item quantity="one">%d YouTube Music library song</item>
@@ -3248,6 +3272,10 @@
     <string name="toast_removed_from_playlist">Removed from playlist</string>
     <string name="toast_failed_to_remove_track">Failed to remove track</string>
     <string name="toast_saved_playlist_to_music_library">Playlist saved to your music library</string>
+    <string name="playlist_move_to_music">Move to Music</string>
+    <string name="playlist_move_to_videos">Move to Videos</string>
+    <string name="playlist_moved_to_music">Moved to Music</string>
+    <string name="playlist_moved_to_videos">Moved to Videos</string>
     <string name="toast_failed_to_save_playlist">Failed to save playlist</string>
     <string name="toast_removed_playlist_from_library">Playlist removed from library</string>
     <string name="toast_failed_to_merge_playlist">Failed to merge playlist</string>

@@ -46,6 +46,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +67,7 @@ internal class QueueActions(
     val onMoveTrack: (Int, Int) -> Unit,
     val onPlayNextFromQueue: (Int) -> Unit,
     val onSendQueueTrackToEnd: (Int) -> Unit,
+    val onRemoveFromQueue: (Int) -> Unit,
     val onRadioTrackClick: (MusicTrack) -> Unit,
     val onPlayNextRadio: (MusicTrack) -> Unit,
     val onAddRadioToQueue: (MusicTrack) -> Unit,
@@ -73,8 +77,8 @@ internal class QueueActions(
 )
 
 /**
- * The queue itself: hold and drag a row to reorder, swipe toward the start to play it next or
- * toward the end to send it to the back, then the endless-radio toggle and its suggestions.
+ * The queue itself: hold and drag a row to reorder, swipe a row either way for what [swipes] sets
+ * for that side, then the endless-radio toggle and its suggestions.
  */
 @Composable
 internal fun QueueList(
@@ -85,6 +89,7 @@ internal fun QueueList(
     isRadioLoading: Boolean,
     endlessRadioEnabled: Boolean,
     downloadedTrackIds: Set<String>,
+    swipes: QueueSwipes,
     actions: QueueActions,
     modifier: Modifier = Modifier,
     clearNavigationBar: Boolean = true,
@@ -133,6 +138,21 @@ internal fun QueueList(
         }
     }
 
+    fun onQueueSwipe(
+        swipe: QueueRowSwipe,
+        index: Int,
+    ) {
+        when (swipe) {
+            QueueRowSwipe.PLAY_NEXT -> actions.onPlayNextFromQueue(index)
+            QueueRowSwipe.MOVE_TO_END, QueueRowSwipe.ADD_TO_QUEUE -> actions.onSendQueueTrackToEnd(index)
+            QueueRowSwipe.REMOVE -> actions.onRemoveFromQueue(index)
+        }
+    }
+
+    val playNextLabel = stringResource(R.string.play_next)
+    val moveToEndLabel = stringResource(R.string.queue_move_to_end)
+    val removeLabel = stringResource(R.string.remove_from_queue)
+
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxWidth(),
@@ -162,16 +182,30 @@ internal fun QueueList(
                     isDragging = isDragging,
                     swipeEnabled = !isCurrent && !isDragging,
                     isDownloaded = downloadedTrackIds.contains(track.videoId),
-                    flyOffOnCommit = false,
+                    leftSwipe = swipes.left.rowSwipe,
+                    rightSwipe = swipes.right.rowSwipe,
                     rowKey = localKeys.getOrNull(index) ?: track.videoId,
                     onClick = { actions.onTrackClick(index) },
-                    onPlayNext = { actions.onPlayNextFromQueue(index) },
-                    onAddToQueue = { actions.onSendQueueTrackToEnd(index) },
+                    onSwipe = { swipe -> onQueueSwipe(swipe, index) },
                     modifier =
                         Modifier
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
+                            }.semantics {
+                                if (!isCurrent) {
+                                    customActions =
+                                        listOf(
+                                            playNextLabel to QueueRowSwipe.PLAY_NEXT,
+                                            moveToEndLabel to QueueRowSwipe.MOVE_TO_END,
+                                            removeLabel to QueueRowSwipe.REMOVE,
+                                        ).map { (label, swipe) ->
+                                            CustomAccessibilityAction(label) {
+                                                onQueueSwipe(swipe, index)
+                                                true
+                                            }
+                                        }
+                                }
                             }.longPressDraggableHandle(
                                 onDragStarted = {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -228,11 +262,13 @@ internal fun QueueList(
                         isDragging = false,
                         swipeEnabled = true,
                         isDownloaded = downloadedTrackIds.contains(track.videoId),
-                        flyOffOnCommit = true,
+                        leftSwipe = QueueRowSwipe.PLAY_NEXT,
+                        rightSwipe = QueueRowSwipe.ADD_TO_QUEUE,
                         rowKey = "radio:${track.videoId}",
                         onClick = { actions.onRadioTrackClick(track) },
-                        onPlayNext = { actions.onPlayNextRadio(track) },
-                        onAddToQueue = { actions.onAddRadioToQueue(track) },
+                        onSwipe = { swipe ->
+                            if (swipe == QueueRowSwipe.PLAY_NEXT) actions.onPlayNextRadio(track) else actions.onAddRadioToQueue(track)
+                        },
                     )
                 }
             }

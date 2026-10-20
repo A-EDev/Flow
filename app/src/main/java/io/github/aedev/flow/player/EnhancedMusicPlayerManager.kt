@@ -1136,29 +1136,40 @@ object EnhancedMusicPlayerManager {
         _playerState.value = MusicPlayerState()
     }
 
-    fun removeFromQueue(index: Int) {
-        removeMediaItem(index)
+    /** A song taken out of the queue, with what [restoreToQueue] needs to put it back. */
+    data class RemovedQueueTrack(
+        val track: MusicTrack,
+        val index: Int,
+        internal val queueAfter: List<String>,
+    )
+
+    /** Takes the song at [index] out of the queue; null for the playing song or an index the queue lacks. */
+    fun removeFromQueue(index: Int): RemovedQueueTrack? {
+        val removal = PlaylistQueueOrder.removeAt(_queue.value, _currentQueueIndex.value, index) ?: return null
+        _queue.value = removal.queue.items
+        _currentQueueIndex.value = removal.queue.currentIndex
+        when {
+            pendingPlayNextMediaIndex == index -> clearPendingPlayNext()
+            pendingPlayNextMediaIndex > index -> pendingPlayNextMediaIndex--
+        }
+        player?.let { p -> if (index < p.mediaItemCount) p.removeMediaItem(index) }
+        triggerQueueSave()
+        return RemovedQueueTrack(removal.removedItem, index, removal.queue.items.map { it.videoId })
     }
 
-    fun removeMediaItem(index: Int) {
-        scope.launch {
-            val currentQ = _queue.value.toMutableList()
-            if (index in currentQ.indices) {
-                currentQ.removeAt(index)
-                _queue.value = currentQ
-                when {
-                    pendingPlayNextMediaIndex == index -> clearPendingPlayNext()
-                    pendingPlayNextMediaIndex > index -> pendingPlayNextMediaIndex--
-                }
-
-                player?.let { p ->
-                    if (index < p.mediaItemCount) {
-                        p.removeMediaItem(index)
-                    }
-                }
-                triggerQueueSave()
-            }
-        }
+    /**
+     * Puts [removed] back where it was. Songs added at the end since then are fine; any other change
+     * to the queue means its place no longer exists, and the undo does nothing.
+     */
+    fun restoreToQueue(removed: RemovedQueueTrack) {
+        val queue = _queue.value
+        if (queue.take(removed.queueAfter.size).map { it.videoId } != removed.queueAfter) return
+        val index = removed.index.coerceIn(0, queue.size)
+        _queue.value = queue.toMutableList().apply { add(index, removed.track) }
+        if (index <= _currentQueueIndex.value) _currentQueueIndex.value += 1
+        if (pendingPlayNextMediaIndex >= index) pendingPlayNextMediaIndex++
+        player?.let { p -> if (index <= p.mediaItemCount) p.addMediaItem(index, buildMediaItem(removed.track)) }
+        triggerQueueSave()
     }
 
     fun moveMediaItem(
@@ -1166,20 +1177,18 @@ object EnhancedMusicPlayerManager {
         toIndex: Int,
     ) {
         scope.launch {
-            val currentQ = _queue.value.toMutableList()
-            if (fromIndex in currentQ.indices && toIndex in currentQ.indices) {
-                val item = currentQ.removeAt(fromIndex)
-                currentQ.add(toIndex, item)
-                _queue.value = currentQ
-                clearPendingPlayNext()
+            val moved = PlaylistQueueOrder.move(_queue.value, _currentQueueIndex.value, fromIndex, toIndex) ?: return@launch
+            _queue.value = moved.items
+            // The player reports no transition when songs move around the playing one, so the index follows here.
+            _currentQueueIndex.value = moved.currentIndex
+            clearPendingPlayNext()
 
-                player?.let { p ->
-                    if (fromIndex < p.mediaItemCount && toIndex < p.mediaItemCount) {
-                        p.moveMediaItem(fromIndex, toIndex)
-                    }
+            player?.let { p ->
+                if (fromIndex < p.mediaItemCount && toIndex < p.mediaItemCount) {
+                    p.moveMediaItem(fromIndex, toIndex)
                 }
-                triggerQueueSave()
             }
+            triggerQueueSave()
         }
     }
 
