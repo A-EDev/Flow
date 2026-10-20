@@ -4,9 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.di.NetworkIoDispatcher
@@ -23,7 +23,7 @@ import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.recapImages by preferencesDataStore(name = "flow_recap_images")
+private val Context.recapImages by safePreferencesDataStore(name = "flow_recap_images")
 private val IMAGES = stringPreferencesKey("images")
 
 /**

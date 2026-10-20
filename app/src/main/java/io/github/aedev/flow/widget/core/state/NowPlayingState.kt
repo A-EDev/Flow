@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -29,7 +29,7 @@ data class NowPlayingSnapshot(
     val speed: Float = 1f,
 )
 
-private val Context.nowPlayingWidgetStore by preferencesDataStore(name = "now_playing_widget")
+private val Context.nowPlayingWidgetStore by safePreferencesDataStore(name = "now_playing_widget")
 
 private object Keys {
     val MEDIA_ID = stringPreferencesKey("media_id")
