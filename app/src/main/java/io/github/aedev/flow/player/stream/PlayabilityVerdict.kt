@@ -9,10 +9,16 @@ private val BotWallReason = Regex("""not a bot|confirm you.re""", RegexOption.IG
 // Clients the ladder skipped without asking say nothing about the video.
 private val NotAskedReason = Regex("""demoted|no visitorData|PoToken unavailable|not asked""")
 
+// A client that never answered cannot contradict a wall the others reported.
+private val NoAnswerReason = Regex("""timeout or null response|exception=""")
+
 /** Why YouTube refused a video to this viewer, when the refusal is about the viewer and not the video. */
 enum class PlaybackBlock {
-    /** "Sign in to confirm you're not a bot": the network or visitor is flagged. */
+    /** "Sign in to confirm you're not a bot" on every client: this visitor is flagged. */
     BOT_WALL,
+
+    /** The wall held for a fresh visitor too, so the network is the likelier cause. */
+    NETWORK_WALL,
 
     /** The video needs a signed-in account, for its age or its audience. */
     LOGIN_REQUIRED,
@@ -45,18 +51,22 @@ internal object PlayabilityVerdict {
         return statuses.isNotEmpty() && statuses.all { it in GoneStatuses }
     }
 
-    /** Every client the ladder asked was bot-walled, so the refusal is about this viewer only. */
+    /** Every client that answered was bot-walled, so the refusal is about this viewer only. */
     fun everyClientWalled(failureReasons: List<String>): Boolean {
-        val asked = failureReasons.filterNot { NotAskedReason.containsMatchIn(it) }
-        return asked.isNotEmpty() && asked.all { "BOT_WALL" in it }
+        val answered = failureReasons.filterNot { NotAskedReason.containsMatchIn(it) || NoAnswerReason.containsMatchIn(it) }
+        return answered.isNotEmpty() && answered.all { "BOT_WALL" in it }
     }
 
     /** Extraction runs in en-US, so the reason is English; "confirm your age" is not a bot wall. */
     fun isBotWall(reason: String?): Boolean = reason != null && BotWallReason.containsMatchIn(reason)
 
-    fun block(failureReasons: List<String>): PlaybackBlock? =
+    /** [freshVisitorWalled]: the wall also held after the visitor was replaced for it. */
+    fun block(
+        failureReasons: List<String>,
+        freshVisitorWalled: Boolean = false,
+    ): PlaybackBlock? =
         when {
-            failureReasons.any { "BOT_WALL" in it } -> PlaybackBlock.BOT_WALL
+            everyClientWalled(failureReasons) -> if (freshVisitorWalled) PlaybackBlock.NETWORK_WALL else PlaybackBlock.BOT_WALL
             failureReasons.any { StatusPattern.find(it)?.groupValues?.get(1) == "LOGIN_REQUIRED" } -> PlaybackBlock.LOGIN_REQUIRED
             else -> null
         }

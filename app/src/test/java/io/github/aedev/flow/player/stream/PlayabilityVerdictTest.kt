@@ -68,10 +68,12 @@ class PlayabilityVerdictTest {
     }
 
     @Test
-    fun `a bot wall on any client blocks the network`() {
+    fun `a wall on every client that answered blocks the visitor, and the network once a fresh one is walled`() {
         val reasons = listOf("VISIONOS: BOT_WALL, reason=Sign in", "MWEB: timeout or null response")
 
         assertThat(PlayabilityVerdict.block(reasons)).isEqualTo(PlaybackBlock.BOT_WALL)
+        assertThat(PlayabilityVerdict.block(reasons, freshVisitorWalled = true)).isEqualTo(PlaybackBlock.NETWORK_WALL)
+        assertThat(PlayabilityVerdict.block(reasons + "IOS: status=ERROR, reason=x")).isNull()
     }
 
     @Test
@@ -97,7 +99,7 @@ class PlayabilityVerdictTest {
                 "all SABR clients demoted: WEB",
             )
         assertThat(PlayabilityVerdict.everyClientWalled(walled)).isTrue()
-        assertThat(PlayabilityVerdict.everyClientWalled(walled + "IOS: timeout or null response")).isFalse()
+        assertThat(PlayabilityVerdict.everyClientWalled(walled + "IOS: timeout or null response")).isTrue()
         assertThat(PlayabilityVerdict.everyClientWalled(walled + "IOS: status=ERROR, reason=x")).isFalse()
         assertThat(PlayabilityVerdict.everyClientWalled(listOf("MWEB: no visitorData"))).isFalse()
         assertThat(PlayabilityVerdict.everyClientWalled(emptyList())).isFalse()

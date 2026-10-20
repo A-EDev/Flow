@@ -165,19 +165,20 @@ object InnerTubeVideoStreamExtractor {
 
             // A wall at /player issues no stream URLs, so no 403 ever reaches the re-roll that GVS
             // refusals trigger, and a retry would ask again with the same walled visitor (#1354).
-            if (PlayabilityVerdict.everyClientWalled(failureReasons) &&
-                WebPoTokenSession.rerollAfterPlayerWall(walledGeneration) == PlayerWallReroll.REROLLED
-            ) {
+            val fullWall = PlayabilityVerdict.everyClientWalled(failureReasons)
+            val reroll = if (fullWall) WebPoTokenSession.rerollAfterPlayerWall(walledGeneration) else null
+            if (reroll == PlayerWallReroll.REROLLED) {
                 PlayerDiagnostics.logWarning(TAG, "every client bot-walled $videoId, retrying once with a fresh visitor")
                 dropGatesOnIdentityChange()
                 failureReasons = mutableListOf()
                 walkLadder(videoId, audioOnly, failureReasons)?.let { return@withContext it }
             }
+            val freshVisitorWalled = reroll == PlayerWallReroll.REROLLED || reroll == PlayerWallReroll.FRESH_VISITOR_WALLED
 
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
             if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
-            recordBlock(videoId, failureReasons)
+            recordBlock(videoId, failureReasons, freshVisitorWalled)
             null
         }
 
@@ -310,8 +311,9 @@ object InnerTubeVideoStreamExtractor {
     private fun recordBlock(
         videoId: String,
         failureReasons: List<String>,
+        freshVisitorWalled: Boolean = false,
     ) {
-        PlayabilityVerdict.block(failureReasons)?.let { blockedVideoIds[videoId] = it }
+        PlayabilityVerdict.block(failureReasons, freshVisitorWalled)?.let { blockedVideoIds[videoId] = it }
     }
 
     /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
