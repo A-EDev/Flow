@@ -93,7 +93,7 @@ Before writing any component, effect, animation, formatter, parser, scheduler, o
 | Paging | Paging 3 (`androidx.paging`, already used by search and channel) | New hand-rolled page cursors |
 | Playback | Media3 1.11.0 — exoplayer, hls, dash, session, datasource-okhttp | Custom player wiring, manifest handling, or media notifications |
 | Background work | WorkManager 2.11.2 | Custom threads, timers, alarms, or wakelocks |
-| Persistence | Room 2.8.4, DataStore Preferences 1.1.1 | Hand-rolled file or SharedPreferences layers |
+| Persistence | Room 2.8.4, DataStore Preferences 1.1.7 | Hand-rolled file or SharedPreferences layers |
 | JSON | `kotlinx.serialization` (103 files) | Gson for new code — it is kept only for legacy DTOs and carries an R8 reflection hazard |
 | HTTP | OkHttp 5.4.0 / Ktor 3.5.2 | Raw sockets or `HttpURLConnection` |
 | Dates and times | `java.time` — **core library desugaring is enabled, minSdk 26**, so all of it is available | `SimpleDateFormat`, `Calendar`, or manual millisecond arithmetic |

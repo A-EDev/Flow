@@ -278,13 +278,19 @@ class EqualizerViewModel
             _importPreview.value = null
         }
 
-        /** An installed equalizer panel for the current session, or null when none is installed. */
+        /**
+         * An installed equalizer panel for the session playing now, or null when none is installed.
+         * Built at tap time: the active session changes as players start and stop.
+         */
         fun systemEqualizerIntent(): Intent? {
+            val session = sessions.activeSessionId.value
             val intent =
                 Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL)
                     .putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
-                    .putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-            val session = sessions.activeSessionId.value
+                    .putExtra(
+                        AudioEffect.EXTRA_CONTENT_TYPE,
+                        sessions.contentTypeOf(session) ?: AudioEffect.CONTENT_TYPE_MUSIC,
+                    )
             if (session > 0) intent.putExtra(AudioEffect.EXTRA_AUDIO_SESSION, session)
             return intent.takeIf { it.resolveActivity(context.packageManager) != null }
         }

@@ -73,9 +73,9 @@ class LinkedPlaylistTest {
         runTest {
             var requests = 0
             val queue =
-                findLinkedVideoQueue(page(listOf("a"), continuation = "next"), "z", maxPages = 3) {
+                findLinkedVideoQueue(page(listOf("a"), continuation = "next0"), "z", maxPages = 3) {
                     requests++
-                    listOf(video("x$requests")) to "next"
+                    listOf(video("x$requests")) to "next$requests"
                 }
 
             assertNull(queue)

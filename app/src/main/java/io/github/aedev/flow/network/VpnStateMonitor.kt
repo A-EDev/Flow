@@ -48,6 +48,13 @@ class VpnStateMonitor
                 val registered = runCatching { connectivity.registerDefaultNetworkCallback(callback) }.isSuccess
                 awaitClose { if (registered) connectivity.unregisterNetworkCallback(callback) }
             }.distinctUntilChanged()
-
-        private fun NetworkCapabilities?.isVpn(): Boolean = this?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
     }
+
+/** Whether this app's default network is a VPN right now, for a one-off read outside a flow. */
+fun Context.appTrafficUsesVpn(): Boolean =
+    runCatching {
+        val connectivity = getSystemService(ConnectivityManager::class.java)
+        connectivity?.getNetworkCapabilities(connectivity.activeNetwork).isVpn()
+    }.getOrDefault(false)
+
+private fun NetworkCapabilities?.isVpn(): Boolean = this?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true

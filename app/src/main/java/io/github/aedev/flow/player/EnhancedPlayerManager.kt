@@ -42,6 +42,7 @@ import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.analytics.RenderedFirstFrameListener
 import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
+import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -143,7 +144,7 @@ class EnhancedPlayerManager private constructor() {
     private var videoEqualizer: EqualizerAudioProcessor? = null
     private var eqObserver: Job? = null
     private var audioEffects: AudioEffectsEntryPoint? = null
-    private var announcedAudioSession = 0
+    private var audioSessionAnnouncer: AudioSessionAnnouncer? = null
 
     // State management
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
@@ -752,7 +753,12 @@ class EnhancedPlayerManager private constructor() {
         player?.addAnalyticsListener(
             RenderedFirstFrameListener(currentVideoId = { currentVideoId }) { videoId -> _firstFrameVideoId.value = videoId },
         )
-        player?.let { announceAudioSession(effects, it.audioSessionId) }
+        player?.let { built ->
+            audioSessionAnnouncer =
+                AudioSessionAnnouncer(effects.audioSessionRegistry(), AudioEffect.CONTENT_TYPE_MOVIE) {
+                    audioFeaturesManager?.onAudioSessionChanged()
+                }.also { it.attach(built) }
+        }
 
         audioFeaturesManager?.setPlayer(player!!)
 
@@ -3327,16 +3333,6 @@ class EnhancedPlayerManager private constructor() {
             duration - player.currentPosition <= LIVE_EDGE_THRESHOLD_MS
     }
 
-    private fun announceAudioSession(
-        effects: AudioEffectsEntryPoint,
-        sessionId: Int,
-    ) {
-        val registry = effects.audioSessionRegistry()
-        if (announcedAudioSession != sessionId) registry.close(announcedAudioSession)
-        announcedAudioSession = sessionId
-        registry.open(sessionId, AudioEffect.CONTENT_TYPE_MOVIE)
-    }
-
     fun release() {
         Log.d(TAG, "release() called")
         releaseAdvanceWakeLock()
@@ -3351,8 +3347,8 @@ class EnhancedPlayerManager private constructor() {
         audioFeaturesManager?.clearPlayer()
         buildScope.close()
         surfaceManager?.release(player)
-        audioEffects?.audioSessionRegistry()?.close(announcedAudioSession)
-        announcedAudioSession = 0
+        audioSessionAnnouncer?.detach()
+        audioSessionAnnouncer = null
         player?.release()
         player = null
         trackSelector = null

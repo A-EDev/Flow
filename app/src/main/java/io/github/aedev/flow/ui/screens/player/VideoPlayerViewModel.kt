@@ -30,6 +30,7 @@ import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
+import io.github.aedev.flow.player.stream.ResetYouTubeSession
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
@@ -82,6 +83,7 @@ class VideoPlayerViewModel
         private val localMediaDetails: LocalMediaDetails,
         private val lifecyclePlayback: LifecyclePlaybackPreferences,
         private val autoDownload: AutoDownloadTrigger,
+        private val resetYouTubeSession: ResetYouTubeSession,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -390,6 +392,12 @@ class VideoPlayerViewModel
 
         fun showVideoPlayer() = presence.showVideoPlayer()
 
+        fun resetSessionAndRetry() =
+            viewModelScope.launch {
+                resetYouTubeSession()
+                retryLoadVideo()
+            }
+
         fun retryLoadVideo() {
             val videoId = _uiState.value.cachedVideo?.id ?: return
             Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
@@ -403,7 +411,7 @@ class VideoPlayerViewModel
             }
             recovery.onPlaybackRequested()
             playerManager.clearCurrentVideo()
-            _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
+            _uiState.update { it.copy(error = null, errorHint = null, errorOffersSessionReset = false, isLoading = true) }
             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
         }
 

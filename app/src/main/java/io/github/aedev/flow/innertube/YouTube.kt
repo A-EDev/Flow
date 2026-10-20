@@ -150,6 +150,9 @@ object YouTube {
     private const val CHANNEL_POSTS_PARAMS = "EgVwb3N0c_IGBAoCSgA="
     private const val CHANNEL_SHORTS_PARAMS = "EgZzaG9ydHPyBgUKA5oBAA=="
 
+    /** The playlist header menu's "Show unavailable videos" view, which lists a Shorts grid in full. */
+    const val PLAYLIST_SHOW_UNAVAILABLE_PARAMS = "wgYCCAA="
+
     var locale: YouTubeLocale
         get() = innerTube.locale
         set(value) {
@@ -841,17 +844,21 @@ object YouTube {
             communityPostCommentsPage(continuation = continuation)
         }
 
-    /** A YouTube playlist's first page when [continuation] is null, otherwise the page it points to. */
+    /**
+     * A YouTube playlist's first page when [continuation] is null, otherwise the page it points to.
+     * [params] picks a view of the first page, such as [PLAYLIST_SHOW_UNAVAILABLE_PARAMS].
+     */
     suspend fun videoPlaylistPage(
         playlistId: String,
         continuation: String? = null,
+        params: String? = null,
     ): Result<VideoPlaylistPage> =
         runCatching {
             val response =
                 innerTube.channelBrowse(
-                    client = currentWebClient(),
+                    client = WEB,
                     channelId = "VL$playlistId".takeIf { continuation == null },
-                    params = null,
+                    params = params.takeIf { continuation == null },
                     continuation = continuation,
                 )
             Json.parseToJsonElement(response.bodyAsText()).toVideoPlaylistPage()

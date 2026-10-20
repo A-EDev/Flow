@@ -85,7 +85,7 @@ fun EqualizerScreen(
     var showPresets by rememberSaveable { mutableStateOf(false) }
     var selectedBand by rememberSaveable { mutableStateOf<Int?>(null) }
     var dialog by remember { mutableStateOf<EqDialog?>(null) }
-    val systemEqualizer = remember { viewModel.systemEqualizerIntent() }
+    val hasSystemEqualizer = remember { viewModel.systemEqualizerIntent() != null }
     val undoLabel = stringResource(R.string.undo)
     val panes = rememberFlowPaneState()
     val twoPane = !inSettings && panes.showsSidePane
@@ -184,7 +184,12 @@ fun EqualizerScreen(
                 twoPane = twoPane,
                 onOpenPresets = { showPresets = true },
                 onSaveAs = { dialog = EqDialog.SaveAs },
-                onSystemEqualizer = systemEqualizer?.let { intent -> { openSystemEqualizer.launch(intent) } },
+                onSystemEqualizer =
+                    if (hasSystemEqualizer) {
+                        { viewModel.systemEqualizerIntent()?.let(openSystemEqualizer::launch) }
+                    } else {
+                        null
+                    },
                 modifier = Modifier.padding(padding),
             )
         }

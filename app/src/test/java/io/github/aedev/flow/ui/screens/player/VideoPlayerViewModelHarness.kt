@@ -220,6 +220,7 @@ internal class VideoPlayerViewModelHarness(
             localMediaDetails = mockk { coEvery { enrich(any()) } returns null },
             lifecyclePlayback = mockk { every { settings } answers { LifecyclePlaybackSettings(startVideosPaused = startVideosPaused) } },
             autoDownload = autoDownload,
+            resetYouTubeSession = mockk(relaxed = true),
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

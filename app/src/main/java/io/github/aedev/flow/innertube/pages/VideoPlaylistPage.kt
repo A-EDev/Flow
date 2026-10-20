@@ -20,6 +20,10 @@ data class VideoPlaylistPage(
     val videos: List<Video> = emptyList(),
     val continuation: String? = null,
     val isCourse: Boolean = false,
+    /** Shorts-only playlists arrive as a grid of 100 that YouTube sends no next page for. */
+    val isShortsGrid: Boolean = false,
+    /** The count in the header, unavailable videos included. */
+    val videoCount: Int? = null,
 )
 
 /**
@@ -27,7 +31,7 @@ data class VideoPlaylistPage(
  * lockups carrying their own channel; unavailable entries are simply absent from the response.
  */
 internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
-    val items = playlistItems()
+    val (items, isShortsGrid) = playlistItems()
     val header =
         findRenderers(
             "pageHeaderRenderer",
@@ -75,18 +79,33 @@ internal fun JsonElement.toVideoPlaylistPage(): VideoPlaylistPage {
                 .largestImageUrl(),
         videos =
             items
-                .mapNotNull { it.toFeedItem(FeedItemOwner()) }
-                .filterIsInstance<FeedItem.VideoItem>()
-                .map { it.video }
-                .distinctBy { it.id },
+                .mapNotNull { item ->
+                    when (val feedItem = item.toFeedItem(FeedItemOwner())) {
+                        is FeedItem.VideoItem -> feedItem.video
+                        is FeedItem.ShortItem -> feedItem.video
+                        else -> null
+                    }
+                }.distinctBy { it.id },
         continuation = items.lastOrNull().continuationToken(),
         isCourse = header["courseProgressViewModel"] != null,
+        isShortsGrid = isShortsGrid,
+        videoCount =
+            sidebar
+                ?.get("stats")
+                .arrayOrNull()
+                ?.firstOrNull()
+                .youtubeText()
+                ?.filter(Char::isDigit)
+                ?.toIntOrNull(),
     )
 }
 
-/** Items of the first page's list, or of a continuation's append action. */
-private fun JsonElement.playlistItems(): List<JsonElement> {
-    val root = objectOrNull() ?: return emptyList()
+/**
+ * Items of the first page's list, or of a continuation's append action, and whether they came as
+ * the Shorts grid instead of a list.
+ */
+private fun JsonElement.playlistItems(): Pair<List<JsonElement>, Boolean> {
+    val root = objectOrNull() ?: return emptyList<JsonElement>() to false
     root["onResponseReceivedActions"].arrayOrNull()?.let { actions ->
         return actions.flatMap { action ->
             action
@@ -96,15 +115,32 @@ private fun JsonElement.playlistItems(): List<JsonElement> {
                 ?.get("continuationItems")
                 .arrayOrNull()
                 .orEmpty()
-        }
+        } to false
     }
     var list: List<JsonElement> = emptyList()
+    var isGrid = false
     root["contents"].forEachObject { node ->
         if (list.isNotEmpty()) return@forEachObject
-        val contents = node["itemSectionRenderer"].objectOrNull()?.get("contents").arrayOrNull()
-        if (contents?.any { it.objectOrNull()?.containsKey("lockupViewModel") == true } == true) list = contents
+        val contents = node["itemSectionRenderer"].objectOrNull()?.get("contents").arrayOrNull() ?: return@forEachObject
+        if (contents.any { it.objectOrNull()?.containsKey("lockupViewModel") == true }) {
+            list = contents
+            return@forEachObject
+        }
+        contents
+            .firstNotNullOfOrNull {
+                it
+                    .objectOrNull()
+                    ?.get("richGridRenderer")
+                    .objectOrNull()
+                    ?.get("contents")
+                    .arrayOrNull()
+            }?.takeIf { it.isNotEmpty() }
+            ?.let {
+                list = it
+                isGrid = true
+            }
     }
-    return list
+    return list to isGrid
 }
 
 /** The next-page token, from the older `continuationItemRenderer` or the `continuationItemViewModel` that replaced it. */

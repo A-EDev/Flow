@@ -41,6 +41,10 @@ object WebPoTokenSession {
 
     @Volatile
     private var lastWallRerollMs = 0L
+
+    // The generation a /player wall re-roll produced, so its own wall is not answered with another.
+    @Volatile
+    private var playerWallRerollGeneration = -1
     private val visitorMutex = Mutex()
     private val rotationMutex = Mutex()
 
@@ -247,6 +251,61 @@ object WebPoTokenSession {
         }
     }
 
+    /**
+     * Every client was bot-walled at /player, which issues no stream URLs, so no refusal ever
+     * reaches [rerollAfterWall] (#1354). Replaces the visitor that [walledGeneration] names, once:
+     * a fresh visitor walled again points at the network, not the visitor. The first re-roll on a
+     * network the visitor was not minted on skips the shared budget, since carrying a walled
+     * visitor onto a new network is the case this exists for.
+     */
+    suspend fun rerollAfterPlayerWall(walledGeneration: Int): PlayerWallReroll {
+        rotationMutex.withLock {
+            if (identityGeneration != walledGeneration) return PlayerWallReroll.REROLLED
+            if (playerWallRerollGeneration == identityGeneration) {
+                logWall("every client walled a fresh visitor at /player too")
+                return PlayerWallReroll.FRESH_VISITOR_WALLED
+            }
+            val store = identityStore ?: return PlayerWallReroll.UNAVAILABLE
+            val now = System.currentTimeMillis()
+            val newNetwork = store.mintedOnOtherNetwork()
+            val takenAt =
+                if (newNetwork) {
+                    null
+                } else {
+                    store.tryTakeReroll(now) ?: run {
+                        logWall("every client walled this visitor at /player, but the re-roll budget is spent")
+                        return PlayerWallReroll.UNAVAILABLE
+                    }
+                }
+            val fresh = YouTube.visitorData().getOrNull()?.takeIf { it.isNotBlank() }
+            if (fresh == null) {
+                takenAt?.let(store::refundReroll)
+                logWall("every client walled this visitor at /player; no fresh visitor could be fetched")
+                return PlayerWallReroll.UNAVAILABLE
+            }
+            lastWallRerollMs = now
+            generator.resetSession()
+            consecutiveLowTrustMints = 0
+            tokenRejections = 0
+            YouTube.visitorData = fresh
+            identityGeneration++
+            playerWallRerollGeneration = identityGeneration
+            logWall("every client walled this visitor at /player; re-rolled it (new network=$newNetwork)")
+            return PlayerWallReroll.REROLLED
+        }
+    }
+
+    /**
+     * The visitor's age, generation and whether it was minted on another network, so a wall report
+     * can tell a stuck visitor from a flagged network. Never the visitor itself.
+     */
+    fun identitySummary(): String {
+        val store = identityStore
+        val ageMinutes = store?.visitorAgeMs()?.let { it / 60_000L }
+        return "visitorAge=${ageMinutes?.let { "${it}m" } ?: "unknown"} generation=$identityGeneration " +
+            "mintedOnOtherNetwork=${store?.mintedOnOtherNetwork()}"
+    }
+
     private fun logWall(message: String) {
         Log.w(TAG, message)
         PlayerDiagnostics.logWarning(TAG, message)
@@ -274,4 +333,16 @@ object WebPoTokenSession {
             Log.w(TAG, "prewarm failed: ${e.message}")
         }
     }
+}
+
+/** What [WebPoTokenSession.rerollAfterPlayerWall] did about a wall on every client. */
+enum class PlayerWallReroll {
+    /** A fresh visitor is in place: walk the ladder again. */
+    REROLLED,
+
+    /** The visitor was already fresh from a wall like this one, so the network is the likelier cause. */
+    FRESH_VISITOR_WALLED,
+
+    /** No re-roll was possible: no store, the budget is spent, or no visitor could be fetched. */
+    UNAVAILABLE,
 }

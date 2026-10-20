@@ -4,10 +4,10 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import io.github.aedev.flow.widget.downloads.DownloadsSource
 import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
 import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
@@ -36,7 +36,7 @@ import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.widgetContentStore by preferencesDataStore(name = "widget_content")
+private val Context.widgetContentStore by safePreferencesDataStore(name = "widget_content")
 
 /**
  * Re-renders a content widget when what it draws has changed, and only while one is placed.
