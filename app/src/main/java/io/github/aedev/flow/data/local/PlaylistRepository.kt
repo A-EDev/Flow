@@ -291,6 +291,12 @@ class PlaylistRepository
             playlistDao.insertPlaylist(entity)
         }
 
+        /** Moves a stored playlist to the music library, or back to the video library. */
+        suspend fun moveToLibrary(
+            playlistId: String,
+            isMusic: Boolean,
+        ) = playlistDao.setPlaylistIsMusic(playlistId, isMusic)
+
         suspend fun unsaveExternalPlaylist(playlistId: String) {
             val entity = playlistDao.getPlaylist(playlistId)
             if (entity != null && !entity.isUserCreated) {

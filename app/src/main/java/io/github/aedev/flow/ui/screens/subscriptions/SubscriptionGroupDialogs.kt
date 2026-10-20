@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.subscriptions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -22,12 +24,14 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,8 +40,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -65,7 +76,7 @@ internal fun SubscriptionGroupsManagerDialog(
     onCreateNew: () -> Unit,
     onEdit: (SubscriptionGroup) -> Unit,
     onDelete: (SubscriptionGroup) -> Unit,
-    onReorder: (Int, Int) -> Unit,
+    onOrderChanged: (List<String>) -> Unit,
 ) {
     FlowAlertDialog(
         onDismissRequest = onDismiss,
@@ -79,74 +90,12 @@ internal fun SubscriptionGroupsManagerDialog(
                     modifier = Modifier.padding(vertical = ContentSpacing),
                 )
             } else {
-                val listState = rememberLazyListState()
-                val reorderableState =
-                    rememberReorderableLazyListState(listState) { from, to ->
-                        onReorder(from.index, to.index)
-                    }
-
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.heightIn(max = GroupListMaxHeight),
-                ) {
-                    items(groups, key = { it.name }) { group ->
-                        ReorderableItem(state = reorderableState, key = group.name) { isDragging ->
-                            Surface(
-                                color =
-                                    if (isDragging) {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                shape = MaterialTheme.shapes.medium,
-                            ) {
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = RowVerticalPadding),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    ReorderHandle(modifier = Modifier.draggableHandle())
-                                    Spacer(modifier = Modifier.width(ContentSpacing))
-                                    Text(
-                                        text = group.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    Text(
-                                        text =
-                                            pluralStringResource(
-                                                R.plurals.channels_count,
-                                                group.channelIds.size,
-                                                group.channelIds.size,
-                                            ),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(end = ContentSpacing),
-                                    )
-                                    IconButton(onClick = { onEdit(group) }, modifier = Modifier.size(ActionIconSize)) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ActionGlyphSize),
-                                        )
-                                    }
-                                    IconButton(onClick = { onDelete(group) }, modifier = Modifier.size(ActionIconSize)) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ActionGlyphSize),
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                SubscriptionGroupsReorderList(
+                    groups = groups,
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onOrderChanged = onOrderChanged,
+                )
             }
         },
         confirmButton = {
@@ -162,6 +111,133 @@ internal fun SubscriptionGroupsManagerDialog(
             }
         },
     )
+}
+
+/**
+ * The library needs each move applied before its callback returns, so the order is held here and
+ * saved once a drag ends. Writing every step to Room let the library repeat a step and undo it.
+ */
+@Composable
+private fun SubscriptionGroupsReorderList(
+    groups: List<SubscriptionGroup>,
+    onEdit: (SubscriptionGroup) -> Unit,
+    onDelete: (SubscriptionGroup) -> Unit,
+    onOrderChanged: (List<String>) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    var ordered by remember(groups) { mutableStateOf(groups) }
+    val listState = rememberLazyListState()
+    val reorderState =
+        rememberReorderableLazyListState(listState) { from, to ->
+            ordered = ordered.toMutableList().apply { add(to.index, removeAt(from.index)) }
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+        }
+
+    LaunchedEffect(reorderState.isAnyItemDragging) {
+        if (!reorderState.isAnyItemDragging && ordered.map { it.name } != groups.map { it.name }) {
+            onOrderChanged(ordered.map { it.name })
+        }
+    }
+
+    fun move(
+        from: Int,
+        to: Int,
+    ): Boolean {
+        if (to !in ordered.indices) return false
+        ordered = ordered.toMutableList().apply { add(to, removeAt(from)) }
+        onOrderChanged(ordered.map { it.name })
+        return true
+    }
+
+    val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    val windowHeight = with(LocalDensity.current) { windowHeightPx.toDp() }
+    val moveUpLabel = stringResource(R.string.move_up)
+    val moveDownLabel = stringResource(R.string.move_down)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.heightIn(max = maxOf(GroupListMaxHeight, windowHeight / 2)),
+    ) {
+        itemsIndexed(ordered, key = { _, group -> group.name }) { index, group ->
+            ReorderableItem(state = reorderState, key = group.name) { isDragging ->
+                val itemScope = this
+                Surface(
+                    color =
+                        if (isDragging) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            Color.Transparent
+                        },
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .semantics {
+                                    customActions =
+                                        buildList {
+                                            if (index > 0) add(CustomAccessibilityAction(moveUpLabel) { move(index, index - 1) })
+                                            if (index < ordered.lastIndex) {
+                                                add(CustomAccessibilityAction(moveDownLabel) { move(index, index + 1) })
+                                            }
+                                        }
+                                },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier =
+                                with(itemScope) {
+                                    Modifier
+                                        .size(LocalMinimumInteractiveComponentSize.current)
+                                        .draggableHandle(
+                                            onDragStarted = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            },
+                                            onDragStopped = { haptics.performHapticFeedback(HapticFeedbackType.GestureEnd) },
+                                        )
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ReorderHandle()
+                        }
+                        Text(
+                            text = group.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text =
+                                pluralStringResource(
+                                    R.plurals.channels_count,
+                                    group.channelIds.size,
+                                    group.channelIds.size,
+                                ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = ContentSpacing),
+                        )
+                        IconButton(onClick = { onEdit(group) }, modifier = Modifier.size(ActionIconSize)) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(ActionGlyphSize),
+                            )
+                        }
+                        IconButton(onClick = { onDelete(group) }, modifier = Modifier.size(ActionIconSize)) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(ActionGlyphSize),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -296,7 +372,7 @@ internal fun SubscriptionGroupDialogsHost(
                 editing = true
             },
             onDelete = { group -> viewModel.deleteGroup(group.name) },
-            onReorder = viewModel::reorderGroups,
+            onOrderChanged = viewModel::setGroupOrder,
         )
     } else {
         SubscriptionCreateEditGroupDialog(

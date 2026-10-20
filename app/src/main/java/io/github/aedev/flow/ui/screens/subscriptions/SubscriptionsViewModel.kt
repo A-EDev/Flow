@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel as EventChannel
@@ -478,11 +480,11 @@ class SubscriptionsViewModel
             }
         }
 
-        fun reorderGroups(
-            fromIndex: Int,
-            toIndex: Int,
-        ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) { subscriptionGroupDao.moveGroup(fromIndex, toIndex) }
+        private val groupOrderLock = Mutex()
+
+        /** Saves [names] as the group order; each save is a whole order, so saves are kept in sequence. */
+        fun setGroupOrder(names: List<String>) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) { groupOrderLock.withLock { subscriptionGroupDao.setOrder(names) } }
         }
 
         private val _importMessages = EventChannel<String>(EventChannel.BUFFERED)

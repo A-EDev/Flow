@@ -78,9 +78,9 @@ class SyncDataAccess
                 .map { LikesMapper.likedToCanonical(it, node) }
 
         suspend fun writeLikes(merged: List<CanonicalLike>) {
+            likedVideos.restoreLikes(merged.filter { it.state == CanonicalLike.STATE_LIKED }.map(LikesMapper::toLikedInfo))
             for (like in merged) {
                 when (like.state) {
-                    CanonicalLike.STATE_LIKED -> likedVideos.likeVideo(LikesMapper.toLikedInfo(like))
                     CanonicalLike.STATE_DISLIKED -> likedVideos.dislikeVideo(like.id)
                     CanonicalLike.STATE_NONE -> likedVideos.removeLikeState(like.id)
                 }

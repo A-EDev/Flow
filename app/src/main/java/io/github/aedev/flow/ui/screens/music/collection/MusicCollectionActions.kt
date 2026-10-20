@@ -12,12 +12,16 @@ import androidx.compose.material.icons.rounded.LibraryAdd
 import androidx.compose.material.icons.rounded.QueuePlayNext
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.SaveAs
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
 
-/** The header's ⋮ menu: add songs, edit or delete your own playlist, or add all of these to one of yours. */
+/**
+ * The header's ⋮ menu: add songs, edit or delete your own playlist, or add all of these to one of yours.
+ * A stored playlist can also move to the video library.
+ */
 @Composable
 internal fun collectionMenu(
     state: MusicCollectionUiState,
@@ -27,6 +31,7 @@ internal fun collectionMenu(
     onDelete: () -> Unit,
     onExport: () -> Unit,
     onSaveAsPlaylist: () -> Unit,
+    onMoveToVideos: () -> Unit,
 ): List<CollectionMenuItem> =
     buildList {
         if (state.kind == MusicCollectionKind.DAILY_MIX) {
@@ -36,6 +41,9 @@ internal fun collectionMenu(
             add(
                 CollectionMenuItem(stringResource(R.string.export_playlist_action), Icons.Rounded.SaveAs, onClick = onExport),
             )
+        }
+        if (state.isOwn || state.kind == MusicCollectionKind.SAVED) {
+            add(CollectionMenuItem(stringResource(R.string.playlist_move_to_videos), Icons.Rounded.VideoLibrary, onClick = onMoveToVideos))
         }
         if (state.isOwn) {
             add(CollectionMenuItem(stringResource(R.string.ui_add_songs), Icons.Rounded.Add, onClick = onAddSongs))

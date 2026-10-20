@@ -31,13 +31,3 @@ internal suspend fun SubscriptionGroupDao.editGroup(
     }
     return true
 }
-
-internal suspend fun SubscriptionGroupDao.moveGroup(
-    fromIndex: Int,
-    toIndex: Int,
-) {
-    val groups = getAllGroupsOnce().toMutableList()
-    if (fromIndex !in groups.indices || toIndex !in groups.indices || fromIndex == toIndex) return
-    groups.add(toIndex, groups.removeAt(fromIndex))
-    insertAll(groups.mapIndexed { index, group -> group.copy(sortOrder = index) })
-}

@@ -61,5 +61,6 @@ internal fun rememberPlaylistHeaderState(
                 }
             },
         isDownloaded = isDownloaded,
+        isInMusicLibrary = uiState.isInMusicLibrary,
     )
 }

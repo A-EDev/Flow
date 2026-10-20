@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.video.AutoDownloadTrigger
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.VideoDownloadOptions
 import io.github.aedev.flow.data.video.VideoDownloadOptionsLoader
+import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
@@ -294,6 +295,10 @@ class QuickActionsViewModel
 
                         is QuickActionUndo.QueueRemoval -> {
                             playerManager.get().restoreRemovedVideo(undo.entry)
+                        }
+
+                        is QuickActionUndo.MusicQueueRemoval -> {
+                            EnhancedMusicPlayerManager.restoreToQueue(undo.removed)
                         }
 
                         is QuickActionUndo.AutoDownload -> {

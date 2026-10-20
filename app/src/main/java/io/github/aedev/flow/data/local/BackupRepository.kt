@@ -1823,7 +1823,7 @@ class BackupRepository(
         backupData.viewHistory?.let { entries ->
             if (entries.isNotEmpty()) viewHistory.bulkSaveHistoryEntries(entries)
         }
-        backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
+        backupData.likedVideos?.let { likedVideosRepo.restoreLikes(it) }
         backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
         backupData.musicSearchHistory?.let { searchHistoryRepo.replaceSearchHistory(it, SearchHistoryScope.MUSIC) }
         backupData.subscriptions?.let { subs ->
