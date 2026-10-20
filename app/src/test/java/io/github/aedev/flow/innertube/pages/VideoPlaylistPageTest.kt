@@ -144,4 +144,66 @@ class VideoPlaylistPageTest {
         assertThat(page.continuation).isNull()
         assertThat(page.title).isNull()
     }
+
+    private fun shortsLockup(
+        id: String,
+        title: String,
+    ) = """
+        {"richItemRenderer": {"content": {"shortsLockupViewModel": {
+          "entityId": "e-$id",
+          "onTap": {"innertubeCommand": {
+            "commandMetadata": {"webCommandMetadata": {"url": "/shorts/$id"}},
+            "reelWatchEndpoint": {"videoId": "$id", "playlistId": "PLshorts"}
+          }},
+          "overlayMetadata": {"primaryText": {"content": "$title"}, "secondaryText": {"content": "407 views"}}
+        }}}}
+        """
+
+    @Test
+    fun `a Shorts-only playlist reads its grid and the header count (#1358)`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {
+                      "contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                        "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
+                          {"richGridRenderer": {"contents": [
+                            ${shortsLockup("short1", "Say yes")},
+                            ${shortsLockup("short2", "Night drive")}
+                          ]}}
+                        ]}}]}
+                      }}}]}},
+                      "sidebar": {"playlistSidebarRenderer": {"items": [{"playlistSidebarPrimaryInfoRenderer": {
+                        "title": {"runs": [{"text": "Lyrics"}]},
+                        "stats": [{"runs": [{"text": "1,167"}, {"text": " videos"}]}, {"simpleText": "3,691 views"}]
+                      }}]}}
+                    }
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.isShortsGrid).isTrue()
+        assertThat(page.videos.map { it.id }).containsExactly("short1", "short2").inOrder()
+        assertThat(page.videos.first().isShort).isTrue()
+        assertThat(page.continuation).isNull()
+        assertThat(page.videoCount).isEqualTo(1167)
+    }
+
+    @Test
+    fun `a list page is not a grid`() {
+        val page =
+            Json
+                .parseToJsonElement(
+                    """
+                    {"contents": {"twoColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {
+                      "sectionListRenderer": {"contents": [{"itemSectionRenderer": {"contents": [
+                        ${lockup("vid1", "Lesson one", "Telusko", "UCtelusko")}
+                      ]}}]}
+                    }}}]}}}
+                    """,
+                ).toVideoPlaylistPage()
+
+        assertThat(page.isShortsGrid).isFalse()
+        assertThat(page.videoCount).isNull()
+    }
 }

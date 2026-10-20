@@ -56,25 +56,35 @@ class YouTubePlaylistRepository
             completeLists[playlistId] = CachedList(page.copy(continuation = null), System.currentTimeMillis())
         }
 
-        suspend fun firstPage(playlistId: String): RemotePlaylistPage? =
-            fetch { YouTube.videoPlaylistPage(playlistId) }
-                ?.takeIf { it.title != null || it.videos.isNotEmpty() }
-                ?.let { page ->
-                    RemotePlaylistPage(
-                        title = page.title.orEmpty(),
-                        ownerName = page.ownerName,
-                        ownerId = page.ownerId?.takeIf(String::isNotBlank),
-                        description = page.description.orEmpty(),
-                        thumbnailUrl =
-                            page.thumbnailUrl ?: page.videos
-                                .firstOrNull()
-                                ?.thumbnailUrl
-                                .orEmpty(),
-                        videos = page.videos,
-                        continuation = page.continuation,
-                        isCourse = page.isCourse,
-                    )
-                }
+        suspend fun firstPage(playlistId: String): RemotePlaylistPage? {
+            val page =
+                fetch { YouTube.videoPlaylistPage(playlistId) }
+                    ?.takeIf { it.title != null || it.videos.isNotEmpty() } ?: return null
+            // A Shorts grid stops at 100 with no next page; its "show unavailable" view is a list
+            // that pages through every video. Only grids ask for it: on a list it would add
+            // unplayable entries that look playable.
+            val list =
+                if (page.isShortsGrid) {
+                    fetch { YouTube.videoPlaylistPage(playlistId, params = YouTube.PLAYLIST_SHOW_UNAVAILABLE_PARAMS) }
+                        ?.takeIf { it.videos.isNotEmpty() }
+                } else {
+                    null
+                } ?: page
+            return RemotePlaylistPage(
+                title = page.title.orEmpty(),
+                ownerName = page.ownerName,
+                ownerId = page.ownerId?.takeIf(String::isNotBlank),
+                description = page.description.orEmpty(),
+                thumbnailUrl =
+                    page.thumbnailUrl ?: list.videos
+                        .firstOrNull()
+                        ?.thumbnailUrl
+                        .orEmpty(),
+                videos = list.videos,
+                continuation = list.continuation,
+                isCourse = page.isCourse,
+            )
+        }
 
         /** The videos behind [continuation] and the token after them. */
         suspend fun nextPage(
