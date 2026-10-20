@@ -25,6 +25,7 @@ import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.repository.RemotePlaylistPage
 import io.github.aedev.flow.data.repository.YouTubePlaylistRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.repository.walkPlaylistPages
 import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.data.video.DownloadBatch
 import io.github.aedev.flow.data.video.downloader.collection.CollectionSpec
@@ -513,18 +514,16 @@ class PlaylistDetailViewModel
             first: RemotePlaylistPage,
             firstToken: String,
         ) {
-            var videos = first.videos
-            var token: String? = firstToken
-            var pages = 1
-            while (token != null && pages < YouTubePlaylistRepository.PAGE_LIMIT) {
-                val (more, next) = playlistRepository.nextPage(playlistId, token) ?: break
-                videos = (videos + more).distinctBy { it.id }
-                token = next.takeIf { more.isNotEmpty() }
-                pages++
-                _uiState.update { it.copy(videos = videos) }
-            }
+            val walk =
+                walkPlaylistPages(
+                    firstVideos = first.videos,
+                    firstToken = firstToken,
+                    maxPages = YouTubePlaylistRepository.PAGE_LIMIT,
+                    nextPage = { playlistRepository.nextPage(playlistId, it) },
+                    onPage = { videos -> _uiState.update { it.copy(videos = videos) } },
+                )
             _uiState.update { it.copy(isLoadingMore = false) }
-            if (token == null) playlistRepository.rememberComplete(playlistId, first.copy(videos = videos))
+            if (walk.finished) playlistRepository.rememberComplete(playlistId, first.copy(videos = walk.videos))
         }
 
         private fun refreshSavedPlaylist() {

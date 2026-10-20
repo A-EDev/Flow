@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.repository.RemotePlaylistPage
 import io.github.aedev.flow.data.repository.YouTubePlaylistRepository
+import io.github.aedev.flow.data.repository.walkPlaylistPages
 import javax.inject.Inject
 
 /** A playlist a link plays from, positioned at the video the link names. */
@@ -63,18 +64,15 @@ internal suspend fun findLinkedVideoQueue(
     maxPages: Int = LINKED_PLAYLIST_MAX_PAGES,
     nextPage: suspend (continuation: String) -> Pair<List<Video>, String?>?,
 ): LinkedQueue<Video>? {
-    var videos = first.videos
-    var continuation = first.continuation
-    var pages = 1
-    while (true) {
-        linkedQueue(videos, startVideoId, first.title, Video::id)?.let { return it }
-        val token = continuation?.takeIf { pages < maxPages } ?: return null
-        val (more, next) = nextPage(token) ?: return null
-        if (more.isEmpty()) return null
-        videos = videos + more
-        continuation = next
-        pages++
-    }
+    val walk =
+        walkPlaylistPages(
+            firstVideos = first.videos,
+            firstToken = first.continuation,
+            maxPages = maxPages,
+            nextPage = nextPage,
+            keepGoing = { videos -> videos.none { it.id == startVideoId } },
+        )
+    return linkedQueue(walk.videos, startVideoId, first.title, Video::id)
 }
 
 private const val LINKED_PLAYLIST_MAX_PAGES = 10

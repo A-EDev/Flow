@@ -92,20 +92,16 @@ class YouTubePlaylistRepository
             continuation: String,
         ): Pair<List<Video>, String?>? = fetch { YouTube.videoPlaylistPage(playlistId, continuation) }?.let { it.videos to it.continuation }
 
-        /** Every video, page by page, for a caller that needs the whole list (syncing a saved copy). */
+        /**
+         * Every video, page by page, for a caller that needs the whole list (syncing a saved copy).
+         * Null unless every page arrived: a partial list would cut the saved copy short.
+         */
         suspend fun complete(playlistId: String): RemotePlaylistPage? {
             cachedComplete(playlistId)?.let { return it }
             val first = firstPage(playlistId) ?: return null
-            val videos = first.videos.toMutableList()
-            var token = first.continuation
-            var pages = 1
-            while (token != null && pages < MAX_PAGES) {
-                val (more, next) = nextPage(playlistId, token) ?: break
-                videos += more
-                token = next.takeIf { more.isNotEmpty() }
-                pages++
-            }
-            val complete = first.copy(videos = videos.distinctBy { it.id }, continuation = null)
+            val walk = walkPlaylistPages(first.videos, first.continuation, MAX_PAGES, { nextPage(playlistId, it) })
+            if (!walk.finished) return null
+            val complete = first.copy(videos = walk.videos, continuation = null)
             rememberComplete(playlistId, complete)
             return complete
         }
