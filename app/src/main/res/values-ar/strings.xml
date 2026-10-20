@@ -4643,4 +4643,8 @@
     <string name="tv_guide_search_field">في حقل البحث، افتح لوحة مفاتيح التلفاز للكتابة بأي لغة.</string>
     <string name="tv_guide_search_down">الانتقال من شريط البحث إلى الاقتراحات والنتائج.</string>
     <string name="tv_guide_search_open">فتح الاقتراح أو النتيجة المحددة.</string>
+    <string name="dearrow_random_frame">استخدم إطار فيديو</string>
+    <string name="dearrow_random_frame_subtitle">عند عدم إرسال أي شيء، اعرض إطارًا من الفيديو</string>
+    <string name="error_video_decoder_failed">توقفت برمجية فك تشفير الفيديو عن العمل</string>
+    <string name="error_video_decoder_failed_hint">انقر على إعادة المحاولة لتحميل الفيديو مرة أخرى.</string>
 </resources>
