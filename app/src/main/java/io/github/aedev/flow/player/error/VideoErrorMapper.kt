@@ -45,6 +45,8 @@ object VideoErrorMapper {
         val isRetryable: Boolean = true,
         /** Whether this can be "fixed" by the user (vs. a server-side restriction). */
         val isUserActionable: Boolean = false,
+        /** A fresh YouTube session may get past it, so the panel offers the reset. */
+        val offersSessionReset: Boolean = false,
     )
 
     /**
@@ -127,6 +129,7 @@ object VideoErrorMapper {
                     hint = context.getString(R.string.error_bot_wall_hint),
                     isRetryable = true,
                     isUserActionable = true,
+                    offersSessionReset = true,
                 )
             }
 

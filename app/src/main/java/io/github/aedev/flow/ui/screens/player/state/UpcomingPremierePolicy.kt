@@ -114,6 +114,7 @@ internal object UpcomingPremierePolicy {
             isLoading = false,
             error = null,
             errorHint = null,
+            errorOffersSessionReset = false,
             videoStream = null,
             audioStream = null,
             relatedVideos = relatedVideos.ifEmpty { state.relatedVideos },

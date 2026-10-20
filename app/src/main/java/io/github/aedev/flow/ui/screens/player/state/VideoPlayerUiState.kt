@@ -22,6 +22,8 @@ data class VideoPlayerUiState(
     val error: String? = null,
     /** Optional secondary hint shown below the primary error in the player's error panel. */
     val errorHint: String? = null,
+    /** The error is a bot wall, which a fresh YouTube session may get past. */
+    val errorOffersSessionReset: Boolean = false,
     val savedPosition: Long? = null,
     val isAdaptiveMode: Boolean = false,
     val isSubscribed: Boolean = false,
@@ -73,6 +75,7 @@ data class VideoPlayerUiState(
             isLoading = true,
             error = null,
             errorHint = null,
+            errorOffersSessionReset = false,
             videoStream = null,
             audioStream = null,
             streamSizes = emptyMap(),

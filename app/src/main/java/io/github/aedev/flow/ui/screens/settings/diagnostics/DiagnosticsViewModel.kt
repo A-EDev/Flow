@@ -7,13 +7,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.recommendation.snapshot.HomeSnapshotStore
-import io.github.aedev.flow.player.stream.ClientGateTracker
+import io.github.aedev.flow.player.stream.ResetYouTubeSession
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import io.github.aedev.flow.utils.DeviceInfo
 import io.github.aedev.flow.utils.FlowDiagnostics
-import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
-import io.github.aedev.flow.utils.cipher.PlayerJsFetcher
-import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +26,7 @@ class DiagnosticsViewModel
         @ApplicationContext private val context: Context,
         private val preferences: PlayerPreferences,
         private val snapshots: HomeSnapshotStore,
+        private val resetYouTubeSession: ResetYouTubeSession,
     ) : SettingsViewModel() {
         val device: DeviceInfo by lazy { FlowDiagnostics.deviceInfo(context) }
 
@@ -77,15 +75,5 @@ class DiagnosticsViewModel
                 _crashes.value = LogState.Empty
             }
 
-        /**
-         * Re-attesting alone cannot lift a verdict the stream servers already reached about this
-         * visitor, so the identity itself is discarded: the supported form of the "clear app data"
-         * workaround for videos that stall a minute in.
-         */
-        suspend fun resetSession() {
-            WebPoTokenSession.resetIdentity()
-            ClientGateTracker.clear()
-            CipherDeobfuscator.invalidateSignatureTimestamp()
-            withContext(Dispatchers.IO) { PlayerJsFetcher.invalidateCache() }
-        }
+        suspend fun resetSession() = resetYouTubeSession()
     }

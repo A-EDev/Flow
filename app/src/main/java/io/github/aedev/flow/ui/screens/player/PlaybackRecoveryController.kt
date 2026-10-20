@@ -52,6 +52,7 @@ internal class PlaybackRecoveryController(
                 isLoading = false,
                 error = context.getString(R.string.error_all_stream_sources_failed),
                 errorHint = context.getString(R.string.error_playback_retry_hint),
+                errorOffersSessionReset = false,
             )
         }
     }
@@ -64,6 +65,7 @@ internal class PlaybackRecoveryController(
                 isLoading = false,
                 error = context.getString(R.string.error_video_decoder_failed),
                 errorHint = context.getString(R.string.error_video_decoder_failed_hint),
+                errorOffersSessionReset = false,
             )
         }
     }

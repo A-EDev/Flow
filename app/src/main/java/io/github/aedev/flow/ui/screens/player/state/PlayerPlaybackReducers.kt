@@ -42,6 +42,7 @@ internal fun VideoPlayerUiState.applyLocalCopyReady(
         offlineSponsorBlockSegments = step.offlineSegments,
         error = null,
         errorHint = null,
+        errorOffersSessionReset = false,
         isLoading = false,
         isUpcoming = false,
         upcomingReleaseTimeMs = null,
@@ -95,6 +96,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
         isLoading = false,
         error = null,
         errorHint = null,
+        errorOffersSessionReset = false,
         savedPosition = savedPositionMs,
         isAdaptiveMode = isAdaptiveMode,
         autoplayEnabled = autoplayEnabled,
@@ -133,6 +135,7 @@ internal fun VideoPlayerUiState.applyLiveStreams(
         isLoading = false,
         error = null,
         errorHint = null,
+        errorOffersSessionReset = false,
         hlsUrl = hlsUrl,
         isLive = true,
         isUpcoming = false,
@@ -151,6 +154,7 @@ internal fun VideoPlayerUiState.applyVodFailure(
         relatedVideos = relatedVideos,
         error = videoError.message,
         errorHint = videoError.hint,
+        errorOffersSessionReset = videoError.offersSessionReset,
     )
 
 /** Nothing resolved. A null [relatedVideos] leaves the lane the screen is already showing alone. */
@@ -163,6 +167,7 @@ internal fun VideoPlayerUiState.applyPlaybackFailure(
         relatedVideos = relatedVideos ?: this.relatedVideos,
         error = videoError.message,
         errorHint = videoError.hint,
+        errorOffersSessionReset = videoError.offersSessionReset,
     )
 
 /**
