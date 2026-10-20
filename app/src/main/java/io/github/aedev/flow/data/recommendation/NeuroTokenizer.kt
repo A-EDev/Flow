@@ -23,7 +23,10 @@ import kotlin.math.*
  *
  * Stateless utility — can be shared across all other components.
  */
-internal class NeuroTokenizer {
+internal class NeuroTokenizer(
+    /** Dictionary breaker for unspaced scripts. */
+    private val wordBreaker: WordBreaker = PlatformWordBreaker,
+) {
     companion object {
         val WHITESPACE_REGEX = Regex("\\s+")
 
@@ -853,7 +856,7 @@ internal class NeuroTokenizer {
 
     /** A tokenizer that reads keys by [spec] for the same viewer. */
     fun atKeySpec(spec: Int): NeuroTokenizer =
-        NeuroTokenizer().also {
+        NeuroTokenizer(wordBreaker).also {
             it.keySpec = spec
             it.languageProfile = languageProfile
             it.keyLanguage = keyLanguage
@@ -870,7 +873,7 @@ internal class NeuroTokenizer {
             compoundTerms.forEach { addAll(it.split(' ')) }
             NeuroTopicCatalog.TOPIC_CATEGORIES.forEach { category ->
                 category.topics.forEach { topic ->
-                    addAll(NeuroText.words(NeuroText.fold(topic)).map { it.trim { c -> !NeuroText.isWordChar(c) } })
+                    addAll(NeuroText.words(fold(topic), wordBreaker).map { it.trim { c -> !NeuroText.isWordChar(c) } })
                 }
             }
         }
@@ -924,7 +927,11 @@ internal class NeuroTokenizer {
         return if (normalizeLemma(stem) == stem) stem else lemma
     }
 
-    private val chunker by lazy { NeuroChunker(::stopWordsFor, ::normalizeLemma, ::keyOf) }
+    private val chunker by lazy {
+        NeuroChunker(::stopWordsFor, ::normalizeLemma, ::keyOf, wordBreaker, hanSpec = keySpec >= NeuroKeySpec.HAN_SPEC)
+    }
+
+    fun fold(text: String): String = NeuroText.fold(text, foldHan = keySpec >= NeuroKeySpec.HAN_SPEC)
 
     /** Multi-word catalog topics, keyed the way a title spells them. */
     private val catalogPhrases: Set<String> by lazy {
@@ -961,7 +968,7 @@ internal class NeuroTokenizer {
             .chunk(label)
             .chunks
             .map { it.joinToString(" ") }
-            .ifEmpty { listOfNotNull(keyOf(NeuroText.fold(label).trim()).takeIf { it.isNotBlank() }) }
+            .ifEmpty { listOfNotNull(keyOf(fold(label).trim()).takeIf { it.isNotBlank() }) }
 
     fun tokenizeForSimilarity(text: String): Set<String> = tokenize(text).toSet()
 
@@ -1033,6 +1040,11 @@ internal class NeuroTokenizer {
             if (isPromoted(run.key, idfSnapshot, tagPhrases)) {
                 topics[run.key] = calculateIdfWeight(run.key, BIGRAM_PRIORITY_WEIGHT, idfSnapshot)
                 for (i in run.from until run.to) claimed += position(run.chunk, i)
+            }
+        }
+        title.merged.forEach { run ->
+            if (NeuroPhrases.isMergedRun(run, idfSnapshot) || run in tagPhrases) {
+                topics[run] = calculateIdfWeight(run, BIGRAM_PRIORITY_WEIGHT, idfSnapshot)
             }
         }
         title.chunks.forEachIndexed { chunkIndex, chunk ->
@@ -1294,7 +1306,7 @@ internal class NeuroTokenizer {
         val fullDisambiguationContext = tagContextWords + titleWords + descriptionWords
 
         tags.take(TAG_MAX_INGEST).forEach { rawTag ->
-            val cleaned = NeuroText.fold(rawTag).trim()
+            val cleaned = fold(rawTag).trim()
 
             if ((cleaned.length < TAG_MIN_LENGTH && cleaned !in NeuroText.SHORT_TOPICS) ||
                 cleaned.length > TAG_MAX_LENGTH
@@ -1381,6 +1393,8 @@ internal class NeuroTokenizer {
             addAll(title.words)
             title.runs().forEach { add(it.key) }
             addAll(title.modelPairs)
+            addAll(title.merged)
+            addAll(title.singles)
         }
     }
 
@@ -2970,7 +2984,7 @@ internal class NeuroTokenizer {
     /** Words of a channel name; scripts written without spaces are split by the word breaker. */
     private fun nameWords(name: String): List<String> =
         NeuroText
-            .words(NeuroText.fold(name))
+            .words(fold(name), wordBreaker)
             .map { word -> word.trim { !NeuroText.isWordChar(it) } }
             .filter { it.length > 1 }
 

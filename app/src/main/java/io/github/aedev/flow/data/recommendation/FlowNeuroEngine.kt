@@ -509,6 +509,8 @@ class FlowNeuroEngine internal constructor(
                     if (maintained !== currentUserBrain) {
                         if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
                             storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                        } else if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_3_SCHEMA_VERSION) {
+                            storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_3_SCHEMA_VERSION)
                         }
                         currentUserBrain = maintained
                         storage.save(deepFlowBookkeeping.persistable(currentUserBrain))

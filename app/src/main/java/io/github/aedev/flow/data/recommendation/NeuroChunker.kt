@@ -15,6 +15,9 @@ internal class NeuroChunker(
     private val stopWordsFor: (pieces: List<String>) -> (String) -> Boolean,
     private val normalizeLemma: (String) -> String,
     private val keyOf: (String) -> String,
+    private val breaker: WordBreaker = PlatformWordBreaker,
+    /** [NeuroKeySpec.HAN_SPEC]: Hant fold and merged Han runs. */
+    private val hanSpec: Boolean = true,
 ) {
     /** A run of [words] inside one chunk, from word [from] up to but not including [to]. */
     data class Run(
@@ -28,6 +31,10 @@ internal class NeuroChunker(
         val chunks: List<List<String>>,
         val modelPairs: List<String>,
         val formats: Set<String> = emptySet(),
+        /** Merged Han run candidates; promoted by [NeuroPhrases.isMergedRun]. */
+        val merged: List<String> = emptyList(),
+        /** Single Han characters outside the break set, counted for [NeuroPhrases.isMergedRun]. */
+        val singles: Set<String> = emptySet(),
     ) {
         /** Every word in reading order, [NeuroKeySpec.NEVER_ALONE] words included. */
         val words: List<String> get() = chunks.flatten()
@@ -68,7 +75,9 @@ internal class NeuroChunker(
 
     fun chunk(text: String): Chunks {
         val items = ArrayList<Item>()
-        val pieces = NeuroText.words(NeuroText.fold(text))
+        val folded = NeuroText.fold(text, hanSpec)
+        val spans = NeuroText.pieces(folded, breaker)
+        val pieces = spans.map { it.text }
         val isStopWord = stopWordsFor(pieces)
         pieces.forEach { piece -> split(piece, items) }
         val merged = mergeExpressions(items)
@@ -103,7 +112,73 @@ internal class NeuroChunker(
             }
         }
         close()
-        return Chunks(chunks, modelPairs, formats)
+        val runs = if (hanSpec) mergedRuns(folded, spans, isStopWord) else MergedRuns.None
+        return Chunks(chunks, modelPairs, formats + runs.formats, runs.keys, runs.singles)
+    }
+
+    private class MergedRuns(
+        val keys: List<String>,
+        val singles: Set<String>,
+        val formats: Set<String>,
+    ) {
+        companion object {
+            val None = MergedRuns(emptyList(), emptySet(), emptySet())
+        }
+    }
+
+    // Stage 6: merge single Han characters (plus an adjacent word) into candidates, split at runBreaks.
+    // Format words inside a run are reported as formats.
+    private fun mergedRuns(
+        folded: String,
+        spans: List<NeuroText.Piece>,
+        isStopWord: (String) -> Boolean,
+    ): MergedRuns {
+        if (folded.none(NeuroText::isHan)) return MergedRuns.None
+        val breaks = NeuroLanguages.runBreaks(if (folded.any(NeuroText::isKana)) "ja" else "zh") ?: return MergedRuns.None
+        val keys = LinkedHashSet<String>()
+        val singles = LinkedHashSet<String>()
+        val formats = LinkedHashSet<String>()
+        var group = ArrayList<String>()
+
+        fun valid(candidate: String): Boolean =
+            candidate.length in 2..MAX_MERGED_CHARS &&
+                (2..candidate.length).none { length ->
+                    (0..candidate.length - length).any { start ->
+                        val part = candidate.substring(start, start + length)
+                        isStopWord(part) || NeuroFormats.formatOf(part) != null
+                    }
+                }
+
+        fun flush() {
+            var i = 0
+            while (i < group.size) {
+                if (group[i].length != 1) {
+                    i++
+                    continue
+                }
+                var end = i
+                while (end < group.size && group[end].length == 1) end++
+                val run = group.subList(i, end).joinToString("")
+                val prefix = group.getOrNull(i - 1)?.takeIf { it.length >= 2 }.orEmpty()
+                val suffix = if (run.length == 1) group.getOrNull(end)?.takeIf { it.length >= 2 }.orEmpty() else ""
+                singles += group.subList(i, end)
+                for (length in 2..run.length) {
+                    for (start in 0..run.length - length) NeuroFormats.formatOf(run.substring(start, start + length))?.let { formats += it }
+                }
+                if (valid(run)) keys += run
+                if (prefix.isNotEmpty() && valid(prefix + run)) keys += prefix + run
+                if (suffix.isNotEmpty() && valid(run + suffix)) keys += run + suffix
+                i = end
+            }
+            group = ArrayList()
+        }
+        spans.forEach { span ->
+            val han = span.text.all(NeuroText::isHan)
+            if (!han || !span.joined || (span.text.length == 1 && span.text[0] in breaks)) flush()
+            if (han && !(span.text.length == 1 && span.text[0] in breaks)) group += span.text
+        }
+        flush()
+        return MergedRuns(keys.toList(), singles, formats)
     }
 
     // Stage 2 and 4: one whitespace-separated piece into words and breaks.
@@ -261,6 +336,9 @@ internal class NeuroChunker(
         val JOINERS = setOf('-', '.', '&')
         val KEEP_SUFFIX = setOf('+', '#')
         val YEAR = Regex("^(19|20)\\d\\d$")
+
+        /** Longest merged run. */
+        const val MAX_MERGED_CHARS = 5
 
         fun wordCount(word: String) = word.count { it == ' ' } + 1
     }

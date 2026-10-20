@@ -16,10 +16,10 @@ import urllib.request
 
 COMMIT = "525f9b560de45753a5ea01069454e72e9aa541c6"
 BASE = f"https://raw.githubusercontent.com/hermitdave/FrequencyWords/{COMMIT}/content/2018"
-# Languages whose keys are words; CJK keys are character pairs and get no table.
+# zh is Hans; NeuroSpecificityTest prunes it to single breaker words (NEURO_WRITE_FREQ_ZH=1).
 LANGUAGES = {
     "en": "en", "es": "es", "pt": "pt_br", "fr": "fr", "de": "de", "it": "it", "ru": "ru", "id": "id",
-    "tr": "tr", "pl": "pl", "cs": "cs", "uk": "uk", "ar": "ar", "fa": "fa", "vi": "vi", "et": "et",
+    "tr": "tr", "pl": "pl", "cs": "cs", "uk": "uk", "ar": "ar", "fa": "fa", "vi": "vi", "et": "et", "zh": "zh_cn",
 }
 TOP = {"en": 10000}
 # Past this rank a word sits near LOW_ZIPF and barely changes a key's specificity.

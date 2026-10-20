@@ -238,6 +238,15 @@ internal object NeuroScoring {
             "build",
             "design",
             "travel",
+            // Hans keys.
+            "新闻",
+            "音乐",
+            "游戏",
+            "科技",
+            "电影",
+            "教育",
+            "美食",
+            "旅游",
         )
 
     // ── Time Decay Engine ──

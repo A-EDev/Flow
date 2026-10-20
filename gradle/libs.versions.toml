@@ -37,6 +37,7 @@ re2j = "1.7"
 desugarJdkLibs = "2.1.5"
 mockk = "1.14.11"
 truth = "1.4.5"
+icu4j = "77.1"
 turbine = "1.2.1"
 core-splashscreen = "1.2.0"
 profileinstaller = "1.4.1"
@@ -119,6 +120,7 @@ kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
 desugar-jdk-libs-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugarJdkLibs" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+icu4j = { group = "com.ibm.icu", name = "icu4j", version.ref = "icu4j" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }

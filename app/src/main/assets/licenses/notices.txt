@@ -63,3 +63,8 @@ Used, trimmed to the most frequent words of each language, in resources/neuro/fr
 Licensed under the Creative Commons Attribution-ShareAlike 4.0 International
 License (https://creativecommons.org/licenses/by-sa/4.0/). The trimmed lists are
 shared under the same license.
+
+Open Chinese Convert (github.com/BYVoid/OpenCC)
+The Traditional to Simplified character table in resources/neuro/fold is made from
+OpenCC's TSCharacters.txt. Copyright (c) the OpenCC authors. Licensed under the
+Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).

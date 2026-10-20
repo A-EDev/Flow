@@ -112,6 +112,20 @@ internal object NeuroLanguages {
         }
     }
 
+    private val runBreakSets = ConcurrentHashMap<String, Set<Char>>()
+
+    /** Merged-run break characters of [language] (`resources/neuro/runbreak`), or null: no merge. */
+    fun runBreaks(language: String): Set<Char>? {
+        val set =
+            runBreakSets.getOrPut(language) {
+                val stream = NeuroLanguages::class.java.getResourceAsStream("/neuro/runbreak/$language.txt") ?: return@getOrPut emptySet()
+                stream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapTo(HashSet()) { NeuroText.fold(it.trim()).single() }
+                }
+            }
+        return set.takeIf { it.isNotEmpty() }
+    }
+
     private val TOPICAL_LANGUAGES = listOf("zh")
 
     /**

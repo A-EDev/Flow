@@ -400,6 +400,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.truth)
+    // Han word breaker for tests; the JDK breaker does not split Han runs.
+    testImplementation(libs.icu4j)
     testImplementation(libs.turbine)
     testImplementation(libs.androidx.glance.appwidget.testing)
     testImplementation(libs.hilt.android.testing)

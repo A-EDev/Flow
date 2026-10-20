@@ -47,4 +47,18 @@ internal object NeuroPhrases {
         if ((idf.wordFrequency[bigram] ?: 0) < MIN_COUNT) return false
         return (npmi(bigram, idf) ?: return false) >= MIN_NPMI
     }
+
+    /** [MIN_COUNT] documents, and document frequency of [run] at least [MIN_MERGED_SHARE] of its rarest single character. */
+    fun isMergedRun(
+        run: String,
+        idf: IdfSnapshot,
+    ): Boolean {
+        if (idf.totalDocs < MIN_DOCUMENTS) return false
+        val joint = idf.wordFrequency[run] ?: return false
+        if (joint < MIN_COUNT) return false
+        val rarest = run.mapNotNull { idf.wordFrequency[it.toString()] }.minOrNull()?.let { maxOf(it, joint) } ?: return false
+        return joint >= MIN_MERGED_SHARE * rarest
+    }
+
+    const val MIN_MERGED_SHARE = 0.5
 }

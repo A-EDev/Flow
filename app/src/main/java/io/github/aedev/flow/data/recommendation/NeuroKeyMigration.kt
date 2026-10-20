@@ -79,6 +79,26 @@ internal object NeuroKeyMigration {
         )
     }
 
+    /** Schema 21: re-key by [NeuroKeySpec] 3; Hant spelling kept as [DisplayForm]; no fold for `ja` profiles. */
+    fun toKeySpec3(
+        brain: UserBrain,
+        tokenizer: NeuroTokenizer,
+    ): UserBrain {
+        val rekey = Rekey(tokenizer, emptyMap())
+        val forms = rekey.merged(brain.displayForms) { a, b -> if (a.votes >= b.votes) a else b }.toMutableMap()
+        val linked = (brain.topicAffinities.keys + brain.tagAffinities.keys).flatMap { it.split('|') }
+        val keys = brain.globalVector.topics.keys + brain.topicEvidence.keys + linked
+        keys.mapTo(HashSet(), NeuroScoring::stripDomainTag).forEach { base ->
+            val folded = rekey.keysFor(base).singleOrNull() ?: return@forEach
+            if (folded != base && folded !in forms) forms[folded] = DisplayForm(base)
+        }
+        return run(brain, tokenizer, TopicEvidence::mergedWith, dropChancePairs = false, dropOnboardingEdges = false).copy(
+            displayForms = forms,
+            idfWordFrequency = rekey.merged(brain.idfWordFrequency, Int::plus),
+            blockedTopics = brain.blockedTopics.mapTo(LinkedHashSet()) { rekey.keysFor(it).singleOrNull() ?: it },
+        )
+    }
+
     /** The keys [tokenizer] reads a stored key as: one, several when it splits, none when it goes. */
     fun keyFunction(tokenizer: NeuroTokenizer): (String) -> List<String> = Rekey(tokenizer, emptyMap())::keysFor
 
@@ -170,6 +190,8 @@ internal object NeuroKeyMigration {
     ) {
         private val cache = HashMap<String, List<String>>()
 
+        private val foldHan = tokenizer.keySpec >= NeuroKeySpec.HAN_SPEC && tokenizer.languageProfile != "ja"
+
         fun keysFor(key: String): List<String> =
             cache.getOrPut(key) {
                 // A word-level rejection pattern ("~guitar") keeps its mark.
@@ -177,12 +199,13 @@ internal object NeuroKeyMigration {
                 val tag = key.substringAfter(':', "")
                 val base = if (tag.isEmpty()) key else key.substringBefore(':')
                 pickForms[key]?.let { return@getOrPut it }
+                val read = if (foldHan) NeuroText.simplified(base) else base
                 // A key left with no word ("m/v") goes.
                 val parts =
-                    if (needsRekey(base)) {
-                        tokenizer.chunk(base).chunks.map { it.joinToString(" ") }
+                    if (needsRekey(read)) {
+                        tokenizer.chunk(read).chunks.map { it.joinToString(" ") }
                     } else {
-                        listOf(base.split(' ').joinToString(" ", transform = tokenizer::keyOf))
+                        listOf(read.split(' ').joinToString(" ", transform = tokenizer::keyOf))
                     }
                 if (tag.isEmpty()) parts else parts.map { "$it:$tag" }
             }

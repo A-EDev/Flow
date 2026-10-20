@@ -35,6 +35,8 @@ package io.github.aedev.flow.data.recommendation
  * V19 drops keys that are stop words in the viewer's language ([NeuroLanguages]), such as "para" or "les".
  *
  * V20 stems every key by [NeuroKeySpec] 2 ([NeuroKeyMigration.toKeySpec2]).
+ *
+ * V21 folds Hant keys to Hans ([NeuroKeyMigration.toKeySpec3]).
  */
 internal object NeuroMaintenance {
     /** Stop lists for the viewer's language ([NeuroLanguages]): keys that are now stop words go. */
@@ -43,7 +45,10 @@ internal object NeuroMaintenance {
     /** Keys stemmed by [NeuroKeySpec] 2 ([NeuroKeyMigration.toKeySpec2]). */
     const val KEY_SPEC_2_SCHEMA_VERSION = 20
 
-    const val TARGET_SCHEMA_VERSION = KEY_SPEC_2_SCHEMA_VERSION
+    /** [NeuroKeyMigration.toKeySpec3]. */
+    const val KEY_SPEC_3_SCHEMA_VERSION = 21
+
+    const val TARGET_SCHEMA_VERSION = KEY_SPEC_3_SCHEMA_VERSION
     private const val V15_SCHEMA_VERSION = 15
     private const val V16_SCHEMA_VERSION = 16
 
@@ -72,8 +77,9 @@ internal object NeuroMaintenance {
         if (updated.schemaVersion < KEY_SPEC_2_SCHEMA_VERSION) {
             // Stop words are spelled whole; once stemmed ("youtube" to "youtub") the list no longer finds them.
             updated = dropNoise(updated, earlier)
-            updated = NeuroKeyMigration.toKeySpec2(updated, tokenizer)
+            updated = NeuroKeyMigration.toKeySpec2(updated, tokenizer.atKeySpec(2))
         }
+        if (updated.schemaVersion < KEY_SPEC_3_SCHEMA_VERSION) updated = NeuroKeyMigration.toKeySpec3(updated, tokenizer)
         updated = dropBlockedTopics(updated, tokenizer)
         updated = dropNoise(updated, tokenizer)
         if (isHollow(updated)) updated = rehydrateFromChannelProfiles(updated, tokenizer)
@@ -84,7 +90,7 @@ internal object NeuroMaintenance {
         if (key.all { it.code < 0x80 }) {
             key
         } else {
-            key.split('|').map(NeuroText::fold).let { parts ->
+            key.split('|').map { NeuroText.fold(it, foldHan = false) }.let { parts ->
                 if (parts.size == 2) NeuroScoring.makeAffinityKey(parts[0], parts[1]) else parts.joinToString("|")
             }
         }
@@ -136,7 +142,7 @@ internal object NeuroMaintenance {
         tokenizer: NeuroTokenizer,
         withPhraseWords: Boolean = false,
     ): Set<String> {
-        val lemmas = brain.blockedTopics.mapTo(HashSet()) { tokenizer.keyOf(NeuroText.fold(it).trim()) }
+        val lemmas = brain.blockedTopics.mapTo(HashSet()) { tokenizer.keyOf(tokenizer.fold(it).trim()) }
         if (withPhraseWords) {
             // Blocking "code technology" hides that phrase, never the viewer's own pick "Coding".
             val picked = brain.preferredTopics.flatMapTo(HashSet(), tokenizer::keysOf)
