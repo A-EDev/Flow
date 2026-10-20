@@ -4647,4 +4647,20 @@
     <string name="dearrow_random_frame_subtitle">عند عدم إرسال أي شيء، اعرض إطارًا من الفيديو</string>
     <string name="error_video_decoder_failed">توقفت برمجية فك تشفير الفيديو عن العمل</string>
     <string name="error_video_decoder_failed_hint">انقر على إعادة المحاولة لتحميل الفيديو مرة أخرى.</string>
+    <string name="lyrics_provider_lrc_red">lrc.red</string>
+    <string name="lyrics_provider_kugou">KuGou</string>
+    <string name="lyrics_provider_paxsenix">Apple Music (Paxsenix)</string>
+    <string name="lyrics_provider_unison">Unison</string>
+    <string name="lyrics_provider_youtube_captions">ترجمات YouTube</string>
+    <string name="lyrics_provider_youtube_music">YouTube Music</string>
+    <string name="lyrics_provider_better_lyrics_desc">تزامن الكلمات · كلمات أغاني Apple Music</string>
+    <string name="lyrics_provider_lrc_red_desc">تزامن الكلمات · مطابقة حسب التسجيل</string>
+    <string name="lyrics_provider_lyrics_plus_desc">تزامن الكلمات</string>
+    <string name="lyrics_provider_simpmusic_desc">تزامن الكلمات · مطابقة حسب الفيديو</string>
+    <string name="lyrics_provider_kugou_desc">تزامن الأسطر · قوي للأغاني الصينية</string>
+    <string name="lyrics_provider_paxsenix_desc">تزامن الكلمات</string>
+    <string name="lyrics_provider_lrclib_desc">تزامن الأسطر · قاعدة بيانات مفتوحة</string>
+    <string name="lyrics_provider_unison_desc">كلمات الأغاني المجتمعية · كتالوج صغير</string>
+    <string name="lyrics_provider_youtube_captions_desc">تزامن الأسطر · ترجمات الفيديو</string>
+    <string name="lyrics_provider_youtube_music_desc">نص عادي · تبويب الكلمات</string>
 </resources>
