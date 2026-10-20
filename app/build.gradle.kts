@@ -222,6 +222,10 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+}
+
 // One profile for every shipped variant: foss, nightly and github run the same startup code, and
 // a per-variant profile left foss and nightly with library profiles only (#1301).
 baselineProfile {
