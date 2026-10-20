@@ -459,6 +459,7 @@ class PlaylistDetailViewModel
                         isWatchLater = false,
                         isLoading = false,
                         isLoadingMore = page.continuation != null,
+                        hidesUnavailable = page.continuation == null && page.hidesUnavailable(),
                         errorMessage = null,
                     )
                 }
@@ -522,7 +523,9 @@ class PlaylistDetailViewModel
                     nextPage = { playlistRepository.nextPage(playlistId, it) },
                     onPage = { videos -> _uiState.update { it.copy(videos = videos) } },
                 )
-            _uiState.update { it.copy(isLoadingMore = false) }
+            _uiState.update {
+                it.copy(isLoadingMore = false, hidesUnavailable = walk.finished && first.hidesUnavailable(walk.videos.size))
+            }
             if (walk.finished) playlistRepository.rememberComplete(playlistId, first.copy(videos = walk.videos))
         }
 
@@ -536,6 +539,7 @@ class PlaylistDetailViewModel
                         ownerName = details.ownerName ?: state.ownerName,
                         description = details.description.ifBlank { state.description },
                         thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl },
+                        hidesUnavailable = details.hidesUnavailable(),
                     )
                 }
             }

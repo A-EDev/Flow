@@ -25,7 +25,12 @@ data class RemotePlaylistPage(
     val videos: List<Video>,
     val continuation: String?,
     val isCourse: Boolean = false,
-)
+    /** The header's count, unavailable videos included. */
+    val videoCount: Int? = null,
+) {
+    /** The whole list is shorter than the header's count: YouTube leaves out unavailable videos. */
+    fun hidesUnavailable(loaded: Int = videos.size): Boolean = videoCount != null && videoCount > loaded
+}
 
 /**
  * YouTube playlists from InnerTube, one request per page. The first page shows at once and later
@@ -83,6 +88,7 @@ class YouTubePlaylistRepository
                 videos = list.videos,
                 continuation = list.continuation,
                 isCourse = page.isCourse,
+                videoCount = page.videoCount ?: list.videoCount,
             )
         }
 

@@ -44,6 +44,7 @@ internal fun rememberPlaylistHeaderState(
         name = uiState.playlistName,
         metadata = parts.joinToString(" $separator "),
         description = uiState.description,
+        note = stringResource(R.string.playlist_unavailable_hidden).takeIf { uiState.hidesUnavailable },
         thumbnailUrl = videos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
         isSaved = uiState.isSaved,
         canSave = !isUserCreated,
