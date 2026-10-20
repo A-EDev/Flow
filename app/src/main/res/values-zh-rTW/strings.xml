@@ -4123,4 +4123,11 @@
     <string name="auto_tab_queue">佇列</string>
     <string name="taste_unknown_channel">未知頻道</string>
     <string name="settings_library_summary">選擇媒體庫要顯示的區塊</string>
+    <string name="dearrow_random_frame">使用影片畫面</string>
+    <string name="dearrow_random_frame_subtitle">尚無人提交縮圖時，顯示影片中的一個畫面</string>
+    <string name="tv_guide_search_field">在搜尋欄位上，開啟電視鍵盤即可輸入任何語言。</string>
+    <string name="tv_guide_search_down">從搜尋列移到建議和搜尋結果。</string>
+    <string name="tv_guide_search_open">開啟焦點所在的建議或搜尋結果。</string>
+    <string name="error_video_decoder_failed">影片解碼器已停止運作</string>
+    <string name="error_video_decoder_failed_hint">點選「重試」即可重新載入影片。</string>
 </resources>
