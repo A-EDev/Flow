@@ -328,6 +328,7 @@ fun FlowApp(
                 musicPlayerBackgroundStyle == io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.DEFAULT ||
                     (musicPlayerFollowLightTheme && musicPlayerBackgroundStyle.canTurnLight),
             isShortsPlayer = isShortsPlayerRoute,
+            videoPlayerExpanded = playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded,
             heroUnderStatusBar =
                 statusBarHero.heroUnderStatusBar &&
                     !musicPlayerSheetState.isExpanded &&
