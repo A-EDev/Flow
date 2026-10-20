@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -52,7 +53,8 @@ class LyricsHelper
 
         // The player, the music service and downloads all ask for the track that just started; they
         // share one provider run per video instead of each running the whole chain.
-        private val inFlight = InFlightRuns<String, Pair<List<LyricsEntry>, String>?>(CoroutineScope(SupervisorJob() + Dispatchers.IO))
+        private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val inFlight = InFlightRuns<String, Pair<List<LyricsEntry>, String>?>(ioScope)
 
         private val providerCooldowns = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -149,9 +151,7 @@ class LyricsHelper
                         Log.d(TAG, "Trying provider: ${provider.name}")
                         val providerResult =
                             try {
-                                withTimeoutOrNull(timeout) {
-                                    provider.getLyrics(videoId, cleanedTitle, cleanedArtist, duration, album)
-                                }
+                                callProvider(provider, timeout, videoId, cleanedTitle, cleanedArtist, duration, album)
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -230,6 +230,28 @@ class LyricsHelper
 
             Log.w(TAG, "No lyrics found for $videoId")
             return null
+        }
+
+        /**
+         * Providers make blocking requests that ignore cancellation, so a timeout around the call
+         * itself would still wait for the request. Awaiting it as a separate job lets the chain move
+         * on at the deadline; the abandoned request ends on the client's call timeout.
+         */
+        private suspend fun callProvider(
+            provider: LyricsProvider,
+            timeoutMs: Long,
+            videoId: String,
+            title: String,
+            artist: String,
+            duration: Int,
+            album: String?,
+        ): Result<List<LyricsEntry>>? {
+            val call = ioScope.async { provider.getLyrics(videoId, title, artist, duration, album) }
+            return try {
+                withTimeoutOrNull(timeoutMs) { call.await() }
+            } finally {
+                call.cancel()
+            }
         }
 
         private fun hasWordSync(entries: List<LyricsEntry>): Boolean {
@@ -335,9 +357,7 @@ class LyricsHelper
             for (provider in orderedProviders) {
                 val providerResult =
                     try {
-                        withTimeoutOrNull(PER_PROVIDER_TIMEOUT_MS) {
-                            provider.getLyrics(videoId, cleanedTitle, cleanedArtist, duration, album)
-                        }
+                        callProvider(provider, PER_PROVIDER_TIMEOUT_MS, videoId, cleanedTitle, cleanedArtist, duration, album)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
