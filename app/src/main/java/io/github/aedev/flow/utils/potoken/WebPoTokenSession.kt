@@ -295,6 +295,17 @@ object WebPoTokenSession {
         }
     }
 
+    /**
+     * The visitor's age, generation and whether it was minted on another network, so a wall report
+     * can tell a stuck visitor from a flagged network. Never the visitor itself.
+     */
+    fun identitySummary(): String {
+        val store = identityStore
+        val ageMinutes = store?.visitorAgeMs()?.let { it / 60_000L }
+        return "visitorAge=${ageMinutes?.let { "${it}m" } ?: "unknown"} generation=$identityGeneration " +
+            "mintedOnOtherNetwork=${store?.mintedOnOtherNetwork()}"
+    }
+
     private fun logWall(message: String) {
         Log.w(TAG, message)
         PlayerDiagnostics.logWarning(TAG, message)

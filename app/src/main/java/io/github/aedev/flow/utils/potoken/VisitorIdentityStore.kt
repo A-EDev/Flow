@@ -52,6 +52,10 @@ class VisitorIdentityStore
                 .apply()
         }
 
+        /** How long ago the visitor in use was saved, or null when none is. */
+        fun visitorAgeMs(nowMs: Long = System.currentTimeMillis()): Long? =
+            prefs.getLong(KEY_SAVED_AT, 0L).takeIf { it > 0L }?.let { nowMs - it }
+
         /**
          * Whether the visitor in use was minted on another network than the one active now. A
          * visitor saved before the network was recorded counts as minted elsewhere.

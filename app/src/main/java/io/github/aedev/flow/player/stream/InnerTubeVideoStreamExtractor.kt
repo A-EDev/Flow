@@ -177,6 +177,9 @@ object InnerTubeVideoStreamExtractor {
 
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
+            if (PlayabilityVerdict.everyClientWalled(failureReasons)) {
+                PlayerDiagnostics.logError(TAG, "bot wall $videoId: ${WebPoTokenSession.identitySummary()} freshWalled=$freshVisitorWalled")
+            }
             if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
             recordBlock(videoId, failureReasons, freshVisitorWalled)
             null
@@ -712,6 +715,7 @@ object InnerTubeVideoStreamExtractor {
                 val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                 failureReasons.add("$label: $tag, reason=$reason")
                 Log.w(TAG, "$label: $tag, reason=$reason")
+                PlayerDiagnostics.logWarning(TAG, "skip $label v${client.clientVersion}: $tag reason=$reason pot=true")
                 return null
             }
 
