@@ -70,6 +70,10 @@ jobs:
           git status --porcelain -- app/src/main/java/org/tartarus/snowball
           test -z "$(git status --porcelain -- app/src/main/java/org/tartarus/snowball)"
 
+      # The nightly job publishes these as the release body the update screen shows.
+      - name: Check nightly notes
+        run: python3 .github/scripts/nightly_notes.py --check
+
       - name: Check Kotlin formatting
         run: >
           ./gradlew spotlessCheck
@@ -457,6 +461,14 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      - name: Checkout nightly notes
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/nightly-notes
+            .github/scripts
+
       - name: Download nightly APK
         uses: actions/download-artifact@v8
         with:
@@ -483,9 +495,12 @@ jobs:
               gh release delete-asset nightly "$old" --yes
             fi
           done
+          python3 .github/scripts/nightly_notes.py \
+            --intro "Built from ${GITHUB_SHA::7} by run ${GITHUB_RUN_NUMBER}. Installs next to the stable app as Flow Nightly and updates itself from here." \
+            > nightly-body.md
           gh release edit nightly --prerelease --latest=false \
             --title "Flow nightly ${GITHUB_RUN_NUMBER}" \
-            --notes "Built from ${GITHUB_SHA::7} by run ${GITHUB_RUN_NUMBER}. Installs next to the stable app as Flow Nightly and updates itself from here."
+            --notes-file nightly-body.md
 
   release:
     name: Create Release
