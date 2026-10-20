@@ -40,6 +40,7 @@ PLAYBACK AND NOTIFICATIONS
 - The video notification has repeat, and shuffle while a queue is playing
 - DeArrow shows a frame from the video when nobody has submitted a thumbnail, as DeArrow itself does, with a switch to turn that off
 - DeArrow titles also appear on Shorts cards
+- Lyrics add lrc.red and Unison as sources, find word-by-word timing more often, and no longer give live or remixed songs the studio version's timing
 
 FIXES
 - Fix a paused video not playing again after the screen was off for a while
