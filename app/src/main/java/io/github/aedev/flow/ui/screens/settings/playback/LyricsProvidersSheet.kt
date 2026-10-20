@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.settings.playback
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -42,6 +44,7 @@ import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import sh.calvin.reorderable.ReorderableColumn
 
 private val RowPadding = 24.dp
+private val RowVerticalPadding = 8.dp
 private val SheetBottomSpacing = 16.dp
 
 /**
@@ -131,11 +134,20 @@ internal fun LyricsProvidersSheet(
                                         .draggableHandle(),
                                 contentAlignment = Alignment.Center,
                             ) { ReorderHandle() }
-                            Text(
-                                text = provider.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f),
-                            )
+                            val label = ProviderLabels[provider.name]
+                            Column(modifier = Modifier.weight(1f).padding(vertical = RowVerticalPadding)) {
+                                Text(
+                                    text = label?.let { stringResource(it.name) } ?: provider.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                label?.let {
+                                    Text(
+                                        text = stringResource(it.description),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             FlowSwitch(
                                 checked = provider.enabled,
                                 onCheckedChange = { viewModel.setLyricsProviderEnabled(provider.name, it) },
@@ -147,3 +159,22 @@ internal fun LyricsProvidersSheet(
         }
     }
 }
+
+private class ProviderLabel(
+    @param:StringRes val name: Int,
+    @param:StringRes val description: Int,
+)
+
+private val ProviderLabels =
+    mapOf(
+        "BetterLyrics" to ProviderLabel(R.string.lyrics_provider_better_lyrics, R.string.lyrics_provider_better_lyrics_desc),
+        "LrcRed" to ProviderLabel(R.string.lyrics_provider_lrc_red, R.string.lyrics_provider_lrc_red_desc),
+        "LyricsPlus" to ProviderLabel(R.string.lyrics_provider_lyrics_plus, R.string.lyrics_provider_lyrics_plus_desc),
+        "SimpMusic" to ProviderLabel(R.string.lyrics_provider_simpmusic, R.string.lyrics_provider_simpmusic_desc),
+        "KuGou" to ProviderLabel(R.string.lyrics_provider_kugou, R.string.lyrics_provider_kugou_desc),
+        "Paxsenix" to ProviderLabel(R.string.lyrics_provider_paxsenix, R.string.lyrics_provider_paxsenix_desc),
+        "LrcLib" to ProviderLabel(R.string.lyrics_provider_lrclib, R.string.lyrics_provider_lrclib_desc),
+        "Unison" to ProviderLabel(R.string.lyrics_provider_unison, R.string.lyrics_provider_unison_desc),
+        "YouTubeSubtitle" to ProviderLabel(R.string.lyrics_provider_youtube_captions, R.string.lyrics_provider_youtube_captions_desc),
+        "YouTube" to ProviderLabel(R.string.lyrics_provider_youtube_music, R.string.lyrics_provider_youtube_music_desc),
+    )

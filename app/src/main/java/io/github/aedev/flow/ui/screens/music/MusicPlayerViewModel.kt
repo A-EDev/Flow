@@ -50,6 +50,7 @@ class MusicPlayerViewModel
         private val viewHistory: ViewHistory,
         private val musicBrain: MusicBrainEngine,
         private val scrobbler: Scrobbler,
+        private val lyricsHelper: LyricsHelper,
         localLyrics: LocalLyricsReader,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
@@ -63,7 +64,6 @@ class MusicPlayerViewModel
         private val _currentPositionMs = MutableStateFlow(0L)
         val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
-        private val lyricsHelper = LyricsHelper(context)
         private val playerPreferences = PlayerPreferences(context)
 
         private var isInitialized = false

@@ -211,6 +211,8 @@ class PlayerPreferences(
         val LYRICS_PROVIDER_ENABLED_KUGOU = booleanPreferencesKey("lyrics_provider_enabled_kugou")
         val LYRICS_PROVIDER_ENABLED_PAXSENIX = booleanPreferencesKey("lyrics_provider_enabled_paxsenix")
         val LYRICS_PROVIDER_ENABLED_YOUTUBESUBTITLE = booleanPreferencesKey("lyrics_provider_enabled_youtubesubtitle")
+        val LYRICS_PROVIDER_ENABLED_LRCRED = booleanPreferencesKey("lyrics_provider_enabled_lrcred")
+        val LYRICS_PROVIDER_ENABLED_UNISON = booleanPreferencesKey("lyrics_provider_enabled_unison")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val BRIGHTNESS_SWIPE_GESTURES_ENABLED = booleanPreferencesKey("brightness_swipe_gestures_enabled")
         val REMEMBER_BRIGHTNESS_ENABLED = booleanPreferencesKey("remember_brightness_enabled")
@@ -3448,6 +3450,8 @@ class PlayerPreferences(
             "KuGou" to Keys.LYRICS_PROVIDER_ENABLED_KUGOU,
             "Paxsenix" to Keys.LYRICS_PROVIDER_ENABLED_PAXSENIX,
             "YouTubeSubtitle" to Keys.LYRICS_PROVIDER_ENABLED_YOUTUBESUBTITLE,
+            "LrcRed" to Keys.LYRICS_PROVIDER_ENABLED_LRCRED,
+            "Unison" to Keys.LYRICS_PROVIDER_ENABLED_UNISON,
         )
 
     fun isLyricsProviderEnabled(providerName: String): Flow<Boolean> =
