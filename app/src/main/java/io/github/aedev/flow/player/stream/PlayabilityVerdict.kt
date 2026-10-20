@@ -45,6 +45,12 @@ internal object PlayabilityVerdict {
         return statuses.isNotEmpty() && statuses.all { it in GoneStatuses }
     }
 
+    /** Every client the ladder asked was bot-walled, so the refusal is about this viewer only. */
+    fun everyClientWalled(failureReasons: List<String>): Boolean {
+        val asked = failureReasons.filterNot { NotAskedReason.containsMatchIn(it) }
+        return asked.isNotEmpty() && asked.all { "BOT_WALL" in it }
+    }
+
     /** Extraction runs in en-US, so the reason is English; "confirm your age" is not a bot wall. */
     fun isBotWall(reason: String?): Boolean = reason != null && BotWallReason.containsMatchIn(reason)
 

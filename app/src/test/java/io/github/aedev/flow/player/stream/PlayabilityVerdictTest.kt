@@ -86,4 +86,20 @@ class PlayabilityVerdictTest {
         assertThat(PlayabilityVerdict.block(listOf("IOS: status=ERROR, reason=x", "WEB: timeout or null response"))).isNull()
         assertThat(PlayabilityVerdict.block(emptyList())).isNull()
     }
+
+    @Test
+    fun `a wall on every asked client is a full wall, one that answered otherwise is not (#1354)`() {
+        val walled =
+            listOf(
+                "ANDROID_VR: BOT_WALL, reason=Sign in to confirm you're not a bot",
+                "WEB_EMBEDDED: BOT_WALL, reason=Sign in to confirm you're not a bot",
+                "MWEB: PoToken unavailable (WebView missing/broken?)",
+                "all SABR clients demoted: WEB",
+            )
+        assertThat(PlayabilityVerdict.everyClientWalled(walled)).isTrue()
+        assertThat(PlayabilityVerdict.everyClientWalled(walled + "IOS: timeout or null response")).isFalse()
+        assertThat(PlayabilityVerdict.everyClientWalled(walled + "IOS: status=ERROR, reason=x")).isFalse()
+        assertThat(PlayabilityVerdict.everyClientWalled(listOf("MWEB: no visitorData"))).isFalse()
+        assertThat(PlayabilityVerdict.everyClientWalled(emptyList())).isFalse()
+    }
 }
