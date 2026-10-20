@@ -65,4 +65,30 @@ class LikedVideoRecordTest {
 
         assertThat(restoredOrder(order, dated)).containsExactly("d", "c", "b", "a").inOrder()
     }
+
+    @Test
+    fun `a newest-first backup restored into an empty store stays newest first`() {
+        val dated = listOf("new" to 30L, "mid" to 20L, "old" to 10L)
+
+        assertThat(restoredOrder(emptyList(), dated)).containsExactly("new", "mid", "old").inOrder()
+    }
+
+    @Test
+    fun `likes read back newest first whatever order they were stored in`() {
+        val stored = listOf(like("old", 10L), like("mid", 20L), like("new", 30L))
+
+        assertThat(stored.newestLikeFirst().map { it.videoId }).containsExactly("new", "mid", "old").inOrder()
+    }
+
+    @Test
+    fun `likes from the same moment keep their stored order`() {
+        val stored = listOf(like("a", 5L), like("b", 5L), like("c", 9L))
+
+        assertThat(stored.newestLikeFirst().map { it.videoId }).containsExactly("c", "a", "b").inOrder()
+    }
+
+    private fun like(
+        id: String,
+        likedAt: Long,
+    ) = LikedVideoInfo(id, "T", "t", "C", likedAt = likedAt)
 }
