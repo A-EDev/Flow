@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
-import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Explicit
 import androidx.compose.material.icons.rounded.Sensors
@@ -62,7 +60,6 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.musicplayer.common.formatTime
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueRowSwipeGestureHandler
-import io.github.aedev.flow.ui.components.musicplayer.motion.QueueSwipeAction
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -90,11 +87,11 @@ internal fun QueueTrackRow(
     isDragging: Boolean,
     swipeEnabled: Boolean,
     isDownloaded: Boolean,
-    flyOffOnCommit: Boolean,
+    leftSwipe: QueueRowSwipe,
+    rightSwipe: QueueRowSwipe,
     rowKey: Any,
     onClick: () -> Unit,
-    onPlayNext: () -> Unit,
-    onAddToQueue: () -> Unit,
+    onSwipe: (QueueRowSwipe) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -103,8 +100,9 @@ internal fun QueueTrackRow(
 
     var rowSizePx by remember { mutableStateOf(IntSize.Zero) }
     val offsetX = remember(rowKey) { Animatable(0f) }
-    val currentOnPlayNext by rememberUpdatedState(onPlayNext)
-    val currentOnAddToQueue by rememberUpdatedState(onAddToQueue)
+    val currentOnSwipe by rememberUpdatedState(onSwipe)
+    val currentLeftSwipe by rememberUpdatedState(leftSwipe)
+    val currentRightSwipe by rememberUpdatedState(rightSwipe)
     val swipeHandler =
         remember(rowKey) {
             QueueRowSwipeGestureHandler(
@@ -113,13 +111,11 @@ internal fun QueueTrackRow(
                 density = density.density,
                 itemWidthPx = { rowSizePx.width.toFloat() },
                 haptics = haptics,
-                flyOffOnCommit = flyOffOnCommit,
-                onCommit = { action ->
-                    when (action) {
-                        QueueSwipeAction.PLAY_NEXT -> currentOnPlayNext()
-                        QueueSwipeAction.ADD_TO_QUEUE -> currentOnAddToQueue()
-                    }
+                // A radio row joins the queue on either swipe, so it leaves the radio list too.
+                flyOffOnCommit = { towardsLeft ->
+                    isRadioItem || (if (towardsLeft) currentLeftSwipe else currentRightSwipe).leavesList
                 },
+                onCommit = { towardsLeft -> currentOnSwipe(if (towardsLeft) currentLeftSwipe else currentRightSwipe) },
             )
         }
 
@@ -144,6 +140,7 @@ internal fun QueueTrackRow(
     ) {
         SwipeRevealPanel(
             offsetX = offsetX.value,
+            swipe = if (offsetX.value < 0f) leftSwipe else rightSwipe,
             rowHeightPx = rowSizePx.height,
             isTargeted = swipeHandler.isInCommitZone,
         )
@@ -290,6 +287,7 @@ internal fun QueueTrackRow(
 @Composable
 private fun BoxScope.SwipeRevealPanel(
     offsetX: Float,
+    swipe: QueueRowSwipe,
     rowHeightPx: Int,
     isTargeted: Boolean,
 ) {
@@ -299,18 +297,8 @@ private fun BoxScope.SwipeRevealPanel(
     val revealProgress = (revealWidthPx / (56.dp.value * density.density)).coerceIn(0f, 1f)
     val towardStart = offsetX < 0f
 
-    val containerColor =
-        if (towardStart) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.tertiaryContainer
-        }
-    val contentColor =
-        if (towardStart) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onTertiaryContainer
-        }
+    val containerColor = swipe.containerColor
+    val contentColor = swipe.contentColor
     val backgroundColor by animateColorAsState(
         targetValue = if (isTargeted) containerColor else containerColor.copy(alpha = 0.82f),
         animationSpec = tween(durationMillis = 150),
@@ -343,16 +331,8 @@ private fun BoxScope.SwipeRevealPanel(
         contentAlignment = if (towardStart) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Icon(
-            imageVector =
-                if (towardStart) {
-                    Icons.AutoMirrored.Outlined.PlaylistPlay
-                } else {
-                    Icons.AutoMirrored.Outlined.QueueMusic
-                },
-            contentDescription =
-                stringResource(
-                    if (towardStart) R.string.play_next else R.string.add_to_queue,
-                ),
+            imageVector = swipe.icon,
+            contentDescription = stringResource(swipe.labelRes),
             tint = contentColor,
             modifier =
                 Modifier

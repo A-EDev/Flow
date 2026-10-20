@@ -949,6 +949,10 @@
     <string name="mini_bar_swipe_left">Swipe left</string>
     <string name="mini_bar_swipe_right">Swipe right</string>
     <string name="mini_bar_swipe_subtitle">For the music bar and the background video bar</string>
+    <string name="queue_swipe_left">Queue swipe left</string>
+    <string name="queue_swipe_right">Queue swipe right</string>
+    <string name="queue_swipe_subtitle">For songs in Up next</string>
+    <string name="queue_move_to_end">Move to end</string>
     <string name="mini_bar_nothing_next">Nothing up next</string>
     <string name="mini_bar_nothing_previous">Nothing before this</string>
     <string name="skip_button_title">Show Skip Buttons</string>

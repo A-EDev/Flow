@@ -18,12 +18,15 @@ import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MiniBarSwipeAction
 import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.data.local.QueueSwipeAction
 import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.data.local.resolveSeekbarHorizontalPaddingDp
 import io.github.aedev.flow.ui.components.musicplayer.common.canTurnLight
+import io.github.aedev.flow.ui.components.musicplayer.queue.labelRes
+import io.github.aedev.flow.ui.components.musicplayer.queue.rowSwipe
 import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsGroupScope
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -41,7 +44,7 @@ private const val SEEKBAR_STEP_DP = 4
 private val PortraitSeekbarModes = listOf(SeekbarPaddingMode.SPACED, SeekbarPaddingMode.FULL_WIDTH, SeekbarPaddingMode.CUSTOM)
 private val FullscreenSeekbarModes = listOf(SeekbarPaddingMode.FULL_WIDTH, SeekbarPaddingMode.DEFAULT, SeekbarPaddingMode.CUSTOM)
 
-private enum class PreviewSheet { SLIDER, BACKGROUND, GESTURE, SWIPE_LEFT, SWIPE_RIGHT }
+private enum class PreviewSheet { SLIDER, BACKGROUND, GESTURE, SWIPE_LEFT, SWIPE_RIGHT, QUEUE_SWIPE_LEFT, QUEUE_SWIPE_RIGHT }
 
 /**
  * How the players look: seek bar, music background, video player surfaces, Shorts overlay and the
@@ -77,6 +80,8 @@ internal fun PlayerAppearanceScreen(
     val miniPlayerNextPrev by viewModel.miniPlayerNextPrev.collectAsStateWithLifecycle()
     val miniBarSwipeLeft by viewModel.miniBarSwipeLeft.collectAsStateWithLifecycle()
     val miniBarSwipeRight by viewModel.miniBarSwipeRight.collectAsStateWithLifecycle()
+    val queueSwipeLeft by viewModel.queueSwipeLeft.collectAsStateWithLifecycle()
+    val queueSwipeRight by viewModel.queueSwipeRight.collectAsStateWithLifecycle()
     var sheet by rememberSaveable { mutableStateOf<PreviewSheet?>(null) }
 
     val portraitPadding =
@@ -117,6 +122,8 @@ internal fun PlayerAppearanceScreen(
     val gestureLabel = stringResource(gestureOverlayLabel(gestureOverlay))
     val swipeLeftLabel = stringResource(miniBarSwipeLeft.labelRes)
     val swipeRightLabel = stringResource(miniBarSwipeRight.labelRes)
+    val queueSwipeLeftLabel = stringResource(queueSwipeLeft.rowSwipe.labelRes)
+    val queueSwipeRightLabel = stringResource(queueSwipeRight.rowSwipe.labelRes)
 
     SettingsPage(
         title = stringResource(R.string.player_appearance_title),
@@ -184,6 +191,8 @@ internal fun PlayerAppearanceScreen(
                 )
             }
             switch(PlayerAppearanceIndex.sleepTimerButton, sleepTimerButton, viewModel::setSleepTimerButton)
+            nav(PlayerAppearanceIndex.queueSwipeLeft, value = queueSwipeLeftLabel, onClick = { sheet = PreviewSheet.QUEUE_SWIPE_LEFT })
+            nav(PlayerAppearanceIndex.queueSwipeRight, value = queueSwipeRightLabel, onClick = { sheet = PreviewSheet.QUEUE_SWIPE_RIGHT })
         }
         group(key = "player_appearance.video", header = R.string.settings_section_video_player) {
             switch(PlayerAppearanceIndex.adaptiveSize, adaptiveSize, viewModel::setAdaptivePlayerSize)
@@ -266,6 +275,20 @@ internal fun PlayerAppearanceScreen(
                 onSelect = { action -> if (left) viewModel.setMiniBarSwipeLeft(action) else viewModel.setMiniBarSwipeRight(action) },
                 onDismiss = { sheet = null },
                 preview = { MiniBarSwipePreview(it, towardsLeft = left) },
+            )
+        }
+
+        PreviewSheet.QUEUE_SWIPE_LEFT, PreviewSheet.QUEUE_SWIPE_RIGHT -> {
+            val left = sheet == PreviewSheet.QUEUE_SWIPE_LEFT
+            SettingsPreviewSheet(
+                title = stringResource(if (left) R.string.queue_swipe_left else R.string.queue_swipe_right),
+                subtitle = stringResource(R.string.queue_swipe_subtitle),
+                options = QueueSwipeAction.entries,
+                selected = if (left) queueSwipeLeft else queueSwipeRight,
+                label = { stringResource(it.rowSwipe.labelRes) },
+                onSelect = { action -> if (left) viewModel.setQueueSwipeLeft(action) else viewModel.setQueueSwipeRight(action) },
+                onDismiss = { sheet = null },
+                preview = { QueueSwipePreview(it, towardsLeft = left) },
             )
         }
 

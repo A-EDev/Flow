@@ -113,6 +113,10 @@ internal object PlayerAppearanceIndex {
             R.string.player_appearance_sleep_timer_button_subtitle,
             R.string.settings_section_music_player,
         )
+    val queueSwipeLeft =
+        entry("queue_swipe_left", R.string.queue_swipe_left, R.string.queue_swipe_subtitle, R.string.settings_section_music_player)
+    val queueSwipeRight =
+        entry("queue_swipe_right", R.string.queue_swipe_right, R.string.queue_swipe_subtitle, R.string.settings_section_music_player)
     val adaptiveSize =
         entry(
             "adaptive_size",
@@ -186,6 +190,8 @@ internal object PlayerAppearanceIndex {
             artworkControlColors,
             plainControlColors,
             sleepTimerButton,
+            queueSwipeLeft,
+            queueSwipeRight,
             adaptiveSize,
             ambientMode,
             groupedQuality,

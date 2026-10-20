@@ -296,6 +296,8 @@ class PlayerPreferences(
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
         val MINI_BAR_SWIPE_LEFT_ACTION = stringPreferencesKey("mini_bar_swipe_left_action")
         val MINI_BAR_SWIPE_RIGHT_ACTION = stringPreferencesKey("mini_bar_swipe_right_action")
+        val QUEUE_SWIPE_LEFT_ACTION = stringPreferencesKey("queue_swipe_left_action")
+        val QUEUE_SWIPE_RIGHT_ACTION = stringPreferencesKey("queue_swipe_right_action")
         val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
         val SHOW_RESTORED_MUSIC_MINI_PLAYER = booleanPreferencesKey("show_restored_music_mini_player")
         val OPEN_MUSIC_PLAYER_ON_PLAY = booleanPreferencesKey("open_music_player_on_play")
@@ -3625,6 +3627,28 @@ class PlayerPreferences(
         }
     }
 
+    /** What swiping a song in the music queue to the left does. */
+    val queueSwipeLeftAction: Flow<QueueSwipeAction> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> QueueSwipeAction.fromString(preferences[Keys.QUEUE_SWIPE_LEFT_ACTION], QueueSwipeAction.PLAY_NEXT) }
+
+    suspend fun setQueueSwipeLeftAction(action: QueueSwipeAction) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.QUEUE_SWIPE_LEFT_ACTION] = action.name
+        }
+    }
+
+    /** What swiping a song in the music queue to the right does. */
+    val queueSwipeRightAction: Flow<QueueSwipeAction> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> QueueSwipeAction.fromString(preferences[Keys.QUEUE_SWIPE_RIGHT_ACTION], QueueSwipeAction.REMOVE) }
+
+    suspend fun setQueueSwipeRightAction(action: QueueSwipeAction) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.QUEUE_SWIPE_RIGHT_ACTION] = action.name
+        }
+    }
+
     // DEEP FLOW (INCOGNITO / NO-ENGINE) MODE
 
     val deepFlowActive: Flow<Boolean> =
@@ -3974,6 +3998,21 @@ enum class MiniBarSwipeAction {
 
     companion object {
         fun fromString(value: String?): MiniBarSwipeAction = entries.firstOrNull { it.name == value } ?: CLOSE
+    }
+}
+
+/** A swipe on a song in the music queue. */
+enum class QueueSwipeAction {
+    PLAY_NEXT,
+    MOVE_TO_END,
+    REMOVE,
+    ;
+
+    companion object {
+        fun fromString(
+            value: String?,
+            default: QueueSwipeAction,
+        ): QueueSwipeAction = entries.firstOrNull { it.name == value } ?: default
     }
 }
 

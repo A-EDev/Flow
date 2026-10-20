@@ -17,13 +17,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
-internal enum class QueueSwipeAction { PLAY_NEXT, ADD_TO_QUEUE }
-
 /**
  * Bidirectional four-phase horizontal swipe for queue rows: a tension zone that compresses the
  * first 60dp of finger travel into 20dp of visual travel, a haptic break-through that springs the
- * row out to the finger, 1:1 tracking with commit-zone haptics, and an elastic settle. Swiping
- * toward the start commits PLAY_NEXT; toward the end commits ADD_TO_QUEUE.
+ * row out to the finger, 1:1 tracking with commit-zone haptics, and an elastic settle. A commit
+ * reports its side; the row decides what that side does and whether the row then flies off.
  */
 internal class QueueRowSwipeGestureHandler(
     private val scope: CoroutineScope,
@@ -31,8 +29,8 @@ internal class QueueRowSwipeGestureHandler(
     private val density: Float,
     private val itemWidthPx: () -> Float,
     private val haptics: HapticFeedback,
-    private val flyOffOnCommit: Boolean,
-    private val onCommit: (QueueSwipeAction) -> Unit,
+    private val flyOffOnCommit: (towardsLeft: Boolean) -> Boolean,
+    private val onCommit: (towardsLeft: Boolean) -> Unit,
 ) {
     private enum class Phase { IDLE, TENSION, FREE_DRAG }
 
@@ -112,16 +110,16 @@ internal class QueueRowSwipeGestureHandler(
         val direction = sign(accumulated)
         phase = Phase.IDLE
         if (committed) {
-            val action = if (direction < 0f) QueueSwipeAction.PLAY_NEXT else QueueSwipeAction.ADD_TO_QUEUE
+            val towardsLeft = direction < 0f
             haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
             settling = true
             scope.launch {
-                if (flyOffOnCommit) {
+                if (flyOffOnCommit(towardsLeft)) {
                     offset.animateTo(
                         targetValue = direction * width,
                         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                     )
-                    onCommit(action)
+                    onCommit(towardsLeft)
                     // If the row leaves the list this coroutine dies with it; otherwise heal back.
                     delay(1000)
                 } else {
@@ -129,7 +127,7 @@ internal class QueueRowSwipeGestureHandler(
                         targetValue = direction * width * 0.5f,
                         animationSpec = tween(durationMillis = 110, easing = FastOutSlowInEasing),
                     )
-                    onCommit(action)
+                    onCommit(towardsLeft)
                 }
                 offset.animateTo(targetValue = 0f, animationSpec = settleSpring())
                 isInCommitZone = false
