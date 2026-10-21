@@ -476,7 +476,7 @@
     <string name="discovery_query_memory_detail">conjuntos de tokens recientes</string>
     <string name="profile_action_export_detail">Guarde el perfil actual como JSON</string>
     <string name="import_freetube_history_desc">Importe su historial de reproducciones desde un archivo JSON de exportación de FreeTube.</string>
-    <string name="player_settings_rytd_subtitle">Mostrar el recuento de \"no me gusta\" de Return YouTube Dislike</string>
+    <string name="player_settings_rytd_subtitle">Mostrar recuento de «No me gusta» de Return YouTube Dislike</string>
     <string name="content_settings_comments_preview_title">Vista previa de comentarios</string>
     <string name="content_settings_comments_enabled_subtitle">Mostrar los comentarios bajo los vídeos</string>
     <string name="content_settings_subs_show_live_subtitle">Muestra directos y emisiones recientes en tu feed</string>
@@ -1232,11 +1232,11 @@
     <string name="content_settings_title_lines_1">1 linea</string>
     <string name="content_settings_title_lines_2">2 lineas</string>
     <string name="content_settings_title_lines_3">3 lineas</string>
-    <string name="content_settings_video_card_actions_title">Botones \"Me gusta\" y \"No me gusta\" en las tarjetas de vídeo</string>
+    <string name="content_settings_video_card_actions_title">Botones «Me gusta» y «No me gusta» en las tarjetas de vídeo</string>
     <string name="player_settings_shorts_background_play">Reproducción de fondo de Shorts</string>
     <string name="content_settings_title_lines_unlimited">Sin límite</string>
     <string name="player_settings_shorts_background_play_subtitle">Continuar reproduciendo Shorts cuando la aplicación esté en segundo plano</string>
-    <string name="content_settings_video_card_actions_subtitle">Botones de \"Me gusta\" y \"No me gusta\" en las tarjetas para ajustar tu feed</string>
+    <string name="content_settings_video_card_actions_subtitle">Botones de «Me gusta» y «No me gusta» en las tarjetas para ajustar tu feed</string>
     <string name="content_settings_show_app_logo_subtitle">Mostrar el icono de Flow en la barra superior de Inicio</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Reproducir siguiente automáticamente (avanza al siguiente short)</string>
     <string name="content_settings_show_app_logo_title">Mostrar icono del logotipo de la aplicación</string>
@@ -1304,7 +1304,7 @@
     <string name="deep_flow_duration_12h">12 horas</string>
     <string name="deep_flow_duration_24h">24 horas</string>
     <string name="deep_flow_duration_8h">8 horas</string>
-    <string name="sb_settings_subtitle">Acciones de segmento, controles DeArrow y configuraciones de recuento de \"No me gusta\"</string>
+    <string name="sb_settings_subtitle">Acciones de segmento, controles DeArrow y configuraciones de recuento de «No me gusta»</string>
     <string name="group_all">Todo</string>
     <string name="manage_groups">Administrar grupos</string>
     <string name="edit_group">Editar grupo</string>
@@ -1560,7 +1560,7 @@
     <string name="datetime_mode_header">Visualización de la hora</string>
     <string name="datetime_mode_relative">Tiempo relativo (por ejemplo, hace 7 meses)</string>
     <string name="datetime_mode_both">Ambos</string>
-    <string name="datetime_overrides_note">Cambia el formato para lugares específicos. \"Predeterminado\" sigue la configuración anterior.</string>
+    <string name="datetime_overrides_note">Cambia el formato para lugares específicos. «Predeterminado» sigue la configuración anterior.</string>
     <string name="datetime_sample_relative">hace 7 meses</string>
     <string name="datetime_format_system">Valor predeterminado del sistema</string>
     <string name="datetime_context_watch">Ver página</string>
@@ -1722,7 +1722,7 @@
     <string name="player_portrait_seekbar_width_title">Ancho de la barra de progreso vertical</string>
     <string name="player_portrait_seekbar_width_spaced">Espaciado</string>
     <string name="player_settings_queue_autoplay">Reproducir automáticamente videos en cola</string>
-    <string name="player_settings_queue_autoplay_subtitle">Reproduce el siguiente video de una lista de reproducción o de la cola de \"Ver más tarde\"</string>
+    <string name="player_settings_queue_autoplay_subtitle">Reproduce el siguiente video de una lista de reproducción o de la cola de «Ver más tarde»</string>
     <string name="player_settings_autoplay_countdown_title">Retraso de reproducción automática</string>
     <string name="player_settings_autoplay_countdown_none">Ninguno (reproducir de inmediato)</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Cuenta regresiva antes de que comience el siguiente video. Puedes repetir, cancelar o saltar al siguiente mientras se ejecuta.</string>
@@ -1832,8 +1832,8 @@
     <string name="sync_try_again">Reintentar</string>
     <string name="sync_qr_content_description">Código QR de sincronización</string>
     <string name="sync_error_no_network">Sin conexión Wi-Fi o LAN. Conecta ambos dispositivos a la misma red o a un punto de acceso.</string>
-    <string name="sync_error_peer_also_send">El otro dispositivo también está configurado para enviar. Cámbialo a \"Recibir\" e intenta de nuevo.</string>
-    <string name="sync_error_peer_also_receive">El otro dispositivo también está configurado para recibir. Cámbialo a \"Enviar\" e intenta de nuevo.</string>
+    <string name="sync_error_peer_also_send">El otro dispositivo también está configurado para enviar. Cámbialo a «Recibir» e inténtalo de nuevo.</string>
+    <string name="sync_error_peer_also_receive">El otro dispositivo también está configurado para recibir. Cámbialo a «Enviar» e intenta de nuevo.</string>
     <string name="sync_error_qr_expired">El código ha caducado. Solicita al otro dispositivo que genere uno nuevo. Si los códigos siguen caducando al instante, comprueba que la fecha y la hora sean correctas en ambos dispositivos.</string>
     <string name="sync_error_qr_wrong_version">La versión de la aplicación en el otro dispositivo no es compatible.</string>
     <string name="sync_error_qr_not_flow">Los datos de conexión de Flow no parecen válidos.</string>
@@ -1966,8 +1966,8 @@
     <string name="ui_download_start_failed">Error al iniciar la descarga: %1$s</string>
     <string name="toast_unsubscribed_from">Dado de baja de %1$s</string>
     <string name="toast_subscribed_to">Suscrito a %1$s</string>
-    <string name="toast_removed_from_watch_later">Borrado de \"Ver mas tarde\"</string>
-    <string name="toast_added_to_watch_later">Agregado a \"Ver mas tarde\"</string>
+    <string name="toast_removed_from_watch_later">Borrado de «Ver mas tarde»</string>
+    <string name="toast_added_to_watch_later">Agregado a «Ver mas tarde»</string>
     <string name="toast_fetching_download_links">Obteniendo enlaces de descarga…</string>
     <string name="toast_download_started">Descarga iniciada: %1$s</string>
     <string name="toast_trying_sabr_download">Intentando descarga SABR…</string>
@@ -1999,7 +1999,7 @@
     <string name="notification_new_videos">Videos nuevos</string>
     <string name="notification_update_available">Actualización disponible: %1$s</string>
     <string name="notification_tap_to_update">Pulsa para actualizar a la última versión.</string>
-    <string name="notification_watch_later_reminder">Recordatorio de \"Ver más tarde\"</string>
+    <string name="notification_watch_later_reminder">Recordatorio de «Ver más tarde»</string>
     <string name="notification_video_live">El video está en directo</string>
     <string name="notification_channel_live">%1$s está en directo ahora: %2$s</string>
     <string name="notification_channel_downloads_description">Muestra el progreso y la finalización de las descargas</string>
@@ -2111,8 +2111,8 @@
     <string name="discord_error_session_rejected">Discord rechazó la sesión. Vuelve a conectar tu cuenta.</string>
     <string name="discord_error_gateway_timeout">Se agotó el tiempo de conexión con Discord Gateway.</string>
     <string name="discord_error_gateway_failed">Falló la conexión con Discord Gateway.</string>
-    <string name="discord_error_heartbeat_unacknowledged">El \"heartbeat\" de Discord Gateway no fue reconocido.</string>
-    <string name="discord_error_heartbeat_failed">Falló el \"heartbeat\" de Discord Gateway.</string>
+    <string name="discord_error_heartbeat_unacknowledged">No se confirmó la señal de actividad de Discord Gateway.</string>
+    <string name="discord_error_heartbeat_failed">Falló la señal de actividad de Discord Gateway.</string>
     <string name="discord_account_fallback">Usuario de Discord</string>
     <string name="discord_presence_playing_fallback">Reproduciendo en Flow</string>
     <string name="discord_presence_by_creator">por %1$s</string>
@@ -2212,7 +2212,7 @@
     <string name="tv_guide_player_toggle">Reproduce o pausa y muestra los controles de reproducción.</string>
     <string name="tv_guide_player_seek">Retrocede o avanza; la barra de progreso muestra la posición pendiente.</string>
     <string name="tv_guide_player_hold">Mantén Izquierda o Derecha para avanzar rápido por la línea de tiempo, suelta para confirmar.</string>
-    <string name="tv_guide_player_up">Muestra los controles y sitúa el foco en la fila \"A continuación\".</string>
+    <string name="tv_guide_player_up">Muestra los controles y sitúa el foco en la fila «A continuación».</string>
     <string name="tv_guide_player_down">Muestra los controles de reproducción y sitúa el foco en Reproducir/Pausar.</string>
     <string name="tv_guide_player_media">Las teclas Reproducir, Pausar, Anterior, Siguiente, Rebobinar, Avance rápido y Subtítulos funcionan directamente.</string>
     <string name="tv_guide_player_back">Cierra primero el panel o los controles; vuelve a pulsar para salir del reproductor.</string>
@@ -2247,7 +2247,7 @@
     <string name="fallback_local_video">Video local</string>
     <string name="fallback_local_audio">Audio local</string>
     <string name="fallback_your_saved_shorts">Tus shorts guardados</string>
-    <string name="fallback_your_watch_later_list">Tu lista de \"Ver más tarde\"</string>
+    <string name="fallback_your_watch_later_list">Tu lista de «Ver más tarde»</string>
     <string name="fallback_downloaded_locally">Descargado localmente</string>
     <string name="fallback_more_results">Más resultados</string>
     <plurals name="subscriptions_failed_channels_title">
@@ -2333,7 +2333,7 @@
     <string name="sync_step_title_scan">Escanea el código QR</string>
     <string name="top_bar_clear_search">Limpiar búsqueda</string>
     <string name="top_bar_close_search">Cerrar búsqueda</string>
-    <string name="import_yt_watch_later">Importar \"Ver más tarde\"</string>
+    <string name="import_yt_watch_later">Importar «Ver más tarde»</string>
     <string name="download_size_estimate_mb">~%1$s MB</string>
     <string name="download_size_estimate_gb">~%1$s GB</string>
     <plurals name="subscriptions_refresh_progress_template">
@@ -3071,11 +3071,11 @@
     <string name="removed_from_likes">Eliminado de tus favoritos</string>
     <string name="library_empty_body">Los vídeos y la música que veas, te gusten, guardes o descargues se reunirán aquí.</string>
     <string name="widget_unlike">Eliminar de favoritos</string>
-    <string name="import_no_likes">No se han encontrado favoritos. Exporta \"Mi actividad\" de YouTube como JSON, con tu cuenta de Google en Español.</string>
-    <string name="settings_integrations_summary">SponsorBlock, DeArrow, \"No me gusta\" y más</string>
+    <string name="import_no_likes">No se han encontrado favoritos. Exporta «Mi actividad» de YouTube como JSON, con tu cuenta de Google en Español.</string>
+    <string name="settings_integrations_summary">SponsorBlock, DeArrow, «No me gusta» y más</string>
     <string name="taste_topic_boost">Mostrar más como esto</string>
     <string name="taste_reset_video_body">Flow olvida lo que ha aprendido de tus vídeos y búsquedas. El historial, los favoritos, las listas y los elementos ocultos se mantienen, y Inicio sigue usándolos.</string>
-    <string name="recap_passed_subtitle">Descartados al principio, \"No me gusta\" u ocultos</string>
+    <string name="recap_passed_subtitle">Descartados al principio, «No me gusta» u ocultos</string>
     <string name="recap_dislikes">No me gusta</string>
     <string name="recap_likes">Favoritos</string>
     <string name="recap_insight_early_bird_body">Te gusta empezar pronto el día</string>
@@ -3090,14 +3090,14 @@
     <string name="liked_music_empty_title">Aún no hay canciones favoritas</string>
     <string name="liked_music_empty_body">Las canciones que marques como favoritas aparecerán aquí</string>
     <plurals name="liked_videos_removed">
-        <item quantity="one">%d vídeo sin \"Me gusta\"</item>
-        <item quantity="many">%d vídeos sin \"Me gusta\"</item>
-        <item quantity="other">%d vídeos sin \"Me gusta\"</item>
+        <item quantity="one">%d vídeo sin «Me gusta»</item>
+        <item quantity="many">%d vídeos sin «Me gusta»</item>
+        <item quantity="other">%d vídeos sin «Me gusta»</item>
     </plurals>
     <plurals name="songs_unliked">
-        <item quantity="one">%d canción sin \"Me gusta\"</item>
-        <item quantity="many">%d canciones sin \"Me gusta\"</item>
-        <item quantity="other">%d canciones sin \"Me gusta\"</item>
+        <item quantity="one">%d canción sin «Me gusta»</item>
+        <item quantity="many">%d canciones sin «Me gusta»</item>
+        <item quantity="other">%d canciones sin «Me gusta»</item>
     </plurals>
     <string name="music_sort_recently_liked">Favoritos recientes</string>
     <string name="home_origin_neighbour">Un canal similar a %1$s</string>
@@ -3106,7 +3106,7 @@
     <string name="settings_auto_download_likes_title">Descargar canciones favoritas</string>
     <string name="settings_auto_download_likes_summary">Las canciones en tus favoritos se guardan para escucharlas sin conexión</string>
     <string name="onboarding_artists_subtitle">Tus recomendaciones musicales parten de ellas. Sáltalo si quieres.</string>
-    <string name="scrobbling_send_likes_summary">Los \"Me gusta\" aparecen como canciones favoritas en Last.fm y Libre.fm</string>
+    <string name="scrobbling_send_likes_summary">Los «Me gusta» aparecen como canciones favoritas en Last.fm y Libre.fm</string>
     <plurals name="import_takeout_part_history">
         <item quantity="one">%d entrada del historial</item>
         <item quantity="many">%d entradas del historial</item>
@@ -3362,4 +3362,41 @@
     <string name="sync_enter_connection_data_hint">Pega los datos de conexión del otro dispositivo.</string>
     <string name="sync_connection_data_label">Datos de conexión</string>
     <string name="sync_paste_connection_data">Pegar datos de conexión</string>
+    <string name="queue_swipe_left">Deslizar cola a la izquierda</string>
+    <string name="queue_swipe_right">Deslizar cola a la derecha</string>
+    <string name="queue_swipe_subtitle">Para las canciones en «A continuación»</string>
+    <string name="queue_move_to_end">Mover al final</string>
+    <string name="lyrics_provider_lrc_red">lrc.red</string>
+    <string name="lyrics_provider_kugou">KuGou</string>
+    <string name="lyrics_provider_paxsenix">Apple Music (Paxsenix)</string>
+    <string name="lyrics_provider_unison">Unison</string>
+    <string name="lyrics_provider_youtube_captions">Subtítulos de YouTube</string>
+    <string name="lyrics_provider_youtube_music">YouTube Music</string>
+    <string name="lyrics_provider_better_lyrics_desc">Sincronización de palabras · Letras de Apple Music</string>
+    <string name="lyrics_provider_lrc_red_desc">Sincronización por palabras · coincidencia con la grabación</string>
+    <string name="lyrics_provider_lyrics_plus_desc">Sincronización de palabras</string>
+    <string name="lyrics_provider_simpmusic_desc">Sincronización por palabras · según el vídeo</string>
+    <string name="lyrics_provider_kugou_desc">Sincronización por líneas · precisa para canciones en chino</string>
+    <string name="lyrics_provider_paxsenix_desc">Sincronización por palabras</string>
+    <string name="lyrics_provider_lrclib_desc">Sincronización por líneas · base de datos abierta</string>
+    <string name="lyrics_provider_unison_desc">Letras de la comunidad · catálogo pequeño</string>
+    <string name="lyrics_provider_youtube_captions_desc">Sincronización por líneas · los subtítulos del vídeo</string>
+    <string name="lyrics_provider_youtube_music_desc">Texto sin formato · la pestaña Letras</string>
+    <string name="dearrow_random_frame">Usar un fotograma del vídeo</string>
+    <string name="dearrow_random_frame_subtitle">Cuando no se haya enviado nada, mostrar un fotograma del vídeo</string>
+    <plurals name="import_takeout_part_music_playlists">
+        <item quantity="one">%d lista en Música</item>
+        <item quantity="many">%d listas en Música</item>
+        <item quantity="other">%d listas en Música</item>
+    </plurals>
+    <string name="playlist_unavailable_hidden">Los vídeos no disponibles están ocultos</string>
+    <string name="sync_connection_data_security_note">Contiene una clave temporal. Compártela solo con el dispositivo con el que estás sincronizando.</string>
+    <string name="sync_copy_connection_data">Copiar datos de conexión</string>
+    <string name="sync_connect">Conectar</string>
+    <string name="sync_verification_after_connect">Después de conectar, comprueba que ambos dispositivos muestran el mismo código.</string>
+    <string name="sync_error_qr_not_local">Este código apunta fuera de tu red local, así que Flow no se conectará a él. Usa solo los códigos que muestren tus propios dispositivos.</string>
+    <string name="sync_error_no_peer">Ningún dispositivo se conectó antes de que caducara el código. Comprueba que ambos dispositivos estén en la misma Wi-Fi y vuelve a intentarlo.</string>
+    <string name="sync_error_unreachable">No se pudo conectar con el otro dispositivo. Comprueba que ambos estén en la misma Wi-Fi y que una VPN o un cortafuegos no estén bloqueando la conexión.</string>
+    <string name="sync_error_timeout">El otro dispositivo dejó de responder. Mantén Flow abierto en ambos dispositivos y vuelve a intentarlo.</string>
+    <string name="sync_error_peer_closed">El otro dispositivo cerró la conexión. Revisa si muestra algún mensaje y vuelve a intentarlo.</string>
 </resources>
