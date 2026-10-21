@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowOutward
@@ -26,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,7 +99,12 @@ fun SearchFilterChips(
     activeFilter: SearchFilter?,
     onFilterClick: (SearchFilter?) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // A lazy row keeps its first visible key when the list changes, which would hide the chips
+    // YouTube puts before it once its own list replaces the default one.
+    LaunchedEffect(filters) { listState.requestScrollToItem(0) }
     LazyRow(
+        state = listState,
         modifier =
             Modifier
                 .fillMaxWidth()
