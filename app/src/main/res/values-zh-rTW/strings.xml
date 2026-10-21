@@ -4130,4 +4130,35 @@
     <string name="tv_guide_search_open">開啟焦點所在的建議或搜尋結果。</string>
     <string name="error_video_decoder_failed">影片解碼器已停止運作</string>
     <string name="error_video_decoder_failed_hint">點選「重試」即可重新載入影片。</string>
+    <string name="queue_swipe_left">佇列向左滑動</string>
+    <string name="queue_swipe_right">佇列向右滑動</string>
+    <string name="queue_swipe_subtitle">適用於「接下來播放」中的歌曲</string>
+    <string name="queue_move_to_end">移到最後</string>
+    <string name="lyrics_provider_lrc_red">lrc.red</string>
+    <string name="lyrics_provider_kugou">酷狗音樂</string>
+    <string name="lyrics_provider_paxsenix">Apple Music (Paxsenix)</string>
+    <string name="lyrics_provider_unison">Unison</string>
+    <string name="lyrics_provider_youtube_captions">YouTube 字幕</string>
+    <string name="lyrics_provider_youtube_music">YouTube Music</string>
+    <string name="lyrics_provider_better_lyrics_desc">逐字同步 · Apple Music 歌詞</string>
+    <string name="lyrics_provider_lrc_red_desc">逐字同步 · 依錄音比對</string>
+    <string name="lyrics_provider_lyrics_plus_desc">逐字同步</string>
+    <string name="lyrics_provider_simpmusic_desc">逐字同步 · 依影片比對</string>
+    <string name="lyrics_provider_kugou_desc">逐行同步 · 適合中文歌曲</string>
+    <string name="lyrics_provider_paxsenix_desc">逐字同步</string>
+    <string name="lyrics_provider_lrclib_desc">逐行同步 · 開放資料庫</string>
+    <string name="lyrics_provider_unison_desc">社群歌詞 · 曲庫較小</string>
+    <string name="lyrics_provider_youtube_captions_desc">逐行同步 · 影片的字幕</string>
+    <string name="lyrics_provider_youtube_music_desc">純文字 · 「歌詞」分頁</string>
+    <plurals name="import_takeout_part_music_playlists">
+        <item quantity="other">%d 個 YouTube Music 播放清單</item>
+    </plurals>
+    <string name="playlist_unavailable_hidden">已隱藏無法播放的影片</string>
+    <string name="error_bot_wall_network_hint">請改用其他網路，例如行動數據。</string>
+    <string name="error_bot_wall_session">YouTube 要求確認你不是機器人</string>
+    <string name="error_bot_wall_session_hint">請重設 YouTube 工作階段後再試一次。</string>
+    <string name="playlist_move_to_music">移到音樂</string>
+    <string name="playlist_move_to_videos">移到影片</string>
+    <string name="playlist_moved_to_music">已移到音樂</string>
+    <string name="playlist_moved_to_videos">已移到影片</string>
 </resources>
