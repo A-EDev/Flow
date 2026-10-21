@@ -505,13 +505,12 @@ object InnerTubeVideoStreamExtractor {
 
                     val status = playerResponse.playabilityStatus.status
                     if (status != "OK") {
-                        val reason = playerResponse.playabilityStatus.reason
-                        val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
-                        failureReasons.add("${client.clientName}: $tag, reason=$reason")
-                        Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
+                        val refusal = PlayabilityVerdict.refusal(playerResponse.playabilityStatus, playerResponse.videoDetails != null)
+                        failureReasons.add("${client.clientName}: $refusal")
+                        Log.w(TAG, "${client.clientName}: $refusal")
                         PlayerDiagnostics.logWarning(
                             TAG,
-                            "skip ${client.clientName} v${client.clientVersion}: $tag reason=$reason pot=${clientPoToken != null}",
+                            "skip ${client.clientName} v${client.clientVersion}: $refusal pot=${clientPoToken != null}",
                         )
                         continue
                     }
@@ -711,11 +710,10 @@ object InnerTubeVideoStreamExtractor {
 
             val status = playerResponse.playabilityStatus.status
             if (status != "OK") {
-                val reason = playerResponse.playabilityStatus.reason
-                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
-                failureReasons.add("$label: $tag, reason=$reason")
-                Log.w(TAG, "$label: $tag, reason=$reason")
-                PlayerDiagnostics.logWarning(TAG, "skip $label v${client.clientVersion}: $tag reason=$reason pot=true")
+                val refusal = PlayabilityVerdict.refusal(playerResponse.playabilityStatus, playerResponse.videoDetails != null)
+                failureReasons.add("$label: $refusal")
+                Log.w(TAG, "$label: $refusal")
+                PlayerDiagnostics.logWarning(TAG, "skip $label v${client.clientVersion}: $refusal pot=true")
                 return null
             }
 

@@ -116,7 +116,21 @@ data class PlayerResponse(
         val status: String,
         val reason: String?,
         val liveStreamability: LiveStreamability? = null,
+        val errorScreen: ErrorScreen? = null,
     ) {
+        /** The error screen's second line, which says when the refusal is about the viewer's country. */
+        val subreason: String? get() = errorScreen?.playerErrorMessageRenderer?.subreason?.text
+
+        @Serializable
+        data class ErrorScreen(
+            val playerErrorMessageRenderer: PlayerErrorMessageRenderer? = null,
+        ) {
+            @Serializable
+            data class PlayerErrorMessageRenderer(
+                val subreason: Captions.Text? = null,
+            )
+        }
+
         @Serializable
         data class LiveStreamability(
             val liveStreamabilityRenderer: LiveStreamabilityRenderer? = null,

@@ -46,9 +46,7 @@ internal object TizenStreamResolver {
                 } ?: return@withContext refuse("timeout or null response")
             val answeredAtMs = SystemClock.elapsedRealtime()
             if (response.playabilityStatus.status != "OK") {
-                val reason = response.playabilityStatus.reason
-                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=${response.playabilityStatus.status}"
-                return@withContext refuse("$tag, reason=$reason")
+                return@withContext refuse(PlayabilityVerdict.refusal(response.playabilityStatus, response.videoDetails != null))
             }
             val formats = response.streamingData?.adaptiveFormats.orEmpty()
             val playable = playableFormats(formats)

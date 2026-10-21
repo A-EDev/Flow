@@ -2727,6 +2727,10 @@
     <string name="error_geo_restricted_hint">The content owner has restricted this video in your country. Try using a VPN.</string>
     <string name="error_paid_content">Paid / rental content</string>
     <string name="error_paid_content_hint">This video requires a purchase or rental on YouTube.</string>
+    <string name="error_members_or_paid">Members-only or paid video</string>
+    <string name="error_members_or_paid_hint">This video needs a channel membership or a purchase on YouTube.</string>
+    <string name="error_rate_limited">YouTube is limiting this network</string>
+    <string name="error_rate_limited_hint">Wait a while and try again, or switch networks.</string>
     <string name="error_yt_music_premium">YouTube Music Premium content</string>
     <string name="error_yt_music_premium_hint">This track is only available to YouTube Music Premium subscribers.</string>
     <string name="error_channel_terminated">Channel has been terminated</string>
@@ -2769,6 +2773,8 @@
     <string name="music_playback_warning_unavailable">This song is no longer available on YouTube.</string>
     <string name="music_playback_warning_final">This song could not be loaded after several retries. Try another network or VPN if songs keep failing.</string>
     <string name="music_playback_warning_generic">Music playback failed. Try again or switch networks if this keeps happening.</string>
+    <string name="music_playback_warning_rate_limited">YouTube is limiting this network. Try again later.</string>
+    <string name="music_playback_warning_members_or_paid">This song needs a membership or purchase on YouTube.</string>
     <string name="player_lock_controls">Lock controls</string>
     <string name="player_unlock_controls">Unlock controls</string>
     <string name="player_brightness_auto">Auto</string>
