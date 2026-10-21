@@ -93,17 +93,10 @@ fun MusicSearchBar(
 
 @Composable
 fun SearchFilterChips(
+    filters: List<SearchFilter>,
     activeFilter: SearchFilter?,
     onFilterClick: (SearchFilter?) -> Unit,
 ) {
-    val filters =
-        listOf(
-            stringResource(R.string.filter_albums) to SearchFilter.FILTER_ALBUM,
-            stringResource(R.string.tab_videos) to SearchFilter.FILTER_VIDEO,
-            stringResource(R.string.filter_songs) to SearchFilter.FILTER_SONG,
-            stringResource(R.string.filter_community_playlists) to SearchFilter.FILTER_COMMUNITY_PLAYLIST,
-        )
-
     LazyRow(
         modifier =
             Modifier
@@ -112,10 +105,10 @@ fun SearchFilterChips(
         contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(filters, key = { it.first }) { (label, filter) ->
+        items(filters, key = { it.value }) { filter ->
             val selected = activeFilter == filter
             FlowFilterChip(
-                label = label,
+                label = filter.label(),
                 selected = selected,
                 onClick = { onFilterClick(if (selected) null else filter) },
             )

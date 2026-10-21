@@ -1,5 +1,6 @@
 package io.github.aedev.flow.innertube.pages
 
+import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.SearchResponse
@@ -49,6 +50,52 @@ internal object InnerTubeJson {
             |{"sectionListRenderer":{"contents":[${sections.joinToString(",")}]}}}}]}}}
             """.trimMargin(),
         )
+
+    fun searchWithChips(
+        sections: List<String>,
+        chipParams: List<String>,
+    ): SearchResponse {
+        val chips =
+            chipParams.joinToString(",") {
+                """{"chipCloudChipRenderer":{"isSelected":false,"text":${runs(run(it))},
+                |"navigationEndpoint":{"searchEndpoint":{"query":"q","params":"$it"}}}}
+                """.trimMargin()
+            }
+        return json.decodeFromString(
+            SearchResponse.serializer(),
+            """{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":
+            |{"sectionListRenderer":{"header":{"chipCloudRenderer":{"chips":[$chips]}},"contents":[${sections.joinToString(",")}]}}}}]}}}
+            """.trimMargin(),
+        )
+    }
+
+    /** The row object inside a `{"musicResponsiveListItemRenderer":…}` wrapper. */
+    fun decodeRow(row: String): MusicResponsiveListItemRenderer =
+        json.decodeFromString(MusicResponsiveListItemRenderer.serializer(), row.substringAfter(":").removeSuffix("}"))
+
+    /** A filtered episode row: no "Episode" label, the show linked after the date. */
+    fun episodeRow(
+        videoId: String,
+        title: String,
+        date: String,
+        show: String,
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(videoId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title, browseEndpoint("MPED$videoId", "MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE")))},
+        |${flexColumn(run(date), separator(), run(show, browseEndpoint("MPSP$show", "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE")))}],
+        |"playlistItemData":{"videoId":"$videoId"},
+        |"overlay":${playOverlay(watchEndpoint(videoId, "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"))}}}
+        """.trimMargin()
+
+    fun podcastRow(
+        browseId: String,
+        playlistId: String,
+        title: String,
+        author: String,
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(browseId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title))},${flexColumn(run(author, browseEndpoint("UCauthor", USER)))}],
+        |"overlay":${playOverlay(watchPlaylistEndpoint(playlistId))},
+        |"navigationEndpoint":${browseEndpoint(browseId, "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE")}}}
+        """.trimMargin()
 
     fun itemSection(row: String) = """{"itemSectionRenderer":{"contents":[$row]}}"""
 

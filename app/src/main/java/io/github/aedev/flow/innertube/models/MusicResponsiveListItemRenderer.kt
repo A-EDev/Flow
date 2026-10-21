@@ -7,7 +7,9 @@ import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContex
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_LIBRARY_ARTIST
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_UNKNOWN
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -48,7 +50,18 @@ data class MusicResponsiveListItemRenderer(
                 navigationEndpoint.browseEndpoint.browseId.startsWith("UC") &&
                 menuPlaylistEndpoint("MIX") != null
 
-    private val playNavigationEndpoint: NavigationEndpoint?
+    val isPodcast: Boolean
+        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType ==
+            MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+
+    val isUserChannel: Boolean
+        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType ==
+            MUSIC_PAGE_TYPE_USER_CHANNEL
+
+    val isEpisode: Boolean
+        get() = musicVideoType == MUSIC_VIDEO_TYPE_PODCAST_EPISODE
+
+    val playNavigationEndpoint: NavigationEndpoint?
         get() = overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
 
     /** The row's video, also when YouTube leaves out [playlistItemData], as its reduced search answer does (#1379). */
@@ -70,6 +83,10 @@ data class MusicResponsiveListItemRenderer(
 
     val musicVideoType: String?
         get() = playNavigationEndpoint?.musicVideoType ?: navigationEndpoint?.musicVideoType
+
+    companion object {
+        const val MUSIC_VIDEO_TYPE_PODCAST_EPISODE = "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"
+    }
 
     @Serializable
     data class FlexColumn(

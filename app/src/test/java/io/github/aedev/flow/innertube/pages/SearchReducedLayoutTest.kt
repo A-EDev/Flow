@@ -99,4 +99,43 @@ class SearchReducedLayoutTest {
 
         assertEquals("fromItemData", page.summaries.single().items.single().id)
     }
+
+    private fun filtered(row: String) = SearchPage.toYTItem(InnerTubeJson.decodeRow(row))
+
+    @Test
+    fun `an episode plays like a song, with its show as the artist`() {
+        val item = filtered(InnerTubeJson.episodeRow("sJ097VJSZK4", "WTF episode", "Nov 20, 2020", "WTF")) as SongItem
+
+        assertEquals("sJ097VJSZK4", item.id)
+        assertEquals(listOf("WTF"), item.artists.map { it.name })
+        assertEquals("MUSIC_VIDEO_TYPE_PODCAST_EPISODE", item.musicVideoType)
+    }
+
+    @Test
+    fun `a podcast opens as the playlist of its episodes`() {
+        val item = filtered(InnerTubeJson.podcastRow("MPSPPLE9uSpEn0Z8", "PLE9uSpEn0Z8", "Softcore Chaos", "Ella")) as PlaylistItem
+
+        assertEquals("PLE9uSpEn0Z8", item.id)
+        assertEquals("Ella", item.author?.name)
+        assertEquals("PLE9uSpEn0Z8", item.playEndpoint?.playlistId)
+    }
+
+    @Test
+    fun `a profile is kept as an artist without play actions`() {
+        val item = filtered(bareBrowseRow("UC9Qgl4YBSc_jg81", InnerTubeJson.USER, "Softcore", listOf(run("Profile"), separator(), run("@softcore")))) as ArtistItem
+
+        assertEquals("UC9Qgl4YBSc_jg81", item.id)
+        assertNull(item.shuffleEndpoint)
+    }
+
+    @Test
+    fun `the summary keeps the chip params YouTube offers`() {
+        val response =
+            InnerTubeJson.searchWithChips(
+                listOf(itemSection(song)),
+                chipParams = listOf("EgWKAQIIAWoQ", "EgWKAQJQAWoQ"),
+            )
+
+        assertEquals(listOf("EgWKAQIIAWoQ", "EgWKAQJQAWoQ"), SearchSummaryPage.fromSearchResponse(response).filterParams)
+    }
 }

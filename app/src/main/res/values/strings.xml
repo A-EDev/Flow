@@ -2357,6 +2357,11 @@
     <string name="filter_albums">Albums</string>
     <string name="filter_songs">Songs</string>
     <string name="filter_community_playlists">Community playlists</string>
+    <string name="filter_artists">Artists</string>
+    <string name="filter_featured_playlists">Featured playlists</string>
+    <string name="filter_podcasts">Podcasts</string>
+    <string name="filter_episodes">Episodes</string>
+    <string name="filter_profiles">Profiles</string>
     <string name="section_top_result">Top result</string>
     <string name="music_search_section_artists">Artists</string>
     <string name="music_search_section_playlists">Playlists</string>

@@ -6,6 +6,7 @@ import io.github.aedev.flow.innertube.models.Artist
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
 import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.Run
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.models.oddElements
@@ -28,6 +29,12 @@ object SearchPage {
                 ?.splitBySeparator()
                 ?: return null
         return when {
+            renderer.isEpisode -> episode(renderer, secondaryLine)
+
+            renderer.isPodcast -> podcast(renderer, secondaryLine)
+
+            renderer.isUserChannel -> profile(renderer)
+
             renderer.isSong -> {
                 SongItem(
                     id = renderer.videoId ?: return null,
@@ -189,4 +196,63 @@ object SearchPage {
             }
         }
     }
+
+    private fun MusicResponsiveListItemRenderer.titleText(): String? =
+        flexColumns
+            .firstOrNull()
+            ?.musicResponsiveListItemFlexColumnRenderer
+            ?.text
+            ?.runs
+            ?.firstOrNull()
+            ?.text
+
+    // The linked run of an episode or podcast names its show or its channel; the rest is a date or a label.
+    private fun List<List<Run>>.linkedName(): String? = flatten().firstOrNull { it.navigationEndpoint?.browseEndpoint != null }?.text
+
+    /** An episode plays like a song; its show stands in for the artist. */
+    private fun episode(
+        renderer: MusicResponsiveListItemRenderer,
+        secondaryLine: List<List<Run>>,
+    ): SongItem? =
+        SongItem(
+            id = renderer.videoId ?: return null,
+            title = renderer.titleText() ?: return null,
+            artists = listOfNotNull(secondaryLine.linkedName()?.let { Artist(name = it, id = null) }),
+            musicVideoType = renderer.musicVideoType,
+            thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
+        )
+
+    /** A podcast is a playlist of its episodes: `MPSP` + the playlist id. */
+    private fun podcast(
+        renderer: MusicResponsiveListItemRenderer,
+        secondaryLine: List<List<Run>>,
+    ): PlaylistItem? {
+        val playEndpoint = renderer.playNavigationEndpoint?.watchPlaylistEndpoint
+        return PlaylistItem(
+            id =
+                playEndpoint?.playlistId
+                    ?: renderer.navigationEndpoint
+                        ?.browseEndpoint
+                        ?.browseId
+                        ?.removePrefix("MPSP")
+                    ?: return null,
+            title = renderer.titleText() ?: return null,
+            author = secondaryLine.linkedName()?.let { Artist(name = it, id = null) },
+            songCountText = null,
+            thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl(),
+            playEndpoint = playEndpoint,
+            shuffleEndpoint = null,
+            radioEndpoint = null,
+        )
+    }
+
+    /** A YouTube channel that is not an artist, kept as one so it opens like an artist. */
+    private fun profile(renderer: MusicResponsiveListItemRenderer): ArtistItem? =
+        ArtistItem(
+            id = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
+            title = renderer.titleText() ?: return null,
+            thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl(),
+            shuffleEndpoint = null,
+            radioEndpoint = null,
+        )
 }

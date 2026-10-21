@@ -40,9 +40,11 @@ data class SearchSummary(
     val kind: SearchSummaryKind = SearchSummaryKind.SHELF,
 )
 
+/** [filterParams]: the search params of the filter chips YouTube offers for this query, in its order. */
 data class SearchSummaryPage(
     val summaries: List<SearchSummary>,
     val continuation: String? = null,
+    val filterParams: List<String> = emptyList(),
 ) {
     companion object {
         private const val MUSIC_VIDEO_TYPE_PODCAST_EPISODE = "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"
@@ -53,7 +55,7 @@ data class SearchSummaryPage(
          * of item sections are grouped by what the items are, in the order each kind first appears.
          */
         fun fromSearchResponse(response: SearchResponse): SearchSummaryPage {
-            val contents =
+            val sectionList =
                 response.contents
                     ?.tabbedSearchResultsRenderer
                     ?.tabs
@@ -61,8 +63,7 @@ data class SearchSummaryPage(
                     ?.tabRenderer
                     ?.content
                     ?.sectionListRenderer
-                    ?.contents
-                    .orEmpty()
+            val contents = sectionList?.contents.orEmpty()
             val summaries = mutableListOf<SearchSummary>()
             val loose = mutableListOf<YTItem>()
 
@@ -94,6 +95,13 @@ data class SearchSummaryPage(
                         ?.musicShelfRenderer
                         ?.continuations
                         ?.getContinuation(),
+                filterParams =
+                    sectionList
+                        ?.header
+                        ?.chipCloudRenderer
+                        ?.chips
+                        ?.mapNotNull { it.chipCloudChipRenderer.navigationEndpoint.searchEndpoint?.params }
+                        .orEmpty(),
             )
         }
 
