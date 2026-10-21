@@ -239,36 +239,25 @@ object YouTube {
     ): Result<SearchResult> =
         runCatching {
             val response = innerTube.search(WEB_REMIX, query, filter.value).body<SearchResponse>()
+            // The results shelf is not always the last section: a "did you mean" or message can follow it.
+            val shelf =
+                response.contents
+                    ?.tabbedSearchResultsRenderer
+                    ?.tabs
+                    ?.firstOrNull()
+                    ?.tabRenderer
+                    ?.content
+                    ?.sectionListRenderer
+                    ?.contents
+                    ?.firstNotNullOfOrNull { it.musicShelfRenderer }
             SearchResult(
                 items =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.lastOrNull()
-                        ?.musicShelfRenderer
+                    shelf
                         ?.contents
                         ?.getItems()
-                        ?.mapNotNull {
-                            SearchPage.toYTItem(it)
-                        }.orEmpty(),
-                continuation =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.lastOrNull()
-                        ?.musicShelfRenderer
-                        ?.continuations
-                        ?.getContinuation(),
+                        ?.mapNotNull(SearchPage::toYTItem)
+                        .orEmpty(),
+                continuation = shelf?.continuations?.getContinuation(),
             )
         }
 
@@ -340,7 +329,7 @@ object YouTube {
                         ?.contents
                         ?.mapNotNull {
                             SearchPage.toYTItem(it.musicResponsiveListItemRenderer)
-                        }!!,
+                        }.orEmpty(),
                 continuation =
                     response.continuationContents
                         ?.musicShelfContinuation
