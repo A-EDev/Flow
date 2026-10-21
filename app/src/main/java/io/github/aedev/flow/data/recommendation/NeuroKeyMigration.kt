@@ -190,7 +190,7 @@ internal object NeuroKeyMigration {
     ) {
         private val cache = HashMap<String, List<String>>()
 
-        private val foldHan = tokenizer.keySpec >= NeuroKeySpec.HAN_SPEC && tokenizer.languageProfile != "ja"
+        private val foldHan = tokenizer.hanFolds
 
         fun keysFor(key: String): List<String> =
             cache.getOrPut(key) {

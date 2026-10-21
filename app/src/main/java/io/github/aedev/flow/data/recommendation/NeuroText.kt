@@ -34,6 +34,9 @@ internal object PlatformWordBreaker : WordBreaker {
     }
 }
 
+/** Han fold of [NeuroText.fold]: [UNLESS_KANA] skips strings with kana, [ALWAYS] ignores kana. */
+internal enum class HanFold { NONE, UNLESS_KANA, ALWAYS }
+
 /**
  * How the engine reads raw text before it becomes topics: styled letters fold to plain ones, short
  * topic names survive, and scripts written without spaces are split into words (#907).
@@ -106,12 +109,11 @@ internal object NeuroText {
 
     /**
      * Lowercase plain letters: "𝙋𝙃𝙊𝙉𝙆", "ｐｈｏｎｋ", "ⓟⓗⓞⓝⓚ" and "ᴘʜᴏɴᴋ" all read "phonk". Every apostrophe
-     * reads ', Turkish İ reads i, and emoji joiners are dropped ([NeuroKeySpec] stage 1). [foldHan]:
-     * Hant to Hans ([simplified]).
+     * reads ', Turkish İ reads i, and emoji joiners are dropped ([NeuroKeySpec] stage 1). [han]: [HanFold].
      */
     fun fold(
         text: String,
-        foldHan: Boolean = true,
+        han: HanFold = HanFold.UNLESS_KANA,
     ): String {
         if (text.all { it.code < 0x80 }) return if ('`' in text) text.lowercase().replace('`', '\'') else text.lowercase()
         // Before NFKC, which turns ´ into a space and a combining accent.
@@ -139,14 +141,19 @@ internal object NeuroText {
                 .replace("\u0ECD\u0EB2", "\u0EB3")
         val plain = if (normalized.any { it in SmallCaps }) normalized.map { SmallCaps[it] ?: it }.joinToString("") else normalized
         val lower = plain.lowercase()
-        return if (foldHan) simplified(lower) else lower
+        return if (han == HanFold.NONE) lower else simplified(lower, ignoreKana = han == HanFold.ALWAYS)
     }
 
-    /** Hant to Hans per character; text with kana is returned unchanged. */
-    fun simplified(text: String): String {
+    fun hasKana(text: String): Boolean = text.any(::isKana)
+
+    /** Hant to Hans per character; unchanged when [text] has kana unless [ignoreKana]. */
+    fun simplified(
+        text: String,
+        ignoreKana: Boolean = false,
+    ): String {
         val table = HantToHans
         val first = text.indexOfFirst { it in table }
-        if (first < 0 || text.any(::isKana)) return text
+        if (first < 0 || (!ignoreKana && hasKana(text))) return text
         val out = StringBuilder(text.length).append(text, 0, first)
         for (i in first until text.length) out.append(table[text[i]] ?: text[i])
         return out.toString()

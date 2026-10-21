@@ -16,8 +16,6 @@ internal class NeuroChunker(
     private val normalizeLemma: (String) -> String,
     private val keyOf: (String) -> String,
     private val breaker: WordBreaker = PlatformWordBreaker,
-    /** [NeuroKeySpec.HAN_SPEC]: Hant fold and merged Han runs. */
-    private val hanSpec: Boolean = true,
 ) {
     /** A run of [words] inside one chunk, from word [from] up to but not including [to]. */
     data class Run(
@@ -73,9 +71,13 @@ internal class NeuroChunker(
         data object Break : Item
     }
 
-    fun chunk(text: String): Chunks {
+    /** [han]: the Hant fold and merged Han runs ([NeuroKeySpec.HAN_SPEC]); [HanFold.NONE] is spec 2. */
+    fun chunk(
+        text: String,
+        han: HanFold,
+    ): Chunks {
         val items = ArrayList<Item>()
-        val folded = NeuroText.fold(text, hanSpec)
+        val folded = NeuroText.fold(text, han)
         val spans = NeuroText.pieces(folded, breaker)
         val pieces = spans.map { it.text }
         val isStopWord = stopWordsFor(pieces)
@@ -112,7 +114,7 @@ internal class NeuroChunker(
             }
         }
         close()
-        val runs = if (hanSpec) mergedRuns(folded, spans, isStopWord) else MergedRuns.None
+        val runs = if (han != HanFold.NONE) mergedRuns(folded, spans, isStopWord, han) else MergedRuns.None
         return Chunks(chunks, modelPairs, formats + runs.formats, runs.keys, runs.singles)
     }
 
@@ -132,9 +134,11 @@ internal class NeuroChunker(
         folded: String,
         spans: List<NeuroText.Piece>,
         isStopWord: (String) -> Boolean,
+        han: HanFold,
     ): MergedRuns {
         if (folded.none(NeuroText::isHan)) return MergedRuns.None
-        val breaks = NeuroLanguages.runBreaks(if (folded.any(NeuroText::isKana)) "ja" else "zh") ?: return MergedRuns.None
+        val language = if (han == HanFold.UNLESS_KANA && folded.any(NeuroText::isKana)) "ja" else "zh"
+        val breaks = NeuroLanguages.runBreaks(language) ?: return MergedRuns.None
         val keys = LinkedHashSet<String>()
         val singles = LinkedHashSet<String>()
         val formats = LinkedHashSet<String>()

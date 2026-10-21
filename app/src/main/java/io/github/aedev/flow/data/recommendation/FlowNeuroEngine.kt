@@ -927,7 +927,7 @@ class FlowNeuroEngine internal constructor(
     suspend fun getBlockedTopics(): Set<String> = withBrainLock { currentUserBrain.blockedTopics }
 
     suspend fun addBlockedTopic(topic: String) {
-        val normalized = NeuroText.fold(topic).trim()
+        val normalized = tokenizer.fold(topic).trim()
         if (normalized.isBlank()) return
         withBrainLock {
             val lemma = tokenizer.keyOf(normalized)

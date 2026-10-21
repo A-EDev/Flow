@@ -41,7 +41,14 @@ internal class NeuroSpecificity(
                     lines
                         .mapNotNull { line ->
                             val space = line.lastIndexOf(' ')
-                            if (space <= 0) null else NeuroText.fold(line.substring(0, space)) to line.substring(space + 1).toInt()
+                            if (space <=
+                                0
+                            ) {
+                                null
+                            } else {
+                                NeuroText.fold(line.substring(0, space), NeuroLanguages.listFold(language)) to
+                                    line.substring(space + 1).toInt()
+                            }
                         }.toMap()
                 }
             }

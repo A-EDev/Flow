@@ -90,7 +90,7 @@ internal object NeuroMaintenance {
         if (key.all { it.code < 0x80 }) {
             key
         } else {
-            key.split('|').map { NeuroText.fold(it, foldHan = false) }.let { parts ->
+            key.split('|').map { NeuroText.fold(it, HanFold.NONE) }.let { parts ->
                 if (parts.size == 2) NeuroScoring.makeAffinityKey(parts[0], parts[1]) else parts.joinToString("|")
             }
         }

@@ -12,7 +12,7 @@ package io.github.aedev.flow.data.recommendation
  *
  * 1. Fold ([NeuroText.fold]): NFKC, small capitals, lowercase. ’ ‘ ʼ ` ´ read as ', Turkish İ as i,
  *    and the emoji joiners U+FE0F and U+200D are dropped. Hant folds to Hans
- *    (`resources/neuro/fold/hant-hans.txt`, 1:1) unless the text holds kana. Keys are Hans;
+ *    (`resources/neuro/fold/hant-hans.txt`, 1:1) unless the video holds kana. Keys are Hans;
  *    [NeuroDisplayForms] keeps the source spelling.
  * 2. Split at whitespace and punctuation; Chinese, Japanese, Thai, Lao, Khmer and Burmese by
  *    dictionary. [KEEP_WHOLE] words ("c++") stay whole, and a dot between letters splits a word

@@ -928,10 +928,25 @@ internal class NeuroTokenizer(
     }
 
     private val chunker by lazy {
-        NeuroChunker(::stopWordsFor, ::normalizeLemma, ::keyOf, wordBreaker, hanSpec = keySpec >= NeuroKeySpec.HAN_SPEC)
+        NeuroChunker(::stopWordsFor, ::normalizeLemma, ::keyOf, wordBreaker)
     }
 
-    fun fold(text: String): String = NeuroText.fold(text, foldHan = keySpec >= NeuroKeySpec.HAN_SPEC)
+    /** [NeuroKeySpec.HAN_SPEC] and a non-`ja` viewer: keys fold Hant and merge Han runs. */
+    val hanFolds: Boolean get() = keySpec >= NeuroKeySpec.HAN_SPEC && languageProfile != "ja"
+
+    private val defaultHan: HanFold get() = if (hanFolds) HanFold.UNLESS_KANA else HanFold.NONE
+
+    /** One fold for every field of [video]; kana in the title, channel name or tags turns it off. */
+    fun hanFoldOf(video: Video): HanFold = if (hanFolds && !hasKana(video)) HanFold.ALWAYS else HanFold.NONE
+
+    private fun hasKana(video: Video): Boolean =
+        NeuroText.hasKana(video.title) || NeuroText.hasKana(video.channelName) ||
+            video.tags.take(TAG_MAX_INGEST).any(NeuroText::hasKana)
+
+    fun fold(
+        text: String,
+        han: HanFold = defaultHan,
+    ): String = NeuroText.fold(text, han)
 
     /** Multi-word catalog topics, keyed the way a title spells them. */
     private val catalogPhrases: Set<String> by lazy {
@@ -939,7 +954,7 @@ internal class NeuroTokenizer(
             .flatMap { it.topics }
             .mapNotNull { topic ->
                 chunker
-                    .chunk(topic)
+                    .chunk(topic, defaultHan)
                     .chunks
                     .singleOrNull()
                     ?.takeIf { it.size >= 2 }
@@ -955,9 +970,15 @@ internal class NeuroTokenizer(
     }
 
     /** [text] read by [NeuroKeySpec]: its chunks of words that belong together. */
-    fun chunk(text: String): NeuroChunker.Chunks = chunker.chunk(text)
+    fun chunk(
+        text: String,
+        han: HanFold = defaultHan,
+    ): NeuroChunker.Chunks = chunker.chunk(text, han)
 
-    fun tokenize(text: String): List<String> = chunker.chunk(text).words
+    fun tokenize(
+        text: String,
+        han: HanFold = defaultHan,
+    ): List<String> = chunker.chunk(text, han).words
 
     /**
      * The keys a short label stands for, such as an onboarding pick: one per chunk, so "Lo-Fi" reads
@@ -965,7 +986,7 @@ internal class NeuroTokenizer(
      */
     fun keysOf(label: String): List<String> =
         chunker
-            .chunk(label)
+            .chunk(label, defaultHan)
             .chunks
             .map { it.joinToString(" ") }
             .ifEmpty { listOfNotNull(keyOf(fold(label).trim()).takeIf { it.isNotBlank() }) }
@@ -1014,12 +1035,13 @@ internal class NeuroTokenizer(
         channelTopicProfile: Map<String, Double>? = null,
     ): ContentVector {
         val topics = mutableMapOf<String, Double>()
+        val han = hanFoldOf(video)
 
-        val title = chunker.chunk(video.title)
+        val title = chunker.chunk(video.title, han)
         val titleWords = title.words
 
         // Use smart channel tokenization to filter names and branding
-        val chWords = tokenizeChannelName(video.channelName)
+        val chWords = tokenizeChannelName(video.channelName, han)
 
         // Channel keywords — filtered for actual topic words only
         chWords.forEach {
@@ -1027,9 +1049,9 @@ internal class NeuroTokenizer(
         }
 
         // Collect all words for domain disambiguation context BEFORE processing tokens
-        val fullContext = buildContextWordList(video)
+        val fullContext = buildContextWordList(video, han)
         val tags = topicTags(video)
-        val tagChunks = tags.take(TAG_MAX_INGEST).map { chunker.chunk(it) }
+        val tagChunks = tags.take(TAG_MAX_INGEST).map { chunker.chunk(it, han) }
         val tagPhrases = tagChunks.flatMapTo(HashSet()) { tagPhrases(it) }
         val formats = title.formats + tagChunks.flatMap { it.formats }
 
@@ -1069,6 +1091,7 @@ internal class NeuroTokenizer(
             extractDescriptionKeywords(
                 video.description,
                 idfSnapshot,
+                han,
             )
         descriptionTopics.forEach { (word, weight) ->
             // Also disambiguate description words using the same full context
@@ -1101,6 +1124,7 @@ internal class NeuroTokenizer(
                     titleWords,
                     descWords,
                     idfSnapshot,
+                    han,
                 )
             tagTopics.forEach { (word, weight) ->
                 topics[word] = (topics[word] ?: 0.0) + weight
@@ -1244,6 +1268,7 @@ internal class NeuroTokenizer(
     fun extractDescriptionKeywords(
         description: String?,
         idfSnapshot: IdfSnapshot,
+        han: HanFold = defaultHan,
     ): Map<String, Double> {
         if (description.isNullOrBlank() || description.length < DESCRIPTION_MIN_LENGTH) {
             return emptyMap()
@@ -1264,7 +1289,7 @@ internal class NeuroTokenizer(
 
         if (contentLines.isBlank()) return emptyMap()
 
-        val words = tokenize(contentLines).take(DESCRIPTION_TAKE_WORDS)
+        val words = tokenize(contentLines, han).take(DESCRIPTION_TAKE_WORDS)
         val result = mutableMapOf<String, Double>()
         words.forEach { word ->
             result[word] = (
@@ -1288,6 +1313,7 @@ internal class NeuroTokenizer(
         titleWords: List<String>,
         descriptionWords: List<String>,
         idfSnapshot: IdfSnapshot,
+        han: HanFold = defaultHan,
     ): Map<String, Double> {
         if (tags.isEmpty()) return emptyMap()
 
@@ -1298,7 +1324,7 @@ internal class NeuroTokenizer(
         val tagContextWords =
             tags.take(TAG_MAX_INGEST).flatMap { t ->
                 NeuroText
-                    .fold(t)
+                    .fold(t, han)
                     .split(WHITESPACE_REGEX)
                     .map { it.trim { c -> !c.isLetterOrDigit() } }
                     .filter { it.length > 1 }
@@ -1306,7 +1332,7 @@ internal class NeuroTokenizer(
         val fullDisambiguationContext = tagContextWords + titleWords + descriptionWords
 
         tags.take(TAG_MAX_INGEST).forEach { rawTag ->
-            val cleaned = fold(rawTag).trim()
+            val cleaned = fold(rawTag, han).trim()
 
             if ((cleaned.length < TAG_MIN_LENGTH && cleaned !in NeuroText.SHORT_TOPICS) ||
                 cleaned.length > TAG_MAX_LENGTH
@@ -1318,7 +1344,7 @@ internal class NeuroTokenizer(
             if (cleaned in stopWords) return@forEach
             if (YEAR_TAG_REGEX.matches(cleaned)) return@forEach
 
-            val chunked = chunker.chunk(cleaned)
+            val chunked = chunker.chunk(cleaned, han)
             val tagTokens = chunked.words
             if (tagTokens.isEmpty()) return@forEach
 
@@ -1388,7 +1414,7 @@ internal class NeuroTokenizer(
         video: Video,
         vector: ContentVector,
     ): Set<String> {
-        val title = chunker.chunk(video.title)
+        val title = chunker.chunk(video.title, hanFoldOf(video))
         return HashSet<String>(vector.topics.keys).apply {
             addAll(title.words)
             title.runs().forEach { add(it.key) }
@@ -1420,14 +1446,15 @@ internal class NeuroTokenizer(
         video: Video,
         idfSnapshot: IdfSnapshot,
     ): Set<String> {
-        val title = chunker.chunk(video.title)
+        val han = hanFoldOf(video)
+        val title = chunker.chunk(video.title, han)
         val titleWords = title.words.toSet()
-        val tags = topicTags(video).take(TAG_MAX_INGEST).map { chunker.chunk(it) }
+        val tags = topicTags(video).take(TAG_MAX_INGEST).map { chunker.chunk(it, han) }
         val tagWords = tags.flatMapTo(HashSet()) { it.words }
         val descriptionWords =
             video.description
                 .takeIf { it.isNotBlank() }
-                ?.let { tokenize(it.lines().take(DESCRIPTION_TAKE_LINES).joinToString(" ")).toSet() }
+                ?.let { tokenize(it.lines().take(DESCRIPTION_TAKE_LINES).joinToString(" "), han).toSet() }
                 .orEmpty()
         val confirmedTags = tags.filter { tag -> tag.words.any { it in titleWords || it in descriptionWords } }
         val tagPhrases = tags.flatMapTo(HashSet(), ::tagPhrases)
@@ -2951,8 +2978,11 @@ internal class NeuroTokenizer(
      * "History Matters"       → ["history"]
      * "央視新聞"               → ["新聞"]        (央視 = a brand, 新聞 = news)
      */
-    fun tokenizeChannelName(channelName: String): List<String> {
-        val rawOriginal = nameWords(channelName)
+    fun tokenizeChannelName(
+        channelName: String,
+        han: HanFold = defaultHan,
+    ): List<String> {
+        val rawOriginal = nameWords(channelName, han)
 
         if (rawOriginal.isEmpty()) return emptyList()
 
@@ -2982,9 +3012,12 @@ internal class NeuroTokenizer(
     private fun isChannelTopic(word: String): Boolean = word in alwaysTopical || word in NeuroLanguages.channelTopics
 
     /** Words of a channel name; scripts written without spaces are split by the word breaker. */
-    private fun nameWords(name: String): List<String> =
+    private fun nameWords(
+        name: String,
+        han: HanFold,
+    ): List<String> =
         NeuroText
-            .words(fold(name), wordBreaker)
+            .words(fold(name, han), wordBreaker)
             .map { word -> word.trim { !NeuroText.isWordChar(it) } }
             .filter { it.length > 1 }
 
@@ -2995,24 +3028,27 @@ internal class NeuroTokenizer(
      * Does NOT lemmatize — we want raw word stems for prefix matching
      * against domain context words.
      */
-    private fun buildContextWordList(video: Video): List<String> {
+    private fun buildContextWordList(
+        video: Video,
+        han: HanFold,
+    ): List<String> {
         val words = mutableListOf<String>()
 
         NeuroText
-            .fold(video.title)
+            .fold(video.title, han)
             .split(WHITESPACE_REGEX)
             .map { it.trim { c -> !c.isLetterOrDigit() } }
             .filter { it.length > 1 }
             .forEach { words.add(it) }
 
-        words.addAll(nameWords(video.channelName))
+        words.addAll(nameWords(video.channelName, han))
 
         if (!video.description.isNullOrBlank()) {
             video.description
                 .lines()
                 .take(3)
                 .joinToString(" ")
-                .let(NeuroText::fold)
+                .let { NeuroText.fold(it, han) }
                 .split(WHITESPACE_REGEX)
                 .map { it.trim { c -> !c.isLetterOrDigit() } }
                 .filter { it.length > 2 }
@@ -3024,7 +3060,7 @@ internal class NeuroTokenizer(
         if (tags.isNotEmpty()) {
             tags.take(TAG_MAX_INGEST).forEach { tag ->
                 NeuroText
-                    .fold(tag)
+                    .fold(tag, han)
                     .split(WHITESPACE_REGEX)
                     .map { it.trim { c -> !c.isLetterOrDigit() } }
                     .filter { it.length > 1 }
