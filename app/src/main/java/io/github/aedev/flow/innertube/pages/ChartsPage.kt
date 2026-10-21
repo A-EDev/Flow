@@ -156,7 +156,7 @@ data class ChartsPage(
                             ?.text,
                 )
             }
-            val videoId = renderer.playlistItemData?.videoId ?: return null
+            val videoId = renderer.videoId ?: return null
             val linkedRuns =
                 renderer.flexColumns
                     .getOrNull(1)

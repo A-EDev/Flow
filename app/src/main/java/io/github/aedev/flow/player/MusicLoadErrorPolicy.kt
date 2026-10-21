@@ -4,6 +4,8 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import io.github.aedev.flow.player.stream.PlaybackBlock
+import io.github.aedev.flow.player.stream.PlaybackBlockedException
 import io.github.aedev.flow.player.stream.VideoUnavailableException
 import io.github.aedev.flow.utils.MusicResolveTimeoutException
 import java.io.IOException
@@ -18,8 +20,9 @@ import kotlin.math.min
  * The music player waits out a dropped connection instead of failing: it keeps buffering and
  * resumes by itself for a few minutes. A failed player releases its decoder, and on some vendor
  * builds a decoder released right after the stall's flush aborts the process inside the platform.
- * A resolve that already walked every client, or ran out of time doing so, is not retried here:
- * a load retry would only repeat the whole ladder, and the service decides what happens next.
+ * A resolve that already walked every client, ran out of time doing so, or was refused to this
+ * viewer (country, rate limit, membership) is not retried here: a load retry would only repeat the
+ * whole ladder, and the service decides what happens next.
  * Every other error is retried as Media3 does by default.
  */
 @UnstableApi
@@ -60,7 +63,16 @@ internal class MusicLoadErrorPolicy(
         fun isUnavailable(error: Throwable): Boolean = causes(error).any { it is VideoUnavailableException }
 
         fun isUnretryableResolve(error: Throwable): Boolean =
-            causes(error).any { it is VideoUnavailableException || it is MusicResolveTimeoutException }
+            viewerBlockOf(error) != null ||
+                causes(error).any { it is VideoUnavailableException || it is MusicResolveTimeoutException }
+
+        /** Why YouTube refused this viewer the song, when no retry can change the answer. */
+        fun viewerBlockOf(error: Throwable): PlaybackBlock? =
+            causes(error)
+                .filterIsInstance<PlaybackBlockedException>()
+                .firstOrNull()
+                ?.block
+                ?.takeIf { it in ViewerBlocks }
 
         fun isConnectionLoss(error: Throwable): Boolean =
             causes(error).any {
@@ -74,5 +86,7 @@ internal class MusicLoadErrorPolicy(
         private fun causes(error: Throwable): Sequence<Throwable> = generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH)
 
         private const val MAX_CAUSE_DEPTH = 8
+
+        private val ViewerBlocks = setOf(PlaybackBlock.REGION, PlaybackBlock.RATE_LIMITED, PlaybackBlock.MEMBERS_OR_PAID)
     }
 }

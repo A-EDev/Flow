@@ -63,6 +63,7 @@ internal fun LyricsActionsSheet(
     alignPref: String,
     syncOffsetMs: Long,
     display: LyricsDisplayOptions,
+    japaneseLyrics: Boolean,
     onRefresh: () -> Unit,
     onChooseSource: (() -> Unit)?,
     onEdit: () -> Unit,
@@ -187,7 +188,10 @@ internal fun LyricsActionsSheet(
                             key = "auto_romanize",
                             icon = Icons.Outlined.AutoAwesome,
                             title = stringResource(R.string.lyrics_auto_romanize),
-                            supporting = stringResource(R.string.lyrics_auto_romanize_summary),
+                            supporting =
+                                stringResource(
+                                    if (japaneseLyrics) R.string.lyrics_auto_romanize_japanese else R.string.lyrics_auto_romanize_summary,
+                                ),
                             checked = display.autoRomanize,
                             enabled = display.showRomanization,
                             onCheckedChange = { onDisplayChange(display.copy(autoRomanize = it)) },

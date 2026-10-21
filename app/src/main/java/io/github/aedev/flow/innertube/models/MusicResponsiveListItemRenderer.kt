@@ -7,6 +7,9 @@ import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContex
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_LIBRARY_ARTIST
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_UNKNOWN
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -30,23 +33,107 @@ data class MusicResponsiveListItemRenderer(
     val isSong: Boolean
         get() = navigationEndpoint == null || navigationEndpoint.watchEndpoint != null || navigationEndpoint.watchPlaylistEndpoint != null
     val isPlaylist: Boolean
-        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_PLAYLIST
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_PLAYLIST
     val isAlbum: Boolean
-        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ALBUM ||
-                navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_AUDIOBOOK
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_ALBUM ||
+                navigationEndpoint
+                    ?.browseEndpoint
+                    ?.browseEndpointContextSupportedConfigs
+                    ?.browseEndpointContextMusicConfig
+                    ?.pageType ==
+                MUSIC_PAGE_TYPE_AUDIOBOOK
     val isArtist: Boolean
-        get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ARTIST
-                || navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_LIBRARY_ARTIST
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_ARTIST ||
+                navigationEndpoint
+                    ?.browseEndpoint
+                    ?.browseEndpointContextSupportedConfigs
+                    ?.browseEndpointContextMusicConfig
+                    ?.pageType ==
+                MUSIC_PAGE_TYPE_LIBRARY_ARTIST ||
+                isUntypedArtist
 
-    val musicVideoType: String?
+    // The reduced search answer types artists and profiles alike as UNKNOWN; only an artist has a radio.
+    private val isUntypedArtist: Boolean
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_UNKNOWN &&
+                navigationEndpoint.browseEndpoint.browseId.startsWith("UC") &&
+                menuPlaylistEndpoint("MIX") != null
+
+    val isPodcast: Boolean
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE
+
+    val isUserChannel: Boolean
+        get() =
+            navigationEndpoint
+                ?.browseEndpoint
+                ?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig
+                ?.pageType ==
+                MUSIC_PAGE_TYPE_USER_CHANNEL
+
+    val isEpisode: Boolean
+        get() = musicVideoType == MUSIC_VIDEO_TYPE_PODCAST_EPISODE
+
+    val playNavigationEndpoint: NavigationEndpoint?
         get() =
             overlay
                 ?.musicItemThumbnailOverlayRenderer
                 ?.content
                 ?.musicPlayButtonRenderer
                 ?.playNavigationEndpoint
-                ?.musicVideoType
-                ?: navigationEndpoint?.musicVideoType
+
+    /** The row's video, also when YouTube leaves out [playlistItemData], as its reduced search answer does (#1379). */
+    val videoId: String?
+        get() =
+            playlistItemData?.videoId
+                ?: playNavigationEndpoint?.watchEndpoint?.videoId
+                ?: navigationEndpoint?.watchEndpoint?.videoId
+
+    /** The playlist the menu item with [iconType] plays, e.g. `MUSIC_SHUFFLE` or `MIX`. */
+    fun menuPlaylistEndpoint(iconType: String): WatchEndpoint? =
+        menu
+            ?.menuRenderer
+            ?.items
+            ?.find { it.menuNavigationItemRenderer?.icon?.iconType == iconType }
+            ?.menuNavigationItemRenderer
+            ?.navigationEndpoint
+            ?.watchPlaylistEndpoint
+
+    val musicVideoType: String?
+        get() = playNavigationEndpoint?.musicVideoType ?: navigationEndpoint?.musicVideoType
+
+    companion object {
+        const val MUSIC_VIDEO_TYPE_PODCAST_EPISODE = "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"
+    }
 
     @Serializable
     data class FlexColumn(

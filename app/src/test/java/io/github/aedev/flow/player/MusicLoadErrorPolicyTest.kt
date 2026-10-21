@@ -2,6 +2,8 @@ package io.github.aedev.flow.player
 
 import androidx.media3.common.C
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.player.stream.PlaybackBlock
+import io.github.aedev.flow.player.stream.PlaybackBlockedException
 import io.github.aedev.flow.player.stream.VideoUnavailableException
 import io.github.aedev.flow.utils.MusicResolveTimeoutException
 import org.junit.Test
@@ -45,5 +47,17 @@ class MusicLoadErrorPolicyTest {
     fun `only a gone song counts as unavailable, a timeout may still play`() {
         assertThat(MusicLoadErrorPolicy.isUnavailable(IOException(VideoUnavailableException("abc")))).isTrue()
         assertThat(MusicLoadErrorPolicy.isUnavailable(MusicResolveTimeoutException("abc", 30_000L))).isFalse()
+    }
+
+    @Test
+    fun `a song refused to this viewer is not retried, a wall still is`() {
+        val region = IOException("refused", PlaybackBlockedException(PlaybackBlock.REGION))
+        val wall = IOException("refused", PlaybackBlockedException(PlaybackBlock.BOT_WALL))
+
+        assertThat(MusicLoadErrorPolicy.viewerBlockOf(region)).isEqualTo(PlaybackBlock.REGION)
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(region)).isTrue()
+        assertThat(MusicLoadErrorPolicy.viewerBlockOf(wall)).isNull()
+        assertThat(MusicLoadErrorPolicy.isUnretryableResolve(wall)).isFalse()
+        assertThat(MusicLoadErrorPolicy.isUnavailable(region)).isFalse()
     }
 }

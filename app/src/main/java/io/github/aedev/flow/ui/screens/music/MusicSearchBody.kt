@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,6 +30,7 @@ import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.search.SearchFilterChips
 import io.github.aedev.flow.ui.components.music.search.SearchSuggestionRow
+import io.github.aedev.flow.ui.components.music.search.musicSearchFilters
 import io.github.aedev.flow.ui.components.music.search.searchSummaryTitle
 import io.github.aedev.flow.ui.components.music.section.MusicMoodsShelf
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
@@ -52,6 +54,7 @@ internal fun MusicSearchBody(
     onTrackClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onAlbumClick: (String) -> Unit,
     onArtistClick: (String) -> Unit,
+    onChannelClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onMoodClick: (MoodAndGenres.Item) -> Unit,
     onMoodsSeeAll: () -> Unit,
@@ -87,7 +90,7 @@ internal fun MusicSearchBody(
             }
 
             is ArtistItem -> {
-                onArtistClick(item.id)
+                if (item.isProfile) onChannelClick(item.id) else onArtistClick(item.id)
             }
 
             is AlbumItem -> {
@@ -165,7 +168,9 @@ internal fun MusicSearchBody(
             }
         }
     } else {
+        val filterParams = uiState.searchSummary?.filterParams.orEmpty()
         SearchFilterChips(
+            filters = remember(filterParams) { musicSearchFilters(filterParams) },
             activeFilter = uiState.activeFilter,
             onFilterClick = viewModel::applyFilter,
         )

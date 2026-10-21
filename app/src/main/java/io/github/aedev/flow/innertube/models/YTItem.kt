@@ -83,6 +83,8 @@ data class ArtistItem(
     val shuffleEndpoint: WatchEndpoint?,
     val radioEndpoint: WatchEndpoint?,
     val subscriberCountText: String? = null,
+    /** A YouTube channel that is not an artist: it opens on its channel page, not an artist page. */
+    val isProfile: Boolean = false,
 ) : YTItem() {
     override val explicit: Boolean
         get() = false

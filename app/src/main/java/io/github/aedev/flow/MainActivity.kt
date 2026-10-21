@@ -441,14 +441,12 @@ class MainActivity : ComponentActivity() {
                     delay(350L)
                     val stillBackgrounded = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
                     if (stillBackgrounded && !isInPictureInPictureMode) {
-                        GlobalPlayerState.requestDismiss()
-                        io.github.aedev.flow.player.EnhancedPlayerManager
-                            .getInstance()
-                            .stop()
-                        io.github.aedev.flow.player.EnhancedPlayerManager
-                            .getInstance()
-                            .stopBackgroundService()
-                        // onStop ran while the window was still in PiP, so it skipped this (#1152).
+                        // onStop ran while the window was still in PiP, so it skipped its pause (#1152).
+                        // Closing the window pauses like leaving the app does, and keeps the video (#1349).
+                        if (cachedAppUiRoot == AppUiRoot.MOBILE) {
+                            releaseOrientationLock()
+                        }
+                        pauseVideoForBackground()
                         pauseShortsPlayers()
                     }
                 }
@@ -724,10 +722,17 @@ class MainActivity : ComponentActivity() {
             handOffVideoPlaybackToBackground()
         } else {
             videoLifecycleLog("handleBackgroundPlaybackOnStop pause")
-            playerManager.pause()
-            playerManager.parkVideoForBackground()
-            playerManager.stopBackgroundService()
+            pauseVideoForBackground()
         }
+    }
+
+    private fun pauseVideoForBackground() {
+        val playerManager =
+            io.github.aedev.flow.player.EnhancedPlayerManager
+                .getInstance()
+        playerManager.pause()
+        playerManager.parkVideoForBackground()
+        playerManager.stopBackgroundService()
     }
 
     companion object {

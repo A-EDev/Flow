@@ -34,7 +34,7 @@ data class PlaylistPage(
 
         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
             return SongItem(
-                id = renderer.playlistItemData?.videoId ?: return null,
+                id = renderer.videoId ?: return null,
                 title =
                     renderer.flexColumns
                         .firstOrNull()
@@ -85,7 +85,7 @@ data class PlaylistPage(
                         ?.musicPlayButtonRenderer
                         ?.playNavigationEndpoint
                         ?.watchEndpoint,
-                setVideoId = renderer.playlistItemData.playlistSetVideoId ?: return null,
+                setVideoId = renderer.playlistItemData?.playlistSetVideoId ?: return null,
             )
         }
     }

@@ -149,6 +149,33 @@ object VideoErrorMapper {
                 )
             }
 
+            throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.REGION -> {
+                VideoError(
+                    message = context.getString(R.string.error_geo_restricted),
+                    hint = context.getString(R.string.error_geo_restricted_hint),
+                    isRetryable = false,
+                    isUserActionable = true,
+                )
+            }
+
+            throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.RATE_LIMITED -> {
+                VideoError(
+                    message = context.getString(R.string.error_rate_limited),
+                    hint = context.getString(R.string.error_rate_limited_hint),
+                    isRetryable = true,
+                    isUserActionable = true,
+                )
+            }
+
+            throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.MEMBERS_OR_PAID -> {
+                VideoError(
+                    message = context.getString(R.string.error_members_or_paid),
+                    hint = context.getString(R.string.error_members_or_paid_hint),
+                    isRetryable = false,
+                    isUserActionable = false,
+                )
+            }
+
             throwable is PlaybackBlockedException -> {
                 VideoError(
                     message = context.getString(R.string.error_login_required),

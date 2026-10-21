@@ -40,9 +40,11 @@ data class SearchSummary(
     val kind: SearchSummaryKind = SearchSummaryKind.SHELF,
 )
 
+/** [filterParams]: the search params of the filter chips YouTube offers for this query, in its order. */
 data class SearchSummaryPage(
     val summaries: List<SearchSummary>,
     val continuation: String? = null,
+    val filterParams: List<String> = emptyList(),
 ) {
     companion object {
         private const val MUSIC_VIDEO_TYPE_PODCAST_EPISODE = "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"
@@ -53,7 +55,7 @@ data class SearchSummaryPage(
          * of item sections are grouped by what the items are, in the order each kind first appears.
          */
         fun fromSearchResponse(response: SearchResponse): SearchSummaryPage {
-            val contents =
+            val sectionList =
                 response.contents
                     ?.tabbedSearchResultsRenderer
                     ?.tabs
@@ -61,8 +63,7 @@ data class SearchSummaryPage(
                     ?.tabRenderer
                     ?.content
                     ?.sectionListRenderer
-                    ?.contents
-                    .orEmpty()
+            val contents = sectionList?.contents.orEmpty()
             val summaries = mutableListOf<SearchSummary>()
             val loose = mutableListOf<YTItem>()
 
@@ -94,6 +95,15 @@ data class SearchSummaryPage(
                         ?.musicShelfRenderer
                         ?.continuations
                         ?.getContinuation(),
+                filterParams =
+                    sectionList
+                        ?.header
+                        ?.chipCloudRenderer
+                        ?.chips
+                        ?.mapNotNull {
+                            it.chipCloudChipRenderer.navigationEndpoint.searchEndpoint
+                                ?.params
+                        }.orEmpty(),
             )
         }
 
@@ -323,7 +333,7 @@ data class SearchSummaryPage(
             return when {
                 renderer.isSong -> {
                     SongItem(
-                        id = renderer.playlistItemData?.videoId ?: return null,
+                        id = renderer.videoId ?: return null,
                         title =
                             renderer.flexColumns
                                 .firstOrNull()
@@ -375,19 +385,9 @@ data class SearchSummaryPage(
                                 ?: return null,
                         thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         shuffleEndpoint =
-                            renderer.menu
-                                ?.menuRenderer
-                                ?.items
-                                ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE" }
-                                ?.menuNavigationItemRenderer
-                                ?.navigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                            renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE") ?: return null,
                         radioEndpoint =
-                            renderer.menu.menuRenderer.items
-                                .find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
-                                ?.menuNavigationItemRenderer
-                                ?.navigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                            renderer.menuPlaylistEndpoint("MIX") ?: return null,
                     )
                 }
 
@@ -400,8 +400,9 @@ data class SearchSummaryPage(
                                 ?.content
                                 ?.musicPlayButtonRenderer
                                 ?.playNavigationEndpoint
-                                ?.watchPlaylistEndpoint
+                                ?.anyWatchEndpoint
                                 ?.playlistId
+                                ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")?.playlistId
                                 ?: return null,
                         title =
                             renderer.flexColumns
@@ -469,21 +470,13 @@ data class SearchSummaryPage(
                                 ?.content
                                 ?.musicPlayButtonRenderer
                                 ?.playNavigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                                ?.watchPlaylistEndpoint
+                                ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")
+                                ?: return null,
                         shuffleEndpoint =
-                            renderer.menu
-                                ?.menuRenderer
-                                ?.items
-                                ?.find { it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE" }
-                                ?.menuNavigationItemRenderer
-                                ?.navigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                            renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE") ?: return null,
                         radioEndpoint =
-                            renderer.menu.menuRenderer.items
-                                .find { it.menuNavigationItemRenderer?.icon?.iconType == "MIX" }
-                                ?.menuNavigationItemRenderer
-                                ?.navigationEndpoint
-                                ?.watchPlaylistEndpoint ?: return null,
+                            renderer.menuPlaylistEndpoint("MIX"),
                     )
                 }
 

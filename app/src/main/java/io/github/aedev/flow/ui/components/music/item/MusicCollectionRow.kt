@@ -129,7 +129,7 @@ private fun YTItem.rowSubtitle(showPlayCount: Boolean): String =
         }
 
         is ArtistItem -> {
-            stringResource(R.string.subtitle_artist)
+            stringResource(if (isProfile) R.string.subtitle_profile else R.string.subtitle_artist)
         }
 
         is AlbumItem -> {

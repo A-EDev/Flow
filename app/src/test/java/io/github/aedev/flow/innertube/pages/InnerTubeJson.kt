@@ -1,5 +1,6 @@
 package io.github.aedev.flow.innertube.pages
 
+import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.SearchResponse
@@ -12,6 +13,7 @@ internal object InnerTubeJson {
     const val ALBUM = "MUSIC_PAGE_TYPE_ALBUM"
     const val PLAYLIST = "MUSIC_PAGE_TYPE_PLAYLIST"
     const val USER = "MUSIC_PAGE_TYPE_USER_CHANNEL"
+    const val UNKNOWN = "MUSIC_PAGE_TYPE_UNKNOWN"
     const val DISCOGRAPHY = "MUSIC_PAGE_TYPE_ARTIST_DISCOGRAPHY"
     const val ATV = "MUSIC_VIDEO_TYPE_ATV"
     const val OMV = "MUSIC_VIDEO_TYPE_OMV"
@@ -48,6 +50,52 @@ internal object InnerTubeJson {
             |{"sectionListRenderer":{"contents":[${sections.joinToString(",")}]}}}}]}}}
             """.trimMargin(),
         )
+
+    fun searchWithChips(
+        sections: List<String>,
+        chipParams: List<String>,
+    ): SearchResponse {
+        val chips =
+            chipParams.joinToString(",") {
+                """{"chipCloudChipRenderer":{"isSelected":false,"text":${runs(run(it))},
+                |"navigationEndpoint":{"searchEndpoint":{"query":"q","params":"$it"}}}}
+                """.trimMargin()
+            }
+        return json.decodeFromString(
+            SearchResponse.serializer(),
+            """{"contents":{"tabbedSearchResultsRenderer":{"tabs":[{"tabRenderer":{"content":
+            |{"sectionListRenderer":{"header":{"chipCloudRenderer":{"chips":[$chips]}},"contents":[${sections.joinToString(",")}]}}}}]}}}
+            """.trimMargin(),
+        )
+    }
+
+    /** The row object inside a `{"musicResponsiveListItemRenderer":…}` wrapper. */
+    fun decodeRow(row: String): MusicResponsiveListItemRenderer =
+        json.decodeFromString(MusicResponsiveListItemRenderer.serializer(), row.substringAfter(":").removeSuffix("}"))
+
+    /** A filtered episode row: no "Episode" label, the show linked after the date. */
+    fun episodeRow(
+        videoId: String,
+        title: String,
+        date: String,
+        show: String,
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(videoId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title, browseEndpoint("MPED$videoId", "MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE")))},
+        |${flexColumn(run(date), separator(), run(show, browseEndpoint("MPSP$show", "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE")))}],
+        |"playlistItemData":{"videoId":"$videoId"},
+        |"overlay":${playOverlay(watchEndpoint(videoId, "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"))}}}
+        """.trimMargin()
+
+    fun podcastRow(
+        browseId: String,
+        playlistId: String,
+        title: String,
+        author: String,
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(browseId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title))},${flexColumn(run(author, browseEndpoint("UCauthor", USER)))}],
+        |"overlay":${playOverlay(watchPlaylistEndpoint(playlistId))},
+        |"navigationEndpoint":${browseEndpoint(browseId, "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE")}}}
+        """.trimMargin()
 
     fun itemSection(row: String) = """{"itemSectionRenderer":{"contents":[$row]}}"""
 
@@ -136,6 +184,38 @@ internal object InnerTubeJson {
             SQUARE,
         )},"flexColumns":[${columns.joinToString(",")}],
             |"playlistItemData":{"videoId":"$videoId"},"overlay":${playOverlay(watchEndpoint(videoId, musicVideoType))}}}
+            """.trimMargin()
+    }
+
+    /** A row from the reduced search answer: no playlistItemData, no music video type (#1379). */
+    fun bareSongRow(
+        videoId: String,
+        title: String,
+        secondary: List<String>,
+    ) = """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(videoId, SQUARE)},
+        |"flexColumns":[${flexColumn(run(title))},${flexColumn(*secondary.toTypedArray())}],
+        |"overlay":${playOverlay("""{"watchEndpoint":{"videoId":"$videoId"}}""")},
+        |"navigationEndpoint":{"watchEndpoint":{"videoId":"$videoId"}}}}
+        """.trimMargin()
+
+    /** A browse row from the reduced search answer: no play overlay, and a Mix item only when [withMix]. */
+    fun bareBrowseRow(
+        browseId: String,
+        pageType: String,
+        title: String,
+        secondary: List<String>,
+        playlistId: String? = null,
+        withMix: Boolean = true,
+    ): String {
+        val menu =
+            playlistId
+                ?.let {
+                    val items = listOfNotNull(menuItem("MUSIC_SHUFFLE", it), menuItem("MIX", "RD$it").takeIf { withMix })
+                    ""","menu":{"menuRenderer":{"items":[${items.joinToString(",")}]}}"""
+                }.orEmpty()
+        return """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(browseId, SQUARE)},
+            |"flexColumns":[${flexColumn(run(title))},${flexColumn(*secondary.toTypedArray())}]$menu,
+            |"navigationEndpoint":${browseEndpoint(browseId, pageType)}}}
             """.trimMargin()
     }
 
@@ -263,11 +343,13 @@ internal object InnerTubeJson {
     private fun playOverlay(endpoint: String) =
         """{"musicItemThumbnailOverlayRenderer":{"content":{"musicPlayButtonRenderer":{"playNavigationEndpoint":$endpoint}}}}"""
 
-    private fun menu(playlistId: String): String {
-        fun item(iconType: String) =
-            """{"menuNavigationItemRenderer":{"text":${runs(
-                run(iconType),
-            )},"icon":{"iconType":"$iconType"},"navigationEndpoint":${watchPlaylistEndpoint(playlistId)}}}"""
-        return """{"menuRenderer":{"items":[${item("MUSIC_SHUFFLE")},${item("MIX")}]}}"""
-    }
+    private fun menuItem(
+        iconType: String,
+        playlistId: String,
+    ) = """{"menuNavigationItemRenderer":{"text":${runs(
+        run(iconType),
+    )},"icon":{"iconType":"$iconType"},"navigationEndpoint":${watchPlaylistEndpoint(playlistId)}}}"""
+
+    private fun menu(playlistId: String) =
+        """{"menuRenderer":{"items":[${menuItem("MUSIC_SHUFFLE", playlistId)},${menuItem("MIX", playlistId)}]}}"""
 }

@@ -2,8 +2,8 @@ package io.github.aedev.flow.innertube.models
 
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ALBUM
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_ARTIST
-import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,7 +18,6 @@ data class WatchEndpoint(
     val index: Int? = null,
     val watchEndpointMusicSupportedConfigs: WatchEndpointMusicSupportedConfigs? = null,
 ) : Endpoint() {
-
     @Serializable
     data class WatchEndpointMusicSupportedConfigs(
         val watchEndpointMusicConfig: WatchEndpointMusicConfig,
@@ -45,7 +44,8 @@ data class BrowseEndpoint(
     val isArtistEndpoint: Boolean
         get() = browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ARTIST
     val isAlbumEndpoint: Boolean
-        get() = browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ALBUM ||
+        get() =
+            browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ALBUM ||
                 browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_AUDIOBOOK
     val isPlaylistEndpoint: Boolean
         get() = browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_PLAYLIST
@@ -65,6 +65,8 @@ data class BrowseEndpoint(
                 const val MUSIC_PAGE_TYPE_ARTIST = "MUSIC_PAGE_TYPE_ARTIST"
                 const val MUSIC_PAGE_TYPE_LIBRARY_ARTIST = "MUSIC_PAGE_TYPE_LIBRARY_ARTIST"
                 const val MUSIC_PAGE_TYPE_USER_CHANNEL = "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                const val MUSIC_PAGE_TYPE_UNKNOWN = "MUSIC_PAGE_TYPE_UNKNOWN"
+                const val MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE = "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE"
                 const val MUSIC_PAGE_TYPE_TRACK_LYRICS = "MUSIC_PAGE_TYPE_TRACK_LYRICS"
                 const val MUSIC_PAGE_TYPE_TRACK_RELATED = "MUSIC_PAGE_TYPE_TRACK_RELATED"
             }
@@ -80,7 +82,7 @@ data class SearchEndpoint(
 
 @Serializable
 data class FeedbackEndpoint(
-    val feedbackToken: String
+    val feedbackToken: String,
 ) : Endpoint()
 
 @Serializable
@@ -103,7 +105,7 @@ data class ShareEntityEndpoint(
 @Serializable
 data class DefaultServiceEndpoint(
     var subscribeEndpoint: SubscribeEndpoint?,
-    var feedbackEndpoint: FeedbackEndpoint?
+    var feedbackEndpoint: FeedbackEndpoint?,
 ) : Endpoint() {
     @Serializable
     data class SubscribeEndpoint(
@@ -114,5 +116,5 @@ data class DefaultServiceEndpoint(
 
 @Serializable
 data class ToggledServiceEndpoint(
-    var feedbackEndpoint: FeedbackEndpoint?
+    var feedbackEndpoint: FeedbackEndpoint?,
 ) : Endpoint()

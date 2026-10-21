@@ -11,6 +11,7 @@ import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.PlaybackBlockedException
 import io.github.aedev.flow.player.stream.VideoUnavailableException
 import io.github.aedev.flow.player.stream.preferNonDrc
 import kotlinx.coroutines.CompletableDeferred
@@ -156,17 +157,22 @@ object MusicPlayerUtils {
      * takes over. A separate music ladder that ignored those demotions restarted every song on the
      * refused client and stalled each one ~30 s in.
      */
+    private fun resolveFailure(videoId: String): IOException {
+        val block = InnerTubeVideoStreamExtractor.blockOf(videoId)
+        return when {
+            InnerTubeVideoStreamExtractor.isGone(videoId) -> VideoUnavailableException(videoId)
+            block != null -> IOException("YouTube refused $videoId to this viewer: $block", PlaybackBlockedException(block))
+            else -> IOException("Failed to resolve stream for $videoId after trying all clients")
+        }
+    }
+
     private suspend fun fetchPlaybackData(videoId: String): Result<PlaybackData> {
         val startTime = System.currentTimeMillis()
         return runCatching {
             val extraction =
                 withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
                     InnerTubeVideoStreamExtractor.extract(videoId, audioOnly = true)
-                        ?: throw if (InnerTubeVideoStreamExtractor.isGone(videoId)) {
-                            VideoUnavailableException(videoId)
-                        } else {
-                            IOException("Failed to resolve stream for $videoId after trying all clients")
-                        }
+                        ?: throw resolveFailure(videoId)
                 } ?: throw MusicResolveTimeoutException(videoId, RESOLVE_TIMEOUT_MS)
             val format =
                 findBestAudioFormat(extraction.audioFormats, loadAudioSelectionPreferences())

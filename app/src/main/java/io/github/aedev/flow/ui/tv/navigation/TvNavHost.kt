@@ -94,6 +94,7 @@ fun TvNavHost(
                 onPlayTrack = musicPlayerViewModel::loadAndPlayTrack,
                 onOpenAlbum = { navController.navigate(TvRoutes.musicCollection(it)) },
                 onOpenArtist = { navController.navigate(TvRoutes.musicArtist(it)) },
+                onOpenChannel = { openChannel(it) },
                 onOpenMusicPlaylist = { navController.navigate(TvRoutes.musicCollection(it)) },
                 onOpenMood = { navController.navigate(TvRoutes.musicBrowse(it)) },
                 onOpenMoods = { navController.navigate(TvRoutes.MOODS) },

@@ -65,15 +65,52 @@ internal object LyricsRomanizer {
         }
     }
 
-    fun romanize(text: String): String? {
+    fun transliterate(text: String): String? {
         if (!needsRomanization(text)) return null
         val transliterator = transliterator ?: return null
         return transliterator
-            .transliterate(text)
+            .transliterate(spaceBetweenScripts(text))
             .trim()
             .takeIf { it.isNotBlank() && it != text }
     }
 }
+
+/**
+ * Whether the lyrics are Japanese, decided once for the whole song: many Japanese lines are kanji
+ * alone, and ICU reads kanji as Mandarin (#1352). A stray の in Chinese lyrics does not count.
+ */
+internal fun isJapaneseLyrics(lines: List<String>): Boolean {
+    var kana = 0
+    var han = 0
+    lines.forEach { line ->
+        line.codePoints().forEach { codePoint ->
+            when (Character.UnicodeScript.of(codePoint)) {
+                Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA -> kana++
+                Character.UnicodeScript.HAN -> han++
+                else -> Unit
+            }
+        }
+    }
+    return kana >= MIN_JAPANESE_KANA && kana * 4 >= han
+}
+
+private const val MIN_JAPANESE_KANA = 2
+
+/** A space where a Latin letter meets a letter of another script, which ICU would run together ("ikureason"). */
+internal fun spaceBetweenScripts(text: String): String {
+    val spaced = StringBuilder(text.length + 4)
+    var previous = -1
+    text.codePoints().forEach { codePoint ->
+        if (previous >= 0 && Character.isLetter(previous) && Character.isLetter(codePoint) && isLatin(previous) != isLatin(codePoint)) {
+            spaced.append(' ')
+        }
+        spaced.appendCodePoint(codePoint)
+        previous = codePoint
+    }
+    return spaced.toString()
+}
+
+private fun isLatin(codePoint: Int): Boolean = Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.LATIN
 
 internal fun needsRomanization(text: String): Boolean =
     text.any { it.isLetter() && Character.UnicodeScript.of(it.code) != Character.UnicodeScript.LATIN }
@@ -88,21 +125,24 @@ internal data class LyricsDisplayOptions(
 
 /**
  * The Latin-script line under each lyric: the source's own when it has one, otherwise made on the
- * device when [LyricsDisplayOptions.autoRomanize] is on. Transliteration is slow enough for a whole
- * song that callers run this off the main thread.
+ * device when [LyricsDisplayOptions.autoRomanize] is on, except for Japanese, whose kanji the device
+ * cannot read. Transliteration is slow enough for a whole song that callers run this off the main thread.
  */
 internal fun lyricsRomanizations(
     lines: List<LyricsEntry>,
     options: LyricsDisplayOptions,
-): List<String?> =
-    lines.map { line ->
+    transliterate: (String) -> String? = LyricsRomanizer::transliterate,
+): List<String?> {
+    val onDevice = options.showRomanization && options.autoRomanize && !isJapaneseLyrics(lines.map { it.text })
+    return lines.map { line ->
         when {
             !options.showRomanization -> null
             !line.romanization.isNullOrBlank() -> line.romanization
-            options.autoRomanize -> LyricsRomanizer.romanize(line.text)
+            onDevice -> transliterate(line.text)
             else -> null
         }
     }
+}
 
 /** Everything the rows need to dress each line, worked out once per lyrics and settings. */
 internal class LyricsPresentation(
