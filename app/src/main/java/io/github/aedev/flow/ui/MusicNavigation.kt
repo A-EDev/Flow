@@ -116,6 +116,7 @@ internal fun NavGraphBuilder.musicRoutes(
             onArtistClick = { channelId ->
                 mediaNavigator.openArtist(channelId)
             },
+            onChannelClick = mediaNavigator::openChannel,
             onPlaylistClick = { playlistId ->
                 mediaNavigator.openMusicPlaylist(playlistId)
             },

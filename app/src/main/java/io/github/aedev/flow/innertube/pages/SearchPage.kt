@@ -252,7 +252,7 @@ object SearchPage {
         )
     }
 
-    /** A YouTube channel that is not an artist, kept as one so it opens like an artist. */
+    /** A YouTube channel that is not an artist, which YouTube Music lists as a profile. */
     private fun profile(renderer: MusicResponsiveListItemRenderer): ArtistItem? =
         ArtistItem(
             id = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
@@ -260,5 +260,6 @@ object SearchPage {
             thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl(),
             shuffleEndpoint = null,
             radioEndpoint = null,
+            isProfile = true,
         )
 }

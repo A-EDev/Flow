@@ -3,6 +3,7 @@ package io.github.aedev.flow.innertube.pages
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.SectionListRenderer
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.pages.InnerTubeJson.ALBUM
 import io.github.aedev.flow.innertube.pages.InnerTubeJson.PLAYLIST
@@ -13,7 +14,9 @@ import io.github.aedev.flow.innertube.pages.InnerTubeJson.itemSection
 import io.github.aedev.flow.innertube.pages.InnerTubeJson.musicShelf
 import io.github.aedev.flow.innertube.pages.InnerTubeJson.run
 import io.github.aedev.flow.innertube.pages.InnerTubeJson.separator
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -146,6 +149,7 @@ class SearchReducedLayoutTest {
             ) as ArtistItem
 
         assertEquals("UC9Qgl4YBSc_jg81", item.id)
+        assertTrue(item.isProfile)
         assertNull(item.shuffleEndpoint)
     }
 
@@ -158,5 +162,25 @@ class SearchReducedLayoutTest {
             )
 
         assertEquals(listOf("EgWKAQIIAWoQ", "EgWKAQJQAWoQ"), SearchSummaryPage.fromSearchResponse(response).filterParams)
+    }
+
+    @Test
+    fun `a chip bar without isSelected still parses, as on a podcast page`() {
+        val header =
+            Json {
+                ignoreUnknownKeys = true
+                explicitNulls = false
+            }.decodeFromString(
+                SectionListRenderer.Header.serializer(),
+                """{"chipCloudRenderer":{"chips":[{"chipCloudChipRenderer":{"text":{"runs":[{"text":"All"}]},"navigationEndpoint":{}}}]}}""",
+            )
+
+        assertFalse(
+            header.chipCloudRenderer
+                ?.chips
+                ?.single()
+                ?.chipCloudChipRenderer
+                ?.isSelected ?: true,
+        )
     }
 }

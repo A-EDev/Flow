@@ -2368,6 +2368,7 @@
     <string name="music_search_section_episodes">Episodes</string>
     <string name="subtitle_song_prefix">Song • %1$s</string>
     <string name="subtitle_artist">Artist</string>
+    <string name="subtitle_profile">Profile</string>
     <string name="subtitle_album_template">Album • %1$s</string>
     <string name="subtitle_playlist_template">Playlist • %1$s</string>
     <string name="plays_count_template">• %1$s plays</string>
