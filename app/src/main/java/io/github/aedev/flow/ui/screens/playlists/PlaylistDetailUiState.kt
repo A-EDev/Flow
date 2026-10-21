@@ -33,5 +33,7 @@ data class PlaylistDetailUiState(
     val isLoading: Boolean = true,
     /** Later pages of a YouTube playlist are still arriving. */
     val isLoadingMore: Boolean = false,
+    /** Every page arrived and YouTube's count is higher: it left out unavailable videos. */
+    val hidesUnavailable: Boolean = false,
     val errorMessage: String? = null,
 )

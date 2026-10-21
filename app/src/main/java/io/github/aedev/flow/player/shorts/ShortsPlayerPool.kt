@@ -30,6 +30,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
+import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
@@ -97,7 +98,7 @@ class ShortsPlayerPool private constructor() {
     private val playerAudioManifests = arrayOfNulls<String?>(POOL_SIZE)
 
     private val equalizers = arrayOfNulls<EqualizerAudioProcessor>(POOL_SIZE)
-    private var audioEffects: AudioEffectsEntryPoint? = null
+    private val audioSessionAnnouncers = arrayOfNulls<AudioSessionAnnouncer>(POOL_SIZE)
     private var equalizerScope: CoroutineScope? = null
 
     private var isInitialized = false
@@ -204,7 +205,7 @@ class ShortsPlayerPool private constructor() {
             },
         )
 
-        val effects = EntryPointAccessors.fromApplication(appContext, AudioEffectsEntryPoint::class.java).also { audioEffects = it }
+        val effects = EntryPointAccessors.fromApplication(appContext, AudioEffectsEntryPoint::class.java)
         val equalizerSpec = effects.equalizerRepository().processingSpec
         equalizerScope =
             CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scope ->
@@ -217,7 +218,9 @@ class ShortsPlayerPool private constructor() {
                 equalizers[i] = equalizer
                 players[i] =
                     createShortsPlayer(appContext, equalizer).also {
-                        effects.audioSessionRegistry().open(it.audioSessionId, AudioEffect.CONTENT_TYPE_MOVIE)
+                        audioSessionAnnouncers[i] =
+                            AudioSessionAnnouncer(effects.audioSessionRegistry(), AudioEffect.CONTENT_TYPE_MOVIE)
+                                .apply { attach(it) }
                     }
                 playerOwnerIndices[i] = null
                 playerVideoIds[i] = null
@@ -738,7 +741,8 @@ class ShortsPlayerPool private constructor() {
         equalizerScope?.cancel()
         equalizerScope = null
         for (i in 0 until POOL_SIZE) {
-            players[i]?.let { audioEffects?.audioSessionRegistry()?.close(it.audioSessionId) }
+            audioSessionAnnouncers[i]?.detach()
+            audioSessionAnnouncers[i] = null
             equalizers[i] = null
             players[i]?.stop()
             players[i]?.release()

@@ -231,9 +231,14 @@ class MainActivity : ComponentActivity() {
             SideEffect { cachedAppUiRoot = appUiRoot }
 
             // Check for a crash that happened last session.
-            // If found, show the CrashReportScreen instead of the normal UI.
+            // If found, show the CrashReportScreen instead of the normal UI. It is cleared as soon
+            // as it is read, so leaving the screen any way shows it once, not on every launch.
             var pendingCrashLog by remember {
-                mutableStateOf(FlowCrashHandler.getLastCrash(applicationContext))
+                mutableStateOf(
+                    FlowCrashHandler.getLastCrash(applicationContext)?.also {
+                        FlowCrashHandler.clearLastCrash(applicationContext)
+                    },
+                )
             }
 
             if (pendingCrashLog != null) {
@@ -241,10 +246,7 @@ class MainActivity : ComponentActivity() {
                 FlowTheme(theme.copy(fontFamily = FlowFontFamily)) {
                     CrashReportScreen(
                         report = pendingCrashLog!!,
-                        onContinue = {
-                            FlowCrashHandler.clearLastCrash(applicationContext)
-                            pendingCrashLog = null
-                        },
+                        onContinue = { pendingCrashLog = null },
                     )
                 }
                 return@setContent

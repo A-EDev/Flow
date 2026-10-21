@@ -3,11 +3,11 @@ package io.github.aedev.flow.widget.core.theme
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.safePreferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.widgetThemeStore by preferencesDataStore(name = "widget_theme")
+private val Context.widgetThemeStore by safePreferencesDataStore(name = "widget_theme")
 
 private val LAST_SIGNATURE = stringPreferencesKey("last_signature")
 

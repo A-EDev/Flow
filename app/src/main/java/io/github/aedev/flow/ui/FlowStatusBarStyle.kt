@@ -28,6 +28,8 @@ internal fun ApplyStatusBarStyle(
     isMusicPlayerImmersive: Boolean = false,
     musicPlayerFollowsTheme: Boolean = false,
     isShortsPlayer: Boolean = false,
+    // The expanded video player paints its black ground under the status bar on every theme.
+    videoPlayerExpanded: Boolean = false,
     // A page's full-bleed hero is under the status bar, so its icons must be light to read on the photo.
     heroUnderStatusBar: Boolean = false,
 ) {
@@ -46,7 +48,8 @@ internal fun ApplyStatusBarStyle(
     SideEffect {
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, view)
-        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive || isShortsPlayer || heroUnderStatusBar
+        val shouldDrawBehindStatusBar =
+            isFullscreen || isMusicPlayerImmersive || isShortsPlayer || videoPlayerExpanded || heroUnderStatusBar
 
         window.statusBarColor =
             if (shouldDrawBehindStatusBar) {

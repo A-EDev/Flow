@@ -67,6 +67,7 @@ import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.PlaylistQueueOrder
+import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -236,6 +237,7 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var audioSessions: AudioSessionRegistry
+    private var audioSessionAnnouncer: AudioSessionAnnouncer? = null
 
     @Inject
     lateinit var autoLibrary: AutoLibrary
@@ -452,9 +454,11 @@ class Media3MusicService : MediaLibraryService() {
                 .build()
 
         // Expose audio session ID for external audio processors (James DSP, etc.)
-        currentAudioSessionId = player.audioSessionId
-        Log.i(TAG, "Audio session initialized - Session ID: $currentAudioSessionId")
-        audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
+        audioSessionAnnouncer =
+            AudioSessionAnnouncer(audioSessions, AudioEffect.CONTENT_TYPE_MUSIC) { sessionId ->
+                currentAudioSessionId = sessionId
+                Log.i(TAG, "Audio session initialized - Session ID: $sessionId")
+            }.also { it.attach(player) }
 
         updateOffload { it.copy(processing = equalizerRepository.needsProcessing.value) }
         observeOffload()
@@ -1320,7 +1324,8 @@ class Media3MusicService : MediaLibraryService() {
         finalizeListenSession()
 
         // Clear audio session ID so external processors know we're gone
-        audioSessions.close(currentAudioSessionId)
+        audioSessionAnnouncer?.detach()
+        audioSessionAnnouncer = null
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
 

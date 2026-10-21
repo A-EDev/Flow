@@ -3,6 +3,7 @@ package io.github.aedev.flow.player.error
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.R
+import io.github.aedev.flow.network.appTrafficUsesVpn
 import io.github.aedev.flow.player.stream.PlaybackBlock
 import io.github.aedev.flow.player.stream.PlaybackBlockedException
 import org.schabi.newpipe.extractor.exceptions.AccountTerminatedException
@@ -45,6 +46,8 @@ object VideoErrorMapper {
         val isRetryable: Boolean = true,
         /** Whether this can be "fixed" by the user (vs. a server-side restriction). */
         val isUserActionable: Boolean = false,
+        /** A fresh YouTube session may get past it, so the panel offers the reset. */
+        val offersSessionReset: Boolean = false,
     )
 
     /**
@@ -123,10 +126,26 @@ object VideoErrorMapper {
 
             throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.BOT_WALL -> {
                 VideoError(
-                    message = context.getString(R.string.error_bot_wall),
-                    hint = context.getString(R.string.error_bot_wall_hint),
+                    message = context.getString(R.string.error_bot_wall_session),
+                    hint = context.getString(R.string.error_bot_wall_session_hint),
                     isRetryable = true,
                     isUserActionable = true,
+                    offersSessionReset = true,
+                )
+            }
+
+            // Only a wall that held for a fresh visitor names the network, and only a VPN that is
+            // actually on is named: most walled users have none (#1354).
+            throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.NETWORK_WALL -> {
+                VideoError(
+                    message = context.getString(R.string.error_bot_wall),
+                    hint =
+                        context.getString(
+                            if (context.appTrafficUsesVpn()) R.string.error_bot_wall_hint else R.string.error_bot_wall_network_hint,
+                        ),
+                    isRetryable = true,
+                    isUserActionable = true,
+                    offersSessionReset = true,
                 )
             }
 

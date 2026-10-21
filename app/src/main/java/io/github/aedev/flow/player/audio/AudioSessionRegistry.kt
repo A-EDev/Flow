@@ -18,6 +18,10 @@ import javax.inject.Singleton
 /**
  * Announces each player's audio session to equalizer apps, which attach their effects only to
  * sessions they have been told about; Media3 sends no such broadcast itself.
+ *
+ * Several players can be alive at once, and MusicFX follows only the session a package announced
+ * last, so a session is announced when it starts playing, or when it appears while nothing else
+ * plays. The active session is the one announced last.
  */
 @Singleton
 class AudioSessionRegistry
@@ -26,10 +30,15 @@ class AudioSessionRegistry
         @ApplicationContext private val context: Context,
     ) {
         private val open = LinkedHashMap<Int, Int>()
+        private val playing = LinkedHashSet<Int>()
         private val _activeSessionId = MutableStateFlow(AudioEffect.ERROR_BAD_VALUE)
 
-        /** The session opened most recently and still open, or [AudioEffect.ERROR_BAD_VALUE]. */
+        /** The session announced most recently and still open, or [AudioEffect.ERROR_BAD_VALUE]. */
         val activeSessionId: StateFlow<Int> = _activeSessionId.asStateFlow()
+
+        /** The content type [sessionId] was opened with, or null when it is not open. */
+        @Synchronized
+        fun contentTypeOf(sessionId: Int): Int? = open[sessionId]
 
         @Synchronized
         fun open(
@@ -37,17 +46,38 @@ class AudioSessionRegistry
             contentType: Int,
         ) {
             if (sessionId <= 0 || open[sessionId] == contentType) return
-            open.remove(sessionId)
             open[sessionId] = contentType
-            _activeSessionId.value = sessionId
-            broadcast(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION, sessionId, contentType)
+            val active = _activeSessionId.value
+            if (active == sessionId || active <= 0 || active !in playing) announce(sessionId)
+        }
+
+        @Synchronized
+        fun playing(sessionId: Int) {
+            if (sessionId !in open) return
+            playing.remove(sessionId)
+            playing.add(sessionId)
+            if (_activeSessionId.value != sessionId) announce(sessionId)
+        }
+
+        @Synchronized
+        fun paused(sessionId: Int) {
+            playing.remove(sessionId)
         }
 
         @Synchronized
         fun close(sessionId: Int) {
+            playing.remove(sessionId)
             val contentType = open.remove(sessionId) ?: return
-            _activeSessionId.value = open.keys.lastOrNull() ?: AudioEffect.ERROR_BAD_VALUE
             broadcast(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION, sessionId, contentType)
+            if (_activeSessionId.value != sessionId) return
+            val next = playing.lastOrNull() ?: open.keys.lastOrNull()
+            if (next != null) announce(next) else _activeSessionId.value = AudioEffect.ERROR_BAD_VALUE
+        }
+
+        private fun announce(sessionId: Int) {
+            val contentType = open[sessionId] ?: return
+            _activeSessionId.value = sessionId
+            broadcast(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION, sessionId, contentType)
         }
 
         private fun broadcast(

@@ -25,7 +25,12 @@ data class RemotePlaylistPage(
     val videos: List<Video>,
     val continuation: String?,
     val isCourse: Boolean = false,
-)
+    /** The header's count, unavailable videos included. */
+    val videoCount: Int? = null,
+) {
+    /** The whole list is shorter than the header's count: YouTube leaves out unavailable videos. */
+    fun hidesUnavailable(loaded: Int = videos.size): Boolean = videoCount != null && videoCount > loaded
+}
 
 /**
  * YouTube playlists from InnerTube, one request per page. The first page shows at once and later
@@ -56,25 +61,36 @@ class YouTubePlaylistRepository
             completeLists[playlistId] = CachedList(page.copy(continuation = null), System.currentTimeMillis())
         }
 
-        suspend fun firstPage(playlistId: String): RemotePlaylistPage? =
-            fetch { YouTube.videoPlaylistPage(playlistId) }
-                ?.takeIf { it.title != null || it.videos.isNotEmpty() }
-                ?.let { page ->
-                    RemotePlaylistPage(
-                        title = page.title.orEmpty(),
-                        ownerName = page.ownerName,
-                        ownerId = page.ownerId?.takeIf(String::isNotBlank),
-                        description = page.description.orEmpty(),
-                        thumbnailUrl =
-                            page.thumbnailUrl ?: page.videos
-                                .firstOrNull()
-                                ?.thumbnailUrl
-                                .orEmpty(),
-                        videos = page.videos,
-                        continuation = page.continuation,
-                        isCourse = page.isCourse,
-                    )
-                }
+        suspend fun firstPage(playlistId: String): RemotePlaylistPage? {
+            val page =
+                fetch { YouTube.videoPlaylistPage(playlistId) }
+                    ?.takeIf { it.title != null || it.videos.isNotEmpty() } ?: return null
+            // A Shorts grid stops at 100 with no next page; its "show unavailable" view is a list
+            // that pages through every video. Only grids ask for it: on a list it would add
+            // unplayable entries that look playable.
+            val list =
+                if (page.isShortsGrid) {
+                    fetch { YouTube.videoPlaylistPage(playlistId, params = YouTube.PLAYLIST_SHOW_UNAVAILABLE_PARAMS) }
+                        ?.takeIf { it.videos.isNotEmpty() }
+                } else {
+                    null
+                } ?: page
+            return RemotePlaylistPage(
+                title = page.title.orEmpty(),
+                ownerName = page.ownerName,
+                ownerId = page.ownerId?.takeIf(String::isNotBlank),
+                description = page.description.orEmpty(),
+                thumbnailUrl =
+                    page.thumbnailUrl ?: list.videos
+                        .firstOrNull()
+                        ?.thumbnailUrl
+                        .orEmpty(),
+                videos = list.videos,
+                continuation = list.continuation,
+                isCourse = page.isCourse,
+                videoCount = page.videoCount ?: list.videoCount,
+            )
+        }
 
         /** The videos behind [continuation] and the token after them. */
         suspend fun nextPage(
@@ -82,20 +98,16 @@ class YouTubePlaylistRepository
             continuation: String,
         ): Pair<List<Video>, String?>? = fetch { YouTube.videoPlaylistPage(playlistId, continuation) }?.let { it.videos to it.continuation }
 
-        /** Every video, page by page, for a caller that needs the whole list (syncing a saved copy). */
+        /**
+         * Every video, page by page, for a caller that needs the whole list (syncing a saved copy).
+         * Null unless every page arrived: a partial list would cut the saved copy short.
+         */
         suspend fun complete(playlistId: String): RemotePlaylistPage? {
             cachedComplete(playlistId)?.let { return it }
             val first = firstPage(playlistId) ?: return null
-            val videos = first.videos.toMutableList()
-            var token = first.continuation
-            var pages = 1
-            while (token != null && pages < MAX_PAGES) {
-                val (more, next) = nextPage(playlistId, token) ?: break
-                videos += more
-                token = next.takeIf { more.isNotEmpty() }
-                pages++
-            }
-            val complete = first.copy(videos = videos.distinctBy { it.id }, continuation = null)
+            val walk = walkPlaylistPages(first.videos, first.continuation, MAX_PAGES, { nextPage(playlistId, it) })
+            if (!walk.finished) return null
+            val complete = first.copy(videos = walk.videos, continuation = null)
             rememberComplete(playlistId, complete)
             return complete
         }

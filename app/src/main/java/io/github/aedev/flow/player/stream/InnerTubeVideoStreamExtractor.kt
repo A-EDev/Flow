@@ -16,6 +16,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
+import io.github.aedev.flow.utils.potoken.PlayerWallReroll
 import io.github.aedev.flow.utils.potoken.PoTokenResult
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CancellationException
@@ -145,10 +146,8 @@ object InnerTubeVideoStreamExtractor {
             dropGatesOnIdentityChange()
             blockedVideoIds.remove(videoId)
             goneVideoIds.remove(videoId)
-            val failureReasons = mutableListOf<String>()
-            val liveDetected = booleanArrayOf(false)
-
             if (forceSabr) {
+                val failureReasons = mutableListOf<String>()
                 trySabrClients(videoId, failureReasons)?.let {
                     Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR/forced)")
                     PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR/forced via ${it.usedClient.clientName}")
@@ -160,112 +159,145 @@ object InnerTubeVideoStreamExtractor {
                 return@withContext null
             }
 
-            // 1) Fast path: token-free clients with direct URLs. Skipped while GVS is enforcing
-            // attestation on them — without that memory the ladder walks into the same refusal on
-            // every single video, which is what "every video stops at a minute" looks like.
-            val fastClients = FAST_CLIENTS.ungated()
-            if (fastClients.isEmpty()) {
-                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — trying TV_TIZEN")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
-                )
-                // The walled visitor's other app clients and token-backed web clients stop at the
-                // same minute; TV_TIZEN is the measured way past it (#921).
-                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
-                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
-                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
-                    return@withContext it
-                }
-            } else {
-                // A cold start pays DNS and TLS inside the first request, which can outlast the
-                // per-client timeout; one retry on the warm connection beats falling to the web path.
-                tryDirectClients(
-                    videoId,
-                    fastClients,
-                    failureReasons,
-                    liveDetected = liveDetected,
-                    retryTimeoutOnce = true,
-                )?.let { direct ->
-                    val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
-                    Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
-                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
-                    return@withContext result
-                }
-            }
+            var failureReasons = mutableListOf<String>()
+            val walledGeneration = WebPoTokenSession.identityGeneration
+            walkLadder(videoId, audioOnly, failureReasons)?.let { return@withContext it }
 
-            if (liveDetected[0]) {
-                tryLiveClients(videoId, failureReasons)?.let {
-                    Log.w(TAG, "Live manifest for $videoId via ${it.usedClient.clientName} (live-clients)")
-                    return@withContext it
-                }
+            // A wall at /player issues no stream URLs, so no 403 ever reaches the re-roll that GVS
+            // refusals trigger, and a retry would ask again with the same walled visitor (#1354).
+            val fullWall = PlayabilityVerdict.everyClientWalled(failureReasons)
+            val reroll = if (fullWall) WebPoTokenSession.rerollAfterPlayerWall(walledGeneration) else null
+            if (reroll == PlayerWallReroll.REROLLED) {
+                PlayerDiagnostics.logWarning(TAG, "every client bot-walled $videoId, retrying once with a fresh visitor")
+                dropGatesOnIdentityChange()
+                failureReasons = mutableListOf()
+                walkLadder(videoId, audioOnly, failureReasons)?.let { return@withContext it }
             }
-
-            // 2) Durable path: web client + BotGuard PoToken + SABR. Ranked above every remaining
-            // direct client because it is the only other path whose token Flow can actually mint —
-            // the clients below it are all served unattested and can be cut off mid-playback.
-            trySabrClients(videoId, failureReasons)?.let {
-                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
-                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
-                return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
-            }
-
-            // 2b) Label and kids videos are UNPLAYABLE on the app clients, so once the web clients
-            // fail this is their only source (#1292). The gated clients below stop at a minute and
-            // swap to it mid-playback anyway. Skipped when step 1 already asked it.
-            if (fastClients.isNotEmpty() && !liveDetected[0]) {
-                TizenStreamResolver.resolve(videoId, failureReasons)?.let {
-                    Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/web-fallback)")
-                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/web-fallback")
-                    return@withContext it
-                }
-            }
-
-            // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
-            // below anything attested and are only reached when the paths above are unavailable.
-            tryDirectClients(videoId, GATED_FALLBACK_CLIENTS.ungated(), failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
-                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)}/gated)")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}/GATED — " +
-                        "unattested, GVS may stop serving ~60s in",
-                )
-                return@withContext result
-            }
-
-            // 4) Last resort: remaining token-free clients
-            tryDirectClients(
-                videoId,
-                LAST_RESORT_CLIENTS.ungated(),
-                failureReasons,
-                allowUntransformedN = true,
-                liveDetected = liveDetected,
-            )?.let {
-                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
-                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/last-resort")
-                return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
-            }
-
-            // 5) Every attested path is gone and the demotion has left nothing to try. A client
-            // that plays a minute beats a client that plays nothing, so the demotions are ignored
-            // for one pass rather than returning a failure the user cannot act on.
-            val demoted = (FAST_CLIENTS + GATED_FALLBACK_CLIENTS + LAST_RESORT_CLIENTS).filter { ClientGateTracker.isGated(it.clientName) }
-            if (demoted.isNotEmpty()) {
-                Log.w(TAG, "Nothing playable for $videoId without the demoted clients — retrying them: ${demoted.map { it.clientName }}")
-                PlayerDiagnostics.logWarning(TAG, "retrying DEMOTED clients for $videoId: ${demoted.joinToString { it.clientName }}")
-                tryDirectClients(videoId, demoted, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
-                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/demoted-retry")
-                    return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
-                }
-            }
+            val freshVisitorWalled = reroll == PlayerWallReroll.REROLLED || reroll == PlayerWallReroll.FRESH_VISITOR_WALLED
 
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
+            if (PlayabilityVerdict.everyClientWalled(failureReasons)) {
+                PlayerDiagnostics.logError(TAG, "bot wall $videoId: ${WebPoTokenSession.identitySummary()} freshWalled=$freshVisitorWalled")
+            }
             if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
-            recordBlock(videoId, failureReasons)
+            recordBlock(videoId, failureReasons, freshVisitorWalled)
             null
         }
+
+    /**
+     * Steps 1 to 5 of the ladder, from the fast token-free clients to the demoted retry. Null when
+     * every step failed, with why in [failureReasons].
+     */
+    private suspend fun walkLadder(
+        videoId: String,
+        audioOnly: Boolean,
+        failureReasons: MutableList<String>,
+    ): VideoExtractionResult? {
+        val liveDetected = booleanArrayOf(false)
+
+        // 1) Fast path: token-free clients with direct URLs. Skipped while GVS is enforcing
+        // attestation on them — without that memory the ladder walks into the same refusal on
+        // every single video, which is what "every video stops at a minute" looks like.
+        val fastClients = FAST_CLIENTS.ungated()
+        if (fastClients.isEmpty()) {
+            Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — trying TV_TIZEN")
+            PlayerDiagnostics.logWarning(
+                TAG,
+                "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
+            )
+            // The walled visitor's other app clients and token-backed web clients stop at the
+            // same minute; TV_TIZEN is the measured way past it (#921).
+            TizenStreamResolver.resolve(videoId, failureReasons)?.let {
+                Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/walled)")
+                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/walled")
+                return it
+            }
+        } else {
+            // A cold start pays DNS and TLS inside the first request, which can outlast the
+            // per-client timeout; one retry on the warm connection beats falling to the web path.
+            tryDirectClients(
+                videoId,
+                fastClients,
+                failureReasons,
+                liveDetected = liveDetected,
+                retryTimeoutOnce = true,
+            )?.let { direct ->
+                val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
+                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
+                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
+                return result
+            }
+        }
+
+        if (liveDetected[0]) {
+            tryLiveClients(videoId, failureReasons)?.let {
+                Log.w(TAG, "Live manifest for $videoId via ${it.usedClient.clientName} (live-clients)")
+                return it
+            }
+        }
+
+        // 2) Durable path: web client + BotGuard PoToken + SABR. Ranked above every remaining
+        // direct client because it is the only other path whose token Flow can actually mint —
+        // the clients below it are all served unattested and can be cut off mid-playback.
+        trySabrClients(videoId, failureReasons)?.let {
+            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
+            PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
+            return if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+        }
+
+        // 2b) Label and kids videos are UNPLAYABLE on the app clients, so once the web clients
+        // fail this is their only source (#1292). The gated clients below stop at a minute and
+        // swap to it mid-playback anyway. Skipped when step 1 already asked it.
+        if (fastClients.isNotEmpty() && !liveDetected[0]) {
+            TizenStreamResolver.resolve(videoId, failureReasons)?.let {
+                Log.w(TAG, "Extraction OK for $videoId via TV_TIZEN (mode=DIRECT/web-fallback)")
+                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via TV_TIZEN mode=DIRECT/web-fallback")
+                return it
+            }
+        }
+
+        // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
+        // below anything attested and are only reached when the paths above are unavailable.
+        tryDirectClients(videoId, GATED_FALLBACK_CLIENTS.ungated(), failureReasons, liveDetected = liveDetected)?.let { direct ->
+            val result = if (audioOnly) direct else maybeUpgradeToSabr(videoId, direct, failureReasons)
+            Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)}/gated)")
+            PlayerDiagnostics.logWarning(
+                TAG,
+                "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}/GATED — " +
+                    "unattested, GVS may stop serving ~60s in",
+            )
+            return result
+        }
+
+        // 4) Last resort: remaining token-free clients
+        tryDirectClients(
+            videoId,
+            LAST_RESORT_CLIENTS.ungated(),
+            failureReasons,
+            allowUntransformedN = true,
+            liveDetected = liveDetected,
+        )?.let {
+            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
+            PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/last-resort")
+            return if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+        }
+
+        // 5) Every attested path is gone and the demotion has left nothing to try. A client
+        // that plays a minute beats a client that plays nothing, so the demotions are ignored
+        // for one pass rather than returning a failure the user cannot act on.
+        val demoted = (FAST_CLIENTS + GATED_FALLBACK_CLIENTS + LAST_RESORT_CLIENTS).filter { ClientGateTracker.isGated(it.clientName) }
+        if (demoted.isNotEmpty()) {
+            Log.w(TAG, "Nothing playable for $videoId without the demoted clients — retrying them: ${demoted.map { it.clientName }}")
+            PlayerDiagnostics.logWarning(TAG, "retrying DEMOTED clients for $videoId: ${demoted.joinToString { it.clientName }}")
+            tryDirectClients(videoId, demoted, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
+                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/demoted-retry")
+                return if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+            }
+        }
+
+        return null
+    }
 
     /** Videos YouTube reported as removed or unplayable on every client; a queue skips them. */
     private val goneVideoIds: MutableSet<String> =
@@ -282,8 +314,9 @@ object InnerTubeVideoStreamExtractor {
     private fun recordBlock(
         videoId: String,
         failureReasons: List<String>,
+        freshVisitorWalled: Boolean = false,
     ) {
-        PlayabilityVerdict.block(failureReasons)?.let { blockedVideoIds[videoId] = it }
+        PlayabilityVerdict.block(failureReasons, freshVisitorWalled)?.let { blockedVideoIds[videoId] = it }
     }
 
     /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
@@ -682,6 +715,7 @@ object InnerTubeVideoStreamExtractor {
                 val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                 failureReasons.add("$label: $tag, reason=$reason")
                 Log.w(TAG, "$label: $tag, reason=$reason")
+                PlayerDiagnostics.logWarning(TAG, "skip $label v${client.clientVersion}: $tag reason=$reason pot=true")
                 return null
             }
 

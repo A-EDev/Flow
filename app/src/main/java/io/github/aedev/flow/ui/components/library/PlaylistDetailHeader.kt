@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.SaveAs
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
@@ -74,6 +75,10 @@ private const val DESCRIPTION_COLLAPSED_LINES = 2
 private const val ARTWORK_PLACEHOLDER_ALPHA = 0.5f
 private val PlaceholderIconSize: Dp = 64.dp
 private val DownloadProgressSize: Dp = 28.dp
+private val NoteIconSize: Dp = 18.dp
+private val NoteIconGap: Dp = 8.dp
+private val NoteHorizontalPadding: Dp = 12.dp
+private val NoteVerticalPadding: Dp = 8.dp
 
 /** What the playlist header shows. [downloadProgress] is null while no "Download all" is running. */
 @Immutable
@@ -81,6 +86,8 @@ internal data class PlaylistHeaderState(
     val name: String,
     val metadata: String,
     val description: String,
+    /** A line about the list itself, such as videos YouTube leaves out; null shows none. */
+    val note: String? = null,
     val thumbnailUrl: String,
     val isSaved: Boolean = false,
     val canSave: Boolean = false,
@@ -193,6 +200,7 @@ private fun ColumnScope.PlaylistTitleBlock(state: PlaylistHeaderState) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+    state.note?.let { PlaylistNote(it) }
     if (state.description.isNotEmpty()) {
         var expanded by rememberSaveable(state.description) { mutableStateOf(false) }
         Text(
@@ -202,6 +210,31 @@ private fun ColumnScope.PlaylistTitleBlock(state: PlaylistHeaderState) {
             maxLines = if (expanded) Int.MAX_VALUE else DESCRIPTION_COLLAPSED_LINES,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.clip(MaterialTheme.shapes.small).clickable { expanded = !expanded },
+        )
+    }
+}
+
+@Composable
+private fun PlaylistNote(text: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(NoteIconGap),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = NoteHorizontalPadding, vertical = NoteVerticalPadding),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.VisibilityOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(NoteIconSize),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

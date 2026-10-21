@@ -84,6 +84,14 @@ class AudioFeaturesManager(
         }
     }
 
+    /** Moves the gain onto the player's audio session, which ExoPlayer reports only after build. */
+    fun onAudioSessionChanged() {
+        val player = playerRef ?: return
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+        applyLoudnessGain(player)
+    }
+
     /**
      * Clear the player reference (call on release).
      */

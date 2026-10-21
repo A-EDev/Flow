@@ -4663,4 +4663,20 @@
     <string name="lyrics_provider_unison_desc">كلمات الأغاني المجتمعية · كتالوج صغير</string>
     <string name="lyrics_provider_youtube_captions_desc">تزامن الأسطر · ترجمات الفيديو</string>
     <string name="lyrics_provider_youtube_music_desc">نص عادي · تبويب الكلمات</string>
+    <string name="queue_swipe_left">السحب لليسار في قائمة التشغيل</string>
+    <string name="queue_swipe_right">السحب لليمين في قائمة التشغيل</string>
+    <string name="queue_swipe_subtitle">للأغاني في التالي</string>
+    <string name="queue_move_to_end">نقل إلى النهاية</string>
+    <string name="playlist_move_to_music">نقل إلى الموسيقى</string>
+    <string name="playlist_move_to_videos">نقل إلى الفيديوهات</string>
+    <string name="playlist_moved_to_music">تم النقل إلى الموسيقى</string>
+    <string name="playlist_moved_to_videos">تم النقل إلى الفيديوهات</string>
+    <plurals name="import_takeout_part_music_playlists">
+        <item quantity="zero">لا توجد قوائم تشغيل في الموسيقى</item>
+        <item quantity="one">قائمة تشغيل واحدة في الموسيقى</item>
+        <item quantity="two">%d قائمة تشغيل في الموسيقى</item>
+        <item quantity="few">%d قوائم تشغيل في الموسيقى</item>
+        <item quantity="many">%d قائمة تشغيل في الموسيقى</item>
+        <item quantity="other">‌%d قائمة تشغيل في الموسيقى</item>
+    </plurals>
 </resources>

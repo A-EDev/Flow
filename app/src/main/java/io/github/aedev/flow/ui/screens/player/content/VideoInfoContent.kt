@@ -72,6 +72,7 @@ internal fun VideoInfoContent(
             videoId = video.id,
             context = context,
             onRetryClick = { viewModel.retryLoadVideo() },
+            onResetSession = if (uiState.errorOffersSessionReset) ({ viewModel.resetSessionAndRetry() }) else null,
         )
     }
 

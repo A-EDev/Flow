@@ -2,6 +2,7 @@ package io.github.aedev.flow.utils.potoken
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,8 +48,30 @@ class VisitorIdentityStore
                 .edit()
                 .putString(KEY_VISITOR, visitorData)
                 .putLong(KEY_SAVED_AT, nowMs)
+                .putLong(KEY_NETWORK, activeNetworkHandle() ?: NO_NETWORK)
                 .apply()
         }
+
+        /** How long ago the visitor in use was saved, or null when none is. */
+        fun visitorAgeMs(nowMs: Long = System.currentTimeMillis()): Long? =
+            prefs.getLong(KEY_SAVED_AT, 0L).takeIf { it > 0L }?.let { nowMs - it }
+
+        /**
+         * Whether the visitor in use was minted on another network than the one active now. A
+         * visitor saved before the network was recorded counts as minted elsewhere.
+         */
+        fun mintedOnOtherNetwork(): Boolean {
+            val minted = prefs.getLong(KEY_NETWORK, NO_NETWORK)
+            return minted == NO_NETWORK || minted != activeNetworkHandle()
+        }
+
+        private fun activeNetworkHandle(): Long? =
+            runCatching {
+                context
+                    .getSystemService(ConnectivityManager::class.java)
+                    ?.activeNetwork
+                    ?.networkHandle
+            }.getOrNull()
 
         /**
          * Spends one identity re-roll from the persisted budget. Returns the time it was taken, to
@@ -86,6 +109,8 @@ class VisitorIdentityStore
             const val KEY_VISITOR = "visitor_data"
             const val KEY_SAVED_AT = "visitor_data_saved_at"
             const val KEY_REROLLS = "visitor_rerolls"
+            const val KEY_NETWORK = "visitor_data_network"
+            const val NO_NETWORK = -1L
             const val LEGACY_PREFS_NAME = "flow_prefs"
             const val LEGACY_KEY_VISITOR = "visitor_data"
             const val LEGACY_KEY_FETCHED_AT = "visitor_data_fetched_at"
