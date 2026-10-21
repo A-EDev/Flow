@@ -24,6 +24,7 @@ import io.github.aedev.flow.ui.components.search.matchingTyped
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,6 +52,9 @@ class MusicSearchViewModel
         val moods: StateFlow<List<MoodAndGenres>> = _moods.asStateFlow()
 
         private val _uiState = MutableStateFlow(MusicSearchUiState())
+
+        // One result request at a time: an answer for an older query or chip must not land over a newer one.
+        private var resultsJob: Job? = null
         val uiState: StateFlow<MusicSearchUiState> = _uiState.asStateFlow()
 
         init {
@@ -121,9 +125,11 @@ class MusicSearchViewModel
 
             _query.value = q
             viewModelScope.launch { searchHistory.saveSearchQuery(q.trim(), type, SearchHistoryScope.MUSIC) }
-            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null, error = null) }
+            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null, error = null, isMoreLoading = false) }
 
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            resultsJob?.cancel()
+            resultsJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val result =
                     withTimeoutOrNull(15_000L) {
                         YouTube.searchSummary(q)
@@ -155,12 +161,15 @@ class MusicSearchViewModel
             val q = _query.value
             if (q.isBlank()) return
 
-            _uiState.update { state -> state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null) }
+            if (filter == null) {
+                performSearch(q)
+                return
+            }
+            _uiState.update { state -> state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null, isMoreLoading = false) }
 
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                if (filter == null) {
-                    performSearch(q)
-                } else {
+            resultsJob?.cancel()
+            resultsJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     val result =
                         withTimeoutOrNull(12_000L) {
                             YouTube.search(q, filter)
@@ -184,7 +193,6 @@ class MusicSearchViewModel
                         }
                     }
                 }
-            }
         }
 
         fun deleteHistoryItem(item: SearchHistoryItem) {
@@ -196,6 +204,7 @@ class MusicSearchViewModel
         }
 
         fun clearSearch() {
+            resultsJob?.cancel()
             _query.value = ""
             _uiState.value = MusicSearchUiState()
         }
@@ -225,9 +234,10 @@ class MusicSearchViewModel
 
         fun loadMore() {
             val token = _uiState.value.continuation ?: return
-            if (_uiState.value.isMoreLoading) return
+            if (_uiState.value.isMoreLoading || _uiState.value.isLoading) return
 
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            resultsJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.update { it.copy(isMoreLoading = true) }
                 val result = YouTube.searchContinuation(token)
 
