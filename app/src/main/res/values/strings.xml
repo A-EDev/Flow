@@ -138,6 +138,7 @@
     <string name="lyrics_show_romanization_summary">Show lyrics in other scripts in Latin letters too</string>
     <string name="lyrics_auto_romanize">Romanize on this device</string>
     <string name="lyrics_auto_romanize_summary">When the lyrics source has no romanization</string>
+    <string name="lyrics_auto_romanize_japanese">Not available for Japanese yet</string>
     <string name="lyrics_keep_screen_on">Keep screen on</string>
     <string name="lyrics_keep_screen_on_summary">While lyrics are showing and music plays</string>
     <string name="player_appearance_artwork_control_colors_title">Artwork colors on controls</string>
