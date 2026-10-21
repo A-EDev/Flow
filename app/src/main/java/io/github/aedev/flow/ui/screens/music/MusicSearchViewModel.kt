@@ -126,31 +126,31 @@ class MusicSearchViewModel
             _query.value = q
             viewModelScope.launch { searchHistory.saveSearchQuery(q.trim(), type, SearchHistoryScope.MUSIC) }
             _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null, error = null, isMoreLoading = false) }
-
             resultsJob?.cancel()
-            resultsJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                val result =
-                    withTimeoutOrNull(15_000L) {
-                        YouTube.searchSummary(q)
-                    }
+            resultsJob = viewModelScope.launch(PerformanceDispatcher.networkIO) { loadSummary(q) }
+        }
 
-                result
-                    ?.onSuccess { summaryPage ->
-                        _uiState.update { state ->
-                            state.copy(
-                                searchSummary = summaryPage.distinctItemsForLazyKeys(),
-                                isLoading = false,
-                                isSearching = true,
-                                continuation = summaryPage.continuation,
-                            )
-                        }
-                    }?.onFailure { throwable ->
-                        android.util.Log.w("MusicSearchViewModel", "Search failed", throwable)
-                        _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
-                    } ?: run {
-                    _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_search_timed_out)) }
+        private suspend fun loadSummary(q: String) {
+            val result =
+                withTimeoutOrNull(15_000L) {
+                    YouTube.searchSummary(q)
                 }
+
+            result
+                ?.onSuccess { summaryPage ->
+                    _uiState.update { state ->
+                        state.copy(
+                            searchSummary = summaryPage.distinctItemsForLazyKeys(),
+                            isLoading = false,
+                            isSearching = true,
+                            continuation = summaryPage.continuation,
+                        )
+                    }
+                }?.onFailure { throwable ->
+                    android.util.Log.w("MusicSearchViewModel", "Search failed", throwable)
+                    _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
+                } ?: run {
+                _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_search_timed_out)) }
             }
         }
 
@@ -165,34 +165,39 @@ class MusicSearchViewModel
                 performSearch(q)
                 return
             }
-            _uiState.update { state -> state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null, isMoreLoading = false) }
-
+            _uiState.update { state ->
+                state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null, isMoreLoading = false)
+            }
             resultsJob?.cancel()
-            resultsJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                    val result =
-                        withTimeoutOrNull(12_000L) {
-                            YouTube.search(q, filter)
-                        }
+            resultsJob = viewModelScope.launch(PerformanceDispatcher.networkIO) { loadFiltered(q, filter) }
+        }
 
-                    result
-                        ?.onSuccess { searchResult ->
-                            _uiState.update { state ->
-                                state.copy(
-                                    filteredResults = searchResult.items.distinctByStableIdentity(),
-                                    isLoading = false,
-                                    continuation = searchResult.continuation,
-                                )
-                            }
-                        }?.onFailure { throwable ->
-                            android.util.Log.w("MusicSearchViewModel", "Filtered search failed", throwable)
-                            _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
-                        } ?: run {
-                        _uiState.update { state ->
-                            state.copy(isLoading = false, error = context.getString(R.string.error_filter_search_timed_out))
-                        }
-                    }
+        private suspend fun loadFiltered(
+            q: String,
+            filter: SearchFilter,
+        ) {
+            val result =
+                withTimeoutOrNull(12_000L) {
+                    YouTube.search(q, filter)
                 }
+
+            result
+                ?.onSuccess { searchResult ->
+                    _uiState.update { state ->
+                        state.copy(
+                            filteredResults = searchResult.items.distinctByStableIdentity(),
+                            isLoading = false,
+                            continuation = searchResult.continuation,
+                        )
+                    }
+                }?.onFailure { throwable ->
+                    android.util.Log.w("MusicSearchViewModel", "Filtered search failed", throwable)
+                    _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
+                } ?: run {
+                _uiState.update { state ->
+                    state.copy(isLoading = false, error = context.getString(R.string.error_filter_search_timed_out))
+                }
+            }
         }
 
         fun deleteHistoryItem(item: SearchHistoryItem) {
@@ -238,42 +243,42 @@ class MusicSearchViewModel
 
             resultsJob =
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update { it.copy(isMoreLoading = true) }
-                val result = YouTube.searchContinuation(token)
+                    _uiState.update { it.copy(isMoreLoading = true) }
+                    val result = YouTube.searchContinuation(token)
 
-                result
-                    .onSuccess { searchResult ->
-                        _uiState.update { state ->
-                            if (state.activeFilter == null) {
-                                val newSummary =
-                                    io.github.aedev.flow.innertube.pages.SearchSummary(
-                                        title = context.getString(R.string.fallback_more_results),
-                                        items = searchResult.items.distinctByStableIdentity(),
+                    result
+                        .onSuccess { searchResult ->
+                            _uiState.update { state ->
+                                if (state.activeFilter == null) {
+                                    val newSummary =
+                                        io.github.aedev.flow.innertube.pages.SearchSummary(
+                                            title = context.getString(R.string.fallback_more_results),
+                                            items = searchResult.items.distinctByStableIdentity(),
+                                        )
+                                    state.copy(
+                                        searchSummary =
+                                            state.searchSummary
+                                                ?.copy(
+                                                    summaries = state.searchSummary.summaries + newSummary,
+                                                )?.distinctItemsForLazyKeys(),
+                                        continuation = searchResult.continuation,
+                                        isMoreLoading = false,
                                     )
-                                state.copy(
-                                    searchSummary =
-                                        state.searchSummary
-                                            ?.copy(
-                                                summaries = state.searchSummary.summaries + newSummary,
-                                            )?.distinctItemsForLazyKeys(),
-                                    continuation = searchResult.continuation,
-                                    isMoreLoading = false,
-                                )
-                            } else {
-                                state.copy(
-                                    filteredResults =
-                                        (
-                                            state.filteredResults + searchResult.items
-                                        ).distinctByStableIdentity(),
-                                    continuation = searchResult.continuation,
-                                    isMoreLoading = false,
-                                )
+                                } else {
+                                    state.copy(
+                                        filteredResults =
+                                            (
+                                                state.filteredResults + searchResult.items
+                                            ).distinctByStableIdentity(),
+                                        continuation = searchResult.continuation,
+                                        isMoreLoading = false,
+                                    )
+                                }
                             }
+                        }.onFailure {
+                            _uiState.update { it.copy(isMoreLoading = false) }
                         }
-                    }.onFailure {
-                        _uiState.update { it.copy(isMoreLoading = false) }
-                    }
-            }
+                }
         }
     }
 

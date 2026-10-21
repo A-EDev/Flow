@@ -29,11 +29,17 @@ object SearchPage {
                 ?.splitBySeparator()
                 ?: return null
         return when {
-            renderer.isEpisode -> episode(renderer, secondaryLine)
+            renderer.isEpisode -> {
+                episode(renderer, secondaryLine)
+            }
 
-            renderer.isPodcast -> podcast(renderer, secondaryLine)
+            renderer.isPodcast -> {
+                podcast(renderer, secondaryLine)
+            }
 
-            renderer.isUserChannel -> profile(renderer)
+            renderer.isUserChannel -> {
+                profile(renderer)
+            }
 
             renderer.isSong -> {
                 SongItem(
@@ -107,14 +113,14 @@ object SearchPage {
                     browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
                     playlistId =
                         renderer.overlay
-                        ?.musicItemThumbnailOverlayRenderer
-                        ?.content
-                        ?.musicPlayButtonRenderer
-                        ?.playNavigationEndpoint
-                        ?.anyWatchEndpoint
-                        ?.playlistId
-                        ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")?.playlistId
-                        ?: return null,
+                            ?.musicItemThumbnailOverlayRenderer
+                            ?.content
+                            ?.musicPlayButtonRenderer
+                            ?.playNavigationEndpoint
+                            ?.anyWatchEndpoint
+                            ?.playlistId
+                            ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")?.playlistId
+                            ?: return null,
                     title =
                         renderer.flexColumns
                             .firstOrNull()
@@ -177,13 +183,13 @@ object SearchPage {
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                     playEndpoint =
                         renderer.overlay
-                        ?.musicItemThumbnailOverlayRenderer
-                        ?.content
-                        ?.musicPlayButtonRenderer
-                        ?.playNavigationEndpoint
-                        ?.watchPlaylistEndpoint
-                        ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")
-                        ?: return null,
+                            ?.musicItemThumbnailOverlayRenderer
+                            ?.content
+                            ?.musicPlayButtonRenderer
+                            ?.playNavigationEndpoint
+                            ?.watchPlaylistEndpoint
+                            ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")
+                            ?: return null,
                     shuffleEndpoint =
                         renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE") ?: return null,
                     radioEndpoint =

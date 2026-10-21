@@ -208,10 +208,11 @@ internal object InnerTubeJson {
         withMix: Boolean = true,
     ): String {
         val menu =
-            playlistId?.let {
-                val items = listOfNotNull(menuItem("MUSIC_SHUFFLE", it), menuItem("MIX", "RD$it").takeIf { withMix })
-                ""","menu":{"menuRenderer":{"items":[${items.joinToString(",")}]}}"""
-            }.orEmpty()
+            playlistId
+                ?.let {
+                    val items = listOfNotNull(menuItem("MUSIC_SHUFFLE", it), menuItem("MIX", "RD$it").takeIf { withMix })
+                    ""","menu":{"menuRenderer":{"items":[${items.joinToString(",")}]}}"""
+                }.orEmpty()
         return """{"musicResponsiveListItemRenderer":{"thumbnail":${thumbnail(browseId, SQUARE)},
             |"flexColumns":[${flexColumn(run(title))},${flexColumn(*secondary.toTypedArray())}]$menu,
             |"navigationEndpoint":${browseEndpoint(browseId, pageType)}}}

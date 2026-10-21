@@ -89,7 +89,10 @@ class LyricsPresentationTest {
     @Test
     fun `Japanese lyrics get no on-device line, other scripts still do`() {
         val asked = mutableListOf<String>()
-        val fake: (String) -> String? = { asked += it; "roman" }
+        val fake: (String) -> String? = {
+            asked += it
+            "roman"
+        }
         val auto = LyricsDisplayOptions(autoRomanize = true)
 
         assertThat(lyricsRomanizations(missingPiece, auto, fake)).containsExactly(null, null, null, null)

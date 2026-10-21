@@ -100,8 +100,10 @@ data class SearchSummaryPage(
                         ?.header
                         ?.chipCloudRenderer
                         ?.chips
-                        ?.mapNotNull { it.chipCloudChipRenderer.navigationEndpoint.searchEndpoint?.params }
-                        .orEmpty(),
+                        ?.mapNotNull {
+                            it.chipCloudChipRenderer.navigationEndpoint.searchEndpoint
+                                ?.params
+                        }.orEmpty(),
             )
         }
 
@@ -394,14 +396,14 @@ data class SearchSummaryPage(
                         browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
                         playlistId =
                             renderer.overlay
-                        ?.musicItemThumbnailOverlayRenderer
-                        ?.content
-                        ?.musicPlayButtonRenderer
-                        ?.playNavigationEndpoint
-                        ?.anyWatchEndpoint
-                        ?.playlistId
-                        ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")?.playlistId
-                        ?: return null,
+                                ?.musicItemThumbnailOverlayRenderer
+                                ?.content
+                                ?.musicPlayButtonRenderer
+                                ?.playNavigationEndpoint
+                                ?.anyWatchEndpoint
+                                ?.playlistId
+                                ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")?.playlistId
+                                ?: return null,
                         title =
                             renderer.flexColumns
                                 .firstOrNull()
@@ -464,13 +466,13 @@ data class SearchSummaryPage(
                         thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         playEndpoint =
                             renderer.overlay
-                        ?.musicItemThumbnailOverlayRenderer
-                        ?.content
-                        ?.musicPlayButtonRenderer
-                        ?.playNavigationEndpoint
-                        ?.watchPlaylistEndpoint
-                        ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")
-                        ?: return null,
+                                ?.musicItemThumbnailOverlayRenderer
+                                ?.content
+                                ?.musicPlayButtonRenderer
+                                ?.playNavigationEndpoint
+                                ?.watchPlaylistEndpoint
+                                ?: renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE")
+                                ?: return null,
                         shuffleEndpoint =
                             renderer.menuPlaylistEndpoint("MUSIC_SHUFFLE") ?: return null,
                         radioEndpoint =

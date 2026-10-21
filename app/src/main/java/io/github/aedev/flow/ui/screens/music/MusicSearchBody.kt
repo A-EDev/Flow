@@ -7,10 +7,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,8 +29,8 @@ import io.github.aedev.flow.ui.components.music.card.TopResultCard
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.search.SearchFilterChips
-import io.github.aedev.flow.ui.components.music.search.musicSearchFilters
 import io.github.aedev.flow.ui.components.music.search.SearchSuggestionRow
+import io.github.aedev.flow.ui.components.music.search.musicSearchFilters
 import io.github.aedev.flow.ui.components.music.search.searchSummaryTitle
 import io.github.aedev.flow.ui.components.music.section.MusicMoodsShelf
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus

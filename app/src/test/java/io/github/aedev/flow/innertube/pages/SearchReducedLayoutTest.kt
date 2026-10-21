@@ -53,11 +53,22 @@ class SearchReducedLayoutTest {
 
     @Test
     fun `the reduced summary keeps songs, artists, albums and playlists, and leaves out profiles`() {
-        val page = SearchSummaryPage.fromSearchResponse(InnerTubeJson.search(listOf(song, artist, profile, album, playlist).map(::itemSection)))
+        val page =
+            SearchSummaryPage.fromSearchResponse(
+                InnerTubeJson.search(listOf(song, artist, profile, album, playlist).map(::itemSection)),
+            )
         val items = page.summaries.flatMap { it.items }
 
         assertEquals(listOf("NIma5XOxBq0"), items.filterIsInstance<SongItem>().map { it.id })
-        assertEquals("The Neighbourhood", items.filterIsInstance<SongItem>().single().artists.single().name)
+        assertEquals(
+            "The Neighbourhood",
+            items
+                .filterIsInstance<SongItem>()
+                .single()
+                .artists
+                .single()
+                .name,
+        )
         assertEquals(listOf("UCWJOI5Z5hO1v9mI4CsRlyBg"), items.filterIsInstance<ArtistItem>().map { it.id })
         assertEquals("OLAK5uy_m9_cnU", items.filterIsInstance<AlbumItem>().single().playlistId)
         val kept = items.filterIsInstance<PlaylistItem>().single()
@@ -97,7 +108,14 @@ class SearchReducedLayoutTest {
             )
         val page = SearchSummaryPage.fromSearchResponse(InnerTubeJson.search(listOf(itemSection(withItemData))))
 
-        assertEquals("fromItemData", page.summaries.single().items.single().id)
+        assertEquals(
+            "fromItemData",
+            page.summaries
+                .single()
+                .items
+                .single()
+                .id,
+        )
     }
 
     private fun filtered(row: String) = SearchPage.toYTItem(InnerTubeJson.decodeRow(row))
@@ -122,7 +140,10 @@ class SearchReducedLayoutTest {
 
     @Test
     fun `a profile is kept as an artist without play actions`() {
-        val item = filtered(bareBrowseRow("UC9Qgl4YBSc_jg81", InnerTubeJson.USER, "Softcore", listOf(run("Profile"), separator(), run("@softcore")))) as ArtistItem
+        val item =
+            filtered(
+                bareBrowseRow("UC9Qgl4YBSc_jg81", InnerTubeJson.USER, "Softcore", listOf(run("Profile"), separator(), run("@softcore"))),
+            ) as ArtistItem
 
         assertEquals("UC9Qgl4YBSc_jg81", item.id)
         assertNull(item.shuffleEndpoint)

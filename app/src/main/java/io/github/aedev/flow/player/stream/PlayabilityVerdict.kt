@@ -108,11 +108,15 @@ internal object PlayabilityVerdict {
         freshVisitorWalled: Boolean = false,
     ): PlaybackBlock? =
         when {
-            everyClientWalled(failureReasons) -> if (freshVisitorWalled) PlaybackBlock.NETWORK_WALL else PlaybackBlock.BOT_WALL
-            else ->
+            everyClientWalled(failureReasons) -> {
+                if (freshVisitorWalled) PlaybackBlock.NETWORK_WALL else PlaybackBlock.BOT_WALL
+            }
+
+            else -> {
                 failureReasons.firstNotNullOfOrNull(::viewerBlock)
                     ?: PlaybackBlock.LOGIN_REQUIRED.takeIf {
                         failureReasons.any { StatusPattern.find(it)?.groupValues?.get(1) == "LOGIN_REQUIRED" }
                     }
+            }
         }
 }
