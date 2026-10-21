@@ -14,6 +14,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.localmedia.MediaRetrieverDecoderFactory
 import io.github.aedev.flow.data.localmedia.MediaStoreThumbnailFetcher
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.innertube.YouTube
@@ -51,7 +52,7 @@ object AppModule {
             .Builder(context)
             .components {
                 add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
-                add(VideoFrameDecoder.Factory())
+                add(MediaRetrieverDecoderFactory(VideoFrameDecoder.Factory()))
                 add(MediaStoreThumbnailFetcher.Factory(context))
             }.memoryCache {
                 MemoryCache
