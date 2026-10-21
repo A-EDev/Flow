@@ -101,4 +101,33 @@ class MusicPlaybackRecoveryPlannerTest {
 
         assertThat(failed?.resumePositionMs).isEqualTo(0L)
     }
+
+    @Test
+    fun `three songs in a row that cannot play here stop the skipping (#1378)`() {
+        val streak = MusicFailureStreak()
+
+        assertThat(streak.skipAfter(gone = false, queueSize = 50)).isTrue()
+        assertThat(streak.skipAfter(gone = false, queueSize = 50)).isTrue()
+        assertThat(streak.skipAfter(gone = false, queueSize = 50)).isFalse()
+    }
+
+    @Test
+    fun `removed songs keep skipping, but only for one pass of the queue`() {
+        val streak = MusicFailureStreak()
+
+        repeat(3) { assertThat(streak.skipAfter(gone = true, queueSize = 4)).isTrue() }
+        assertThat(streak.skipAfter(gone = true, queueSize = 4)).isFalse()
+    }
+
+    @Test
+    fun `a song that plays starts the count again`() {
+        val streak = MusicFailureStreak()
+        streak.skipAfter(gone = false, queueSize = 50)
+        streak.skipAfter(gone = false, queueSize = 50)
+
+        streak.reset()
+
+        assertThat(streak.skipAfter(gone = false, queueSize = 50)).isTrue()
+        assertThat(streak.skipAfter(gone = true, queueSize = 1)).isFalse()
+    }
 }

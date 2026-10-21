@@ -32,3 +32,32 @@ internal object MusicPlaybackRecoveryPlanner {
         return FailedItem(index = index, mediaId = mediaIds[index], resumePositionMs = resumePositionMs)
     }
 }
+
+/**
+ * Songs that failed in a row. A queue YouTube will not serve here (a country block, a dead network)
+ * would otherwise be skipped through song by song, each skip walking the whole client ladder again,
+ * and with Repeat all it never ends (#1378). Removed songs still skip, but only for one pass.
+ */
+internal class MusicFailureStreak {
+    private var unplayableInARow = 0
+    private var failedInARow = 0
+
+    /** Records a failed song: true to skip to the next one, false to stop on it. */
+    fun skipAfter(
+        gone: Boolean,
+        queueSize: Int,
+    ): Boolean {
+        failedInARow++
+        if (!gone) unplayableInARow++
+        return unplayableInARow < MAX_UNPLAYABLE_IN_A_ROW && failedInARow < queueSize
+    }
+
+    fun reset() {
+        unplayableInARow = 0
+        failedInARow = 0
+    }
+
+    companion object {
+        const val MAX_UNPLAYABLE_IN_A_ROW = 3
+    }
+}

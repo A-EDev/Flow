@@ -60,6 +60,7 @@ import io.github.aedev.flow.data.scrobble.ScrobbleRules
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.MusicFailureStreak
 import io.github.aedev.flow.player.MusicLoadErrorPolicy
 import io.github.aedev.flow.player.MusicMutePause
 import io.github.aedev.flow.player.MusicPlaybackDiagnostics
@@ -82,6 +83,7 @@ import io.github.aedev.flow.player.musicvideo.MusicVideoSwitch
 import io.github.aedev.flow.player.restoredMusicQueue
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.player.stream.ClientGateTracker
+import io.github.aedev.flow.player.stream.PlaybackBlock
 import io.github.aedev.flow.service.auto.AutoLibrary
 import io.github.aedev.flow.service.auto.AutoLibraryBrowser
 import io.github.aedev.flow.utils.MusicPlayerUtils
@@ -204,6 +206,8 @@ class Media3MusicService : MediaLibraryService() {
     private val lastPlaybackErrorAtMap = mutableMapOf<String, Long>()
 
     private val recentlyFailedSongs = LinkedHashSet<String>()
+
+    private val failureStreak = MusicFailureStreak()
 
     private var pendingRetryJob: Job? = null
 
@@ -493,6 +497,7 @@ class Media3MusicService : MediaLibraryService() {
                     if (!versionSwap) {
                         finalizeListenSession()
                         startListenSession(mediaItem?.mediaId)
+                        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) failureStreak.reset()
                     }
                     applyLoudnessGain()
 
@@ -573,6 +578,7 @@ class Media3MusicService : MediaLibraryService() {
                         refreshLearnDuration()
                         if (player.isPlaying) scheduleScrobbleCheck()
                         applyLoudnessGain()
+                        failureStreak.reset()
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
                             if (System.currentTimeMillis() - lastErrorAt > RECOVERY_SUCCESS_GRACE_MS) {
@@ -838,13 +844,21 @@ class Media3MusicService : MediaLibraryService() {
         if (MusicLoadErrorPolicy.isUnavailable(error)) {
             Log.w(TAG, "$mediaId is unavailable on every client, skipping without retries")
             PlayerDiagnostics.logWarning(TAG, "music $mediaId unavailable on every client, skipped")
-            handleFinalFailure(failed, getString(R.string.music_playback_warning_unavailable))
+            handleFinalFailure(failed, getString(R.string.music_playback_warning_unavailable), gone = true)
+            return
+        }
+
+        MusicLoadErrorPolicy.viewerBlockOf(error)?.let { block ->
+            Log.w(TAG, "$mediaId refused to this viewer: $block")
+            PlayerDiagnostics.logWarning(TAG, "music $mediaId refused: $block")
+            // Every next song would hit the same limit, and each try deepens it.
+            handleFinalFailure(failed, blockWarning(block), keepSkipping = block != PlaybackBlock.RATE_LIMITED)
             return
         }
 
         if (recentlyFailedSongs.contains(mediaId)) {
             Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
-            skipPastFailedItem(failed)
+            skipOrStop(failed, gone = false)
             return
         }
 
@@ -1193,9 +1207,34 @@ class Media3MusicService : MediaLibraryService() {
             }
     }
 
+    private fun blockWarning(block: PlaybackBlock): String =
+        getString(
+            when (block) {
+                PlaybackBlock.REGION -> R.string.error_geo_restricted
+                PlaybackBlock.RATE_LIMITED -> R.string.music_playback_warning_rate_limited
+                else -> R.string.music_playback_warning_members_or_paid
+            },
+        )
+
+    private fun skipOrStop(
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
+        gone: Boolean,
+        keepSkipping: Boolean = true,
+    ) {
+        if (keepSkipping && failureStreak.skipAfter(gone, player.mediaItemCount)) {
+            skipPastFailedItem(failed)
+        } else {
+            Log.w(TAG, "Stopping on ${failed.mediaId} instead of skipping through more failing songs")
+            PlayerDiagnostics.logWarning(TAG, "music stopped on ${failed.mediaId} after a failure streak")
+            player.pause()
+        }
+    }
+
     private fun handleFinalFailure(
         failed: MusicPlaybackRecoveryPlanner.FailedItem,
         warning: String = getString(R.string.music_playback_warning_final),
+        gone: Boolean = false,
+        keepSkipping: Boolean = true,
     ) {
         val mediaId = failed.mediaId
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
@@ -1206,7 +1245,7 @@ class Media3MusicService : MediaLibraryService() {
             recentlyFailedSongs.iterator().next().let { recentlyFailedSongs.remove(it) }
         }
         recentlyFailedSongs.add(mediaId)
-        skipPastFailedItem(failed)
+        skipOrStop(failed, gone, keepSkipping)
     }
 
     private fun notifyMusicWarning(message: String) {
