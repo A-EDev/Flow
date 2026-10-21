@@ -2838,4 +2838,19 @@
     <string name="lyrics_keep_screen_on_summary">Mentre i testi sono visibili e la musica è in riproduzione</string>
     <string name="player_appearance_follow_light_theme_title">Chiaro nel tema chiaro</string>
     <string name="player_appearance_follow_light_theme_subtitle">Gli sfondi della copertina diventano chiari</string>
+    <string name="player_appearance_sleep_timer_button_title">Pulsante timer di spegnimento</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">Mostralo affianco al pulsante di coda</string>
+    <plurals name="course_lessons_count">
+        <item quantity="one">Corso · %d lezione</item>
+        <item quantity="many">Corso · %d lezioni</item>
+        <item quantity="other">Corso · %d lezioni</item>
+    </plurals>
+    <string name="search_filter_group_watched">Guardati</string>
+    <string name="search_filter_recently_uploaded">Caricati di recente</string>
+    <string name="search_filter_watch_any">Guardati o non guardati</string>
+    <string name="search_filter_unwatched">Non guardati</string>
+    <string name="search_filter_watched">Gurdati</string>
+    <string name="search_watch_empty_watched">Nessun video guardato presente</string>
+    <string name="search_watch_empty_unwatched">Nessun video non guardato presente</string>
+    <string name="deep_flow_on_search_title">Mostra in ricerca</string>
 </resources>
