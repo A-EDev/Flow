@@ -1,7 +1,9 @@
 package io.github.aedev.flow.data.recommendation
 
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
+import java.io.File
 
 class NeuroSpecificityTest {
     private val tokenizer = NeuroTokenizer()
@@ -42,6 +44,27 @@ class NeuroSpecificityTest {
         val weighted = NeuroVectorMath.topicSimilarity(viewer, shared, tokenizer::specificity)
 
         assertThat(weighted).isLessThan(plain * 0.3)
+    }
+
+    @Test
+    fun `the Chinese table holds only words the word breaker keeps whole`() {
+        val file = File("src/main/resources/neuro/freq/zh.txt")
+        val lines = file.readLines().filter { it.isNotBlank() }
+        val whole =
+            lines.filter { line ->
+                val word = NeuroText.fold(line.substringBeforeLast(' '))
+                word.length >= 2 && NeuroText.words(word, IcuWordBreaker) == listOf(word)
+            }
+        if (System.getenv("NEURO_WRITE_FREQ_ZH") == "1") file.writeText(whole.joinToString("\n") + "\n")
+        assertWithMessage("run the test with NEURO_WRITE_FREQ_ZH=1").that(whole).isEqualTo(lines)
+    }
+
+    @Test
+    fun `Chinese words every subject uses are not specific`() {
+        val chinese = NeuroTokenizer(IcuWordBreaker).also { it.languageProfile = "zh" }
+
+        listOf("新闻", "电影", "音乐", "游戏", "时候").forEach { assertWithWord(it).that(chinese.specificity(it)).isLessThan(0.5) }
+        assertThat(chinese.specificity("台积电")).isEqualTo(1.0)
     }
 
     private fun assertWithWord(word: String) =

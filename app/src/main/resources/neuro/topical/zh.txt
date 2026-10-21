@@ -1,4 +1,4 @@
-# Channel-name topics for Chinese, Traditional and Simplified spellings. Each entry is one word of the platform word breaker.
+# zh channel-name topics. Each entry folded to Hans is one breaker word.
 新聞
 新闻
 英文
@@ -52,8 +52,6 @@
 哲學
 哲学
 心理
-心理學
-紀錄片
 喜劇
 喜剧
 手機
@@ -92,9 +90,6 @@
 相機
 相机
 機車
-摩托車
-腳踏車
-自行車
 裝修
 装修
 木工
@@ -105,6 +100,5 @@
 编织
 創業
 创业
-行銷
 商業
 商业

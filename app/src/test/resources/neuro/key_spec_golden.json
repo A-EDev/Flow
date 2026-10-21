@@ -1,6 +1,6 @@
 {
-  "keySpec": 2,
-  "about": "NeuroKeySpec stages 1 to 6 and 8 (stems): each input's chunks, model pairs and formats, read with the viewer's language profile (en unless a case names one) and the stop lists in resources/neuro/stop. Flow Desktop checks the same cases. Hand-reviewed; Chinese, Japanese and Thai need the platform word breaker and are checked on a device.",
+  "keySpec": 3,
+  "about": "NeuroKeySpec stages 1 to 6 and 8 (stems): each input's chunks, model pairs and formats, read with the viewer's language profile (en unless a case names one) and the stop lists in resources/neuro/stop. Flow Desktop checks the same cases. Hand-reviewed. Chinese cases are read with a dictionary word breaker such as ICU4J (the JDK breaker does not split Chinese); they also hold merged (the candidate runs of Han characters) and singles (the single Han characters), and a Chinese key is Simplified. Japanese and Thai are checked on a device.",
   "cases": [
     {"input": "Why Big Tech's Privacy Promises Are Lies", "chunks": [["big", "tech", "privaci", "promises"], ["lie"]], "modelPairs": [], "formats": []},
     {"input": "Why Big Tech’s Privacy Promises Are Lies", "chunks": [["big", "tech", "privaci", "promises"], ["lie"]], "modelPairs": [], "formats": []},
@@ -76,6 +76,18 @@
     {"input": "Les meilleures recettes de crêpes pour le goûter", "languageProfile": "fr", "chunks": [["meilleur", "recet"], ["crêp"], ["goût"]], "modelPairs": [], "formats": []},
     {"input": "Как приготовить борщ дома", "languageProfile": "ru", "chunks": [["приготовить", "борщ", "дом"]], "modelPairs": [], "formats": []},
     {"input": "Warum der Himmel blau ist", "languageProfile": "de", "chunks": [["himmel", "blau"]], "modelPairs": [], "formats": []},
-    {"input": "How to make the best pizza at home", "languageProfile": "es", "chunks": [["pizz"], ["home"]], "modelPairs": [], "formats": []}
+    {"input": "How to make the best pizza at home", "languageProfile": "es", "chunks": [["pizz"], ["home"]], "modelPairs": [], "formats": []},
+    {"input": "【4K】周杰倫 演唱會 完整版", "chunks": [["4k"], ["演唱"]], "modelPairs": [], "formats": [], "merged": ["周杰伦", "演唱会"], "singles": ["周", "杰", "伦", "会", "版"]},
+    {"input": "【4K】周杰伦 演唱会 完整版", "chunks": [["4k"], ["演唱"]], "modelPairs": [], "formats": [], "merged": ["周杰伦", "演唱会"], "singles": ["周", "杰", "伦", "会", "版"]},
+    {"input": "原神 5.0 新角色 瑪維卡 培養攻略", "chunks": [["角色"], ["培养"]], "modelPairs": [], "formats": ["walkthrough"], "merged": ["原神", "新角色", "玛维卡"], "singles": ["原", "神", "新", "玛", "维", "卡"]},
+    {"input": "iPhone 17 Pro 開箱評測", "chunks": [["iphon"], ["pro"]], "modelPairs": ["iphon 17"], "formats": ["unboxing", "review"], "merged": [], "singles": ["开", "箱", "评", "测"]},
+    {"input": "李永樂老師 講解 相對論", "chunks": [["永乐", "老师"], ["相对"]], "modelPairs": [], "formats": ["explainer"], "merged": ["李永乐", "相对论"], "singles": ["李", "论"]},
+    {"input": "半導體台積電先進製程分析", "chunks": [["半导体"], ["先进", "制程", "分析"]], "modelPairs": [], "formats": [], "merged": ["台积电"], "singles": ["台", "积", "电"]},
+    {"input": "老高與小茉 的故事", "chunks": [["故事"]], "modelPairs": [], "formats": [], "merged": ["老高", "小茉"], "singles": ["老", "高", "小", "茉"]},
+    {"input": "TVBS新聞 直播 今天的重大新聞", "chunks": [["tvbs", "新闻"], ["重大", "新闻"]], "modelPairs": [], "formats": ["live"], "merged": [], "singles": []},
+    {"input": "英語學習 英语学习 如何學好英文", "chunks": [["英语", "学习", "英语", "学习"], ["学好", "英文"]], "modelPairs": [], "formats": [], "merged": [], "singles": []},
+    {"input": "我們沒有什麼好說的", "chunks": [["好说"]], "modelPairs": [], "formats": [], "merged": [], "singles": []},
+    {"input": "宮崎駿 ジブリ 名作 解説", "chunks": [["宮崎"], ["ジブリ", "名作", "解説"]], "modelPairs": [], "formats": [], "merged": [], "singles": []},
+    {"input": "米津玄師 新曲 Lemon", "chunks": [["米津"], ["新曲", "lemon"]], "modelPairs": [], "formats": [], "merged": ["玄师", "米津玄师"], "singles": ["玄", "师"]}
   ]
 }

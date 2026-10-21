@@ -17,9 +17,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 import java.io.File
 
-/** Key spec 1 ([NeuroKeySpec]): the shared golden cases, and the rules for runs. */
+/** Key spec 3 ([NeuroKeySpec]): the shared golden cases, and the rules for runs. */
 class NeuroKeySpecTest {
-    private val tokenizer = NeuroTokenizer()
+    private val tokenizer = NeuroTokenizer(IcuWordBreaker)
 
     private fun key(phrase: String) = tokenizer.keysOf(phrase).single()
 
@@ -40,6 +40,8 @@ class NeuroKeySpecTest {
             assertWithMessage(input).that(chunks.chunks).isEqualTo(case.getValue("chunks").jsonArray.map { it.jsonArray.strings() })
             assertWithMessage(input).that(chunks.modelPairs).isEqualTo(case.getValue("modelPairs").jsonArray.strings())
             assertWithMessage(input).that(chunks.formats.toList()).isEqualTo(case.getValue("formats").jsonArray.strings())
+            case["merged"]?.let { assertWithMessage(input).that(chunks.merged).isEqualTo(it.jsonArray.strings()) }
+            case["singles"]?.let { assertWithMessage(input).that(chunks.singles.toList()).isEqualTo(it.jsonArray.strings()) }
         }
     }
 

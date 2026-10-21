@@ -101,15 +101,34 @@ internal object NeuroLanguages {
             else -> language
         }
 
+    /** Only the `zh` lists fold Han; `ja` and `ko` keep their kanji and hanja. */
+    fun listFold(language: String): HanFold = if (language == "zh") HanFold.UNLESS_KANA else HanFold.NONE
+
     /** [language]'s stop words, folded, or none when it has no list. Read once per process. */
     fun stopList(language: String): Set<String> {
         if (language !in STOP_LIST_LANGUAGES) return emptySet()
         return stopLists.getOrPut(language) {
             val stream = NeuroLanguages::class.java.getResourceAsStream("/neuro/stop/$language.txt") ?: return@getOrPut emptySet()
             stream.bufferedReader(Charsets.UTF_8).useLines { lines ->
-                lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapTo(HashSet()) { NeuroText.fold(it.trim()) }
+                lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapTo(HashSet()) { NeuroText.fold(it.trim(), listFold(language)) }
             }
         }
+    }
+
+    private val runBreakSets = ConcurrentHashMap<String, Set<Char>>()
+
+    /** Merged-run break characters of [language] (`resources/neuro/runbreak`), or null: no merge. */
+    fun runBreaks(language: String): Set<Char>? {
+        val set =
+            runBreakSets.getOrPut(language) {
+                val stream = NeuroLanguages::class.java.getResourceAsStream("/neuro/runbreak/$language.txt") ?: return@getOrPut emptySet()
+                stream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.filter { it.isNotBlank() && !it.startsWith("#") }.mapTo(HashSet()) {
+                        NeuroText.fold(it.trim(), listFold(language)).single()
+                    }
+                }
+            }
+        return set.takeIf { it.isNotEmpty() }
     }
 
     private val TOPICAL_LANGUAGES = listOf("zh")

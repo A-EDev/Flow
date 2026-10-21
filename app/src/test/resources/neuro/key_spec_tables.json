@@ -1,5 +1,5 @@
 {
-    "keySpec": 2,
+    "keySpec": 3,
     "about": "Tables NeuroKeySpec reads titles by, written by KeySpecTablesTest. Flow Desktop mirrors this file.",
     "maxRunWords": 3,
     "maxKeyLength": 40,
@@ -1111,43 +1111,55 @@
             "compilation",
             "compilación",
             "compilação",
-            "подборка"
+            "подборка",
+            "合集",
+            "混剪"
         ],
         "cover": [
             "cover",
             "covers",
-            "кавер"
+            "кавер",
+            "翻唱"
         ],
         "documentary": [
             "documentary",
             "documental",
             "documentário",
             "documentaire",
-            "belgesel"
+            "belgesel",
+            "纪录片"
         ],
         "explainer": [
             "explained",
-            "explainer"
+            "explainer",
+            "解说",
+            "讲解"
         ],
         "gameplay": [
             "gameplay",
-            "геймплей"
+            "геймплей",
+            "实况"
         ],
         "highlights": [
             "highlights",
             "resumen",
-            "хайлайты"
+            "хайлайты",
+            "集锦"
         ],
         "interview": [
             "interview",
             "interviews",
             "entrevista",
             "интервью",
-            "röportaj"
+            "röportaj",
+            "采访",
+            "访谈",
+            "专访"
         ],
         "live": [
             "live",
-            "livestream"
+            "livestream",
+            "直播"
         ],
         "playalong": [
             "playalong"
@@ -1155,7 +1167,8 @@
         "podcast": [
             "podcast",
             "podcasts",
-            "подкаст"
+            "подкаст",
+            "播客"
         ],
         "reaction": [
             "reaction",
@@ -1170,7 +1183,8 @@
         "remix": [
             "remix",
             "remixes",
-            "ремикс"
+            "ремикс",
+            "混音"
         ],
         "review": [
             "review",
@@ -1179,7 +1193,10 @@
             "análisis",
             "análise",
             "обзор",
-            "inceleme"
+            "inceleme",
+            "评测",
+            "测评",
+            "点评"
         ],
         "tier list": [
             "tier list"
@@ -1189,19 +1206,24 @@
             "teaser",
             "tráiler",
             "трейлер",
-            "fragman"
+            "fragman",
+            "预告",
+            "预告片"
         ],
         "tutorial": [
             "tutorial",
             "tutorials",
             "tuto",
             "tutoriel",
-            "урок"
+            "урок",
+            "教程",
+            "教学"
         ],
         "unboxing": [
             "unboxing",
             "déballage",
-            "распаковка"
+            "распаковка",
+            "开箱"
         ],
         "versus": [
             "versus",
@@ -1214,7 +1236,9 @@
         "walkthrough": [
             "walkthrough",
             "playthrough",
-            "прохождение"
+            "прохождение",
+            "攻略",
+            "通关"
         ]
     },
     "functionWords": {

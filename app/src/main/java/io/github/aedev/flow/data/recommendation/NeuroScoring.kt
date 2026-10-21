@@ -238,6 +238,15 @@ internal object NeuroScoring {
             "build",
             "design",
             "travel",
+            // Hans keys.
+            "新闻",
+            "音乐",
+            "游戏",
+            "科技",
+            "电影",
+            "教育",
+            "美食",
+            "旅游",
         )
 
     // ── Time Decay Engine ──
@@ -704,7 +713,7 @@ internal object NeuroScoring {
         val tokens = mutableSetOf<String>()
 
         fun addTerm(term: String) {
-            val lower = term.lowercase().trim()
+            val lower = NeuroText.fold(term, HanFold.ALWAYS).trim()
             if (lower.isEmpty()) return
             if (lower.contains(' ')) {
                 phrases += lower
@@ -733,8 +742,8 @@ internal object NeuroScoring {
         normalizeLemma: (String) -> String,
     ): Boolean {
         if (matchers.isEmpty()) return false
-        val titleLower = NeuroText.fold(title)
-        val channelLower = NeuroText.fold(channelName)
+        val titleLower = NeuroText.fold(title, HanFold.ALWAYS)
+        val channelLower = NeuroText.fold(channelName, HanFold.ALWAYS)
         if (matchers.phrases.any { titleLower.contains(it) || channelLower.contains(it) }) return true
         if (matchers.tokens.isEmpty()) return false
         return sequenceOf(titleLower, channelLower)

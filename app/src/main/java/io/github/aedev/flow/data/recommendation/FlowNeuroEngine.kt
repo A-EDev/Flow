@@ -509,6 +509,8 @@ class FlowNeuroEngine internal constructor(
                     if (maintained !== currentUserBrain) {
                         if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION) {
                             storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_2_SCHEMA_VERSION)
+                        } else if (currentUserBrain.schemaVersion < NeuroMaintenance.KEY_SPEC_3_SCHEMA_VERSION) {
+                            storage.keepCopyBeforeMigration(currentUserBrain, NeuroMaintenance.KEY_SPEC_3_SCHEMA_VERSION)
                         }
                         currentUserBrain = maintained
                         storage.save(deepFlowBookkeeping.persistable(currentUserBrain))
@@ -925,7 +927,7 @@ class FlowNeuroEngine internal constructor(
     suspend fun getBlockedTopics(): Set<String> = withBrainLock { currentUserBrain.blockedTopics }
 
     suspend fun addBlockedTopic(topic: String) {
-        val normalized = NeuroText.fold(topic).trim()
+        val normalized = tokenizer.fold(topic).trim()
         if (normalized.isBlank()) return
         withBrainLock {
             val lemma = tokenizer.keyOf(normalized)
