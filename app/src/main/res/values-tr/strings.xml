@@ -2081,4 +2081,20 @@
     <string name="fallback_your_watch_later_list">Daha Sonra İzle listen</string>
     <string name="fallback_downloaded_locally">Cihaza indirildi</string>
     <string name="fallback_more_results">Daha fazla sonuç</string>
+    <string name="top_bar_close_search">Kapsamlı Arama</string>
+    <string name="home_load_more_failed">Daha fazla video yüklenmedi</string>
+    <string name="home_load_more_failed_body">Bağlantınızı kontrol ediniz</string>
+    <string name="home_refresh_failed">Feed\'iniz yenilenmedi</string>
+    <string name="subscriptions_failed_channels_copy_logs">kopya kayıtları</string>
+    <string name="channel_add_to_group">Gruba ekle</string>
+    <string name="channel_groups_sheet_title">Kanal grupları</string>
+    <string name="channel_groups_empty">Henüz grup yok</string>
+    <string name="conjunction_and">ve</string>
+    <string name="music_home_lastfm_discover">last.fm ile keşfet</string>
+    <string name="scrobbling_import_failed">En iyi sanatçılarınız okunamadı</string>
+    <string name="scrobbling_import_none">Eklenecek yeni sanatçı yok</string>
+    <string name="scrobbling_import_later">şu anda değil</string>
+    <string name="scrobbling_import_summary">En çok çaldığınız sanatçıları favorilerine ekle</string>
+    <string name="scrobbling_hide_secret">Gizli</string>
+    <string name="scrobbling_show_secret">Göstermek</string>
 </resources>
