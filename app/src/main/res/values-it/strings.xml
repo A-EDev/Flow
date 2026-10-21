@@ -2826,4 +2826,16 @@
     <string name="ui_crashed_last_session">Flow si è interrotto in modo anomalo durante l\'ultima sessione</string>
     <string name="ui_copy_log_description">Copia il log sottostante e incollalo in una segnalazione su GitHub in modo che possa essere risolto.</string>
     <string name="ui_search_settings">Cerca impostazioni…</string>
+    <string name="home_load_more_failed">Impossibile caricare altri video</string>
+    <string name="home_load_more_failed_body">Controlla la tua connessione</string>
+    <string name="home_refresh_failed">Impossibile aggiornare il feed</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Controllo di %1$d su %2$d canale per Short e dirette</item>
+        <item quantity="many">Controllo di %1$d su %2$d canali per Short e dirette</item>
+        <item quantity="other">Controllo di %1$d su %2$d canali per Short e dirette</item>
+    </plurals>
+    <string name="lyrics_keep_screen_on">Mantieni lo schermo acceso</string>
+    <string name="lyrics_keep_screen_on_summary">Mentre i testi sono visibili e la musica è in riproduzione</string>
+    <string name="player_appearance_follow_light_theme_title">Chiaro nel tema chiaro</string>
+    <string name="player_appearance_follow_light_theme_subtitle">Gli sfondi della copertina diventano chiari</string>
 </resources>

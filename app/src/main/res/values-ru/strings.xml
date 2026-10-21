@@ -3798,7 +3798,7 @@
     <string name="music_watch_video_desc">Откройте музыкальное видео в видеоплеере.</string>
     <string name="player_appearance_animated_artwork_wifi_title">Анимированные изображения доступны только по Wi-Fi.</string>
     <string name="music_persona_empty">Включите музыку — и Engine начнёт учиться.</string>
-    <string name="section_top_artists_in">Лучшие артисты в %1$</string>
+    <string name="section_top_artists_in">Лучшие артисты в %1$s</string>
     <string name="eq_band_title">"Группа  %1$d"</string>
     <string name="note_placeholder">"Написать  примечание для себя…"</string>
     <string name="playlist_move_to_music">перейти в музыку</string>

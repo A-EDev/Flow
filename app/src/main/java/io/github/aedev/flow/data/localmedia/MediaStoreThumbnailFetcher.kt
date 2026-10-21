@@ -9,7 +9,7 @@ import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.request.Options
-import kotlinx.coroutines.Dispatchers
+import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
@@ -24,7 +24,7 @@ class MediaStoreThumbnailFetcher(
     private val uri: android.net.Uri,
 ) : Fetcher {
     override suspend fun fetch(): FetchResult =
-        withContext(Dispatchers.IO) {
+        withContext(PerformanceDispatcher.mediaRetriever) {
             val bitmap = MediaStoreThumbnails.load(context, uri, ARTWORK_SIZE_PX) ?: throw IOException("No artwork for $uri")
             ImageFetchResult(image = bitmap.asImage(), isSampled = true, dataSource = DataSource.DISK)
         }
