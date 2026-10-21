@@ -7,6 +7,7 @@ import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContex
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_AUDIOBOOK
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_LIBRARY_ARTIST
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_PLAYLIST
+import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_UNKNOWN
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -37,16 +38,38 @@ data class MusicResponsiveListItemRenderer(
     val isArtist: Boolean
         get() = navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_ARTIST
                 || navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType == MUSIC_PAGE_TYPE_LIBRARY_ARTIST
+                || isUntypedArtist
+
+    // The reduced search answer types artists and profiles alike as UNKNOWN; only an artist has a radio.
+    private val isUntypedArtist: Boolean
+        get() =
+            navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType ==
+                MUSIC_PAGE_TYPE_UNKNOWN &&
+                navigationEndpoint.browseEndpoint.browseId.startsWith("UC") &&
+                menuPlaylistEndpoint("MIX") != null
+
+    private val playNavigationEndpoint: NavigationEndpoint?
+        get() = overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
+
+    /** The row's video, also when YouTube leaves out [playlistItemData], as its reduced search answer does (#1379). */
+    val videoId: String?
+        get() =
+            playlistItemData?.videoId
+                ?: playNavigationEndpoint?.watchEndpoint?.videoId
+                ?: navigationEndpoint?.watchEndpoint?.videoId
+
+    /** The playlist the menu item with [iconType] plays, e.g. `MUSIC_SHUFFLE` or `MIX`. */
+    fun menuPlaylistEndpoint(iconType: String): WatchEndpoint? =
+        menu
+            ?.menuRenderer
+            ?.items
+            ?.find { it.menuNavigationItemRenderer?.icon?.iconType == iconType }
+            ?.menuNavigationItemRenderer
+            ?.navigationEndpoint
+            ?.watchPlaylistEndpoint
 
     val musicVideoType: String?
-        get() =
-            overlay
-                ?.musicItemThumbnailOverlayRenderer
-                ?.content
-                ?.musicPlayButtonRenderer
-                ?.playNavigationEndpoint
-                ?.musicVideoType
-                ?: navigationEndpoint?.musicVideoType
+        get() = playNavigationEndpoint?.musicVideoType ?: navigationEndpoint?.musicVideoType
 
     @Serializable
     data class FlexColumn(
