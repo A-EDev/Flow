@@ -73,6 +73,14 @@ object PerformanceDispatcher {
     val diskIO: CoroutineDispatcher = Dispatchers.IO
 
     /**
+     * Fan-out work on `MediaMetadataRetriever`. Every retriever's `release()` and finalizer share one
+     * process-wide native lock, and a release waits on mediaserver while holding it; dozens of image
+     * loads at once kept the finalizer daemon queued past its 10 s watchdog, which kills the app (#1353).
+     */
+    val mediaRetriever: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(MEDIA_RETRIEVER_PARALLELISM)
+    private const val MEDIA_RETRIEVER_PARALLELISM = 2
+
+    /**
      * Main thread dispatcher for UI updates
      */
     val main: CoroutineDispatcher = Dispatchers.Main
