@@ -3738,4 +3738,14 @@
         <item quantity="many">%d de músicas da biblioteca do YouTube Music</item>
         <item quantity="other">%d músicas da biblioteca do YouTube Music</item>
     </plurals>
+    <string name="home_load_more_failed">Não foi possível carregar mais vídeos</string>
+    <string name="home_load_more_failed_body">Cheque sua conexão</string>
+    <string name="home_refresh_failed">Não foi possível atualizar seu feed</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">Checando %1$d de %2$d canal para Shorts e live</item>
+        <item quantity="many">Checando %1$d de %2$d canais para Shorts e live</item>
+        <item quantity="other">Checando %1$d de %2$d canais para Shorts e live</item>
+    </plurals>
+    <string name="lyrics_keep_screen_on">Manter a tela ligada</string>
+    <string name="lyrics_keep_screen_on_summary">Enquanto as letras estão a mostra e a música toca</string>
 </resources>
