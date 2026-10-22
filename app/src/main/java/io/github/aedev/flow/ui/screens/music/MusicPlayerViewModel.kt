@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.music
 
 import android.content.Context
 import android.net.Uri
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
@@ -41,7 +40,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
-import kotlin.math.abs
 
 @HiltViewModel
 class MusicPlayerViewModel
@@ -76,8 +74,7 @@ class MusicPlayerViewModel
 
         private var isInitialized = false
         private var loadTrackJob: kotlinx.coroutines.Job? = null
-        private var pendingSeekPosition: Long? = null
-        private var pendingSeekStartedAtMs: Long = 0L
+        private val seekGuard = MusicSeekGuard()
         private val radioSwitch = MusicRadioSwitch(viewModelScope, _uiState, playerPreferences)
         private val lyrics =
             MusicPlayerLyrics(
@@ -145,7 +142,7 @@ class MusicPlayerViewModel
 
             viewModelScope.launch {
                 EnhancedMusicPlayerManager.currentPosition.collect { position ->
-                    acceptedPlaybackPosition(position)?.let { acceptedPosition ->
+                    seekGuard.accept(position)?.let { acceptedPosition ->
                         _currentPositionMs.value = acceptedPosition
                     }
                 }
@@ -498,31 +495,9 @@ class MusicPlayerViewModel
                 _uiState.value.duration.takeIf { it > 0 }
                     ?: EnhancedMusicPlayerManager.getDuration().takeIf { it > 0 }
             val target = duration?.let { position.coerceIn(0L, it) } ?: position.coerceAtLeast(0L)
-            pendingSeekPosition = target
-            pendingSeekStartedAtMs = SystemClock.elapsedRealtime()
+            seekGuard.seekRequested(target)
             EnhancedMusicPlayerManager.seekTo(target)
             _currentPositionMs.value = target
-        }
-
-        private fun acceptedPlaybackPosition(position: Long): Long? {
-            val pending = pendingSeekPosition ?: return position
-            val elapsedMs = SystemClock.elapsedRealtime() - pendingSeekStartedAtMs
-            val seekHasLanded = abs(position - pending) <= SEEK_POSITION_CONFIRM_TOLERANCE_MS
-            val guardExpired = elapsedMs >= SEEK_POSITION_GUARD_MS
-
-            if (seekHasLanded) {
-                if (elapsedMs >= SEEK_POSITION_MIN_HOLD_MS) {
-                    pendingSeekPosition = null
-                }
-                return position
-            }
-
-            if (guardExpired) {
-                pendingSeekPosition = null
-                return position
-            }
-
-            return null
         }
 
         fun skipToNext() {
@@ -630,7 +605,3 @@ class MusicPlayerViewModel
             super.onCleared()
         }
     }
-
-private const val SEEK_POSITION_CONFIRM_TOLERANCE_MS = 1_000L
-private const val SEEK_POSITION_MIN_HOLD_MS = 250L
-private const val SEEK_POSITION_GUARD_MS = 1_500L
