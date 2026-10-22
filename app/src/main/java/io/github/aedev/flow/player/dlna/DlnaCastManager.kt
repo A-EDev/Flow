@@ -89,7 +89,7 @@ object DlnaCastManager {
 
     private var positionPollingJob: Job? = null
 
-    private enum class CastMode { SEGMENTED, WHOLE_FILE, MUXED }
+    private enum class CastMode { SEGMENTED_AV1, SEGMENTED, WHOLE_FILE, MUXED }
 
     // In memory only: the first cast to a renderer after an app start probes the ladder again.
     private val failedCastModes = ConcurrentHashMap<String, MutableSet<CastMode>>()
@@ -297,10 +297,10 @@ object DlnaCastManager {
      * The proxy runs on the phone and relays the stream, so the renderer
      * connects to the phone instead of YouTube.
      *
-     * Tries each [CastMode] in order, skipping those a renderer already failed:
-     * segmented fMP4 HLS starts in seconds but older renderers can't play it, single-segment HLS
-     * works there but downloads the whole file first, and a pre-muxed stream (or
-     * [currentPlayerUrl]) is the last resort.
+     * Tries each [CastMode] in order, skipping those a renderer already failed: AV1 goes above
+     * 1080p but most renderers can't decode it, segmented fMP4 HLS starts in seconds but older
+     * renderers can't play it, single-segment HLS works there but downloads the whole file first,
+     * and a pre-muxed stream (or [currentPlayerUrl]) is the last resort.
      *
      * @param currentPlayerUrl the currently-playing media URI, supplied by the caller so this
      *   manager stays decoupled from the player engine; used as a last-resort fallback.
@@ -314,12 +314,12 @@ object DlnaCastManager {
         muxedStreams: List<VideoStream>,
         durationSeconds: Long,
     ) {
-        val videoVariants =
+        // Renderers fail playlists that mix codecs, so each playlist carries a single variant.
+        fun bestVariants(codecKey: String): List<CastStreamVariant> =
             listOfNotNull(
                 videoOnlyStreams
                     .filter { it.height > 0 && !(it.content ?: it.url).isNullOrEmpty() }
-                    // Only the best variant is sent, and above 1080p it is AV1, which most renderers can't decode.
-                    .filter { VideoCodecUtils.codecKeyFromStream(it) == "h264" }
+                    .filter { VideoCodecUtils.codecKeyFromStream(it) == codecKey }
                     // Renderers start on the first variant listed, and each one is probed before they get the playlist.
                     .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) },
             ).map { stream ->
@@ -333,6 +333,9 @@ object DlnaCastManager {
                     segmentRanges = stream.castSegmentRanges(),
                 )
             }
+        val videoVariants = bestVariants("h264")
+        // H.264 stops at 1080p, so AV1 is only worth trying when it goes higher.
+        val av1Variants = bestVariants("av1").filter { it.height > (videoVariants.firstOrNull()?.height ?: 0) }
 
         val bestAudio =
             audioStreams
@@ -361,6 +364,7 @@ object DlnaCastManager {
         val canHls = videoVariants.isNotEmpty() && audioUrl != null
         val modes =
             listOfNotNull(
+                CastMode.SEGMENTED_AV1.takeIf { canHls && av1Variants.firstOrNull()?.segmentRanges != null && audioSegmentRanges != null },
                 CastMode.SEGMENTED.takeIf { canHls && videoVariants.first().segmentRanges != null && audioSegmentRanges != null },
                 CastMode.WHOLE_FILE.takeIf { canHls },
                 CastMode.MUXED.takeIf { muxedUrl != null },
@@ -374,27 +378,32 @@ object DlnaCastManager {
         castJob =
             scope.launch {
                 for (mode in ladder) {
+                    val (variants, audioRanges) =
+                        when (mode) {
+                            CastMode.SEGMENTED_AV1 -> av1Variants to audioSegmentRanges
+                            CastMode.SEGMENTED -> videoVariants to audioSegmentRanges
+                            else -> videoVariants.map { it.copy(segmentRanges = null) } to null
+                        }
+                    val segmented = audioRanges != null
                     // A video that can't be registered says nothing about the renderer, so it isn't remembered.
                     val (castUrl, contentType) =
                         try {
                             when (mode) {
-                                CastMode.SEGMENTED, CastMode.WHOLE_FILE -> {
-                                    val segmented = mode == CastMode.SEGMENTED
+                                CastMode.MUXED -> {
+                                    val type = guessContentType(muxedUrl!!, "video/mp4")
+                                    proxy.registerStream(muxedUrl, type) to type
+                                }
+
+                                else -> {
                                     proxy.registerHlsCast(
-                                        videoVariants =
-                                            if (segmented) videoVariants else videoVariants.map { it.copy(segmentRanges = null) },
+                                        videoVariants = variants,
                                         audioUrl = audioUrl!!,
                                         audioMime = audioMime,
                                         audioBitrate = audioBitrate,
                                         audioCodec = audioCodec,
-                                        audioSegmentRanges = if (segmented) audioSegmentRanges else null,
+                                        audioSegmentRanges = audioRanges,
                                         durationSeconds = durationSeconds,
                                     ) to "application/vnd.apple.mpegurl"
-                                }
-
-                                CastMode.MUXED -> {
-                                    val type = guessContentType(muxedUrl!!, "video/mp4")
-                                    proxy.registerStream(muxedUrl, type) to type
                                 }
                             }
                         } catch (e: Exception) {
@@ -406,7 +415,7 @@ object DlnaCastManager {
                     ensureActive()
                     try {
                         startCast(device, title, castUrl, contentType)
-                        if (mode != CastMode.SEGMENTED || awaitPlaying(device)) return@launch
+                        if (!segmented || awaitPlaying(device)) return@launch
                         Log.w(TAG, "Renderer did not start $mode within ${SEGMENTED_START_TIMEOUT_MS}ms, falling back")
                     } catch (e: CancellationException) {
                         throw e
