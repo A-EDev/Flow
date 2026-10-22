@@ -182,7 +182,13 @@ fun ShortsScreen(
 
                 VerticalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier =
+                        Modifier.fillMaxSize().shortsKeyboardShortcuts(
+                            enabled = !screenSheetOpen && !isInPip,
+                            pagerState = pagerState,
+                            shortIdAt = { uiState.shorts.getOrNull(it)?.id },
+                            playerPreferences = playerPreferences,
+                        ),
                     beyondViewportPageCount = 1,
                     key = { uiState.shorts[it].id },
                 ) { page ->
