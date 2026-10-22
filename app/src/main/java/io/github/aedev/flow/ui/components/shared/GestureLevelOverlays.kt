@@ -236,6 +236,13 @@ private fun GestureLevelHudContent(
     }
 }
 
+/**
+ * Where a read-out that is not the standing Vertical bar sits. The ring is a badge, not a bar: it
+ * belongs in the middle of the picture, where the eye is. The others read out at the top.
+ */
+fun centredGestureHudAlignment(style: GestureOverlayStyle): Alignment =
+    if (style == GestureOverlayStyle.CIRCULAR) Alignment.Center else Alignment.TopCenter
+
 /** The level every style previews at, so the picker compares shapes rather than numbers. */
 private const val PREVIEW_LEVEL = 0.62f
 private const val PREVIEW_LEVEL_PERCENT = 62

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -44,9 +46,11 @@ import io.github.aedev.flow.ui.components.shared.SpeedSwipeDrag
 import io.github.aedev.flow.ui.components.shared.SpeedSwipeOverlay
 import io.github.aedev.flow.ui.components.shared.SpeedSwipeStepTravel
 import io.github.aedev.flow.ui.components.shared.VolumeOverlay
+import io.github.aedev.flow.ui.components.shared.centredGestureHudAlignment
 import kotlin.math.abs
 
 private val HudEdgePadding = 24.dp
+private val HudTopInset = 12.dp
 
 /** Held open even where the system reports no gesture inset (button navigation, HyperOS), as the video player does. */
 private val MinSideEdgeIgnore = 24.dp
@@ -240,24 +244,35 @@ internal fun Modifier.musicSideSwipes(swipes: MusicSideSwipes?): Modifier {
     }
 }
 
-/** The read-out for a side swipe, placed by the video player's rule: centred, or opposite the thumb when vertical. */
+/**
+ * The read-out for a side swipe, placed by the video player's rule: the Vertical bar stands opposite
+ * the thumb, the others sit at the top centre just under the status bar, or in the middle for the ring.
+ */
 @Composable
 internal fun MusicSideSwipeHud(swipes: MusicSideSwipes?) {
     if (swipes == null) return
     val vertical = swipes.style == GestureOverlayStyle.VERTICAL
-    Box(modifier = Modifier.fillMaxSize().padding(horizontal = HudEdgePadding)) {
+    val centred = centredGestureHudAlignment(swipes.style)
+    val centredModifier = Modifier.padding(top = if (centred == Alignment.TopCenter) HudTopInset else 0.dp)
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = HudEdgePadding),
+    ) {
         SpeedSwipeOverlay(
             isVisible = swipes.zone == MusicSwipeZone.SPEED,
             speed = { swipes.speed },
             style = swipes.style,
-            modifier = Modifier.align(if (vertical) Alignment.CenterEnd else Alignment.Center),
+            modifier = if (vertical) Modifier.align(AbsoluteAlignment.CenterRight) else Modifier.align(centred).then(centredModifier),
         )
         VolumeOverlay(
             isVisible = swipes.zone == MusicSwipeZone.VOLUME,
             volumeLevel = { swipes.volume },
             style = swipes.style,
             maxVolumeLevel = 1f,
-            modifier = Modifier.align(if (vertical) Alignment.CenterStart else Alignment.Center),
+            modifier = if (vertical) Modifier.align(AbsoluteAlignment.CenterLeft) else Modifier.align(centred).then(centredModifier),
         )
     }
 }
