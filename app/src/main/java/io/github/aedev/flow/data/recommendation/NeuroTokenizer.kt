@@ -1283,7 +1283,7 @@ internal class NeuroTokenizer(
                         !sponsorLinePatterns.any { pattern -> lower.contains(pattern) } &&
                         !lower.contains("http") &&
                         !lower.trimStart().startsWith("#") &&
-                        !(line.trim().length > 5 && line.trim() == line.trim().uppercase())
+                        !(line.trim().length > 5 && isShouted(line))
                 }.take(DESCRIPTION_TAKE_LINES)
                 .joinToString(" ")
 
@@ -1298,6 +1298,23 @@ internal class NeuroTokenizer(
             )
         }
         return result
+    }
+
+    /**
+     * An all-caps line ("SUBSCRIBE NOW") or one with no letters at all. Chinese, Japanese and Thai
+     * have no case, so their letters count against the capitals: "【MV】周杰倫 新歌" is not shouting (#1395).
+     */
+    private fun isShouted(line: String): Boolean {
+        var capitals = 0
+        var uncased = 0
+        line.forEach { c ->
+            when {
+                c.isLowerCase() -> return false
+                c.isUpperCase() -> capitals++
+                c.isLetter() -> uncased++
+            }
+        }
+        return capitals >= uncased
     }
 
     // ══════════════════════════════════════════════
