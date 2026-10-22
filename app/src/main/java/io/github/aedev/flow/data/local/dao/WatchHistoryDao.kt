@@ -98,6 +98,14 @@ interface WatchHistoryDao {
         durationMs: Long,
     )
 
+    /** Moves only the saved place; 0 means [videoId] has no row yet. */
+    @Query("UPDATE watch_history SET position = :position, duration = :duration WHERE videoId = :videoId")
+    suspend fun updateProgress(
+        videoId: String,
+        position: Long,
+        duration: Long,
+    ): Int
+
     /** Drops saved progress without deleting the history row, so the card no longer reads as watched. */
     @Query("UPDATE watch_history SET position = 0 WHERE videoId = :videoId")
     suspend fun clearProgress(videoId: String)

@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.SpeedSwipeSide
+import io.github.aedev.flow.ui.components.equalizer.equalizerSummary
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
@@ -42,7 +43,12 @@ internal fun SettingsListScope.playbackSections(
         switch(PlaybackIndex.playDuringCalls, viewModel.playDuringCalls, viewModel::setPlayDuringCalls)
     }
     group(key = "playback.sound", header = R.string.eq_settings_section) {
-        nav(DestinationIndex.entry(SettingsDestination.EQUALIZER), onClick = { onNavigate(SettingsTarget(SettingsDestination.EQUALIZER)) })
+        nav(
+            DestinationIndex.entry(SettingsDestination.EQUALIZER),
+            onClick = { onNavigate(SettingsTarget(SettingsDestination.EQUALIZER)) },
+            valueText = { equalizerSummary() },
+        )
+        switch(PlaybackIndex.normalizeVolume, viewModel.normalizeVolume, viewModel::setNormalizeVolume)
     }
     group(key = "playback.speed", header = R.string.settings_section_speed) {
         switch(PlaybackIndex.rememberSpeed, viewModel.rememberSpeed, viewModel::setRememberSpeed)
@@ -134,6 +140,7 @@ internal fun SettingsListScope.playbackSections(
     group(key = "playback.music", header = R.string.settings_section_music) {
         switch(PlaybackIndex.endlessRadio, viewModel.endlessRadio, viewModel::setEndlessRadio)
         switch(PlaybackIndex.pauseMusicWhenMuted, viewModel.pauseMusicWhenMuted, viewModel::setPauseMusicWhenMuted)
+        switch(PlaybackIndex.musicResume, viewModel.musicResume, viewModel::setMusicResume)
         switch(PlaybackIndex.musicVideoSwitch, viewModel.musicVideoSwitch, viewModel::setMusicVideoSwitch)
         choice(PlaybackIndex.lyricsProviders, onClick = { openDialog(PlaybackDialog.LYRICS) }) {
             val providers by viewModel.lyricsProviders.collectAsStateWithLifecycle()

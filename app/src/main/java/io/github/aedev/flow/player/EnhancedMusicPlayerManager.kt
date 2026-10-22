@@ -1065,9 +1065,13 @@ object EnhancedMusicPlayerManager {
         }
     }
 
-    fun setPlaybackSpeed(speed: Float) {
+    /** A slider passes [persist] false while dragging and saves once on release. */
+    fun setPlaybackSpeed(
+        speed: Float,
+        persist: Boolean = true,
+    ) {
         _playbackSpeed.value = speed
-        scope.launch { audioSettingsPersistence?.saveSpeed(speed) }
+        if (persist) scope.launch { audioSettingsPersistence?.saveSpeed(speed) }
 
         player?.let { p ->
             val currentPitch = p.playbackParameters.pitch
@@ -1075,9 +1079,12 @@ object EnhancedMusicPlayerManager {
         }
     }
 
-    fun setPlaybackPitch(semitones: Float) {
+    fun setPlaybackPitch(
+        semitones: Float,
+        persist: Boolean = true,
+    ) {
         _playbackPitch.value = semitones
-        scope.launch { audioSettingsPersistence?.savePitch(semitones) }
+        if (persist) scope.launch { audioSettingsPersistence?.savePitch(semitones) }
 
         player?.let { p ->
             val pitch = 2.0.pow(semitones.toDouble() / 12.0).toFloat()

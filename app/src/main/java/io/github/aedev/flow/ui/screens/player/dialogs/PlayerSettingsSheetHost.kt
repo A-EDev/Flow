@@ -126,7 +126,7 @@ internal fun PlayerSettingsSheetHost(
             }.takeIf { uiState.localFilePath != null },
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
-        onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
+        onVolumeNormalizationToggle = { viewModel.toggleVolumeNormalization(it) },
         subtitleStyle = screenState.subtitleStyle,
         onSubtitleStyleChange = { style ->
             screenState.subtitleStyle = style

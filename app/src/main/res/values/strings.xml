@@ -659,6 +659,8 @@
     <string name="notifications_group_last_week">Last 7 days</string>
     <string name="notifications_meta">%1$s · %2$s</string>
     <string name="notifications_removed">Notification removed</string>
+    <string name="notifications_already_in_watch_later">Already in Watch Later</string>
+    <string name="notifications_save_to_watch_later">Save to Watch Later</string>
     <string name="notifications_open_settings">Notification settings</string>
     <string name="notifications_clear_title">Clear all notifications?</string>
     <plurals name="notifications_clear_body">
@@ -1327,8 +1329,8 @@
     <string name="speed_slider_apply">Apply</string>
     <string name="playback_speed_multiplier">%1$s×</string>
     <string name="playback_speed_multiplier_precise">%1$.2f×</string>
-    <string name="player_settings_stable_voice">Stable Voice</string>
-    <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
+    <string name="player_settings_normalize_volume">Normalize volume</string>
+    <string name="player_settings_normalize_volume_summary">Turn loud videos down to YouTube\'s level</string>
     <string name="player_settings_display">Display</string>
     <string name="player_settings_ambient_mode">Ambient mode</string>
     <string name="player_settings_ambient_mode_subtitle">A soft glow of the video\'s colors around it</string>
@@ -2147,6 +2149,8 @@
     <string name="music_watch_video">Watch video</string>
     <string name="settings_pause_music_muted_title">Pause music when muted</string>
     <string name="settings_pause_music_muted_summary">Resume when the volume comes back</string>
+    <string name="settings_music_resume_title">Resume podcasts and long tracks</string>
+    <string name="settings_music_resume_summary">Start tracks over 10 minutes where you left off</string>
     <string name="music_watch_video_desc">Open the music video in the video player</string>
     <string name="player_appearance_animated_artwork_title">Animated artwork</string>
     <string name="player_appearance_animated_artwork_subtitle">Loop an album\'s motion artwork when it has one</string>
@@ -2249,7 +2253,6 @@
     <string name="template_bass_boost">Bass Boost: %1$ddB</string>
     <string name="label_tempo_pitch">Tempo &amp; Pitch</string>
     <string name="action_reset">Reset</string>
-    <string name="template_speed">Speed: %1$d%%</string>
     <string name="template_pitch">Pitch: %1$d Semitones</string>
     <string name="label_parametric_equalizer">Parametric Equalizer</string>
     <string name="action_add_band">Add Band</string>

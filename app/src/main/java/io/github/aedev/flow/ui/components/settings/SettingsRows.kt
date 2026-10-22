@@ -102,12 +102,14 @@ fun SettingsGroupScope.choice(
 
 /**
  * A row that opens a page, dialog or sheet for [entry]. A [value] is shown under the title — the
- * current choice of a setting that opens a picker — and otherwise the entry's summary.
+ * current choice of a setting that opens a picker — and otherwise the entry's summary. [valueText]
+ * is the same for a value read from state, so a change recomposes this row alone.
  */
 fun SettingsGroupScope.nav(
     entry: SettingEntry,
     onClick: () -> Unit,
     value: String? = null,
+    valueText: (@Composable () -> String?)? = null,
     enabled: Boolean = true,
     showChevron: Boolean = true,
     selected: Boolean = false,
@@ -118,7 +120,7 @@ fun SettingsGroupScope.nav(
     FlowNavRow(
         title = stringResource(entry.title),
         modifier = modifier,
-        supportingText = value ?: entry.summaryText(),
+        supportingText = valueText?.invoke() ?: value ?: entry.summaryText(),
         onClick = onClick,
         enabled = enabled,
         showChevron = showChevron,

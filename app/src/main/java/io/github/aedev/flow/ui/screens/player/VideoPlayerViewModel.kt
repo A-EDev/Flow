@@ -596,5 +596,5 @@ class VideoPlayerViewModel
 
         fun toggleSkipSilence(isEnabled: Boolean) = settings.toggleSkipSilence(isEnabled)
 
-        fun toggleStableVolume(isEnabled: Boolean) = settings.toggleStableVolume(isEnabled)
+        fun toggleVolumeNormalization(isEnabled: Boolean) = settings.toggleVolumeNormalization(isEnabled)
     }

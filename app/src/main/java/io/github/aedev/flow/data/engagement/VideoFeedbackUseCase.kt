@@ -39,10 +39,14 @@ class VideoFeedbackUseCase
     ) {
         /** Adds [video] to Watch later, or takes it out; returns whether it is saved afterwards. */
         suspend fun toggleWatchLater(video: Video): Boolean {
-            if (playlistRepository.isInWatchLater(video.id)) {
-                playlistRepository.removeFromWatchLater(video.id)
-                return false
-            }
+            if (saveToWatchLater(video)) return true
+            playlistRepository.removeFromWatchLater(video.id)
+            return false
+        }
+
+        /** Adds [video] to Watch later unless it is there already; returns whether it was added. */
+        suspend fun saveToWatchLater(video: Video): Boolean {
+            if (playlistRepository.isInWatchLater(video.id)) return false
             playlistRepository.addToWatchLater(video)
             videoStats.onAction(LedgerAction.SAVE)
             runCatching { FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.SAVED) }

@@ -35,13 +35,13 @@ import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
+import io.github.aedev.flow.ui.components.shared.MediaPlaybackSpeedPicker
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val TEMPO_ROWS = 3
-private const val SPEED_STEPS = 34
 private const val PITCH_STEPS = 23
 private val SliderRowPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 
@@ -55,6 +55,8 @@ fun AudioSettingsSheet(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val preferences = remember { PlayerPreferences(context) }
     val normalizationEnabled by preferences.musicLoudnessNormalizationEnabled.collectAsState(initial = true)
+    val customSpeedsEnabled by preferences.customSpeedsEnabled.collectAsState(initial = false)
+    val customSpeedPresetsRaw by preferences.customSpeedPresets.collectAsState(initial = "")
     val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
@@ -83,19 +85,25 @@ fun AudioSettingsSheet(onDismiss: () -> Unit) {
             FlowSectionHeader(stringResource(R.string.label_tempo_pitch))
             FlowRowGroup {
                 PanelRow(shape = flowRowGroupShape(0, TEMPO_ROWS)) {
-                    SliderRow(
-                        label = stringResource(R.string.template_speed, (speed * 100).roundToInt()),
-                        value = speed,
-                        onValueChange = EnhancedMusicPlayerManager::setPlaybackSpeed,
-                        range = 0.25f..2.0f,
-                        steps = SPEED_STEPS,
+                    MediaPlaybackSpeedPicker(
+                        currentSpeed = speed,
+                        sliderEnabled = true,
+                        customSpeedsEnabled = customSpeedsEnabled,
+                        customSpeedPresetsRaw = customSpeedPresetsRaw,
+                        onSpeedSelected = { EnhancedMusicPlayerManager.setPlaybackSpeed(it, persist = false) },
+                        onSliderSelectionFinished = { EnhancedMusicPlayerManager.setPlaybackSpeed(it) },
                     )
                 }
                 PanelRow(shape = flowRowGroupShape(1, TEMPO_ROWS)) {
                     SliderRow(
                         label = stringResource(R.string.template_pitch, pitch.roundToInt()),
                         value = pitch,
-                        onValueChange = EnhancedMusicPlayerManager::setPlaybackPitch,
+                        onValueChange = { EnhancedMusicPlayerManager.setPlaybackPitch(it, persist = false) },
+                        onValueChangeFinished = {
+                            EnhancedMusicPlayerManager.setPlaybackPitch(
+                                EnhancedMusicPlayerManager.playbackPitch.value,
+                            )
+                        },
                         range = -12f..12f,
                         steps = PITCH_STEPS,
                     )
@@ -131,11 +139,18 @@ private fun SliderRow(
     label: String,
     value: Float,
     onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(SliderRowPadding)) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
-        Slider(value = value, onValueChange = onValueChange, valueRange = range, steps = steps)
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = range,
+            steps = steps,
+        )
     }
 }

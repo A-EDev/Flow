@@ -67,9 +67,11 @@ import io.github.aedev.flow.player.MusicPlaybackDiagnostics
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
+import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaylistQueueOrder
 import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
+import io.github.aedev.flow.player.audio.LoudnessGain
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
@@ -101,7 +103,6 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.min
-import kotlin.math.pow
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
@@ -255,6 +256,9 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var queuePersistence: QueuePersistence
 
     @Inject
+    lateinit var musicResume: MusicResumeTracker
+
+    @Inject
     lateinit var lyricsHelper: io.github.aedev.flow.data.lyrics.LyricsHelper
 
     @OptIn(UnstableApi::class)
@@ -345,7 +349,7 @@ class Media3MusicService : MediaLibraryService() {
             mediaId
                 ?.takeIf { loudnessNormalizationEnabled && !LocalMediaIds.isLocal(it) }
                 ?.let(MusicPlayerUtils::cachedLoudnessGainDb)
-        player.volume = if (gainDb == null) 1f else 10.0.pow(gainDb / 20.0).toFloat()
+        player.volume = LoudnessGain.volume(gainDb)
     }
 
     private fun applyPlayDuringCallsPreference(playDuringCalls: Boolean) {
@@ -470,6 +474,7 @@ class Media3MusicService : MediaLibraryService() {
         // Shuffle rearranges the queue itself, so the list on screen is the play order. With this
         // order, the player's shuffle flag reorders nothing on its own, whichever controller sets it.
         player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
+        musicResume.attach(player)
 
         player.addListener(
             object : Player.Listener {
@@ -1383,6 +1388,7 @@ class Media3MusicService : MediaLibraryService() {
             mediaLibrarySession.release()
         }
         if (::player.isInitialized) {
+            musicResume.saveCurrent(player)
             player.release()
         }
         releaseLocks()

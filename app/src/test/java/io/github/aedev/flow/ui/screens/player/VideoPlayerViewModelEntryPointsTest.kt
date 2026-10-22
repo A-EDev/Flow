@@ -393,19 +393,19 @@ class VideoPlayerViewModelEntryPointsTest {
         }
 
     @Test
-    fun `toggleSkipSilence and toggleStableVolume delegate to the player without touching ui state`() =
+    fun `toggleSkipSilence and toggleVolumeNormalization delegate to the player without touching ui state`() =
         runTest {
             val viewModel = newViewModel()
             val before = viewModel.uiState.value
 
             viewModel.toggleSkipSilence(true)
-            viewModel.toggleStableVolume(true)
+            viewModel.toggleVolumeNormalization(true)
             viewModel.toggleSkipSilence(false)
             advanceUntilIdle()
 
             verifyOrder {
                 harness.playerManager.toggleSkipSilence(true)
-                harness.playerManager.toggleStableVolume(true)
+                harness.playerManager.toggleVolumeNormalization(true)
                 harness.playerManager.toggleSkipSilence(false)
             }
             assertThat(viewModel.uiState.value).isEqualTo(before)

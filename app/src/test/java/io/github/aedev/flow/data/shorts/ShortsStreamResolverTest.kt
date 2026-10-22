@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.shorts
 
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.VideoExtractionResult
 import io.mockk.every
 import io.mockk.mockk
@@ -85,6 +86,24 @@ class ShortsStreamResolverTest {
             assertTrue(streams.audioUrl!!.contains("itag=251"))
             assertNotNull(streams.videoDashManifest)
             assertNotNull(streams.audioDashManifest)
+        }
+
+    @Test
+    fun `a loud reel carries the gain that turns it down to YouTube's level`() =
+        runBlocking {
+            result =
+                reelExtraction(
+                    videoFormats = result!!.videoFormats,
+                    audioFormats = result!!.audioFormats,
+                    playerConfig =
+                        PlayerResponse.PlayerConfig(
+                            audioConfig = PlayerResponse.PlayerConfig.AudioConfig(loudnessDb = 6.0, perceptualLoudnessDb = null),
+                        ),
+                )
+
+            val streams = resolver.resolve("reel1234567", targetHeight = 720, preferredAudioLanguage = "")
+
+            assertEquals(-6f, streams!!.loudnessGainDb)
         }
 
     @Test

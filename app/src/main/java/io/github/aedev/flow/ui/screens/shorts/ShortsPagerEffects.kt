@@ -132,6 +132,7 @@ private suspend fun prepareReel(
             shouldPlay = shouldPlay,
             videoDashManifest = streams.videoDashManifest,
             audioDashManifest = streams.audioDashManifest,
+            loudnessGainDb = streams.loudnessGainDb,
         )
     } catch (e: Exception) {
         Log.e(TAG, "Failed to prepare player for ${short.id}", e)

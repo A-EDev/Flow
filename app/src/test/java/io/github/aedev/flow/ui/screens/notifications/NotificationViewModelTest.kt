@@ -1,8 +1,13 @@
 package io.github.aedev.flow.ui.screens.notifications
 
 import com.google.common.truth.Truth.assertThat
+import dagger.Lazy
+import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.local.NotificationRepository
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -21,6 +26,8 @@ class NotificationViewModelTest {
     private val unread = NotificationEntity(id = 1, videoId = "a", title = "a", channelName = "c", thumbnailUrl = null, isRead = false)
     private val read = NotificationEntity(id = 2, videoId = "b", title = "b", channelName = "c", thumbnailUrl = null, isRead = true)
     private val repository: NotificationRepository = mockk(relaxed = true)
+    private val feed: SubscriptionFeedRepository = mockk()
+    private val feedback: VideoFeedbackUseCase = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -34,7 +41,7 @@ class NotificationViewModelTest {
 
     @Test
     fun `opening the inbox keeps what was unread as new and clears the badge once`() {
-        val viewModel = NotificationViewModel(repository)
+        val viewModel = viewModel()
 
         viewModel.openInbox()
         viewModel.openInbox()
@@ -45,14 +52,14 @@ class NotificationViewModelTest {
 
     @Test
     fun `the badge instance never marks anything read`() {
-        NotificationViewModel(repository)
+        viewModel()
 
         coVerify(exactly = 0) { repository.markAllAsRead() }
     }
 
     @Test
     fun `undo puts the removed notification back as read`() {
-        val viewModel = NotificationViewModel(repository)
+        val viewModel = viewModel()
 
         viewModel.deleteNotification(unread)
         viewModel.undoDelete()
@@ -61,4 +68,47 @@ class NotificationViewModelTest {
         coVerify(exactly = 1) { repository.deleteNotification(unread) }
         coVerify(exactly = 1) { repository.insertNotification(unread.copy(isRead = true)) }
     }
+
+    @Test
+    fun `saving uses the feed's copy of the video and undo takes it out again`() {
+        val cached =
+            Video(
+                id = "a",
+                title = "a",
+                channelName = "c",
+                channelId = "UCc",
+                thumbnailUrl = "",
+                duration = 600,
+                viewCount = 9,
+                uploadDate = "",
+            )
+        coEvery { feed.cachedVideo("a") } returns cached
+        coEvery { feedback.saveToWatchLater(cached) } returns true
+        val results = mutableListOf<Boolean>()
+        val viewModel = viewModel()
+
+        viewModel.saveToWatchLater(unread) { results += it }
+        viewModel.undoSave()
+        viewModel.undoSave()
+
+        assertThat(results).containsExactly(true)
+        coVerify(exactly = 1) { feedback.setWatchLater(cached, saved = false) }
+    }
+
+    @Test
+    fun `a video already in Watch later is reported and never taken out by undo`() {
+        coEvery { feed.cachedVideo("b") } returns null
+        coEvery { feedback.saveToWatchLater(any()) } returns false
+        val results = mutableListOf<Boolean>()
+        val viewModel = viewModel()
+
+        viewModel.saveToWatchLater(read) { results += it }
+        viewModel.undoSave()
+
+        assertThat(results).containsExactly(false)
+        coVerify { feedback.saveToWatchLater(match { it.id == "b" && it.title == "b" && it.channelName == "c" }) }
+        coVerify(exactly = 0) { feedback.setWatchLater(any(), any()) }
+    }
+
+    private fun viewModel() = NotificationViewModel(repository, Lazy { feed }, Lazy { feedback })
 }

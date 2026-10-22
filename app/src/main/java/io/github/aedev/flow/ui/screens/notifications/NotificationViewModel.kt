@@ -2,9 +2,13 @@ package io.github.aedev.flow.ui.screens.notifications
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.Lazy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.local.NotificationRepository
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +23,9 @@ class NotificationViewModel
     @Inject
     constructor(
         private val repository: NotificationRepository,
+        // Lazy: the activity-scoped instance behind the badge never saves anything.
+        private val feed: Lazy<SubscriptionFeedRepository>,
+        private val videoFeedback: Lazy<VideoFeedbackUseCase>,
     ) : ViewModel() {
         val notifications: StateFlow<List<NotificationEntity>> =
             repository.allNotifications
@@ -35,6 +42,7 @@ class NotificationViewModel
 
         private var inboxOpened = false
         private var lastRemoved: NotificationEntity? = null
+        private var lastSaved: Video? = null
 
         /**
          * Takes the unread snapshot, then clears the badge. Only the inbox route calls this: the
@@ -64,8 +72,44 @@ class NotificationViewModel
             viewModelScope.launch { repository.insertNotification(notification.copy(isRead = true)) }
         }
 
+        /** Saves [notification]'s video to Watch later; [onResult] gets false when it was already there. */
+        fun saveToWatchLater(
+            notification: NotificationEntity,
+            onResult: (Boolean) -> Unit,
+        ) {
+            viewModelScope.launch {
+                val video = videoFor(notification)
+                val saved = videoFeedback.get().saveToWatchLater(video)
+                lastSaved = video.takeIf { saved }
+                onResult(saved)
+            }
+        }
+
+        fun undoSave() {
+            val video = lastSaved ?: return
+            lastSaved = null
+            viewModelScope.launch { videoFeedback.get().setWatchLater(video, saved = false) }
+        }
+
+        /** The feed's copy carries the channel and length a notification never stored. */
+        suspend fun videoFor(notification: NotificationEntity): Video =
+            feed.get().cachedVideo(notification.videoId) ?: notification.toVideo()
+
         fun clearAll() {
             lastRemoved = null
             viewModelScope.launch { repository.clearAll() }
         }
     }
+
+private fun NotificationEntity.toVideo() =
+    Video(
+        id = videoId,
+        title = title,
+        channelName = channelName,
+        channelId = "",
+        thumbnailUrl = thumbnailUrl.orEmpty(),
+        duration = 0,
+        viewCount = 0,
+        uploadDate = "",
+        timestamp = timestamp,
+    )

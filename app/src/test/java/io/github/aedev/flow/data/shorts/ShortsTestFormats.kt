@@ -83,6 +83,7 @@ internal fun reelExtraction(
     videoId: String = "reel1234567",
     expiresInSeconds: Int = 21_540,
     lengthSeconds: String = "28",
+    playerConfig: PlayerResponse.PlayerConfig? = null,
 ): VideoExtractionResult =
     VideoExtractionResult(
         videoFormats = videoFormats,
@@ -91,7 +92,7 @@ internal fun reelExtraction(
             PlayerResponse(
                 responseContext = ResponseContext(visitorData = null, serviceTrackingParams = null),
                 playabilityStatus = PlayerResponse.PlayabilityStatus(status = "OK", reason = null),
-                playerConfig = null,
+                playerConfig = playerConfig,
                 streamingData =
                     PlayerResponse.StreamingData(
                         adaptiveFormats = videoFormats + audioFormats,
