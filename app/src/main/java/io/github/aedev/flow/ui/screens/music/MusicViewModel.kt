@@ -1019,22 +1019,11 @@ class MusicViewModel
 
                 if (history.isNotEmpty()) {
                     try {
-                        val topArtists =
-                            history
-                                .groupBy { it.artist }
-                                .mapValues { it.value.size }
-                                .toList()
-                                .sortedByDescending { it.second }
-                                .take(10)
-                                .shuffled()
-                                .take(2)
-
                         blocks +=
-                            topArtists
-                                .map { (artistName, _) ->
+                            SimilarToSections
+                                .topArtistSeeds(history, Random.Default)
+                                .map { (artistName, artistTrack) ->
                                     async(PerformanceDispatcher.networkIO) {
-                                        val artistTrack = history.find { it.artist == artistName }
-                                        if (artistTrack == null || artistTrack.channelId.isBlank()) return@async null
                                         similarToBlock(artistTrack, title = artistName, seedId = artistTrack.channelId, isArtistSeed = true)
                                     }
                                 }.awaitAll()
