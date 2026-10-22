@@ -19,7 +19,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.VideoStream
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.net.DatagramPacket
@@ -284,7 +285,7 @@ object DlnaCastManager {
      * The proxy runs on the phone and relays the stream, so the renderer
      * connects to the phone instead of YouTube.
      *
-     * Build cast variants from an extracted [StreamInfo] and start casting to [device].
+     * Build cast variants from the player's streams and start casting to [device].
      * Prefers HLS-style separate video variants + best AAC audio; falls back to a pre-muxed
      * stream (or [currentPlayerUrl]) when separate streams aren't usable.
      *
@@ -294,71 +295,66 @@ object DlnaCastManager {
     fun castStreamInfo(
         device: DlnaDevice,
         title: String,
-        streamInfo: StreamInfo?,
         currentPlayerUrl: String?,
+        videoOnlyStreams: List<VideoStream>,
+        audioStreams: List<AudioStream>,
+        muxedStreams: List<VideoStream>,
+        durationSeconds: Long,
     ) {
-        if (streamInfo != null) {
-            val duration = streamInfo.duration
+        val videoVariants =
+            videoOnlyStreams
+                .filter { it.height > 0 }
+                .filter {
+                    val mime = it.format?.mimeType ?: ""
+                    mime.contains("mp4") || mime.contains("avc")
+                }.sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
+                .map { stream ->
+                    CastStreamVariant(
+                        url = stream.content ?: stream.url ?: "",
+                        width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
+                        height = stream.height,
+                        bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
+                        mime = "video/mp4",
+                        codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
+                    )
+                }.filter { it.url.isNotEmpty() }
 
-            val videoVariants =
-                (streamInfo.videoOnlyStreams ?: emptyList())
-                    .filter { it.height > 0 }
-                    .filter {
-                        val mime = it.format?.mimeType ?: ""
-                        mime.contains("mp4") || mime.contains("avc")
-                    }.sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
-                    .map { stream ->
-                        CastStreamVariant(
-                            url = stream.content ?: stream.url ?: "",
-                            width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
-                            height = stream.height,
-                            bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
-                            mime = "video/mp4",
-                            codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
-                        )
-                    }.filter { it.url.isNotEmpty() }
+        val bestAudio =
+            audioStreams
+                .filter {
+                    val mime = it.format?.mimeType ?: ""
+                    mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
+                }.maxByOrNull { it.bitrate }
 
-            val bestAudio =
-                streamInfo.audioStreams
-                    ?.filter {
-                        val mime = it.format?.mimeType ?: ""
-                        mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
-                    }?.maxByOrNull { it.bitrate }
+        val audioUrl = bestAudio?.let { it.content ?: it.url }
+        val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
+        val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
+        val audioMime =
+            bestAudio?.format?.mimeType?.let {
+                if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
+            } ?: "audio/mp4"
 
-            val audioUrl = bestAudio?.let { it.content ?: it.url }
-            val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
-            val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
-            val audioMime =
-                bestAudio?.format?.mimeType?.let {
-                    if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
-                } ?: "audio/mp4"
-
-            if (videoVariants.isNotEmpty() && audioUrl != null) {
-                Log.d(TAG, "HLS cast: ${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps")
-                castTo(
-                    device = device,
-                    title = title,
-                    videoVariants = videoVariants,
-                    audioUrl = audioUrl,
-                    audioMime = audioMime,
-                    audioBitrate = audioBitrate,
-                    audioCodec = audioCodec,
-                    durationSeconds = duration,
-                )
-            } else {
-                val bestMuxed =
-                    streamInfo.videoStreams
-                        ?.filter { it.height > 0 }
-                        ?.maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
-                val muxedUrl = bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl
-                if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
-                    Log.d(TAG, "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
-                    castTo(device = device, title = title, fallbackVideoUrl = muxedUrl)
-                }
-            }
+        if (videoVariants.isNotEmpty() && audioUrl != null) {
+            Log.d(TAG, "HLS cast: ${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps")
+            castTo(
+                device = device,
+                title = title,
+                videoVariants = videoVariants,
+                audioUrl = audioUrl,
+                audioMime = audioMime,
+                audioBitrate = audioBitrate,
+                audioCodec = audioCodec,
+                durationSeconds = durationSeconds,
+            )
         } else {
-            if (currentPlayerUrl != null && currentPlayerUrl.isNotEmpty() && !currentPlayerUrl.startsWith("local://")) {
-                castTo(device = device, title = title, fallbackVideoUrl = currentPlayerUrl)
+            val bestMuxed =
+                muxedStreams
+                    .filter { it.height > 0 }
+                    .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
+            val muxedUrl = bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl
+            if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
+                Log.d(TAG, "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
+                castTo(device = device, title = title, fallbackVideoUrl = muxedUrl)
             }
         }
     }
