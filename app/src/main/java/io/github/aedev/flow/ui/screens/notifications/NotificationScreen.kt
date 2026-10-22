@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
@@ -44,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
@@ -54,6 +56,7 @@ import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
+import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 
@@ -77,6 +80,9 @@ fun NotificationScreen(
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val removedMessage = stringResource(R.string.notifications_removed)
     val undoLabel = stringResource(R.string.undo)
+    val savedMessage = stringResource(R.string.toast_added_to_watch_later)
+    val alreadySavedMessage = stringResource(R.string.notifications_already_in_watch_later)
+    var menu by remember { mutableStateOf<NotificationMenu?>(null) }
 
     LaunchedEffect(Unit) { viewModel.openInbox() }
 
@@ -86,6 +92,20 @@ fun NotificationScreen(
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showSnackbar(removedMessage, undoLabel, duration = SnackbarDuration.Short)
             if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete()
+        }
+    }
+
+    fun save(item: NotificationEntity) {
+        viewModel.saveToWatchLater(item) { saved ->
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                if (!saved) {
+                    snackbarHostState.showSnackbar(alreadySavedMessage, duration = SnackbarDuration.Short)
+                    return@launch
+                }
+                val result = snackbarHostState.showSnackbar(savedMessage, undoLabel, duration = SnackbarDuration.Short)
+                if (result == SnackbarResult.ActionPerformed) viewModel.undoSave()
+            }
         }
     }
 
@@ -137,13 +157,25 @@ fun NotificationScreen(
                             time = notificationTime(item.timestamp, today, zone).label(),
                             shape = flowSegmentShape(index, section.items.size),
                             onClick = { onNotificationClick(item.videoId) },
+                            onLongClick = { scope.launch { menu = NotificationMenu(item, viewModel.videoFor(item)) } },
                             onDismiss = { remove(item) },
+                            onSave = { save(item) },
                             modifier = Modifier.animateItem().padding(bottom = FlowSegmentedGap),
                         )
                     }
                 }
             }
         }
+    }
+
+    menu?.let { open ->
+        VideoQuickActionsBottomSheet(
+            video = open.video,
+            onDismiss = { menu = null },
+            onRemoveFromCollection = { remove(open.notification) },
+            removeFromCollectionLabel = stringResource(R.string.delete),
+            removeFromCollectionIcon = Icons.Outlined.Delete,
+        )
     }
 
     if (confirmClear) {
@@ -193,3 +225,8 @@ private fun ClearAllDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+private class NotificationMenu(
+    val notification: NotificationEntity,
+    val video: Video,
+)

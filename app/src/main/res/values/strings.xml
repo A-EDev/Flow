@@ -659,6 +659,8 @@
     <string name="notifications_group_last_week">Last 7 days</string>
     <string name="notifications_meta">%1$s · %2$s</string>
     <string name="notifications_removed">Notification removed</string>
+    <string name="notifications_already_in_watch_later">Already in Watch Later</string>
+    <string name="notifications_save_to_watch_later">Save to Watch Later</string>
     <string name="notifications_open_settings">Notification settings</string>
     <string name="notifications_clear_title">Clear all notifications?</string>
     <plurals name="notifications_clear_body">
