@@ -1,15 +1,14 @@
 package io.github.aedev.flow.ui
 
 import android.net.Uri
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.utils.YouTubeLink
 
 internal const val MUSIC_ARTIST_ROUTE_PATTERN = "artist/{channelId}"
-internal const val MUSIC_ARTIST_ROUTE_ARG = "channelId"
 internal const val MUSIC_PLAYLIST_ROUTE_PATTERN = "musicPlaylist/{playlistId}"
-internal const val MUSIC_PLAYLIST_ROUTE_ARG = "playlistId"
 internal const val MUSIC_PLAYER_ROUTE_PATTERN = "musicPlayer/{videoId}?list={list}"
 internal const val MUSIC_PLAYER_ROUTE_ARG = "videoId"
 internal const val MUSIC_PLAYER_LIST_ARG = "list"
@@ -30,13 +29,33 @@ internal fun musicPlayerRoute(
 internal fun musicCollectionRoute(collectionId: String): String? =
     collectionId.trim().takeIf(String::isNotEmpty)?.let { "musicPlaylist/${Uri.encode(it)}" }
 
-/** True when the page on top is already [pattern] for [id], so opening it again would stack a duplicate. */
-internal fun isOpenMediaPage(
-    currentPattern: String?,
-    currentId: String?,
-    pattern: String,
-    id: String,
-): Boolean = currentPattern == pattern && currentId == id.trim()
+internal enum class PageOpen { PUSH, STAY, RETURN }
+
+/** A page already on the back stack is returned to, never stacked again; the one on top stays. */
+internal fun <T> pageOpen(
+    existing: T?,
+    current: T?,
+): PageOpen =
+    when {
+        existing == null -> PageOpen.PUSH
+        existing == current -> PageOpen.STAY
+        else -> PageOpen.RETURN
+    }
+
+/**
+ * Opens [route], or returns to it when it is already on the back stack. Each stacked page keeps its
+ * state in the activity's saved bundle, and a long loop between two channels grew that bundle past
+ * what Android can hand over when the app stops (#1338).
+ */
+internal fun NavController.openPage(route: String) {
+    // The public lookup for the exact, argument-filled match that popBackStack(route) pops to.
+    val existing = runCatching { getBackStackEntry(route) }.getOrNull()
+    when (pageOpen(existing, currentBackStackEntry)) {
+        PageOpen.PUSH -> navigate(route)
+        PageOpen.STAY -> Unit
+        PageOpen.RETURN -> popBackStack(route, inclusive = false)
+    }
+}
 
 /**
  * The shell's [MediaNavigator]. [beforeNavigate] moves an expanded player out of the way, so a page
@@ -54,8 +73,7 @@ internal class FlowMediaNavigator(
         navController.navigateToYoutubeChannel(channelId)
     }
 
-    override fun openArtist(artistId: String) =
-        open(MUSIC_ARTIST_ROUTE_PATTERN, MUSIC_ARTIST_ROUTE_ARG, artistId, musicArtistRoute(artistId))
+    override fun openArtist(artistId: String) = open(musicArtistRoute(artistId))
 
     override fun openAlbum(albumId: String) = openCollection(albumId)
 
@@ -89,7 +107,7 @@ internal class FlowMediaNavigator(
 
             destination is LinkDestination.Page -> {
                 beforeNavigate()
-                navController.navigate(destination.route)
+                navController.openPage(destination.route)
             }
         }
         return true
@@ -113,18 +131,11 @@ internal class FlowMediaNavigator(
 
     private fun isShortsOnTop() = navController.currentBackStackEntry?.destination?.route == SHORTS_ROUTE_PATTERN
 
-    private fun openCollection(id: String) = open(MUSIC_PLAYLIST_ROUTE_PATTERN, MUSIC_PLAYLIST_ROUTE_ARG, id, musicCollectionRoute(id))
+    private fun openCollection(id: String) = open(musicCollectionRoute(id))
 
-    private fun open(
-        pattern: String,
-        argName: String,
-        id: String,
-        route: String?,
-    ) {
+    private fun open(route: String?) {
         if (route == null) return
         beforeNavigate()
-        val current = navController.currentBackStackEntry
-        if (isOpenMediaPage(current?.destination?.route, current?.arguments?.getString(argName), pattern, id)) return
-        navController.navigate(route)
+        navController.openPage(route)
     }
 }

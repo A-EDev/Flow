@@ -43,7 +43,7 @@ fun HandlePendingRoute(
             val tab = flowTabForRoute(route)
             when {
                 tab != null -> navController.navigateToTab(tab, startRoute)
-                navController.currentBackStackEntry?.destination?.route != route -> navController.navigate(route)
+                else -> navController.openPage(route)
             }
             onConsumed()
         }
