@@ -338,92 +338,60 @@ object DlnaCastManager {
                 if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
             } ?: "audio/mp4"
 
-        if (videoVariants.isNotEmpty() && audioUrl != null) {
-            Log.d(TAG, "HLS cast: ${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps")
-            castTo(
-                device = device,
-                title = title,
-                videoVariants = videoVariants,
-                audioUrl = audioUrl,
-                audioMime = audioMime,
-                audioBitrate = audioBitrate,
-                audioCodec = audioCodec,
-                audioSegmentRanges = bestAudio?.castSegmentRanges(),
-                durationSeconds = durationSeconds,
-            )
-        } else {
-            val bestMuxed =
-                muxedStreams
-                    .filter { it.height > 0 }
-                    .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
-            val muxedUrl = bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl
-            if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
-                Log.d(TAG, "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
-                castTo(device = device, title = title, fallbackVideoUrl = muxedUrl)
+        val bestMuxed =
+            muxedStreams
+                .filter { it.height > 0 }
+                .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
+        val muxedUrl =
+            (bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl)
+                ?.takeIf { it.isNotEmpty() && !it.startsWith("local://") }
+
+        val canHls = videoVariants.isNotEmpty() && audioUrl != null
+        if (!canHls && muxedUrl == null) return
+
+        scope.launch {
+            try {
+                val (castUrl, contentType) =
+                    if (canHls) {
+                        proxy.registerHlsCast(
+                            videoVariants = videoVariants,
+                            audioUrl = audioUrl!!,
+                            audioMime = audioMime,
+                            audioBitrate = audioBitrate,
+                            audioCodec = audioCodec,
+                            audioSegmentRanges = bestAudio?.castSegmentRanges(),
+                            durationSeconds = durationSeconds,
+                        ) to "application/vnd.apple.mpegurl"
+                    } else {
+                        val type = guessContentType(muxedUrl!!, "video/mp4")
+                        proxy.registerStream(muxedUrl, type) to type
+                    }
+                Log.i(TAG, "Casting: $castUrl")
+                startCast(device, title, castUrl, contentType)
+            } catch (e: Exception) {
+                Log.e(TAG, "Cast failed: ${e.message}")
+                _currentDevice.value = null
             }
         }
     }
 
-    fun castTo(
+    private suspend fun startCast(
         device: DlnaDevice,
         title: String,
-        videoVariants: List<CastStreamVariant> = emptyList(),
-        audioUrl: String? = null,
-        audioMime: String = "audio/mp4",
-        audioBitrate: Int = 128_000,
-        audioCodec: String = "mp4a.40.2",
-        audioSegmentRanges: CastSegmentRanges? = null,
-        durationSeconds: Long = 0,
-        fallbackVideoUrl: String? = null,
+        castUrl: String,
+        contentType: String,
     ) {
-        scope.launch {
-            try {
-                val castUrl: String
-                val contentType: String
-
-                if (videoVariants.isNotEmpty() && audioUrl != null) {
-                    castUrl =
-                        proxy.registerHlsCast(
-                            videoVariants = videoVariants,
-                            audioUrl = audioUrl,
-                            audioMime = audioMime,
-                            audioBitrate = audioBitrate,
-                            audioCodec = audioCodec,
-                            audioSegmentRanges = audioSegmentRanges,
-                            durationSeconds = durationSeconds,
-                        )
-                    contentType = "application/vnd.apple.mpegurl"
-                    Log.i(
-                        TAG,
-                        "Casting via HLS: $castUrl " +
-                            "(${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps)",
-                    )
-                } else {
-                    val url =
-                        fallbackVideoUrl
-                            ?: videoVariants.firstOrNull()?.url
-                            ?: return@launch
-                    contentType = guessContentType(url, "video/mp4")
-                    castUrl = proxy.registerStream(url, contentType)
-                    Log.i(TAG, "Casting single stream via proxy: $castUrl")
-                }
-
-                // Renderers still holding a previous session reject SetAVTransportURI with UPnP 701.
-                runCatching { stop(device) }
-                // Some only finish stopping after answering, and still reject the URI until then.
-                withTimeoutOrNull(STOP_TIMEOUT_MS) {
-                    while (transportState(device).let { it != null && it != "STOPPED" && it != "NO_MEDIA_PRESENT" }) delay(500)
-                }
-                setAVTransportUri(device, castUrl, title, contentType)
-                delay(500)
-                play(device)
-                _currentDevice.value = device
-                startPositionPolling(device)
-            } catch (e: Exception) {
-                Log.e(TAG, "castTo failed: ${e.message}")
-                _currentDevice.value = null
-            }
+        // Renderers still holding a previous session reject SetAVTransportURI with UPnP 701.
+        runCatching { stop(device) }
+        // Some only finish stopping after answering, and still reject the URI until then.
+        withTimeoutOrNull(STOP_TIMEOUT_MS) {
+            while (transportState(device).let { it != null && it != "STOPPED" && it != "NO_MEDIA_PRESENT" }) delay(500)
         }
+        setAVTransportUri(device, castUrl, title, contentType)
+        delay(500)
+        play(device)
+        _currentDevice.value = device
+        startPositionPolling(device)
     }
 
     private fun transportState(device: DlnaDevice): String? =
