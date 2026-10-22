@@ -76,6 +76,7 @@ class MusicPlayerViewModel
         private var loadTrackJob: kotlinx.coroutines.Job? = null
         private val seekGuard = MusicSeekGuard()
         private val radioSwitch = MusicRadioSwitch(viewModelScope, _uiState, playerPreferences)
+        private val playStart = MusicPlayStart(downloadManager, viewHistory, playerPreferences)
         private val lyrics =
             MusicPlayerLyrics(
                 context,
@@ -256,28 +257,18 @@ class MusicPlayerViewModel
                             playingFrom = context.getString(R.string.local_media_title),
                         )
                     }
+                    val startPositionMs = playStart.resumePosition(track)
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         EnhancedMusicPlayerManager.playTrack(
                             track = track,
                             audioUrl = localUris[track.videoId]?.toString() ?: "",
                             queue = activeQueue,
+                            startPositionMs = startPositionMs,
                             sourceName = context.getString(R.string.local_media_title),
                             localUriOverrides = localUris,
                         )
                     }
-                    launch(PerformanceDispatcher.diskIO) {
-                        viewHistory.savePlaybackPosition(
-                            videoId = track.videoId,
-                            position = 0,
-                            duration = track.duration.toLong() * 1000,
-                            title = track.title,
-                            thumbnailUrl = track.thumbnailUrl,
-                            channelName = track.artist,
-                            channelId = track.channelId,
-                            isMusic = true,
-                            isLocal = true,
-                        )
-                    }
+                    launch(PerformanceDispatcher.diskIO) { playStart.recordStart(track) }
                 }
         }
 
@@ -324,20 +315,8 @@ class MusicPlayerViewModel
                 viewModelScope.launch {
                     val finalSourceName = musicSourceLabel(context, displaySourceName, track)
                     val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
-                    val localUriOverrides =
-                        withContext(PerformanceDispatcher.diskIO) {
-                            activeQueue
-                                .mapNotNull { queuedTrack ->
-                                    val path = downloadManager.getDownloadedTrackPath(queuedTrack.videoId) ?: return@mapNotNull null
-                                    val uri =
-                                        if (path.startsWith("content://")) {
-                                            Uri.parse(path)
-                                        } else {
-                                            Uri.fromFile(java.io.File(path))
-                                        }
-                                    queuedTrack.videoId to uri
-                                }.toMap()
-                        }
+                    val localUriOverrides = playStart.downloadedUris(activeQueue)
+                    val startPositionMs = playStart.resumePosition(track)
 
                     // ─── PHASE 1: Instant start ───────────────────────────────────────────
                     _uiState.update {
@@ -359,6 +338,7 @@ class MusicPlayerViewModel
                             track = track,
                             audioUrl = "music://${track.videoId}",
                             queue = activeQueue,
+                            startPositionMs = startPositionMs,
                             sourceName = finalSourceName,
                             localUriOverrides = localUriOverrides,
                         )
@@ -377,16 +357,7 @@ class MusicPlayerViewModel
 
                         launch(PerformanceDispatcher.diskIO) {
                             playlistRepository.addToHistory(track)
-                            viewHistory.savePlaybackPosition(
-                                videoId = track.videoId,
-                                position = 0,
-                                duration = track.duration.toLong() * 1000,
-                                title = track.title,
-                                thumbnailUrl = track.thumbnailUrl,
-                                channelName = track.artist,
-                                channelId = track.channelId,
-                                isMusic = true,
-                            )
+                            playStart.recordStart(track)
                         }
 
                         launch(PerformanceDispatcher.networkIO) {

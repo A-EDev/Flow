@@ -469,6 +469,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_music,
             destination = page,
         )
+    val musicResume =
+        SettingEntry(
+            key = "playback.music_resume",
+            title = R.string.settings_music_resume_title,
+            summary = R.string.settings_music_resume_summary,
+            section = R.string.settings_section_music,
+            destination = page,
+        )
     val musicVideoSwitch =
         SettingEntry(
             key = "playback.music_video_switch",
@@ -545,6 +553,7 @@ internal object PlaybackIndex {
             shortsContinueIntoFeed,
             endlessRadio,
             pauseMusicWhenMuted,
+            musicResume,
             musicVideoSwitch,
             lyricsProviders,
         )

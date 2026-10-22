@@ -331,6 +331,7 @@ class PlayerPreferences(
         val ANIMATED_ARTWORK = booleanPreferencesKey("animated_artwork")
         val MUSIC_REPEAT_MODE = intPreferencesKey("music_repeat_mode")
         val PAUSE_MUSIC_WHEN_MUTED = booleanPreferencesKey("pause_music_when_muted")
+        val MUSIC_RESUME_LONG_TRACKS = booleanPreferencesKey("music_resume_long_tracks")
         val ANIMATED_ARTWORK_WIFI_ONLY = booleanPreferencesKey("animated_artwork_wifi_only")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
         val RECAP_SOURCE = stringPreferencesKey("recap_source")
@@ -2205,6 +2206,18 @@ class PlayerPreferences(
     suspend fun setPauseMusicWhenMuted(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PAUSE_MUSIC_WHEN_MUTED] = enabled
+        }
+    }
+
+    /** Podcasts and other long tracks pick up where they stopped when played again. */
+    val musicResumeLongTracks: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_RESUME_LONG_TRACKS] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicResumeLongTracks(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_RESUME_LONG_TRACKS] = enabled
         }
     }
 
