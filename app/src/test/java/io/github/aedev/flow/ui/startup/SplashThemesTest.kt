@@ -15,6 +15,26 @@ class SplashThemesTest {
     }
 
     @Test
+    fun `every alias with its own art gets a splash of its own on every tone`() {
+        val sharesDefault = setOf(".IconFlowRed", ".IconFlowLight")
+        val fallback =
+            mapOf(
+                SplashTone.LIGHT to R.style.Theme_Flow_Starting_Light,
+                SplashTone.DARK to R.style.Theme_Flow_Starting_Dark,
+                SplashTone.BLACK to R.style.Theme_Flow_Starting_Black,
+            )
+        val missing =
+            (AppIcons.ALL_SUFFIXES - sharesDefault).flatMap { suffix ->
+                SplashTone.entries
+                    .filterNot { suffix == ".IconGhost" && it == SplashTone.LIGHT }
+                    .filter { splashThemeFor(suffix, it) == fallback.getValue(it) }
+                    .map { "$suffix on $it" }
+            }
+
+        assertThat(missing).isEmpty()
+    }
+
+    @Test
     fun `aliases with their own art get their own splash`() {
         assertThat(splashThemeFor(".IconAmoled", SplashTone.BLACK)).isEqualTo(R.style.Theme_Flow_Starting_Black_Amoled)
         assertThat(splashThemeFor(".IconFlowRed", SplashTone.DARK)).isEqualTo(R.style.Theme_Flow_Starting_Dark)

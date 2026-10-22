@@ -17,61 +17,73 @@ fun splashTone(background: Color): SplashTone =
         else -> SplashTone.LIGHT
     }
 
-private class ExpressiveSplash(
+private class AliasSplash(
     @StyleRes val light: Int,
     @StyleRes val dark: Int,
     @StyleRes val black: Int,
 )
 
-private val ExpressiveSplashes =
+private val AliasSplashes =
     mapOf(
         ".IconExpressiveScallop" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Scallop,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Scallop,
                 R.style.Theme_Flow_Starting_Black_Expressive_Scallop,
             ),
         ".IconExpressiveSegmented" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Segmented,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Segmented,
                 R.style.Theme_Flow_Starting_Black_Expressive_Segmented,
             ),
         ".IconExpressivePlay" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Play,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Play,
                 R.style.Theme_Flow_Starting_Black_Expressive_Play,
             ),
         ".IconExpressiveSky" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Sky,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Sky,
                 R.style.Theme_Flow_Starting_Black_Expressive_Sky,
             ),
         ".IconExpressiveMint" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Mint,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Mint,
                 R.style.Theme_Flow_Starting_Black_Expressive_Mint,
             ),
         ".IconExpressiveCookie" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Cookie,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Cookie,
                 R.style.Theme_Flow_Starting_Black_Expressive_Cookie,
             ),
         ".IconExpressiveOval" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Oval,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Oval,
                 R.style.Theme_Flow_Starting_Black_Expressive_Oval,
             ),
         ".IconExpressivePill" to
-            ExpressiveSplash(
+            AliasSplash(
                 R.style.Theme_Flow_Starting_Light_Expressive_Pill,
                 R.style.Theme_Flow_Starting_Dark_Expressive_Pill,
                 R.style.Theme_Flow_Starting_Black_Expressive_Pill,
+            ),
+        ".IconMaterialSky" to
+            AliasSplash(
+                R.style.Theme_Flow_Starting_Light_Material_Sky,
+                R.style.Theme_Flow_Starting_Dark_Material_Sky,
+                R.style.Theme_Flow_Starting_Black_Material_Sky,
+            ),
+        ".IconMaterialMint" to
+            AliasSplash(
+                R.style.Theme_Flow_Starting_Light_Material_Mint,
+                R.style.Theme_Flow_Starting_Dark_Material_Mint,
+                R.style.Theme_Flow_Starting_Black_Material_Mint,
             ),
     )
 
@@ -84,7 +96,7 @@ fun splashThemeFor(
     iconSuffix: String,
     tone: SplashTone,
 ): Int {
-    ExpressiveSplashes[iconSuffix]?.let { splash ->
+    AliasSplashes[iconSuffix]?.let { splash ->
         return when (tone) {
             SplashTone.LIGHT -> splash.light
             SplashTone.DARK -> splash.dark
