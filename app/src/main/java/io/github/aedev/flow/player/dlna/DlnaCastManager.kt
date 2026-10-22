@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -49,6 +50,7 @@ object DlnaCastManager {
     private const val SSDP_ADDR = "239.255.255.250"
     private const val SSDP_PORT = 1900
     private const val DISCOVERY_TIMEOUT_MS = 5_000L
+    private const val STOP_TIMEOUT_MS = 5_000L
     private val SOAP_TYPE = "text/xml; charset=\"utf-8\"".toMediaType()
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -401,6 +403,12 @@ object DlnaCastManager {
                     Log.i(TAG, "Casting single stream via proxy: $castUrl")
                 }
 
+                // Renderers still holding a previous session reject SetAVTransportURI with UPnP 701.
+                runCatching { stop(device) }
+                // Some only finish stopping after answering, and still reject the URI until then.
+                withTimeoutOrNull(STOP_TIMEOUT_MS) {
+                    while (transportState(device).let { it != null && it != "STOPPED" && it != "NO_MEDIA_PRESENT" }) delay(500)
+                }
                 setAVTransportUri(device, castUrl, title, contentType)
                 delay(500)
                 play(device)
@@ -413,19 +421,22 @@ object DlnaCastManager {
         }
     }
 
+    private fun transportState(device: DlnaDevice): String? =
+        runCatching {
+            val response =
+                sendSoapWithResponse(
+                    device.avTransportUrl,
+                    "urn:schemas-upnp-org:service:AVTransport:1#GetTransportInfo",
+                    soapAction("GetTransportInfo", "urn:schemas-upnp-org:service:AVTransport:1", "<InstanceID>0</InstanceID>"),
+                )
+            Regex("<CurrentTransportState>([^<]+)</CurrentTransportState>").find(response)?.groupValues?.get(1)
+        }.getOrNull()
+
     fun stop() {
         val device = _currentDevice.value ?: return
         scope.launch {
             try {
-                sendSoap(
-                    device.avTransportUrl,
-                    "urn:schemas-upnp-org:service:AVTransport:1#Stop",
-                    soapAction(
-                        "Stop",
-                        "urn:schemas-upnp-org:service:AVTransport:1",
-                        "<InstanceID>0</InstanceID>",
-                    ),
-                )
+                stop(device)
             } catch (e: Exception) {
                 Log.e(TAG, "stop failed: ${e.message}")
             } finally {
@@ -583,6 +594,14 @@ object DlnaCastManager {
             device.avTransportUrl,
             "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
             body,
+        )
+    }
+
+    private fun stop(device: DlnaDevice) {
+        sendSoap(
+            device.avTransportUrl,
+            "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+            soapAction("Stop", "urn:schemas-upnp-org:service:AVTransport:1", "<InstanceID>0</InstanceID>"),
         )
     }
 
