@@ -9,12 +9,9 @@ import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,6 +24,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.dlna.DlnaCastManager
+import io.github.aedev.flow.ui.components.shared.PlayerHaptics
 import io.github.aedev.flow.ui.components.videoplayer.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
@@ -423,13 +421,7 @@ fun VideoPlayerHost(
             isFullscreenShown = fullscreenShown,
         )
 
-    // Turning the preference off swaps Compose's own no-op implementation in over the whole
-    // player, so every control, gesture and sheet below stops vibrating without a single call
-    // site having to ask whether it should (#1066).
-    val hostHaptics = LocalHapticFeedback.current
-    CompositionLocalProvider(
-        LocalHapticFeedback provides if (prefs.hapticsEnabled) hostHaptics else SilentHapticFeedback,
-    ) {
+    PlayerHaptics(enabled = prefs.hapticsEnabled) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val mediaSheetHeights =
                 rememberMediaSheetHeights(
@@ -581,14 +573,4 @@ fun VideoPlayerHost(
             )
         }
     }
-}
-
-/**
- * Stands in for the platform's haptics while the player's vibration preference is off.
- *
- * Compose ships exactly this as NoHapticFeedback but keeps it internal, and the interface is a
- * single method, so there is nothing to reuse and nothing to get wrong.
- */
-private object SilentHapticFeedback : HapticFeedback {
-    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
 }
