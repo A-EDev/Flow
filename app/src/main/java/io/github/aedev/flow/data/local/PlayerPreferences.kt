@@ -103,7 +103,7 @@ class PlayerPreferences(
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
         val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
-        val STABLE_VOLUME_ENABLED = booleanPreferencesKey("stable_volume_enabled")
+        val VIDEO_VOLUME_NORMALIZATION = booleanPreferencesKey("video_volume_normalization")
 
         // Buffer settings
         val MIN_BUFFER_MS = intPreferencesKey("min_buffer_ms")
@@ -1689,16 +1689,15 @@ class PlayerPreferences(
         }
     }
 
-    // Stable Volume
-    val stableVolumeEnabled: Flow<Boolean> =
+    /** Videos are turned down to YouTube's loudness level, as on youtube.com. */
+    val videoVolumeNormalizationEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.STABLE_VOLUME_ENABLED] ?: false
-            }
+            .map { preferences -> preferences[Keys.VIDEO_VOLUME_NORMALIZATION] ?: true }
+            .distinctUntilChanged()
 
-    suspend fun setStableVolumeEnabled(enabled: Boolean) {
+    suspend fun setVideoVolumeNormalizationEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.STABLE_VOLUME_ENABLED] = enabled
+            preferences[Keys.VIDEO_VOLUME_NORMALIZATION] = enabled
         }
     }
 

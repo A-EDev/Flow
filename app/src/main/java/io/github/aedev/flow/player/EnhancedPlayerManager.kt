@@ -780,12 +780,20 @@ class EnhancedPlayerManager private constructor() {
         audioFeaturesManager?.setVolumeBoost(player, volume)
     }
 
+    /** YouTube's loudness for [videoId], in dB; null when the stream carries none. */
+    fun setLoudness(
+        videoId: String,
+        gainDb: Float?,
+    ) {
+        audioFeaturesManager?.setLoudness(videoId, gainDb)
+    }
+
     private fun observePreferences(
         context: Context,
         built: CoroutineScope,
     ) {
         audioFeaturesManager?.observeSkipSilencePreference(context, built)
-        audioFeaturesManager?.observeStableVolumePreference(context, built)
+        audioFeaturesManager?.observeVolumeNormalizationPreference(context, built)
 
         val prefs = PlayerPreferences(context)
         built.launch {
@@ -948,6 +956,7 @@ class EnhancedPlayerManager private constructor() {
                     reason: Int,
                 ) {
                     autoNextLog("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
+                    audioFeaturesManager?.onMediaItemChanged()
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
                     ) {
@@ -2905,7 +2914,7 @@ class EnhancedPlayerManager private constructor() {
 
     fun toggleSkipSilence(isEnabled: Boolean) = audioFeaturesManager?.toggleSkipSilence(isEnabled, appContext)
 
-    fun toggleStableVolume(isEnabled: Boolean) = audioFeaturesManager?.toggleStableVolume(isEnabled, appContext)
+    fun toggleVolumeNormalization(isEnabled: Boolean) = audioFeaturesManager?.toggleVolumeNormalization(isEnabled, appContext)
 
     fun toggleSponsorBlock(isEnabled: Boolean) {
         sponsorBlockHandler?.setEnabled(isEnabled)

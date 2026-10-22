@@ -83,7 +83,7 @@ class PlayerSettingsSheetTest {
                     onDisableSubtitles = { callbacks.subtitlesDisabled = true },
                     onAutoplayToggle = {},
                     onSkipSilenceToggle = {},
-                    onStableVolumeToggle = {},
+                    onVolumeNormalizationToggle = {},
                     subtitleStyle = SubtitleStyle(),
                     onSubtitleStyleChange = {},
                     onLoopToggle = {},
@@ -120,7 +120,7 @@ class PlayerSettingsSheetTest {
             R.string.audio_effects,
             R.string.equalizer,
             R.string.player_settings_skip_silence,
-            R.string.player_settings_stable_voice,
+            R.string.player_settings_normalize_volume,
             R.string.player_settings_display,
             R.string.player_settings_ambient_mode,
         ).forEach { id -> rule.onNodeWithText(string(id)).assertExists() }

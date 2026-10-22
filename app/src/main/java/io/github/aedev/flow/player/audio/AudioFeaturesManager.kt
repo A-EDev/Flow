@@ -47,14 +47,15 @@ class AudioFeaturesManager(
     private var playerRef: ExoPlayer? = null
 
     private var pendingSkipSilence: Boolean? = null
-    private var pendingStableVolume: Boolean? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var desiredPlaybackSpeed: Float = 1.0f
-
-    // Two features want gain on the same session, so they are summed into one effect rather than
-    // each owning a LoudnessEnhancer and overwriting the other's target.
-    private var stableVolumeGainMb: Int = 0
     private var boostGainMb: Int = 0
+    private var userVolume: Float = 1f
+    private var normalizationEnabled: Boolean = true
+
+    // Keyed by media id, so a queue item the screen never loaded plays at full level rather than
+    // inheriting the gain of the video before it.
+    private var loudness: Pair<String, Float>? = null
 
     /**
      * Set the player reference. Must be called after ExoPlayer is created.
@@ -78,10 +79,7 @@ class AudioFeaturesManager(
             pendingSkipSilence = null
             Log.d(TAG, "Applied pending skip silence: $pending")
         }
-        pendingStableVolume?.let { pending ->
-            applyLoudnessEnhancer(player, pending)
-            pendingStableVolume = null
-        }
+        applyVolume(player)
     }
 
     /** Moves the gain onto the player's audio session, which ExoPlayer reports only after build. */
@@ -162,10 +160,32 @@ class AudioFeaturesManager(
         volume: Float,
     ) {
         val exoPlayer = player ?: return
-        exoPlayer.volume = volume.coerceIn(0f, 1f)
+        userVolume = volume
         boostGainMb = boostGainMillibels(volume)
+        applyVolume(exoPlayer)
         applyLoudnessGain(exoPlayer)
         Log.d(TAG, "Volume set to: $volume (player=${exoPlayer.volume}, boost=${boostGainMb}mB)")
+    }
+
+    /** YouTube's loudness for [mediaId], applied while that item is the one playing. */
+    fun setLoudness(
+        mediaId: String,
+        gainDb: Float?,
+    ) {
+        loudness = gainDb?.let { mediaId to it }
+        playerRef?.let(::applyVolume)
+    }
+
+    fun onMediaItemChanged() {
+        playerRef?.let(::applyVolume)
+    }
+
+    private fun applyVolume(player: ExoPlayer) {
+        val gainDb =
+            loudness
+                ?.takeIf { (mediaId, _) -> normalizationEnabled && mediaId == player.currentMediaItem?.mediaId }
+                ?.second
+        player.volume = userVolume.coerceIn(0f, 1f) * LoudnessGain.volume(gainDb)
     }
 
     /**
@@ -182,57 +202,31 @@ class AudioFeaturesManager(
         }
     }
 
-    /**
-     * Observe stable volume preference and apply on startup.
-     */
-    fun observeStableVolumePreference(
+    fun observeVolumeNormalizationPreference(
         context: Context,
         observerScope: CoroutineScope,
     ) {
         observerScope.launch {
-            PlayerPreferences(context).stableVolumeEnabled.collect { isEnabled ->
-                val player = playerRef
-                if (player != null) {
-                    applyLoudnessEnhancer(player, isEnabled)
-                } else {
-                    pendingStableVolume = isEnabled
-                }
-                stateFlow.value = stateFlow.value.copy(isStableVolumeEnabled = isEnabled)
-            }
+            PlayerPreferences(context).videoVolumeNormalizationEnabled.collect(::setVolumeNormalizationInternal)
         }
     }
 
-    /**
-     * Toggle stable volume (audio normalization via LoudnessEnhancer) and persist preference.
-     */
-    fun toggleStableVolume(
+    fun toggleVolumeNormalization(
         isEnabled: Boolean,
         context: Context?,
     ) {
-        val player = playerRef
-        if (player != null) {
-            applyLoudnessEnhancer(player, isEnabled)
-        } else {
-            pendingStableVolume = isEnabled
-        }
-        stateFlow.value = stateFlow.value.copy(isStableVolumeEnabled = isEnabled)
-        context?.let { ctx ->
-            scope.launch {
-                PlayerPreferences(ctx).setStableVolumeEnabled(isEnabled)
-            }
-        }
+        setVolumeNormalizationInternal(isEnabled)
+        context?.let { ctx -> scope.launch { PlayerPreferences(ctx).setVideoVolumeNormalizationEnabled(isEnabled) } }
     }
 
-    private fun applyLoudnessEnhancer(
-        player: ExoPlayer,
-        enable: Boolean,
-    ) {
-        stableVolumeGainMb = if (enable) STABLE_VOLUME_GAIN_MB else 0
-        applyLoudnessGain(player)
+    private fun setVolumeNormalizationInternal(isEnabled: Boolean) {
+        normalizationEnabled = isEnabled
+        playerRef?.let(::applyVolume)
+        stateFlow.value = stateFlow.value.copy(isVolumeNormalizationEnabled = isEnabled)
     }
 
     private fun applyLoudnessGain(player: ExoPlayer) {
-        val targetGainMb = (stableVolumeGainMb + boostGainMb).coerceIn(0, MAX_GAIN_MB)
+        val targetGainMb = boostGainMb.coerceIn(0, MAX_GAIN_MB)
         try {
             if (targetGainMb <= 0) {
                 loudnessEnhancer?.release()
@@ -263,10 +257,7 @@ class AudioFeaturesManager(
     }
 }
 
-/** Normalisation gain applied by the stable-volume toggle. */
-private const val STABLE_VOLUME_GAIN_MB = 600
-
-/** Ceiling for the summed gain, a little over the 2x the boost slider can ask for. */
+/** Ceiling for the boost gain, a little over the 2x the boost slider can ask for. */
 private const val MAX_GAIN_MB = 2000
 
 /**

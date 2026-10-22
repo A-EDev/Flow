@@ -53,7 +53,7 @@ internal fun PlayerSettingsMainPage(
     onLoopToggle: (Boolean) -> Unit,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
-    onStableVolumeToggle: (Boolean) -> Unit,
+    onVolumeNormalizationToggle: (Boolean) -> Unit,
     onAmbientModeToggle: (Boolean) -> Unit,
     sponsorBlockSegmentCount: Int = 0,
     sponsorBlockOffForVideo: Boolean = false,
@@ -200,10 +200,10 @@ internal fun PlayerSettingsMainPage(
         )
         FlowSwitchRow(
             leadingIcon = Icons.AutoMirrored.Rounded.VolumeUp,
-            title = stringResource(R.string.player_settings_stable_voice),
-            checked = playerState.isStableVolumeEnabled,
+            title = stringResource(R.string.player_settings_normalize_volume),
+            checked = playerState.isVolumeNormalizationEnabled,
             shape = flowRowGroupShape(2, EFFECT_ROWS),
-            onCheckedChange = onStableVolumeToggle,
+            onCheckedChange = onVolumeNormalizationToggle,
         )
     }
 

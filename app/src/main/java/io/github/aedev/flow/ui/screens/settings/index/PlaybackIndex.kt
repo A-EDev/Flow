@@ -172,6 +172,14 @@ internal object PlaybackIndex {
             section = R.string.player_appearance_gestures_header,
             destination = page,
         )
+    val normalizeVolume =
+        SettingEntry(
+            key = "playback.normalize_volume",
+            title = R.string.player_settings_normalize_volume,
+            summary = R.string.player_settings_normalize_volume_summary,
+            section = R.string.eq_settings_section,
+            destination = page,
+        )
     val volumeBoost =
         SettingEntry(
             key = "playback.volume_boost",
@@ -504,6 +512,7 @@ internal object PlaybackIndex {
             loopAll,
             skipSilence,
             playDuringCalls,
+            normalizeVolume,
             rememberSpeed,
             musicNormalSpeed,
             speedPerChannel,

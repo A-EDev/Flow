@@ -83,8 +83,8 @@ internal class PlaybackSettingsController(
         playerManager.toggleSkipSilence(isEnabled)
     }
 
-    fun toggleStableVolume(isEnabled: Boolean) {
-        playerManager.toggleStableVolume(isEnabled)
+    fun toggleVolumeNormalization(isEnabled: Boolean) {
+        playerManager.toggleVolumeNormalization(isEnabled)
     }
 
     private suspend fun applyAutoplayPreference(autoplay: Boolean) {

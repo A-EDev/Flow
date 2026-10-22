@@ -43,6 +43,7 @@ internal fun SettingsListScope.playbackSections(
     }
     group(key = "playback.sound", header = R.string.eq_settings_section) {
         nav(DestinationIndex.entry(SettingsDestination.EQUALIZER), onClick = { onNavigate(SettingsTarget(SettingsDestination.EQUALIZER)) })
+        switch(PlaybackIndex.normalizeVolume, viewModel.normalizeVolume, viewModel::setNormalizeVolume)
     }
     group(key = "playback.speed", header = R.string.settings_section_speed) {
         switch(PlaybackIndex.rememberSpeed, viewModel.rememberSpeed, viewModel::setRememberSpeed)
