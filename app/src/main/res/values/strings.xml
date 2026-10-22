@@ -2151,6 +2151,8 @@
     <string name="settings_pause_music_muted_summary">Resume when the volume comes back</string>
     <string name="settings_music_resume_title">Resume podcasts and long tracks</string>
     <string name="settings_music_resume_summary">Start tracks over 10 minutes where you left off</string>
+    <string name="settings_music_side_swipes_title">Speed and volume swipes</string>
+    <string name="settings_music_side_swipes_summary">Swipe the left side for speed, the right for volume</string>
     <string name="music_watch_video_desc">Open the music video in the video player</string>
     <string name="player_appearance_animated_artwork_title">Animated artwork</string>
     <string name="player_appearance_animated_artwork_subtitle">Loop an album\'s motion artwork when it has one</string>

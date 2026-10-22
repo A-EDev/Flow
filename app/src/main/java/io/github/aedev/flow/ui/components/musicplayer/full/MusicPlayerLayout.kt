@@ -35,3 +35,10 @@ internal fun musicPlayerLayoutFor(
         !isLandscapeWindow && windowSizeClass.isMediumWidth -> MusicPlayerLayout.PORTRAIT_LARGE
         else -> MusicPlayerLayout.COMPACT
     }
+
+/**
+ * Whether the side-column speed and volume swipes apply (#1403). The landscape layouts keep today's
+ * gestures: SPLIT's control column scrolls, and WIDE has no queue swipe to share the width with.
+ */
+internal val MusicPlayerLayout.hasSideSwipes: Boolean
+    get() = this == MusicPlayerLayout.COMPACT || this == MusicPlayerLayout.PORTRAIT_LARGE

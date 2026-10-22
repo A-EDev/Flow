@@ -44,13 +44,13 @@ import io.github.aedev.flow.ui.components.musicplayer.queue.contentColor
 import io.github.aedev.flow.ui.components.musicplayer.queue.icon
 import io.github.aedev.flow.ui.components.musicplayer.queue.labelRes
 import io.github.aedev.flow.ui.components.musicplayer.queue.rowSwipe
+import io.github.aedev.flow.ui.components.shared.GestureLevelHudPreview
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarSwipeReveal
 import io.github.aedev.flow.ui.components.shared.MiniBarReveal
 import io.github.aedev.flow.ui.components.shared.icon
 import io.github.aedev.flow.ui.components.shared.isDestructive
 import io.github.aedev.flow.ui.components.shared.labelRes
-import io.github.aedev.flow.ui.components.videoplayer.overlay.GestureLevelHudPreview
 import io.github.aedev.flow.ui.theme.PlayerGround
 
 private const val PREVIEW_PROGRESS = 0.4f

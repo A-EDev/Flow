@@ -1,20 +1,16 @@
-package io.github.aedev.flow.ui.components.videoplayer.gesture
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.SpeedSwipeSide
-import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.shared.MAX_SLIDER_PLAYBACK_SPEED
-import io.github.aedev.flow.ui.components.shared.MIN_PLAYBACK_SPEED
-import io.github.aedev.flow.ui.components.shared.NORMAL_PLAYBACK_SPEED
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.round
 import kotlin.math.truncate
 
 /** Vertical travel that moves a speed swipe by one step. */
-internal val SpeedSwipeStepTravel = 16.dp
+val SpeedSwipeStepTravel = 16.dp
 
 /** Float slack when placing a speed on the step grid. */
 private const val GRID_EPSILON = 0.001f
@@ -23,7 +19,7 @@ private const val GRID_EPSILON = 0.001f
  * The speed a vertical swipe on the speed side asks for. Steps land on the step grid, so a swipe from
  * 1.07x at 0.1 goes to 1.1x and not 1.17x, and the result stays inside the player's speed range.
  */
-internal object PlayerSpeedSwipe {
+object PlayerSpeedSwipe {
     /**
      * The speed after a swipe that started at [startSpeed] and has travelled [travelUpPx] upwards
      * (negative is down), one [step] for every [stepTravelPx].
@@ -63,9 +59,12 @@ internal object PlayerSpeedSwipe {
  * claiming it ends a held long-press boost, whose release restores the speed underneath first. Live
  * streams stay at their speed, so a swipe there changes nothing.
  */
-internal class SpeedSwipeDrag(
+class SpeedSwipeDrag(
     private val haptics: HapticFeedback,
     private val step: () -> Float,
+    private val currentSpeed: () -> Float,
+    private val isLiveStream: () -> Boolean,
+    private val setSpeed: (Float) -> Unit,
     private val onSpeed: (Float) -> Unit,
     private val onEnd: (Float) -> Unit,
 ) {
@@ -75,8 +74,7 @@ internal class SpeedSwipeDrag(
     private var isLive = false
 
     fun begin() {
-        val manager = EnhancedPlayerManager.getInstance()
-        isLive = manager.playerState.value.isLive || manager.getPlayer()?.isCurrentMediaItemLive == true
+        isLive = isLiveStream()
     }
 
     fun drag(
@@ -84,9 +82,8 @@ internal class SpeedSwipeDrag(
         stepTravelPx: Float,
     ) {
         if (isLive) return
-        val manager = EnhancedPlayerManager.getInstance()
         if (startSpeed.isNaN()) {
-            startSpeed = manager.getPlayer()?.playbackParameters?.speed ?: manager.playerState.value.playbackSpeed
+            startSpeed = currentSpeed()
             lastSpeed = startSpeed
             travelUpPx = 0f
         }
@@ -106,7 +103,7 @@ internal class SpeedSwipeDrag(
             travelUpPx = 0f
         }
         if (next != lastSpeed) {
-            manager.setPlaybackSpeed(next)
+            setSpeed(next)
             haptics.performHapticFeedback(
                 if (next == NORMAL_PLAYBACK_SPEED) HapticFeedbackType.GestureThresholdActivate else HapticFeedbackType.SegmentFrequentTick,
             )

@@ -16,6 +16,9 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.SpeedSwipeSide
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.components.shared.PlayerSpeedSwipe
+import io.github.aedev.flow.ui.components.shared.SpeedSwipeDrag
+import io.github.aedev.flow.ui.components.shared.SpeedSwipeStepTravel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -115,6 +118,15 @@ internal fun Modifier.playerDragGestures(
             SpeedSwipeDrag(
                 haptics = haptics,
                 step = { currentSpeedSwipeStep },
+                currentSpeed = {
+                    val manager = EnhancedPlayerManager.getInstance()
+                    manager.getPlayer()?.playbackParameters?.speed ?: manager.playerState.value.playbackSpeed
+                },
+                isLiveStream = {
+                    val manager = EnhancedPlayerManager.getInstance()
+                    manager.playerState.value.isLive || manager.getPlayer()?.isCurrentMediaItemLive == true
+                },
+                setSpeed = { EnhancedPlayerManager.getInstance().setPlaybackSpeed(it) },
                 onSpeed = { currentOnSpeedSwipe(it) },
                 onEnd = { currentOnSpeedSwipeEnd(it) },
             )

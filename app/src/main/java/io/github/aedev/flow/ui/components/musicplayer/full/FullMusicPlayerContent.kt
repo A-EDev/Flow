@@ -42,6 +42,9 @@ import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSli
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.DEFAULT_LYRICS_TEXT_SIZE
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.LARGE_LYRICS_TEXT_SIZE
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.lyricsBackdrop
+import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSideSwipeHud
+import io.github.aedev.flow.ui.components.musicplayer.motion.musicSideSwipes
+import io.github.aedev.flow.ui.components.musicplayer.motion.rememberMusicSideSwipes
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueActions
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueList
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueuePullUpSheet
@@ -374,7 +377,8 @@ internal fun FullMusicPlayerContent(
             animatedArtwork = animatedArtwork.takeIf { immersiveBackground },
         )
 
-        val pullUpQueue = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
+        val sideSwipes = rememberMusicSideSwipes(layout, isPlayerSheetExpanded) { queueState.fraction() > 0f || showLyricsSheet }
+        val pullUpQueue = Modifier.musicSideSwipes(sideSwipes).queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
         when (layout) {
             MusicPlayerLayout.COMPACT -> {
                 CompactPlayerLayout(slots, artworkSize, queueState::fraction, navBarPadding, pullUpQueue)
@@ -433,6 +437,7 @@ internal fun FullMusicPlayerContent(
             }
         }
 
+        MusicSideSwipeHud(sideSwipes)
         val queueSheetModifier =
             if (layout == MusicPlayerLayout.PORTRAIT_LARGE) {
                 Modifier.align(Alignment.TopCenter).widthIn(max = PortraitLargeQueueMaxWidth)
