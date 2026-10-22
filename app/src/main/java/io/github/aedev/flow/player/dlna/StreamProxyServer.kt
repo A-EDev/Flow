@@ -339,8 +339,8 @@ class StreamProxyServer private constructor() {
 
     /**
      * Builds an fMP4 HLS media playlist with one byte-range segment per sidx entry, so the renderer
-     * can start after the first few seconds instead of downloading the whole file. Null when the
-     * segment index can't be loaded; the caller then falls back to [buildMediaPlaylist].
+     * can start after the first few seconds instead of downloading the whole file. Throws when the
+     * segment index can't be loaded, so a segmented cast fails instead of downloading the whole file.
      */
     @OptIn(UnstableApi::class)
     private fun buildSegmentedMediaPlaylist(
@@ -348,7 +348,7 @@ class StreamProxyServer private constructor() {
         realUrl: String,
         contentType: String,
         ranges: CastSegmentRanges,
-    ): String? {
+    ): String {
         val representation =
             Representation.newInstance(
                 0,
@@ -364,12 +364,9 @@ class StreamProxyServer private constructor() {
             )
         val trackType = if (contentType.startsWith("audio/")) C.TRACK_TYPE_AUDIO else C.TRACK_TYPE_VIDEO
         val index =
-            try {
-                DashUtil.loadChunkIndex(OkHttpDataSource.Factory(http).createDataSource(), trackType, representation)
-            } catch (e: Exception) {
-                Log.w(TAG, "Segment index load failed, casting as one segment: ${e.message}")
-                null
-            }?.takeIf { it.length > 0 } ?: return null
+            DashUtil
+                .loadChunkIndex(OkHttpDataSource.Factory(http).createDataSource(), trackType, representation)
+                ?.takeIf { it.length > 0 } ?: error("No segment index in $contentType stream")
 
         return segmentedMediaPlaylist(proxyStreamUrl, ranges.init, index)
     }
