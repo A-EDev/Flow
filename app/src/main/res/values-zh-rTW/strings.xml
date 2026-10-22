@@ -4161,4 +4161,17 @@
     <string name="playlist_move_to_videos">移到影片</string>
     <string name="playlist_moved_to_music">已移到音樂</string>
     <string name="playlist_moved_to_videos">已移到影片</string>
+    <string name="lyrics_auto_romanize_japanese">尚不支援日文</string>
+    <string name="filter_artists">藝人</string>
+    <string name="filter_featured_playlists">精選播放清單</string>
+    <string name="filter_podcasts">Podcast</string>
+    <string name="filter_episodes">單集</string>
+    <string name="filter_profiles">個人檔案</string>
+    <string name="subtitle_profile">個人檔案</string>
+    <string name="error_members_or_paid">會員專屬或付費影片</string>
+    <string name="error_members_or_paid_hint">這部影片需要加入頻道會員，或在 YouTube 購買後才能觀看。</string>
+    <string name="error_rate_limited">YouTube 限制了這個網路</string>
+    <string name="error_rate_limited_hint">請稍候再試，或改用其他網路。</string>
+    <string name="music_playback_warning_rate_limited">YouTube 限制了這個網路，請稍後再試。</string>
+    <string name="music_playback_warning_members_or_paid">這首歌曲需要會員資格，或在 YouTube 購買。</string>
 </resources>
