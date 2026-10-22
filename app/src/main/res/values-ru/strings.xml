@@ -675,7 +675,7 @@
     <string name="content_settings_video_card_actions_title">Кнопки «Нравится» и «Не нравится» на карточке видео</string>
     <string name="content_settings_video_card_actions_subtitle">Кнопки «Нравится» и «Не нравится» на карточках для настройки вашей ленты</string>
     <string name="content_settings_show_app_logo_title">Отображать логотип приложения</string>
-    <string name="content_settings_show_app_logo_subtitle">Отображать логотип Flow рядом с названием приложения в верхней панели главного экрана</string>
+    <string name="content_settings_show_app_logo_subtitle">Показывать логотип Flow на верхней панели главной страницы.</string>
     <string name="player_settings_shorts_background_play">Фоновое воспроизведение Shorts</string>
     <string name="player_settings_shorts_background_play_subtitle">Продолжать воспроизведение Shorts, когда приложение свернуто</string>
     <string name="currently_following">Текущие подписки</string>
@@ -805,7 +805,7 @@
     <string name="content_settings_video_title_lines_title">Заголовки видео</string>
     <string name="content_settings_video_title_lines_subtitle">Сколько строк отображать для названий видео в проигрывателе</string>
     <string name="content_settings_video_card_mark_watched_title">Кнопка «Отметить как просмотренное» на карточке видео</string>
-    <string name="content_settings_video_card_mark_watched_subtitle">Показывать значок глаза на карточках видео, чтобы быстро отмечать видео просмотренным</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">Кнопка с изображением глаза на карточках, позволяющая отмечать видео как просмотренные.</string>
     <string name="content_settings_comments_enabled_title">Комментарии</string>
     <string name="content_settings_comments_enabled_subtitle">Показывать комментарии под видео</string>
     <string name="content_settings_comments_preview_title">Предварительный просмотр комментариев</string>
@@ -1842,7 +1842,7 @@
     <string name="search_filter_all">Все</string>
     <string name="search_toggle_view_mode">Вид результатов поиска</string>
     <string name="content_settings_home_reselect_refresh_title">Обновлять вкладку «Главная» при повторном нажатии</string>
-    <string name="content_settings_home_reselect_refresh_subtitle">Обновлять рекомендации после прокрутки вверх при повторном нажатии на вкладку «Главная»</string>
+    <string name="content_settings_home_reselect_refresh_subtitle">Снова нажмите «Главная» в верхней части экрана, чтобы перезагрузить страницу.</string>
     <string name="settings_home_nav_tab_subtitle">Показывать вкладку «Главная» в нижней панели навигации</string>
     <string name="settings_home_nav_tab_title">Вкладка «Главная»</string>
     <string name="channel_metadata_unavailable">Информация о канале недоступна</string>
@@ -3898,5 +3898,28 @@
     <string name="error_rate_limited_hint">Подождите некоторое время и повторите попытку или переключитесь на другую сеть.</string>
     <string name="error_bot_wall_network_hint">Попробуйте другую сеть, например мобильный интернет.</string>
     <string name="error_bot_wall_session">YouTube хочет убедиться, что вы не робот</string>
-    <string name="error_bot_wall_session_hint">Сбросьте сессию YouTube, затем попробуйте снова.</string>
+    <string name="error_bot_wall_session_hint">Сбросьте сеанс YouTube, затем попробуйте снова.</string>
+    <string name="music_playback_warning_rate_limited">YouTube ограничивает эту сеть. Попробуйте позже.</string>
+    <string name="music_playback_warning_members_or_paid">Для прослушивания этой песни на YouTube требуется подписка или покупка.</string>
+    <string name="settings_keywords_style">темный режим, ночной режим, светлый режим, AMOLED, чистый черный, OLED</string>
+    <string name="settings_keywords_original_titles">непереведенный, автоматический перевод, перевод, оригинальный язык, заголовки, описания</string>
+    <string name="thumbnail_quality_high_desc">Самый острый, использует больше всего данных.</string>
+    <string name="settings_keywords_quality">разрешение, 1080p, 4K, HD, расход данных</string>
+    <string name="settings_segment_colour">Цвет для %1$</string>
+    <string name="settings_backup_source_newpipe">NewPipe</string>
+    <string name="settings_backup_source_libretube">LibreTube</string>
+    <string name="settings_backup_source_freetube">FreeTube</string>
+    <string name="settings_backup_source_metrolist">Metrolist</string>
+    <string name="settings_keywords_network">прокси, SOCKS, HTTP, VPN, соединение</string>
+    <string name="settings_diagnostics_android">Версия для Android</string>
+    <string name="settings_diagnostics_model">модель</string>
+    <string name="diagnostics_record_home_snapshots">Создавать снимки Flow</string>
+    <string name="settings_section_home_snapshots">Домашние снимки</string>
+    <string name="settings_theme_follow_system_summary">Подобрать светлый или темный режим в соответствии с настройками вашего устройства.</string>
+    <string name="settings_keywords_history">недавние поисковые запросы, конфиденциальность, забыть, удалить, автозаполнение</string>
+    <string name="settings_keywords_wellbeing">время перед экраном, цифровое благополучие, сон, время отхода ко сну, перерыв, время просмотра, использование</string>
+    <string name="device_info_build">Версия</string>
+    <string name="device_info_refresh_rate_value">%1$d Hz</string>
+    <string name="device_info_not_supported">Не поддерживается</string>
+    <string name="device_info_supported">Поддержка</string>
 </resources>
