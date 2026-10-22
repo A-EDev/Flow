@@ -217,7 +217,7 @@ internal fun FullMusicPlayerContent(
     }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().musicPlayerKeyboardShortcuts(isPlayerSheetExpanded && !showSleepTimer, viewModel),
     ) {
         val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
