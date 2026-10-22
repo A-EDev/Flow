@@ -3,7 +3,6 @@ package io.github.aedev.flow
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -508,31 +507,11 @@ class MainActivity : ComponentActivity() {
     ): Boolean {
         if (
             (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
-            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
+            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value &&
+            io.github.aedev.flow.player.PlayerHardwareController
+                .adjustVolume(this, raise = keyCode == KeyEvent.KEYCODE_VOLUME_UP)
         ) {
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            if (audioManager != null) {
-                val direction =
-                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                        AudioManager.ADJUST_RAISE
-                    } else {
-                        AudioManager.ADJUST_LOWER
-                    }
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    direction,
-                    if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
-                        0
-                    } else {
-                        AudioManager.FLAG_SHOW_UI
-                    },
-                )
-                if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
-                    io.github.aedev.flow.player.PlayerHardwareController
-                        .notifyVolumeKey()
-                }
-                return true
-            }
+            return true
         }
         return super.onKeyDown(keyCode, event)
     }
