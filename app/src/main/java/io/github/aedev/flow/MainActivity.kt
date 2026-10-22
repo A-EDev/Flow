@@ -260,7 +260,8 @@ class MainActivity : ComponentActivity() {
 
             FlowTheme(theme) {
                 val splashTone = splashTone(MaterialTheme.colorScheme.background)
-                LaunchedEffect(splashTone) { splashController.rememberTheme(splashTone, appIconController.activeSuffix()) }
+                val selectedIcon by appIconController.selected.collectAsState(initial = null)
+                LaunchedEffect(splashTone, selectedIcon) { splashController.rememberTheme(splashTone, appIconController.activeSuffix()) }
 
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.

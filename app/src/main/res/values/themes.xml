@@ -82,6 +82,36 @@
         <item name="postSplashScreenTheme">@style/Theme.Flow</item>
     </style>
 
+    <!-- Material icons: launcher foreground over the icon tint, one base per icon. -->
+    <style name="Theme.Flow.Starting.Material.Sky" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg_material_sky</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
+    <style name="Theme.Flow.Starting.Material.Mint" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg_material_mint</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Material.Sky" parent="Theme.Flow.Starting.Material.Sky">
+        <item name="windowSplashScreenBackground">@color/splash_background_light</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Material.Mint" parent="Theme.Flow.Starting.Material.Mint">
+        <item name="windowSplashScreenBackground">@color/splash_background_light</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Material.Sky" parent="Theme.Flow.Starting.Material.Sky">
+        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Material.Mint" parent="Theme.Flow.Starting.Material.Mint">
+        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Material.Sky" parent="Theme.Flow.Starting.Material.Sky">
+        <item name="windowSplashScreenBackground">@color/splash_background_black</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Material.Mint" parent="Theme.Flow.Starting.Material.Mint">
+        <item name="windowSplashScreenBackground">@color/splash_background_black</item>
+    </style>
+
     <!-- Expressive icons: their own art at logo size over the tone's window, like the Flow badge. -->
     <style name="Theme.Flow.Starting.Light.Expressive" />
     <style name="Theme.Flow.Starting.Light.Expressive.Scallop">
