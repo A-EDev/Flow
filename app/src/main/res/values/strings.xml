@@ -4347,4 +4347,13 @@
     <string name="scrobbling_import_failed">Could not read your top artists</string>
     <string name="music_home_lastfm_discover">Discover with Last.fm</string>
     <string name="music_home_lastfm_discover_subtitle">Picked by Last.fm listeners from your on repeat</string>
+    <string name="keyboard_shortcuts_player">Player</string>
+    <string name="keyboard_shortcut_play_pause">Play or pause</string>
+    <string name="keyboard_shortcut_seek_back">Back</string>
+    <string name="keyboard_shortcut_seek_forward">Forward</string>
+    <string name="keyboard_shortcut_volume_up">Volume up</string>
+    <string name="keyboard_shortcut_volume_down">Volume down</string>
+    <string name="keyboard_shortcut_exit_fullscreen">Exit fullscreen</string>
+    <string name="keyboard_shortcut_faster">Faster</string>
+    <string name="keyboard_shortcut_slower">Slower</string>
 </resources>

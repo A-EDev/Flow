@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
 import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.Menu
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -42,6 +44,7 @@ import io.github.aedev.flow.platform.AppIconController
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
+import io.github.aedev.flow.platform.PlayerKeyboardShortcutHelp
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -514,6 +517,15 @@ class MainActivity : ComponentActivity() {
             return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onProvideKeyboardShortcuts(
+        data: MutableList<KeyboardShortcutGroup>,
+        menu: Menu?,
+        deviceId: Int,
+    ) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        data += PlayerKeyboardShortcutHelp.group(this)
     }
 
     override fun onKeyUp(
