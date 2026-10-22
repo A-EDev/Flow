@@ -3905,7 +3905,7 @@
     <string name="settings_keywords_original_titles">непереведенный, автоматический перевод, перевод, оригинальный язык, заголовки, описания</string>
     <string name="thumbnail_quality_high_desc">Самый острый, использует больше всего данных.</string>
     <string name="settings_keywords_quality">разрешение, 1080p, 4K, HD, расход данных</string>
-    <string name="settings_segment_colour">Цвет для %1$</string>
+    <string name="settings_segment_colour">Цвет для %1$s</string>
     <string name="settings_backup_source_newpipe">NewPipe</string>
     <string name="settings_backup_source_libretube">LibreTube</string>
     <string name="settings_backup_source_freetube">FreeTube</string>
