@@ -39,7 +39,7 @@ class PlaylistRepository
         }
 
         suspend fun updateVideoMetadata(video: Video) {
-            videoDao.upsertMetadata(listOf(normalizedEntity(video)))
+            videoDao.mergeMetadata(listOf(normalizedEntity(video)))
         }
 
         private fun normalizedEntity(video: Video): VideoEntity {
