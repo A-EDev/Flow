@@ -42,6 +42,9 @@ interface CacheDao {
     @Query("SELECT * FROM subscription_feed_cache WHERE channelId IN (:channelIds)")
     suspend fun getSubscriptionFeedForChannels(channelIds: List<String>): List<SubscriptionFeedEntity>
 
+    @Query("SELECT * FROM subscription_feed_cache WHERE videoId = :videoId")
+    suspend fun getSubscriptionFeedRow(videoId: String): SubscriptionFeedEntity?
+
     @Query("SELECT DISTINCT channelId, channelName FROM subscription_feed_cache WHERE channelId IN (:channelIds) AND channelName != ''")
     suspend fun subscriptionFeedChannelNames(channelIds: List<String>): List<ChannelNameRow>
 

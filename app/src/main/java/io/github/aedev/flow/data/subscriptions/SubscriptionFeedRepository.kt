@@ -328,6 +328,10 @@ class SubscriptionFeedRepository
             Log.d(TAG, "Seeded ${rows.size} row(s) for $channelId from the notification check")
         }
 
+        /** The feed's stored copy of [videoId], or null when the feed has never seen it. */
+        suspend fun cachedVideo(videoId: String): Video? =
+            withContext(PerformanceDispatcher.diskIO) { cacheDao.getSubscriptionFeedRow(videoId)?.toVideo() }
+
         /** Writes back metadata the on-demand player lookup resolved for already-cached rows. */
         suspend fun updateEnrichedMetadata(videos: Collection<Video>) {
             if (videos.isEmpty()) return
