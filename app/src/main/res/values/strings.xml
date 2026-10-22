@@ -2251,7 +2251,6 @@
     <string name="template_bass_boost">Bass Boost: %1$ddB</string>
     <string name="label_tempo_pitch">Tempo &amp; Pitch</string>
     <string name="action_reset">Reset</string>
-    <string name="template_speed">Speed: %1$d%%</string>
     <string name="template_pitch">Pitch: %1$d Semitones</string>
     <string name="label_parametric_equalizer">Parametric Equalizer</string>
     <string name="action_add_band">Add Band</string>
