@@ -68,4 +68,38 @@ class CrashSummaryTest {
         assertThat(summary.exception).isEqualTo("Crash")
         assertThat(summary.location).isNull()
     }
+
+    @Test
+    fun `a wrapped cause names the title, as with a saved state too large to send (1338)`() {
+        val wrapped =
+            FlowCrashReportFormatter.build(
+                FlowCrashReportSnapshot(
+                    timestampMs = 0,
+                    threadName = "main",
+                    threadId = 2,
+                    exceptionClass = "java.lang.RuntimeException",
+                    exceptionMessage = "android.os.TransactionTooLargeException: data parcel size 1052744 bytes",
+                    stackTrace =
+                        """
+                        java.lang.RuntimeException: android.os.TransactionTooLargeException: data parcel size 1052744 bytes
+                        	at android.app.servertransaction.PendingTransactionActions${'$'}StopInfo.run(PendingTransactionActions.java:146)
+                        """.trimIndent(),
+                    deviceInfo = "  Model: Pixel 8\n  Manufacturer: Google",
+                    memoryInfo = "",
+                    breadcrumbs = emptyList(),
+                ),
+            )
+        val summary = parseCrashSummary(wrapped)
+
+        assertThat(summary.exception).isEqualTo("RuntimeException")
+        assertThat(summary.headline).isEqualTo("TransactionTooLargeException")
+        assertThat(
+            summary.issueUrl(),
+        ).contains("title=%5BBug%5D%3A%20TransactionTooLargeException%20in%20PendingTransactionActions.java%3A146")
+    }
+
+    @Test
+    fun `a plain message keeps the exception's own name`() {
+        assertThat(parseCrashSummary(report).headline).isEqualTo("IllegalArgumentException")
+    }
 }
