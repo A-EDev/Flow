@@ -17,6 +17,27 @@ internal object SimilarToSections {
     const val MIN_EXTRAS = 2
     const val MAX_EXTRAS = 3
     private const val LEADING_SONGS = 2
+    private const val TOP_ARTIST_POOL = 10
+    private const val TOP_ARTIST_PICKS = 2
+
+    /**
+     * Two of the most played artists, each with the first history track that names them. Distinct by
+     * channel: "Artist" and "Artist & Guest" can share one, and two blocks on one seed repeat a feed key.
+     */
+    fun topArtistSeeds(
+        history: List<MusicTrack>,
+        random: Random,
+    ): List<Pair<String, MusicTrack>> =
+        history
+            .groupBy { it.artist }
+            .entries
+            .sortedByDescending { it.value.size }
+            .map { (name, plays) -> name to plays.first() }
+            .filter { (_, track) -> track.channelId.isNotBlank() }
+            .distinctBy { (_, track) -> track.channelId }
+            .take(TOP_ARTIST_POOL)
+            .shuffled(random)
+            .take(TOP_ARTIST_PICKS)
 
     fun mixed(
         songs: List<MusicTrack>,

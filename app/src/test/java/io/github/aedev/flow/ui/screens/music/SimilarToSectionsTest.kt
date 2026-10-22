@@ -57,4 +57,32 @@ class SimilarToSectionsTest {
         assertEquals("UC9", album.channelId)
         assertEquals(MusicItemType.ALBUM, album.itemType)
     }
+
+    @Test
+    fun `two names on one channel give one artist seed`() {
+        fun play(
+            artist: String,
+            channel: String,
+        ) = MusicTrack(videoId = "$artist$channel", title = "Song", artist = artist, thumbnailUrl = "", duration = 200, channelId = channel)
+        val history = List(5) { play("Artist", "UC1") } + List(4) { play("Artist & Guest", "UC1") } + List(3) { play("Other", "UC2") }
+
+        repeat(50) { seed ->
+            val seeds = SimilarToSections.topArtistSeeds(history, Random(seed))
+            assertEquals(2, seeds.size)
+            assertEquals(setOf("UC1", "UC2"), seeds.map { it.second.channelId }.toSet())
+            assertEquals("Artist", seeds.first { it.second.channelId == "UC1" }.first)
+        }
+    }
+
+    @Test
+    fun `artists without a channel are skipped instead of taking a pick`() {
+        val history =
+            listOf(
+                MusicTrack(videoId = "a", title = "Song", artist = "No channel", thumbnailUrl = "", duration = 200),
+                MusicTrack(videoId = "b", title = "Song", artist = "No channel", thumbnailUrl = "", duration = 200),
+                MusicTrack(videoId = "c", title = "Song", artist = "Known", thumbnailUrl = "", duration = 200, channelId = "UC3"),
+            )
+
+        assertEquals(listOf("Known" to history[2]), SimilarToSections.topArtistSeeds(history, Random(1)))
+    }
 }
