@@ -11,6 +11,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.SpeedSwipeSide
+import io.github.aedev.flow.ui.components.shared.BrightnessOverlay
+import io.github.aedev.flow.ui.components.shared.SpeedSwipeOverlay
+import io.github.aedev.flow.ui.components.shared.VolumeOverlay
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 
 private val HudSideInset = 16.dp

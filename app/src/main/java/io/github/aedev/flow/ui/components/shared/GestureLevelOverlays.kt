@@ -1,9 +1,24 @@
-package io.github.aedev.flow.ui.components.videoplayer.overlay
+package io.github.aedev.flow.ui.components.shared
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
@@ -14,8 +29,14 @@ import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.BrightnessLow
 import androidx.compose.material.icons.rounded.BrightnessMedium
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.GestureOverlayStyle
-import io.github.aedev.flow.ui.components.shared.MAX_SLIDER_PLAYBACK_SPEED
-import io.github.aedev.flow.ui.components.shared.MIN_PLAYBACK_SPEED
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
@@ -48,7 +67,7 @@ private val HudIconSize = 22.dp
  * existing the moment the gesture ends.
  */
 @Composable
-internal fun BrightnessOverlay(
+fun BrightnessOverlay(
     isVisible: Boolean,
     brightnessLevel: () -> Float,
     style: GestureOverlayStyle,
@@ -90,7 +109,7 @@ internal fun BrightnessOverlay(
 }
 
 @Composable
-internal fun VolumeOverlay(
+fun VolumeOverlay(
     isVisible: Boolean,
     volumeLevel: () -> Float,
     style: GestureOverlayStyle,
@@ -136,7 +155,7 @@ internal fun VolumeOverlay(
 
 /** The speed read-out shown mid speed swipe, on the same track as brightness and volume. */
 @Composable
-internal fun SpeedSwipeOverlay(
+fun SpeedSwipeOverlay(
     isVisible: Boolean,
     speed: () -> Float,
     style: GestureOverlayStyle,
@@ -231,7 +250,7 @@ private const val VERTICAL_PREVIEW_SCALE = 0.62f
  * actually draws however these are changed later.
  */
 @Composable
-internal fun GestureLevelHudPreview(
+fun GestureLevelHudPreview(
     style: GestureOverlayStyle,
     modifier: Modifier = Modifier,
 ) {
