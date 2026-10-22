@@ -3882,4 +3882,21 @@
     <string name="settings_section_proxy_sign_in">Войти</string>
     <string name="settings_show_password">Показать пароль</string>
     <string name="settings_hide_password">Скрыть пароль</string>
+    <string name="lyrics_auto_romanize_japanese">Пока недоступно для японского языка</string>
+    <string name="lyrics_provider_kugou">KuGou</string>
+    <string name="lyrics_provider_unison">Unison</string>
+    <string name="filter_artists">Исполнители</string>
+    <string name="filter_featured_playlists">Рекомендуемые плейлисты</string>
+    <string name="filter_podcasts">Подкасты</string>
+    <string name="filter_episodes">Эпизоды</string>
+    <string name="filter_profiles">Профили</string>
+    <string name="subtitle_profile">Профиль</string>
+    <string name="playlist_unavailable_hidden">Недоступные видео скрыты</string>
+    <string name="error_members_or_paid">Видео для спонсоров или платное видео</string>
+    <string name="error_members_or_paid_hint">Для этого видео нужна платная подписка на канал или покупка на YouTube.</string>
+    <string name="error_rate_limited">Ограничение сети со стороны YouTube</string>
+    <string name="error_rate_limited_hint">Подождите некоторое время и повторите попытку или переключитесь на другую сеть.</string>
+    <string name="error_bot_wall_network_hint">Попробуйте другую сеть, например мобильный интернет.</string>
+    <string name="error_bot_wall_session">YouTube хочет убедиться, что вы не робот</string>
+    <string name="error_bot_wall_session_hint">Сбросьте сессию YouTube, затем попробуйте снова.</string>
 </resources>
