@@ -3922,4 +3922,15 @@
     <string name="device_info_refresh_rate_value">%1$d Hz</string>
     <string name="device_info_not_supported">Не поддерживается</string>
     <string name="device_info_supported">Поддержка</string>
+    <string name="settings_appearance_summary">Тема, значок приложения, сетка и навигация</string>
+    <string name="settings_playback_summary">Автовоспроизведение, жесты, субтитры и кнопки плеера</string>
+    <string name="settings_quality_summary">Качество видео, Shorts и музыки</string>
+    <string name="settings_topics_summary">Отслеживаемые и скрытые темы</string>
+    <string name="settings_wellbeing_summary">Время просмотра и напоминания о перерывах</string>
+    <string name="settings_font_summary">Шрифт приложения Flow</string>
+    <string name="font_choose_file_summary">Файл формата .ttf или .otf размером до %1$d МБ</string>
+    <string name="font_import_not_font">Выберите файл .ttf или .otf</string>
+    <string name="font_import_unreadable">Не удалось прочитать этот файл как шрифт</string>
+    <string name="settings_custom_theme_summary">Создавайте, импортируйте и делитесь своими темами</string>
+    <string name="settings_music_artwork_size_summary">Размер обложек альбомов и карточек на музыкальных страницах</string>
 </resources>
