@@ -43,6 +43,7 @@ import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSh
 import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.PlayerHaptics
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.videoplayer.BackgroundQueueTransport
@@ -206,6 +207,7 @@ internal fun FlowPlayerOverlays(
     val playerPreferences = remember(context) { PlayerPreferences(context) }
     val swipeLeftAction by playerPreferences.miniBarSwipeLeftAction.collectAsState(initial = MiniBarSwipeAction.CLOSE)
     val swipeRightAction by playerPreferences.miniBarSwipeRightAction.collectAsState(initial = MiniBarSwipeAction.CLOSE)
+    val playerHaptics by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val quickActions = sharedQuickActionsViewModel()
     val removedFromQueue = stringResource(R.string.removed_from_queue)
     val scope = rememberCoroutineScope()
@@ -306,20 +308,22 @@ internal fun FlowPlayerOverlays(
 
         val track = currentMusicTrack
         if (showMusicSheet && track != null) {
-            UnifiedMusicPlayerSheet(
-                state = musicPlayerSheetState,
-                containerWidth = containerWidth,
-                containerHeight = containerHeight,
-                miniBounds = miniBarBounds,
-                restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
-                track = track,
-                swipeLeftAction = swipeLeftAction,
-                swipeRightAction = swipeRightAction,
-                onDismiss = {
-                    EnhancedMusicPlayerManager.stop()
-                    EnhancedMusicPlayerManager.clearCurrentTrack()
-                },
-            )
+            PlayerHaptics(enabled = playerHaptics) {
+                UnifiedMusicPlayerSheet(
+                    state = musicPlayerSheetState,
+                    containerWidth = containerWidth,
+                    containerHeight = containerHeight,
+                    miniBounds = miniBarBounds,
+                    restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
+                    track = track,
+                    swipeLeftAction = swipeLeftAction,
+                    swipeRightAction = swipeRightAction,
+                    onDismiss = {
+                        EnhancedMusicPlayerManager.stop()
+                        EnhancedMusicPlayerManager.clearCurrentTrack()
+                    },
+                )
+            }
         }
 
         MusicMenuSheets(musicMenus)
