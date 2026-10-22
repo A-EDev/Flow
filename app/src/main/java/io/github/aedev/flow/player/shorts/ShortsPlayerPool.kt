@@ -18,6 +18,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
+import io.github.aedev.flow.player.audio.LoudnessGain
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
@@ -125,6 +126,7 @@ class ShortsPlayerPool private constructor() {
     private var preferredAudioLanguage: String = "original"
     private var shortsPlaybackMode: String = "loop"
     private var basePlaybackSpeed: Float = 1f
+    private var volumeNormalization: Boolean = true
 
     private val preferenceObservers = ShortsPreferenceObservers()
 
@@ -179,6 +181,11 @@ class ShortsPlayerPool private constructor() {
             },
             onPlaybackSpeed = { speed ->
                 setBasePlaybackSpeed(speed)
+            },
+            volumeNormalization = preferences.videoVolumeNormalizationEnabled,
+            onVolumeNormalization = { enabled ->
+                volumeNormalization = enabled
+                for (slot in 0 until POOL_SIZE) applyVolume(slot)
             },
         )
 
@@ -314,6 +321,7 @@ class ShortsPlayerPool private constructor() {
         shouldPlay: Boolean,
         videoDashManifest: String? = null,
         audioDashManifest: String? = null,
+        loudnessGainDb: Float? = null,
     ) {
         if (!isInitialized || index < 0) return
         val slot = index % POOL_SIZE
@@ -333,7 +341,8 @@ class ShortsPlayerPool private constructor() {
         player.stop()
         player.clearMediaItems()
 
-        slots.assign(slot, index, videoId, videoUrl, audioUrl, videoDashManifest, audioDashManifest)
+        slots.assign(slot, index, videoId, videoUrl, audioUrl, videoDashManifest, audioDashManifest, loudnessGainDb)
+        applyVolume(slot)
         bumpOwnership()
 
         // Load media
@@ -477,6 +486,11 @@ class ShortsPlayerPool private constructor() {
         val factory = cachedDataSourceFactory ?: dataSourceFactory ?: return
         ShortsMediaSources.load(player, factory, videoUrl, audioUrl, videoDashManifest, audioDashManifest)
         player.setPlaybackSpeed(basePlaybackSpeed)
+    }
+
+    private fun applyVolume(slot: Int) {
+        val gainDb = slots.loudnessGainsDb[slot].takeIf { volumeNormalization }
+        players[slot]?.volume = LoudnessGain.volume(gainDb)
     }
 
     // PLAYBACK CONTROL

@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 internal class ShortsPreferenceObservers(
@@ -23,6 +24,8 @@ internal class ShortsPreferenceObservers(
         onPreferredAudioLanguage: (String) -> Unit,
         onPlaybackMode: (String) -> Unit,
         onPlaybackSpeed: (Float) -> Unit,
+        volumeNormalization: Flow<Boolean> = emptyFlow(),
+        onVolumeNormalization: (Boolean) -> Unit = {},
     ) {
         stop()
         val observerScope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -35,6 +38,9 @@ internal class ShortsPreferenceObservers(
         }
         observerScope.launch {
             playbackSpeed.collect(onPlaybackSpeed)
+        }
+        observerScope.launch {
+            volumeNormalization.collect(onVolumeNormalization)
         }
     }
 

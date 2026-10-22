@@ -1689,7 +1689,7 @@ class PlayerPreferences(
         }
     }
 
-    /** Videos are turned down to YouTube's loudness level, as on youtube.com. */
+    /** Videos and Shorts are turned down to YouTube's loudness level, as on youtube.com. */
     val videoVolumeNormalizationEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences -> preferences[Keys.VIDEO_VOLUME_NORMALIZATION] ?: true }

@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.shorts
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.audio.LoudnessGain
 import io.github.aedev.flow.player.shorts.ShortsStartupTrace
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
@@ -36,6 +37,8 @@ data class ShortPlaybackStreams(
     val videoDashManifest: String? = null,
     val audioDashManifest: String? = null,
     val details: ShortDetails? = null,
+    /** YouTube's loudness for the reel, in dB, for volume normalization. */
+    val loudnessGainDb: Float? = null,
 )
 
 data class ShortVideoQuality(
@@ -209,6 +212,7 @@ class ShortsStreamResolver internal constructor(
             videoDashManifest = ShortsDashManifest.forVideo(video, videoUrl, durationMs),
             audioDashManifest = audio?.url?.let { ShortsDashManifest.forAudio(audio, it, durationMs) },
             details = playerResponse.videoDetails?.toShortDetails(durationMs),
+            loudnessGainDb = LoudnessGain.gainDb(playerResponse.playerConfig?.audioConfig, audio?.loudnessDb),
         )
     }
 

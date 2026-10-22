@@ -14,6 +14,9 @@ internal class ShortsSlots(
     val videoManifests = arrayOfNulls<String?>(size)
     val audioManifests = arrayOfNulls<String?>(size)
 
+    /** YouTube's loudness for each slot's reel, in dB; null when its response carried none. */
+    val loudnessGainsDb = arrayOfNulls<Float>(size)
+
     fun owns(
         slot: Int,
         index: Int,
@@ -28,6 +31,7 @@ internal class ShortsSlots(
         audioUrl: String?,
         videoManifest: String?,
         audioManifest: String?,
+        loudnessGainDb: Float? = null,
     ) {
         ownerIndices[slot] = index
         videoIds[slot] = videoId
@@ -35,6 +39,7 @@ internal class ShortsSlots(
         audioUrls[slot] = audioUrl
         videoManifests[slot] = videoManifest
         audioManifests[slot] = audioManifest
+        loudnessGainsDb[slot] = loudnessGainDb
     }
 
     fun clear(slot: Int) {
@@ -44,5 +49,6 @@ internal class ShortsSlots(
         audioUrls[slot] = null
         videoManifests[slot] = null
         audioManifests[slot] = null
+        loudnessGainsDb[slot] = null
     }
 }
