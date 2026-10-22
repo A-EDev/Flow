@@ -4704,4 +4704,13 @@
     <string name="music_playback_warning_rate_limited">YouTube يقيّد هذه الشبكة. حاول مرة أخرى لاحقًا.</string>
     <string name="music_playback_warning_members_or_paid">تحتاج هذه الأغنية إلى عضوية أو شراء على YouTube.</string>
     <string name="settings_music_resume_summary">بدء تشغيل مقاطع الموسيقي التي تتجاوز مدتها 10 دقائق من حيث توقفت</string>
+    <string name="keyboard_shortcuts_player">المشغّل</string>
+    <string name="keyboard_shortcut_seek_back">ترجيع</string>
+    <string name="keyboard_shortcut_volume_up">رفع مستوى الصوت</string>
+    <string name="keyboard_shortcut_volume_down">خفض مستوى الصوت</string>
+    <string name="keyboard_shortcut_faster">تسريع</string>
+    <string name="keyboard_shortcut_slower">تبطيء</string>
+    <string name="keyboard_shortcut_seek_forward">تقديم</string>
+    <string name="keyboard_shortcut_play_pause">تشغيل أو إيقاف</string>
+    <string name="keyboard_shortcut_exit_fullscreen">خروج من وضع ملء الشاشة</string>
 </resources>
