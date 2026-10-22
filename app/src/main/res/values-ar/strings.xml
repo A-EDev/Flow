@@ -4679,4 +4679,29 @@
         <item quantity="many">%d قائمة تشغيل في الموسيقى</item>
         <item quantity="other">‌%d قائمة تشغيل في الموسيقى</item>
     </plurals>
+    <string name="lyrics_auto_romanize_japanese">غير متاح للغة اليابانية حتى الآن</string>
+    <string name="notifications_already_in_watch_later">موجود بالفعل في قائمة المشاهدة لاحقًا</string>
+    <string name="notifications_save_to_watch_later">حفظ في قائمة المشاهدة لاحقًا</string>
+    <string name="player_settings_normalize_volume">توحيد مستوى الصوت</string>
+    <string name="player_settings_normalize_volume_summary">خفض صوت الفيديوهات المرتفعة إلى مستوى صوت YouTube</string>
+    <string name="settings_music_resume_title">استئناف تشغيل البودكاست والمقاطع الصوتية الطويلة</string>
+    <string name="settings_music_side_swipes_title">التحكم في السرعة و مستوى الصوت بالسحب</string>
+    <string name="settings_music_side_swipes_summary">اسحب على الجانب الأيسر للتحكم في السرعة، وعلى الجانب الأيمن للتحكم في مستوى الصوت</string>
+    <string name="filter_artists">‎الفنانون</string>
+    <string name="filter_featured_playlists">قوائم التشغيل المميزة</string>
+    <string name="filter_podcasts">البودكاست</string>
+    <string name="filter_episodes">الحلقات</string>
+    <string name="filter_profiles">الملفات الشخصية</string>
+    <string name="subtitle_profile">الملف الشخصي</string>
+    <string name="playlist_unavailable_hidden">يتم إخفاء الفيديوهات غير المتاحة</string>
+    <string name="error_members_or_paid">فيديو للأعضاء فقط أو فيديو مدفوع</string>
+    <string name="error_members_or_paid_hint">يحتاج هذا الفيديو إلى عضوية في القناة أو عملية شراء على YouTube.</string>
+    <string name="error_rate_limited">يقيّد YouTube هذه الشبكة</string>
+    <string name="error_rate_limited_hint">انتظر بعض الوقت وحاول مرة أخرى، أو بدّل الشبكة.</string>
+    <string name="error_bot_wall_network_hint">جرّب شبكة أخرى، مثل بيانات الجوال.</string>
+    <string name="error_bot_wall_session">يريد YouTube التأكد من أنك لست روبوتًا</string>
+    <string name="error_bot_wall_session_hint">أعد تعيين جلسة YouTube، ثم حاول مرة أخرى.</string>
+    <string name="music_playback_warning_rate_limited">YouTube يقيّد هذه الشبكة. حاول مرة أخرى لاحقًا.</string>
+    <string name="music_playback_warning_members_or_paid">تحتاج هذه الأغنية إلى عضوية أو شراء على YouTube.</string>
+    <string name="settings_music_resume_summary">بدء تشغيل مقاطع الموسيقي التي تتجاوز مدتها 10 دقائق من حيث توقفت</string>
 </resources>
