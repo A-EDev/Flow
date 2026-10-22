@@ -332,6 +332,7 @@ class PlayerPreferences(
         val MUSIC_REPEAT_MODE = intPreferencesKey("music_repeat_mode")
         val PAUSE_MUSIC_WHEN_MUTED = booleanPreferencesKey("pause_music_when_muted")
         val MUSIC_RESUME_LONG_TRACKS = booleanPreferencesKey("music_resume_long_tracks")
+        val MUSIC_SIDE_SWIPES = booleanPreferencesKey("music_side_swipes")
         val ANIMATED_ARTWORK_WIFI_ONLY = booleanPreferencesKey("animated_artwork_wifi_only")
         val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
         val RECAP_SOURCE = stringPreferencesKey("recap_source")
@@ -2217,6 +2218,18 @@ class PlayerPreferences(
     suspend fun setMusicResumeLongTracks(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_RESUME_LONG_TRACKS] = enabled
+        }
+    }
+
+    /** Vertical swipes on the music player's left and right thirds change speed and volume. */
+    val musicSideSwipes: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_SIDE_SWIPES] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setMusicSideSwipes(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_SIDE_SWIPES] = enabled
         }
     }
 

@@ -42,6 +42,7 @@ internal fun PlaybackSettingsScreen(
     val customSpeeds by viewModel.customSpeeds.collectAsStateWithLifecycle()
     val doubleTapSeek by viewModel.doubleTapSeek.collectAsStateWithLifecycle()
     val speedSwipeSide by viewModel.speedSwipeSide.collectAsStateWithLifecycle()
+    val musicSideSwipes by viewModel.musicSideSwipes.collectAsStateWithLifecycle()
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
     val disableShortsPlayer by viewModel.disableShortsPlayer.collectAsStateWithLifecycle()
@@ -60,6 +61,7 @@ internal fun PlaybackSettingsScreen(
                     customSpeeds,
                     doubleTapSeek > 0,
                     speedSwipeSide,
+                    musicSideSwipes,
                     comments,
                     shortsContent,
                     disableShortsPlayer,
@@ -80,6 +82,7 @@ internal data class PlaybackStructure(
     val customSpeeds: Boolean,
     val doubleTapSeek: Boolean,
     val speedSwipeSide: SpeedSwipeSide,
+    val musicSideSwipes: Boolean,
     val comments: Boolean,
     val shortsContent: Boolean,
     val disableShortsPlayer: Boolean,

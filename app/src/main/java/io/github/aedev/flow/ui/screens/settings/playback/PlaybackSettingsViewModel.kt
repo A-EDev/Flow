@@ -102,6 +102,7 @@ class PlaybackSettingsViewModel
         val musicVideoSwitch = preferences.musicVideoSwitch.asState(false)
         val pauseMusicWhenMuted = preferences.pauseMusicWhenMuted.asState(false)
         val musicResume = preferences.musicResumeLongTracks.asState(false)
+        val musicSideSwipes = preferences.musicSideSwipes.asState(false)
         val normalizeVolume = preferences.videoVolumeNormalizationEnabled.asState(true)
         val lyricsProviders =
             combine(preferences.lyricsProviderOrder, preferences.allLyricsProviderEnabledStates()) { order, enabled ->
@@ -239,6 +240,8 @@ class PlaybackSettingsViewModel
         fun setPauseMusicWhenMuted(value: Boolean) = write { preferences.setPauseMusicWhenMuted(value) }
 
         fun setMusicResume(value: Boolean) = write { preferences.setMusicResumeLongTracks(value) }
+
+        fun setMusicSideSwipes(value: Boolean) = write { preferences.setMusicSideSwipes(value) }
 
         fun setNormalizeVolume(value: Boolean) = write { preferences.setVideoVolumeNormalizationEnabled(value) }
 

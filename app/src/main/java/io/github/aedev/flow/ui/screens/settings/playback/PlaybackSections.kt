@@ -96,7 +96,7 @@ internal fun SettingsListScope.playbackSections(
         choice(PlaybackIndex.speedSwipe, onClick = { openDialog(PlaybackDialog.SPEED_SWIPE_SIDE) }) {
             speedSwipeSideLabel(state.speedSwipeSide)
         }
-        if (state.speedSwipeSide != SpeedSwipeSide.OFF) {
+        if (state.speedSwipeSide != SpeedSwipeSide.OFF || state.musicSideSwipes) {
             choice(PlaybackIndex.speedSwipeStep, onClick = { openDialog(PlaybackDialog.SPEED_SWIPE_STEP) }) {
                 val step by viewModel.speedSwipeStep.collectAsStateWithLifecycle()
                 speedSwipeStepLabel(step)
@@ -141,6 +141,7 @@ internal fun SettingsListScope.playbackSections(
         switch(PlaybackIndex.endlessRadio, viewModel.endlessRadio, viewModel::setEndlessRadio)
         switch(PlaybackIndex.pauseMusicWhenMuted, viewModel.pauseMusicWhenMuted, viewModel::setPauseMusicWhenMuted)
         switch(PlaybackIndex.musicResume, viewModel.musicResume, viewModel::setMusicResume)
+        switch(PlaybackIndex.musicSideSwipes, viewModel.musicSideSwipes, viewModel::setMusicSideSwipes)
         switch(PlaybackIndex.musicVideoSwitch, viewModel.musicVideoSwitch, viewModel::setMusicVideoSwitch)
         choice(PlaybackIndex.lyricsProviders, onClick = { openDialog(PlaybackDialog.LYRICS) }) {
             val providers by viewModel.lyricsProviders.collectAsStateWithLifecycle()
