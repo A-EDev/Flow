@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.videoplayer.gesture
+package io.github.aedev.flow.ui.components.shared
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.SpeedSwipeSide
