@@ -304,22 +304,23 @@ object DlnaCastManager {
         durationSeconds: Long,
     ) {
         val videoVariants =
-            videoOnlyStreams
-                .filter { it.height > 0 }
-                .filter {
-                    val mime = it.format?.mimeType ?: ""
-                    mime.contains("mp4") || mime.contains("avc")
-                }.sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
-                .map { stream ->
-                    CastStreamVariant(
-                        url = stream.content ?: stream.url ?: "",
-                        width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
-                        height = stream.height,
-                        bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
-                        mime = "video/mp4",
-                        codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
-                    )
-                }.filter { it.url.isNotEmpty() }
+            listOfNotNull(
+                videoOnlyStreams
+                    .filter { it.height > 0 && !(it.content ?: it.url).isNullOrEmpty() }
+                    // Only the best variant is sent, and above 1080p it is AV1, which most renderers can't decode.
+                    .filter { VideoCodecUtils.codecKeyFromStream(it) == "h264" }
+                    // Renderers start on the first variant listed, and each one is probed before they get the playlist.
+                    .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) },
+            ).map { stream ->
+                CastStreamVariant(
+                    url = stream.content ?: stream.url ?: "",
+                    width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
+                    height = stream.height,
+                    bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
+                    mime = "video/mp4",
+                    codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
+                )
+            }
 
         val bestAudio =
             audioStreams
