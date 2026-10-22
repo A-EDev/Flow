@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.util.AppIcons
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +26,9 @@ class AppIconController
         @ApplicationContext private val context: Context,
         private val playerPreferences: PlayerPreferences,
     ) {
+        /** Saved alias selection; emits on switch. */
+        val selected: Flow<String?> = playerPreferences.selectedAppIcon
+
         /** The alias the launcher currently shows. Reads the package manager, so it runs off the main thread. */
         suspend fun activeSuffix(): String =
             withContext(Dispatchers.IO) {

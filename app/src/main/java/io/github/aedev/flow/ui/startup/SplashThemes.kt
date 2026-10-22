@@ -73,6 +73,18 @@ private val ExpressiveSplashes =
                 R.style.Theme_Flow_Starting_Dark_Expressive_Pill,
                 R.style.Theme_Flow_Starting_Black_Expressive_Pill,
             ),
+        ".IconMaterialSky" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Material_Sky,
+                R.style.Theme_Flow_Starting_Dark_Material_Sky,
+                R.style.Theme_Flow_Starting_Black_Material_Sky,
+            ),
+        ".IconMaterialMint" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Material_Mint,
+                R.style.Theme_Flow_Starting_Dark_Material_Mint,
+                R.style.Theme_Flow_Starting_Black_Material_Mint,
+            ),
     )
 
 /**
