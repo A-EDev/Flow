@@ -73,7 +73,7 @@ class PlaybackSettingsViewModel
         val sponsorBlockButton = preferences.overlaySponsorBlockEnabled.asState(overlay.sponsorBlockEnabled)
         val nextPrevButtons = preferences.overlayNextPrevEnabled.asState(overlay.nextPrevButtonsEnabled)
 
-        val autoPip = preferences.autoPipEnabled.asState(false)
+        val autoPip = preferences.autoPipEnabled.asState(true)
         val continueWatchingMiniPlayer = preferences.miniPlayerContinueWatchingEnabled.asState(true)
         val restoreMusicMiniPlayer = preferences.showRestoredMusicMiniPlayer.asState(true)
         val openMusicPlayerOnPlay = preferences.openMusicPlayerOnPlay.asState(false)
