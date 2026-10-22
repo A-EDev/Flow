@@ -261,9 +261,12 @@ internal fun LazyListScope.similarTo(
 ) {
     val dailyMixes = uiState.dailyMixSections
     val moreFromArtist = uiState.moreFromArtistSections
+    val emittedKeys = mutableSetOf<String>()
 
     fun moreFromShelf(section: MusicSection) {
-        item(key = "more_from:${section.seedId}") {
+        val key = "more_from:${section.seedId}"
+        if (!emittedKeys.add(key)) return
+        item(key = key) {
             MusicTrackCardShelf(
                 title = section.title,
                 tracks = section.tracks,
@@ -309,7 +312,8 @@ internal fun LazyListScope.similarTo(
             )
         }
         val seedId = section.seedId ?: return@forEachIndexed
-        uiState.otherPerformanceSections.firstOrNull { it.seedId == seedId }?.let { performances ->
+        val performances = uiState.otherPerformanceSections.firstOrNull { it.seedId == seedId }
+        if (performances != null && emittedKeys.add("other_performances:$seedId")) {
             item(key = "other_performances:$seedId") {
                 MusicQuickPicksShelf(
                     title = performances.title,
