@@ -71,6 +71,7 @@ import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaylistQueueOrder
 import io.github.aedev.flow.player.audio.AudioSessionAnnouncer
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
+import io.github.aedev.flow.player.audio.LoudnessGain
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
@@ -102,7 +103,6 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.min
-import kotlin.math.pow
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
@@ -349,7 +349,7 @@ class Media3MusicService : MediaLibraryService() {
             mediaId
                 ?.takeIf { loudnessNormalizationEnabled && !LocalMediaIds.isLocal(it) }
                 ?.let(MusicPlayerUtils::cachedLoudnessGainDb)
-        player.volume = if (gainDb == null) 1f else 10.0.pow(gainDb / 20.0).toFloat()
+        player.volume = LoudnessGain.volume(gainDb)
     }
 
     private fun applyPlayDuringCallsPreference(playDuringCalls: Boolean) {

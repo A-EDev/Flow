@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.audio.LoudnessGain
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.StreamDenialClassifier
 import io.github.aedev.flow.player.stream.AudioStreamSelector
@@ -40,8 +41,6 @@ object MusicPlayerUtils {
 
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
-    private const val LOUDNESS_TARGET_LKFS = -14.0
-    private const val MIN_LOUDNESS_GAIN_DB = -20f
 
     // Matches the video player's load budget. The ladder can reach TV_TIZEN, whose remote decoder
     // calls and pre-roll wait have no bound of their own, and an unbounded resolve is a spinner
@@ -88,13 +87,7 @@ object MusicPlayerUtils {
 
     fun cachedLoudnessGainDb(videoId: String): Float? {
         val data = resultCache[videoId]?.result?.getOrNull() ?: return null
-        val audioConfig = data.audioConfig
-        val gainDb =
-            audioConfig?.perceptualLoudnessDb?.let { (audioConfig.loudnessTargetLkfs ?: LOUDNESS_TARGET_LKFS) - it }
-                ?: audioConfig?.loudnessDb?.let { -it }
-                ?: data.format.loudnessDb?.let { -it }
-                ?: return null
-        return gainDb.toFloat().coerceIn(MIN_LOUDNESS_GAIN_DB, 0f)
+        return LoudnessGain.gainDb(data.audioConfig, data.format.loudnessDb)
     }
 
     /** The resolved playback of [videoId] while it is still fresh, without waiting on a request. */
