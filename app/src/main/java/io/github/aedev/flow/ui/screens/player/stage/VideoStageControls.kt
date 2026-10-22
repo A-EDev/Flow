@@ -247,7 +247,10 @@ internal fun VideoStageControls(
         state = controlsState,
         actions = controlsActions,
         currentPosition = { screenState.currentPosition },
-        modifier = Modifier.placedWhen(expandedSurfacesPlaced),
+        modifier =
+            Modifier
+                .placedWhen(expandedSurfacesPlaced)
+                .videoStageKeyboardShortcuts(session, controlsActions, controlsState.hasPrevious, controlsState.hasNext),
         bufferedPercentage = bufferedFraction,
         windowInsets = WindowInsets(0, 0, 0, 0),
         isLayerPlaced = expandedSurfacesPlaced,

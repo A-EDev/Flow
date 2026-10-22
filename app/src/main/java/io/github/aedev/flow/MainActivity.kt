@@ -3,13 +3,14 @@ package io.github.aedev.flow
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
 import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.Menu
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -43,6 +44,7 @@ import io.github.aedev.flow.platform.AppIconController
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
+import io.github.aedev.flow.platform.PlayerKeyboardShortcutHelp
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -508,33 +510,22 @@ class MainActivity : ComponentActivity() {
     ): Boolean {
         if (
             (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
-            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value
+            io.github.aedev.flow.player.PlayerHardwareController.fullscreenVideoActive.value &&
+            io.github.aedev.flow.player.PlayerHardwareController
+                .adjustVolume(this, raise = keyCode == KeyEvent.KEYCODE_VOLUME_UP)
         ) {
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            if (audioManager != null) {
-                val direction =
-                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                        AudioManager.ADJUST_RAISE
-                    } else {
-                        AudioManager.ADJUST_LOWER
-                    }
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    direction,
-                    if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
-                        0
-                    } else {
-                        AudioManager.FLAG_SHOW_UI
-                    },
-                )
-                if (io.github.aedev.flow.player.PlayerHardwareController.inAppVolumeOverlayEnabled.value) {
-                    io.github.aedev.flow.player.PlayerHardwareController
-                        .notifyVolumeKey()
-                }
-                return true
-            }
+            return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onProvideKeyboardShortcuts(
+        data: MutableList<KeyboardShortcutGroup>,
+        menu: Menu?,
+        deviceId: Int,
+    ) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        data += PlayerKeyboardShortcutHelp.group(this)
     }
 
     override fun onKeyUp(
