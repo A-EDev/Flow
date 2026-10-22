@@ -319,6 +319,7 @@ object DlnaCastManager {
                     bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
                     mime = "video/mp4",
                     codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
+                    segmentRanges = stream.castSegmentRanges(),
                 )
             }
 
@@ -347,6 +348,7 @@ object DlnaCastManager {
                 audioMime = audioMime,
                 audioBitrate = audioBitrate,
                 audioCodec = audioCodec,
+                audioSegmentRanges = bestAudio?.castSegmentRanges(),
                 durationSeconds = durationSeconds,
             )
         } else {
@@ -370,6 +372,7 @@ object DlnaCastManager {
         audioMime: String = "audio/mp4",
         audioBitrate: Int = 128_000,
         audioCodec: String = "mp4a.40.2",
+        audioSegmentRanges: CastSegmentRanges? = null,
         durationSeconds: Long = 0,
         fallbackVideoUrl: String? = null,
     ) {
@@ -386,6 +389,7 @@ object DlnaCastManager {
                             audioMime = audioMime,
                             audioBitrate = audioBitrate,
                             audioCodec = audioCodec,
+                            audioSegmentRanges = audioSegmentRanges,
                             durationSeconds = durationSeconds,
                         )
                     contentType = "application/vnd.apple.mpegurl"

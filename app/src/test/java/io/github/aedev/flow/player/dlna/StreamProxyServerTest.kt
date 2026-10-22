@@ -1,5 +1,8 @@
 package io.github.aedev.flow.player.dlna
 
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.extractor.ChunkIndex
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -62,5 +65,37 @@ class StreamProxyServerTest {
             )
         val hlsContentTypes = listOf("video/mp4", "audio/mp4")
         assertThat(allowed).containsAtLeastElementsIn(hlsContentTypes.map(StreamProxyServer::segmentFileExtension))
+    }
+
+    @OptIn(UnstableApi::class)
+    @Test
+    fun `segmented playlists map the init segment and each index entry onto byte ranges`() {
+        val index =
+            ChunkIndex(
+                intArrayOf(1_000, 2_000),
+                longArrayOf(4_434, 5_434),
+                longArrayOf(6_000_000, 5_500_000),
+                longArrayOf(0, 6_000_000),
+            )
+
+        val playlist = StreamProxyServer.segmentedMediaPlaylist("http://phone/s/v.mp4", 0L..741L, index)
+
+        assertThat(playlist).isEqualTo(
+            """
+            #EXTM3U
+            #EXT-X-VERSION:6
+            #EXT-X-TARGETDURATION:6
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXT-X-MAP:URI="http://phone/s/v.mp4",BYTERANGE="742@0"
+            #EXTINF:6.000,
+            #EXT-X-BYTERANGE:1000@4434
+            http://phone/s/v.mp4
+            #EXTINF:5.500,
+            #EXT-X-BYTERANGE:2000@5434
+            http://phone/s/v.mp4
+            #EXT-X-ENDLIST
+
+            """.trimIndent(),
+        )
     }
 }
