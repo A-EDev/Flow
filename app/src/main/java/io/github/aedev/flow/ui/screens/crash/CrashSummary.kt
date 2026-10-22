@@ -12,6 +12,7 @@ private const val UNKNOWN_STEPS = "Not known. Flow crashed during normal use; th
 private const val EXPECTED = "Flow keeps running."
 private const val TOP_FRAMES = 6
 private val ReportTime: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+private val WrappedCause = Regex("""([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+(?:Exception|Error))(?::.*)?""", RegexOption.DOT_MATCHES_ALL)
 
 /** The facts a person needs from a crash report, read back from the text the crash handler saved. */
 data class CrashSummary(
@@ -23,7 +24,20 @@ data class CrashSummary(
     val device: String?,
     val time: LocalDateTime?,
     val topFrames: List<String>,
-)
+) {
+    /**
+     * The class a title names. Android rethrows some failures as `RuntimeException(cause)`, whose
+     * message is the cause, and the cause is what tells two such crashes apart.
+     */
+    val headline: String
+        get() =
+            message
+                ?.let(WrappedCause::matchEntire)
+                ?.groupValues
+                ?.get(1)
+                ?.substringAfterLast('.')
+                ?: exception
+}
 
 fun parseCrashSummary(report: String): CrashSummary {
     val lines = report.lines().map { it.trim() }
@@ -61,7 +75,7 @@ fun parseCrashSummary(report: String): CrashSummary {
  * happened can still send it in one tap and edit only what they know (#1189).
  */
 fun CrashSummary.issueUrl(): String {
-    val title = "[Bug]: $exception" + (location?.let { " in $it" } ?: "")
+    val title = "[Bug]: $headline" + (location?.let { " in $it" } ?: "")
     val error = exception + (message?.let { ": $it" } ?: "")
     val log =
         buildString {
