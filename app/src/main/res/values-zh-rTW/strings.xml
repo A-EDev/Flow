@@ -4174,4 +4174,21 @@
     <string name="error_rate_limited_hint">請稍候再試，或改用其他網路。</string>
     <string name="music_playback_warning_rate_limited">YouTube 限制了這個網路，請稍後再試。</string>
     <string name="music_playback_warning_members_or_paid">這首歌曲需要會員資格，或在 YouTube 購買。</string>
+    <string name="notifications_already_in_watch_later">已在「稍後觀看」中</string>
+    <string name="notifications_save_to_watch_later">儲存到「稍後觀看」</string>
+    <string name="player_settings_normalize_volume">音量標準化</string>
+    <string name="player_settings_normalize_volume_summary">把太大聲的影片調降到 YouTube 的音量水準</string>
+    <string name="settings_music_resume_title">繼續播放 Podcast 與長曲目</string>
+    <string name="settings_music_resume_summary">超過 10 分鐘的曲目會從上次中斷的地方開始</string>
+    <string name="settings_music_side_swipes_title">速度與音量滑動</string>
+    <string name="settings_music_side_swipes_summary">滑動左側調整速度，滑動右側調整音量</string>
+    <string name="keyboard_shortcuts_player">播放器</string>
+    <string name="keyboard_shortcut_play_pause">播放或暫停</string>
+    <string name="keyboard_shortcut_seek_back">倒轉</string>
+    <string name="keyboard_shortcut_seek_forward">快轉</string>
+    <string name="keyboard_shortcut_volume_up">調高音量</string>
+    <string name="keyboard_shortcut_volume_down">調低音量</string>
+    <string name="keyboard_shortcut_exit_fullscreen">結束全螢幕</string>
+    <string name="keyboard_shortcut_faster">加快</string>
+    <string name="keyboard_shortcut_slower">放慢</string>
 </resources>
