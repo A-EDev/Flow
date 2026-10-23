@@ -2742,19 +2742,19 @@
     <string name="player_appearance_plain_control_colors_monochrome">Noir et blanc</string>
     <string name="player_appearance_plain_control_colors_app">Thème de couleurs</string>
     <string name="lyrics_source_local_file">Fichier de paroles</string>
-    <string name="check_out_short_template">Vérifiez ce short: %1$s\nhttps://youtube.com/shorts/%2$s</string>
-    <string name="link_not_supported">Flow ne peut pas ouvrir ce genre de lien</string>
-    <string name="mark_as_unwatched">Marqué comme non vu</string>
-    <string name="channel_name_copied">Nom de la chaine copier dans le presse-papier</string>
-    <string name="copy_channel_name">Copier le nom de la chaine</string>
-    <string name="channel_name_clip_label">Nom de la chaine</string>
+    <string name="check_out_short_template">Découvrez ce short : %1$s\nhttps://youtube.com/shorts/%2$s</string>
+    <string name="link_not_supported">Flow ne peut pas ouvrir ce type de lien</string>
+    <string name="mark_as_unwatched">Marquer comme « non vu »</string>
+    <string name="channel_name_copied">Nom de la chaîne copié dans le presse-papiers</string>
+    <string name="copy_channel_name">Copier le nom de la chaîne</string>
+    <string name="channel_name_clip_label">Nom de la chaîne</string>
     <plurals name="course_lessons_count">
         <item quantity="one">Cours · %d leçon</item>
         <item quantity="many">Cours · %d leçons</item>
         <item quantity="other">Cours · %d leçons</item>
     </plurals>
-    <string name="downloads_recover_title">Trouver les téléchargement depuis une installation précedente</string>
-    <string name="downloads_recover_body">Flow sauvegardes les téléchargements dans Download/Flow and Music/Flow. Pour lister les fichiers sauvegarder par une installation précédente, autorisez l\'accès aux vidéos et audios.</string>
+    <string name="downloads_recover_title">Rechercher les fichiers téléchargés lors d\'une installation précédente</string>
+    <string name="downloads_recover_body">Flow enregistre les téléchargements dans les dossiers « Téléchargements/Flow » et « Musique/Flow ». Pour afficher la liste des fichiers enregistrés à cet emplacement par une installation antérieure, autorisez l\'accès aux vidéos et aux fichiers audio.</string>
     <string name="downloads_recover_allow">Autoriser l\'accès</string>
     <string name="downloads_recover_dismiss">Pas maintenant</string>
     <plurals name="downloads_recovered_count">
@@ -2770,11 +2770,28 @@
     <plurals name="search_watch_empty_watched">
         <item quantity="one">Pas de vidéos regarder ici</item>
     </plurals>
-    <string name="home_load_more_failed">Impossible de chargez plus de vidéos</string>
+    <string name="home_load_more_failed">Impossible de charger d\'autres vidéos</string>
     <string name="home_load_more_failed_body">Vérifiez votre connection</string>
     <plurals name="subscriptions_refresh_checks_template">
         <item quantity="one">Vérification de %1$d sur %2$d chaine pour les shorts et live</item>
         <item quantity="many">Vérification de %1$d sur %2$d chaines pour les shorts et live</item>
         <item quantity="other">Vérification de %1$d sur %2$d chaines pour les shorts et live</item>
     </plurals>
+    <string name="home_refresh_failed">Impossible d\'actualiser votre fil d\'actualité</string>
+    <string name="player_appearance_follow_light_theme_title">Thème lumineux</string>
+    <string name="player_appearance_follow_light_theme_subtitle">Les arrière-plans des illustrations s\'éclaircissent</string>
+    <string name="player_appearance_sleep_timer_button_subtitle">Afficher à côté du bouton de file d\'attente</string>
+    <string name="lyrics_source_embedded">Paroles intégrées</string>
+    <string name="mark_as_unwatched_toast">Marqué comme « non visionné »</string>
+    <string name="search_watch_empty_unwatched">Aucune vidéo non visionnée ici</string>
+    <string name="player_appearance_artwork_control_colors_subtitle">Colorez les boutons et la barre de défilement de la couverture</string>
+    <plurals name="library_items_count">
+        <item quantity="one">%1$d article</item>
+        <item quantity="many">%1$d articles</item>
+        <item quantity="other">%1$d articles</item>
+    </plurals>
+    <string name="notes_search_placeholder">Rechercher dans les notes</string>
+    <string name="notes_filter_all">Tout</string>
+    <string name="notes_filter_videos">Vidéos</string>
+    <string name="notes_filter_channels">Chaînes</string>
 </resources>
