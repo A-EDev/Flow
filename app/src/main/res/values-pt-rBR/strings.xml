@@ -3748,4 +3748,5 @@
     </plurals>
     <string name="lyrics_keep_screen_on">Manter a tela ligada</string>
     <string name="lyrics_keep_screen_on_summary">Enquanto as letras estão a mostra e a música toca</string>
+    <string name="recap_source_video"></string>
 </resources>
