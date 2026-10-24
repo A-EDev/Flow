@@ -4075,4 +4075,40 @@
     <string name="diagnostics_engine_queries_none"></string>
     <string name="taste_reset_video_body"></string>
     <string name="recap_sponsor_label"></string>
+    <plurals name="searches_count_template">
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+    </plurals>
+    <plurals name="every_minutes_template">
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+    </plurals>
+    <plurals name="threads_count_label">
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+    </plurals>
+    <plurals name="every_min_template">
+    </plurals>
+    <plurals name="days_count_template">
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+    </plurals>
+    <plurals name="remove_selected_videos_title">
+    </plurals>
+    <plurals name="songs_count_template">
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+    </plurals>
+    <plurals name="topics_count_template">
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+    </plurals>
+    <plurals name="delete_after_days_template">
+    </plurals>
+    <plurals name="delete_older_than_template">
+    </plurals>
+    <plurals name="selected_count_template">
+    </plurals>
 </resources>
