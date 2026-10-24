@@ -4041,4 +4041,5 @@
     <string name="about_reddit_subtitle"></string>
     <plurals name="ui_downloading_videos">
     </plurals>
+    <string name="topic_score_prefix"></string>
 </resources>
