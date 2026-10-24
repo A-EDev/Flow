@@ -4383,4 +4383,6 @@
     <string name="favourite_artists_add"></string>
     <string name="player_settings_normalize_volume"></string>
     <string name="taste_reset_video_body"></string>
+    <string name="search_watch_empty_watched"></string>
+    <string name="search_watch_empty_unwatched"></string>
 </resources>
