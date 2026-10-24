@@ -4041,4 +4041,6 @@
     </plurals>
     <plurals name="songs_count_template">
     </plurals>
+    <plurals name="ui_downloading_videos">
+    </plurals>
 </resources>
