@@ -2316,4 +2316,16 @@
     <string name="player_settings_subtitle_language_dialog_body"></string>
     <plurals name="delete_older_than_template">
     </plurals>
+    <plurals name="download_all_confirmation">
+    </plurals>
+    <plurals name="videos_curated_template">
+    </plurals>
+    <plurals name="videos_count_template">
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+    </plurals>
+    <plurals name="days_count_template">
+    </plurals>
+    <plurals name="songs_count_template">
+    </plurals>
 </resources>
