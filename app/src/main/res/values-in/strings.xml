@@ -4205,4 +4205,7 @@
     <string name="player_settings_seek_zone_back"></string>
     <string name="player_settings_normalize_volume"></string>
     <string name="notes_library_subtitle"></string>
+    <string name="search_watch_empty_watched"></string>
+    <string name="categories_rate_limited"></string>
+    <string name="search_watch_empty_unwatched"></string>
 </resources>
