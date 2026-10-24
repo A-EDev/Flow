@@ -4037,4 +4037,8 @@
     </plurals>
     <plurals name="view_replies_template">
     </plurals>
+    <plurals name="videos_count_template">
+    </plurals>
+    <plurals name="songs_count_template">
+    </plurals>
 </resources>
