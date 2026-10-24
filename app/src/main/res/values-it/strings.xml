@@ -4276,4 +4276,5 @@
     <string name="taste_reset_video_body"></string>
     <string name="recap_sponsor_label"></string>
     <string name="download_muxing_incompatible"></string>
+    <string name="categories_rate_limited"></string>
 </resources>
