@@ -4009,4 +4009,8 @@
     <string name="recap_sponsor_label"></string>
     <string name="datetime_context_description"></string>
     <string name="about_reddit_subtitle"></string>
+    <string name="empty_subscriptions_body"></string>
+    <string name="download_muxing_incompatible"></string>
+    <string name="subscriptions_search_placeholder"></string>
+    <string name="topic_score_prefix"></string>
 </resources>
