@@ -1,10 +1,12 @@
 package io.github.aedev.flow.utils
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 
@@ -18,6 +20,32 @@ fun youtubeWatchUrl(
     val watchUrl = "https://www.youtube.com/watch?v=$videoId"
     return if (positionSeconds == null) watchUrl else "$watchUrl&t=${positionSeconds}s"
 }
+
+/**
+ * Opens the video in the YouTube app. A bare link comes back to Flow wherever Flow is the YouTube
+ * link handler (#1420); without the app, the chooser offers every other app that can open it.
+ */
+fun openInYouTube(
+    context: Context,
+    videoId: String,
+) {
+    val view = Intent(Intent.ACTION_VIEW, Uri.parse(youtubeWatchUrl(videoId)))
+    try {
+        context.startActivity(Intent(view).setPackage(YOUTUBE_PACKAGE))
+    } catch (_: ActivityNotFoundException) {
+        val chooser =
+            Intent.createChooser(view, context.getString(R.string.ui_open_in_youtube)).apply {
+                putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, MainActivity::class.java)))
+            }
+        try {
+            context.startActivity(chooser)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, context.getString(R.string.link_cannot_open), Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+private const val YOUTUBE_PACKAGE = "com.google.android.youtube"
 
 fun youtubeShortsUrl(videoId: String): String = "https://youtube.com/shorts/$videoId"
 

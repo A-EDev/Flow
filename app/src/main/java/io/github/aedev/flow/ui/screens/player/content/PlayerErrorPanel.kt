@@ -1,8 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.content
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.utils.openInYouTube
 
 private val ButtonPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
 
@@ -121,14 +120,7 @@ internal fun PlayerErrorPanel(
             }
             // Row 2: Open in YouTube (full width)
             OutlinedButton(
-                onClick = {
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://www.youtube.com/watch?v=$videoId"),
-                        )
-                    context.startActivity(intent)
-                },
+                onClick = { openInYouTube(context, videoId) },
                 shape = MaterialTheme.shapes.small,
                 contentPadding = ButtonPadding,
                 modifier = Modifier.fillMaxWidth(),
