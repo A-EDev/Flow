@@ -2097,4 +2097,64 @@
     <string name="scrobbling_import_summary">En çok çaldığınız sanatçıları favorilerine ekle</string>
     <string name="scrobbling_hide_secret">Gizli</string>
     <string name="scrobbling_show_secret">Göstermek</string>
+    <plurals name="searches_count_template">
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+    </plurals>
+    <plurals name="toast_downloaded_tracks">
+    </plurals>
+    <plurals name="taste_topic_breadth_detail">
+    </plurals>
+    <plurals name="download_all_confirmation">
+    </plurals>
+    <plurals name="videos_curated_template">
+    </plurals>
+    <plurals name="subscriptions_refresh_progress_template">
+    </plurals>
+    <plurals name="every_minutes_template">
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+    </plurals>
+    <plurals name="merge_playlist_success">
+    </plurals>
+    <plurals name="threads_count_label">
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+    </plurals>
+    <plurals name="currently_searches_template">
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+    </plurals>
+    <plurals name="favorites_count_template">
+    </plurals>
+    <plurals name="every_min_template">
+    </plurals>
+    <plurals name="remove_incomplete_downloads_message">
+    </plurals>
+    <plurals name="days_count_template">
+    </plurals>
+    <plurals name="notification_new_videos_from_subscriptions">
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+    </plurals>
+    <plurals name="threads_per_download_template">
+    </plurals>
+    <plurals name="remove_selected_videos_title">
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+    </plurals>
+    <plurals name="topics_count_template">
+    </plurals>
+    <plurals name="import_yt_playlist_success_template">
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+    </plurals>
+    <plurals name="delete_after_days_template">
+    </plurals>
+    <plurals name="delete_older_than_template">
+    </plurals>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+    </plurals>
+    <plurals name="selected_count_template">
+    </plurals>
 </resources>
