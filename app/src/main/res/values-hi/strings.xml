@@ -4028,4 +4028,8 @@
     </plurals>
     <plurals name="selected_count_template">
     </plurals>
+    <plurals name="download_all_confirmation">
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
 </resources>
