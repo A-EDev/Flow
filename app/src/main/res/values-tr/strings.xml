@@ -4033,4 +4033,8 @@
     <string name="taste_reset_video_body"></string>
     <string name="recap_sponsor_label"></string>
     <string name="about_reddit_subtitle"></string>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
+    <plurals name="view_replies_template">
+    </plurals>
 </resources>
