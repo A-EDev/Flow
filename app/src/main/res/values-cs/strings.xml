@@ -4012,4 +4012,6 @@
     <string name="about_reddit_subtitle"></string>
     <plurals name="download_all_confirmation">
     </plurals>
+    <string name="download_muxing_incompatible"></string>
+    <string name="topic_score_prefix"></string>
 </resources>
