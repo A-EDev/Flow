@@ -2266,4 +2266,54 @@
     <string name="crash_full_report">Pełny raport</string>
     <string name="crash_share">Udostępnij raport</string>
     <string name="crash_subtitle">Ten raport pozostanie na Twoim urządzeniu, dopóki go nie udostępnisz.</string>
+    <plurals name="searches_count_template">
+    </plurals>
+    <string name="player_settings_shorts_continue_into_feed_subtitle"></string>
+    <plurals name="sleep_timer_minutes">
+    </plurals>
+    <plurals name="every_minutes_template">
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+    </plurals>
+    <plurals name="merge_playlist_success">
+    </plurals>
+    <plurals name="threads_count_label">
+    </plurals>
+    <string name="player_settings_subtitle_language_none_desc"></string>
+    <string name="player_settings_subtitle_language_dialog_title"></string>
+    <string name="player_settings_shorts_continue_into_feed"></string>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
+    <plurals name="currently_searches_template">
+    </plurals>
+    <string name="notification_update_available"></string>
+    <plurals name="every_min_template">
+    </plurals>
+    <plurals name="remove_incomplete_downloads_message">
+    </plurals>
+    <plurals name="duration_minutes">
+    </plurals>
+    <string name="player_settings_auto_enable_subtitles_subtitle"></string>
+    <plurals name="onboarding_channels_added_count">
+    </plurals>
+    <plurals name="threads_per_download_template">
+    </plurals>
+    <plurals name="sync_selected_count">
+    </plurals>
+    <string name="player_settings_subtitle_language_none"></string>
+    <plurals name="view_replies_template">
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+    </plurals>
+    <plurals name="topics_count_template">
+    </plurals>
+    <string name="player_settings_auto_enable_subtitles"></string>
+    <plurals name="delete_after_days_template">
+    </plurals>
+    <string name="player_settings_subtitle_language"></string>
+    <string name="player_settings_subtitle_language_dialog_body"></string>
+    <plurals name="delete_older_than_template">
+    </plurals>
 </resources>
