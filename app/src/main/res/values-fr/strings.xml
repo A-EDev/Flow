@@ -488,7 +488,7 @@
     <string name="hidden_content_desc">Les vidéos traitant de ces sujets n\'apparaîtront pas dans vos suggestions. Vous pouvez également utiliser le bouton « Ça ne m\'intéresse pas » sur les vidéos.</string>
     <string name="block_topic_title">Bloquer un sujet</string>
     <string name="enter_keywords_to_hide">Entrez des mots-clés à masquer</string>
-    <string name="block_topic_placeholder">par exemple : maquillage, Fortnite, ASMR</string>
+    <string name="block_topic_placeholder">par exemple : maquillage, Fortnite, ASMR</string>
     <string name="desc_add_topic">Ajouter un sujet</string>
     <string name="quick_add">Ajout rapide</string>
     <string name="common_topics_to_block">Sujets courants à bloquer</string>
@@ -822,7 +822,7 @@
     <string name="mark_as_watched">Marquer comme vu</string>
     <string name="mark_as_watched_toast">Marqué comme « vu »</string>
     <string name="i_like_this">Je veux plus de ça</string>
-    <string name="i_like_this_toast">D\'accord ! Vous verrez davantage de contenu de ce genre.</string>
+    <string name="i_like_this_toast">D\'accord ! Vous verrez davantage de contenu de ce genre.</string>
     <string name="go_to_channel">Aller sur la chaîne</string>
     <string name="status_live">EN DIRECT</string>
     <string name="copy_description">Copier la description</string>
@@ -918,7 +918,7 @@
     <string name="app_icon_picker_warning">La modification de l\'icône peut entraîner la disparition temporaire de Flow de votre écran d\'accueil. Si nécessaire, rajoutez-la depuis le tiroir d\'applications.</string>
     <string name="content_settings_explore_region_picker_title">Sélection rapide de la région dans Explorer</string>
     <string name="content_settings_explore_region_picker_subtitle">Afficher une icône représentant un globe terrestre dans la barre supérieure de l\'écran « Explorer » pour changer instantanément la région en vogue.</string>
-    <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
+    <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
     <string name="sb_color_picker_title">Couleur de mise en évidence du segment</string>
     <string name="auto_backup_pick_folder">Sélectionner un dossier</string>
     <string name="player_settings_shorts_background_play_subtitle">Continuer à lire les Shorts lorsque l\'application est en arrière-plan</string>
@@ -971,7 +971,7 @@
     <string name="appearance_role_on_surface_variant">Sur la variante de surface</string>
     <string name="appearance_role_error">Erreur</string>
     <string name="appearance_role_on_error">En cas d\'erreur</string>
-    <string name="merge_playlist_no_playlists">Il n\'y a pas encore de playlist. Commencez par en créer une !</string>
+    <string name="merge_playlist_no_playlists">Il n\'y a pas encore de playlist. Commencez par en créer une !</string>
     <string name="mini_player_small">Petit</string>
     <string name="mini_player_large">Grand</string>
     <string name="theme_desc_monochrome">Une pureté en noir et blanc</string>
@@ -1094,7 +1094,7 @@
     <string name="sb_action_show_toast">Notification uniquement</string>
     <string name="sb_action_ignore">Ignorer</string>
     <string name="select_text">Sélectionner le texte</string>
-    <string name="flow_is_up_to_date">Flow est à jour !</string>
+    <string name="flow_is_up_to_date">Flow est à jour !</string>
     <string name="error_not_supported_hint">Ce format ou ce type de contenu ne peut pas être lu dans Flow.</string>
     <string name="proxy_settings_invalid_port">Entrez un port proxy valide compris entre 1 et 65535.</string>
     <string name="proxy_settings_saved">Paramètres de proxy enregistrés</string>
@@ -1139,8 +1139,8 @@
     <string name="import_yt_playlist_desc">Importez une playlist à partir d\'un fichier CSV YouTube Takeout (Playlist-&lt;nom&gt;.csv).</string>
     <string name="import_yt_music_playlist">Importer une playlist YouTube Music</string>
     <string name="import_yt_music_playlist_desc">Importez une playlist depuis un fichier CSV YouTube Music Takeout. Elle apparaîtra dans la section « Playlists ».</string>
-    <string name="import_yt_history_failed_template">Échec de l\'importation de l\'historique de visionnage : %1$s</string>
-    <string name="import_yt_playlist_failed_template">Échec de l\'importation de la playlist : %1$s</string>
+    <string name="import_yt_history_failed_template">Échec de l\'importation de l\'historique de visionnage : %1$s</string>
+    <string name="import_yt_playlist_failed_template">Échec de l\'importation de la playlist : %1$s</string>
     <string name="import_yt_history_empty_error">Aucune entrée d\'historique de visionnage n\'a été trouvée dans ce fichier. Vérifiez qu\'il s\'agit bien d\'un fichier « watch-history.html » issu de YouTube Takeout.</string>
     <string name="import_yt_playlist_empty_error">Aucune vidéo n\'a été trouvée dans ce fichier CSV. Vérifiez qu\'il s\'agit bien d\'un fichier CSV de playlist YouTube Takeout.</string>
     <string name="permissions_header">Autorisations</string>
@@ -1219,7 +1219,7 @@
     <string name="diagnostics_copy">Copier le rapport</string>
     <string name="diagnostics_share">Partager le rapport</string>
     <string name="diagnostics_clear_crashes">Effacer les rapports d\'incident</string>
-    <string name="diagnostics_clear_confirm_title">Effacer les rapports d\'incident ?</string>
+    <string name="diagnostics_clear_confirm_title">Effacer les rapports d\'incident ?</string>
     <string name="diagnostics_clear_confirm_body">Tous les rapports d\'incident enregistrés seront définitivement supprimés. Cette action est irréversible.</string>
     <string name="diagnostics_no_crashes">Aucun rapport d\'incident — super !</string>
     <string name="diagnostics_no_session_logs">Aucun avertissement ni aucune erreur n\'ont été signalés au cours de cette session.</string>
@@ -1263,12 +1263,12 @@
     <string name="appearance_role_scrim">Toile de protection</string>
     <string name="icon_name_amoled">AMOLED sombre</string>
     <string name="proxy_settings_port">Port</string>
-    <string name="total_hours_template">Total : %s heures</string>
+    <string name="total_hours_template">Total : %s heures</string>
     <string name="bedtime_reminder_title">Rappel de l\'heure du coucher</string>
     <string name="bedtime_reminder_subtitle">Recevez une notification quand il est l\'heure d\'aller dormir</string>
     <string name="break_reminder_title">Rappel de pause</string>
     <string name="break_reminder_subtitle">Faites des pauses régulières pendant que vous regardez</string>
-    <string name="sleep_window">Période de sommeil :</string>
+    <string name="sleep_window">Période de sommeil :</string>
     <string name="frequency_description">À quelle fréquence vous le rappeler</string>
     <string name="tools_subtitle">Programmez des rappels pour équilibrer vos habitudes de visionnage</string>
     <string name="bedtime_start_title">Début de l\'heure du coucher</string>
@@ -1337,7 +1337,7 @@
     <string name="auto_backup_type_master">Sauvegarde principale</string>
     <string name="auto_backup_folder_label">Dossier de sauvegarde</string>
     <string name="auto_backup_no_folder">Aucun dossier sélectionné</string>
-    <string name="auto_backup_last_run">Dernière sauvegarde : %s</string>
+    <string name="auto_backup_last_run">Dernière sauvegarde : %s</string>
     <string name="auto_backup_last_run_label">Dernière sauvegarde</string>
     <string name="auto_backup_never_run">Pas encore de sauvegarde</string>
     <string name="auto_backup_run_now">Sauvegarder maintenant</string>
@@ -1397,7 +1397,7 @@
     <string name="profile_maturity_detail">Une maturité plus élevée signifie que le profil dispose de suffisamment de signaux pour être stable</string>
     <string name="taste_shape_subtitle">Profil global par rapport au contexte temporel actif</string>
     <string name="taste_pacing">Rythme</string>
-    <string name="taste_pacing_context">Contexte actuel : %1$s</string>
+    <string name="taste_pacing_context">Contexte actuel : %1$s</string>
     <string name="taste_complexity">Complexité</string>
     <string name="taste_duration">Préférence en matière de durée</string>
     <string name="taste_duration_detail">Des valeurs plus élevées indiquent des vidéos plus longues</string>
@@ -1459,7 +1459,7 @@
     <string name="profile_action_import_detail">Restaurez une sauvegarde de profil</string>
     <string name="profile_action_reset">Réinitialiser le profil</string>
     <string name="profile_action_reset_detail">Effacer les préférences enregistrées et repartir de zéro</string>
-    <string name="reset_profile_dialog_title">Réinitialiser le profil ?</string>
+    <string name="reset_profile_dialog_title">Réinitialiser le profil ?</string>
     <string name="reset_profile_dialog_message">Cela efface le profil de recommandations local et relance l\'apprentissage depuis le début.</string>
     <string name="reset_profile_confirm">Réinitialiser</string>
     <string name="taste_chart_profile">Profil</string>
@@ -1556,7 +1556,7 @@
     <string name="section_daily_discover">Votre découverte du jour</string>
     <string name="section_speed_dial">Accès Rapide</string>
     <string name="shuffle_play">Lecture aléatoire</string>
-    <string name="feeling_lucky">Vous vous sentez chanceux ?</string>
+    <string name="feeling_lucky">Vous vous sentez chanceux ?</string>
     <string name="daily_discover_sounds_like">On dirait %1$s</string>
     <string name="daily_discover_because_you_listen_to">Parce que vous écoutez %1$s</string>
     <string name="daily_discover_similar_to">Similaire à %1$s</string>
@@ -1574,13 +1574,13 @@
     <string name="added_to_playlist_toast">Ajouté à la playlist</string>
     <string name="already_downloaded_toast">Déjà téléchargé</string>
     <string name="download_started_toast">Téléchargement en cours…</string>
-    <string name="download_error_toast">Erreur de téléchargement : %1$s</string>
+    <string name="download_error_toast">Erreur de téléchargement : %1$s</string>
     <string name="music_quality_header">Qualité Audio Musicale</string>
     <string name="music_quality_auto">Auto</string>
     <string name="music_quality_high">Haute</string>
     <string name="music_quality_medium">Moyenne</string>
     <string name="music_quality_low">Basse</string>
-    <string name="music_playback_warning_forbidden">L\'accès au streaming musical a été refusé. YouTube limite peut-être l\'accès à cette adresse IP ; essayez de recharger la page ou de changer de réseau/VPN.</string>
+    <string name="music_playback_warning_forbidden">L\'accès au streaming musical a été refusé. YouTube limite peut-être l\'accès à cette adresse IP ; essayez de recharger la page ou de changer de réseau/VPN.</string>
     <string name="music_playback_warning_network">La lecture de la musique a échoué en raison d\'un problème de réseau. Vérifiez votre connexion ou essayez un autre réseau.</string>
     <string name="music_playback_warning_final">Ce titre n\'a pas pu être chargé malgré plusieurs tentatives. Si le problème persiste, essayez un autre réseau ou un VPN.</string>
     <string name="music_playback_warning_generic">La lecture de la musique a échoué. Réessayez ou changez de réseau si le problème persiste.</string>
@@ -1620,13 +1620,13 @@
     <string name="export_watch_history_desc">Exporter l\'historique YouTube au format JSON (compatible avec LibreTube et Flow)</string>
     <string name="history_export_failed">Échec de l\'exportation de l\'historique de visionnage</string>
     <string name="history_delete_shorts">Supprimer les Shorts de l\'historique</string>
-    <string name="history_delete_shorts_title">Supprimer les Shorts ?</string>
+    <string name="history_delete_shorts_title">Supprimer les Shorts ?</string>
     <string name="history_delete_shorts_body">Cela supprime toutes les vidéos « Shorts » de votre historique de visionnage. Les autres vidéos sont conservées.</string>
     <string name="download_audio">Audio</string>
     <string name="download_title_label">Titre</string>
     <string name="download_format_label">Format</string>
     <string name="download_threads_label">Fils</string>
-    <string name="download_no_compatible_audio">Flux audio incompatible — le téléchargement ne peut pas se poursuivre</string>
+    <string name="download_no_compatible_audio">Flux audio incompatible — le téléchargement ne peut pas se poursuivre</string>
     <string name="download_menu_style_subtitle">Choisissez l\'apparence de la boîte de dialogue de téléchargement</string>
     <string name="download_menu_style_classic">Classique</string>
     <string name="download_menu_style_classic_desc">Liste complète de toutes les qualités et de tous les codecs</string>
@@ -1640,7 +1640,7 @@
     <string name="player_settings_video_codec_dialog_title">Codec vidéo par défaut</string>
     <string name="player_settings_video_codec_dialog_body">Choisissez le codec à utiliser par défaut pour la résolution sélectionnée. Cela ne modifie pas les options de qualité proposées : vous pouvez toujours choisir n\'importe quel codec dans le sélecteur de qualité. Le H.264 est le plus compatible et offre la meilleure fluidité sur la plupart des appareils ; les codecs AV1/VP9 permettent de réduire la taille des fichiers aux résolutions élevées, mais nécessitent une puissance de décodage plus importante.</string>
     <string name="player_settings_video_codec_auto_desc">Laisser l\'application choisir (H.264 de préférence)</string>
-    <string name="subscriptions_last_refreshed_time_only_template">Dernière mise à jour : %1$s</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Dernière mise à jour : %1$s</string>
     <string name="live_chat">Chat en direct</string>
     <string name="live_chat_connecting">Connexion au chat en direct…</string>
     <string name="live_chat_empty">En attente de messages…</string>
@@ -1649,7 +1649,7 @@
     <string name="live_chat_jump_to_latest">Aller au dernier message du chat</string>
     <string name="content_settings_subs_show_checked_count_title">Nombre de vidéos vérifiées</string>
     <string name="content_settings_subs_show_checked_count_subtitle">Indiquer le nombre de vidéos visionnées à côté de la date de la dernière mise à jour</string>
-    <string name="donation_prompt_title">Vous appréciez Flow ?</string>
+    <string name="donation_prompt_title">Vous appréciez Flow ?</string>
     <string name="donation_prompt_message">Flow est une application gratuite et open source, conçue sans publicité ni traqueurs. Si elle a trouvé sa place sur votre appareil, pensez à soutenir son développement : cela contribue réellement à assurer la pérennité du projet.</string>
     <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">Soutenir le développement</string>
@@ -1704,7 +1704,7 @@
     <string name="search_in_flow">Rechercher dans Flow</string>
     <string name="recognition_search_history">Rechercher des morceaux reconnus</string>
     <string name="recognition_history_empty">Les morceaux identifiés s\'afficheront ici</string>
-    <string name="recognition_clear_history">Effacer l\'historique ?</string>
+    <string name="recognition_clear_history">Effacer l\'historique ?</string>
     <string name="recognition_clear_history_body">Cette opération supprime toutes les chansons reconnues. Elle est irréversible.</string>
     <string name="player_settings_display">Affichage</string>
     <string name="player_settings_ambient_mode">Mode ambiant</string>
@@ -1724,7 +1724,7 @@
     <string name="sync_collection_playlists">Playlists</string>
     <string name="sync_collection_watch_history">Historique des visionnages</string>
     <string name="sync_receive_from_device">Recevoir depuis un appareil</string>
-    <string name="sync_pairing_title">Comment faut-il appairer les appareils ?</string>
+    <string name="sync_pairing_title">Comment faut-il appairer les appareils ?</string>
     <string name="sync_show_qr_here">Afficher un QR code ici</string>
     <string name="sync_scan_other_qr">Scannez le QR code de l\'autre appareil</string>
     <string name="sync_scan_prompt_send_code">Dirigez la caméra vers le code d\'envoi de l\'autre appareil</string>
@@ -1742,14 +1742,14 @@
     <string name="sync_sas_body">Vérifiez que ce code à 6 chiffres est identique sur les deux appareils avant de continuer.</string>
     <string name="sync_sas_differ">Ils diffèrent</string>
     <string name="sync_sas_match">Ils correspondent</string>
-    <string name="sync_consent_title">Fusionner les données entrantes ?</string>
+    <string name="sync_consent_title">Fusionner les données entrantes ?</string>
     <string name="sync_consent_note">Une sauvegarde de sécurité sera effectuée avant la fusion, et celle-ci se fera sans conflit : aucun élément ne sera écrasé ni compté deux fois.</string>
     <string name="sync_bullet_item">• %1$s</string>
     <string name="sync_decline">Baisse</string>
     <string name="sync_progress_fraction">%1$d / %2$d</string>
     <string name="sync_complete">Synchronisation terminée 🎉</string>
     <string name="sync_synced_with">Synchronisé avec %1$s</string>
-    <string name="sync_done_collection_stats">%1$s : +%2$d ajoutés, %3$d mis à jour, %4$d ignorés</string>
+    <string name="sync_done_collection_stats">%1$s : +%2$d ajoutés, %3$d mis à jour, %4$d ignorés</string>
     <string name="sync_done_button">Terminé</string>
     <string name="sync_failed_title">Échec de la synchronisation</string>
     <string name="sync_try_again">Réessayez</string>
@@ -1787,13 +1787,13 @@
     <string name="subscriptions_sort_default">Par défaut</string>
     <string name="subscriptions_sort_name">Nom (A–Z)</string>
     <string name="subscriptions_sort_recent">Mise à jour récente</string>
-    <string name="not_interested_toast">D\'accord ! Vous verrez moins de contenus de ce genre.</string>
-    <string name="quick_actions_error_template">Erreur : %1$s</string>
+    <string name="not_interested_toast">D\'accord ! Vous verrez moins de contenus de ce genre.</string>
+    <string name="quick_actions_error_template">Erreur : %1$s</string>
     <string name="upcoming_label">À venir</string>
     <string name="upcoming_waiting_count">%1$s en attente</string>
     <string name="player_appearance_hide_music_artwork_title">Masquer la pochette du lecteur de musique</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Afficher plutôt l\'icône de l\'application dans la couleur de l\'illustration extraite</string>
-    <string name="onboarding_interests_title">Qu\'est-ce qui vous plaît ?</string>
+    <string name="onboarding_interests_title">Qu\'est-ce qui vous plaît ?</string>
     <string name="onboarding_interests_hint">Choisissez au moins %1$d thèmes pour personnaliser votre fil d\'actualité. Il en reste %2$d.</string>
     <string name="onboarding_interests_ready">Super choix. Vous pourrez toujours modifier cela plus tard dans les paramètres.</string>
     <string name="onboarding_channels_title">Rechercher des chaînes</string>
@@ -1809,7 +1809,7 @@
     <string name="onboarding_backup_restore_section">Sauvegarde &amp; Restauration</string>
     <string name="onboarding_topic_selected">Sélectionné</string>
     <string name="onboarding_topic_not_selected">Non sélectionné</string>
-    <string name="onboarding_import_failed_template">Échec de l\'importation : %1$s</string>
+    <string name="onboarding_import_failed_template">Échec de l\'importation : %1$s</string>
     <string name="onboarding_btn_skip">Passer</string>
     <string name="onboarding_btn_finish">Terminer</string>
     <string name="onboarding_btn_back">Retour</string>
@@ -1908,15 +1908,15 @@
     <string name="dlna_cast_to_device">Diffusion vers un appareil</string>
     <string name="dlna_no_devices">Aucun périphérique de lecture DLNA/UPnP n\'a été détecté sur ce réseau.\n\nAssurez-vous que votre téléviseur ou votre lecteur multimédia (VLC, Kodi, etc.) est connecté au même réseau Wi-Fi et que le mode « périphérique de lecture » est activé.</string>
     <string name="dlna_searching">Recherche d\'appareils DLNA...</string>
-    <string name="dlna_now_casting">Diffusion en cours : %1$s</string>
+    <string name="dlna_now_casting">Diffusion en cours : %1$s</string>
     <string name="dlna_stop_casting">Arrêter la diffusion</string>
     <string name="subtitle_customization_title">Personnalisation des sous-titres</string>
     <string name="subtitle_preview_text">Aperçu du texte des sous-titres</string>
-    <string name="subtitle_font_size_template">Taille de la police : %1$d</string>
-    <string name="subtitle_position_template">Position : %1$d</string>
+    <string name="subtitle_font_size_template">Taille de la police : %1$d</string>
+    <string name="subtitle_position_template">Position : %1$d</string>
     <string name="subtitle_text_color">Couleur du texte</string>
     <string name="subtitle_background_color">Couleur d\'arrière-plan</string>
-    <string name="subtitle_background_opacity_template">Opacité de l\'arrière-plan : %1$d%%</string>
+    <string name="subtitle_background_opacity_template">Opacité de l\'arrière-plan : %1$d%%</string>
     <string name="subtitle_bold_text">Texte en gras</string>
     <string name="subtitle_reset_default">Rétablir les paramètres par défaut</string>
     <string name="content_settings_hide_watched_home_title">Masquer les vidéos visionnées de la page d\'accueil</string>
@@ -1996,10 +1996,10 @@
     <string name="ui_search_settings">Paramètres de recherche…</string>
     <string name="ui_custom_interest_title">Ajouter un centre d\'intérêt personnalisé</string>
     <string name="ui_custom_interest_subtitle">Saisissez le sujet que vous souhaitez suivre</string>
-    <string name="ui_custom_interest_hint">Centres d\'intérêt personnels (par exemple : le jazz, l\'astrophysique)</string>
+    <string name="ui_custom_interest_hint">Centres d\'intérêt personnels (par exemple : le jazz, l\'astrophysique)</string>
     <string name="ui_add_interest">Ajouter de l\'intérêt</string>
     <string name="ui_version">Version %1$s</string>
-    <string name="update_download_prompt">Une nouvelle version de Flow est disponible (%1$s). Voulez-vous télécharger la dernière version de l\'APK ?</string>
+    <string name="update_download_prompt">Une nouvelle version de Flow est disponible (%1$s). Voulez-vous télécharger la dernière version de l\'APK ?</string>
     <string name="ui_instrumental">I N S T R U M E N T A L</string>
     <string name="ui_playlist_empty">La playlist est vide</string>
     <string name="equalizer">Égaliseur</string>
@@ -2007,21 +2007,21 @@
     <string name="label_preset_name">Nom du préréglage</string>
     <string name="ui_playlist_saved_to_library">Playlist enregistrée dans la bibliothèque</string>
     <string name="ui_playlist_removed_from_library">Playlist supprimée de la bibliothèque</string>
-    <string name="ui_download_audio">Téléchargement du fichier audio : %1$skbps %2$s</string>
+    <string name="ui_download_audio">Téléchargement du fichier audio : %1$skbps %2$s</string>
     <string name="ui_skipped_segment">%1$s ignorés</string>
-    <string name="ui_started_download">Téléchargement lancé : %1$s</string>
-    <string name="ui_download_start_failed">Échec du lancement du téléchargement : %1$s</string>
+    <string name="ui_started_download">Téléchargement lancé : %1$s</string>
+    <string name="ui_download_start_failed">Échec du lancement du téléchargement : %1$s</string>
     <string name="toast_unsubscribed_from">Désabonnement de %1$s</string>
     <string name="toast_subscribed_to">Abonné à %1$s</string>
     <string name="toast_removed_from_watch_later">Supprimé de la liste « À regarder plus tard »</string>
     <string name="toast_added_to_watch_later">Ajouté à « À regarder plus tard »</string>
     <string name="toast_fetching_download_links">Récupération des liens de téléchargement…</string>
-    <string name="toast_download_started">Téléchargement lancé : %1$s</string>
+    <string name="toast_download_started">Téléchargement lancé : %1$s</string>
     <string name="toast_trying_sabr_download">Tentative de téléchargement de SABR…</string>
     <string name="toast_sabr_download_started">Le téléchargement de SABR a commencé</string>
-    <string name="toast_sabr_download_started_for_video">Téléchargement SABR lancé : %1$s</string>
+    <string name="toast_sabr_download_started_for_video">Téléchargement SABR lancé : %1$s</string>
     <string name="toast_no_download_source">Aucune source de téléchargement disponible</string>
-    <string name="toast_sabr_download_failed">Échec du téléchargement SABR : %1$s</string>
+    <string name="toast_sabr_download_failed">Échec du téléchargement SABR : %1$s</string>
     <string name="toast_copied_to_clipboard">Copié dans le presse-papiers</string>
     <string name="toast_playlist_deleted">Playlist supprimée</string>
     <string name="toast_playlist_renamed">Playlist renommée</string>
@@ -2039,16 +2039,16 @@
     <string name="notification_importing">Importation de %1$s</string>
     <string name="notification_import_complete">Importation terminée</string>
     <string name="notification_imported">%1$d %2$s importé</string>
-    <string name="notification_downloading">Téléchargement en cours : %1$s</string>
+    <string name="notification_downloading">Téléchargement en cours : %1$s</string>
     <string name="notification_download_complete">Téléchargement terminé</string>
     <string name="notification_download_failed">Échec du téléchargement</string>
     <string name="notification_more">+%1$d de plus</string>
     <string name="notification_new_videos">Nouvelles vidéos</string>
-    <string name="notification_update_available">Mise à jour disponible : %1$s</string>
+    <string name="notification_update_available">Mise à jour disponible : %1$s</string>
     <string name="notification_tap_to_update">Appuyez ici pour effectuer la mise à jour vers la dernière version.</string>
     <string name="notification_watch_later_reminder">Rappel « À regarder plus tard »</string>
     <string name="notification_video_live">La vidéo est en direct</string>
-    <string name="notification_channel_live">%1$s est désormais disponible : %2$s</string>
+    <string name="notification_channel_live">%1$s est désormais disponible : %2$s</string>
     <string name="notification_channel_downloads_description">Affiche la progression du téléchargement et indique quand celui-ci est terminé</string>
     <string name="notification_channel_new_videos_description">Notifications lorsque les chaînes auxquelles vous êtes abonné publient de nouvelles vidéos</string>
     <string name="notification_channel_video_playback_description">Commandes de lecture vidéo</string>
@@ -2080,7 +2080,7 @@
     <string name="discord_presence_ready_as">Lié en tant que %1$s · se connecte pendant la lecture</string>
     <string name="discord_presence_connected">Connecté</string>
     <string name="discord_presence_connected_as">Connecté en tant que %1$s</string>
-    <string name="discord_presence_connected_account">Compte Discord : %1$s</string>
+    <string name="discord_presence_connected_account">Compte Discord : %1$s</string>
     <string name="discord_presence_unavailable">Indisponible dans cette version</string>
     <string name="discord_presence_connection_error">Erreur de connexion</string>
     <string name="discord_presence_linking">En attente de connexion à Discord…</string>
@@ -2124,13 +2124,13 @@
     <string name="error_failed_to_load_feed">Échec du chargement du flux</string>
     <string name="error_failed_to_load_channel">Échec du chargement de la chaîne</string>
     <string name="error_insecure_stream_blocked">Flux non sécurisé bloqué par la politique de l\'appareil.</string>
-    <string name="error_expiring_stream_urls">Impossible de lire la vidéo : les URL de streaming expirent sans cesse.</string>
-    <string name="error_playback_device">Erreur du périphérique de lecture : %1$s</string>
-    <string name="error_content_protection">Erreur de protection du contenu : %1$s</string>
+    <string name="error_expiring_stream_urls">Impossible de lire la vidéo : les URL de streaming expirent sans cesse.</string>
+    <string name="error_playback_device">Erreur du périphérique de lecture : %1$s</string>
+    <string name="error_content_protection">Erreur de protection du contenu : %1$s</string>
     <string name="error_playback_stopped">La lecture s\'est arrêtée en raison d\'une erreur critique</string>
-    <string name="error_invalid_media_streams">Échec du chargement du contenu multimédia : flux non valides</string>
-    <string name="error_failed_to_load_media">Échec du chargement du fichier multimédia : %1$s</string>
-    <string name="error_failed_to_load_media_invalid_streams">Échec du chargement du contenu multimédia : flux non valides</string>
+    <string name="error_invalid_media_streams">Échec du chargement du contenu multimédia : flux non valides</string>
+    <string name="error_failed_to_load_media">Échec du chargement du fichier multimédia : %1$s</string>
+    <string name="error_failed_to_load_media_invalid_streams">Échec du chargement du contenu multimédia : flux non valides</string>
     <string name="error_playback_retry_hint">Réessayez plus tard ou vérifiez votre connexion réseau.</string>
     <string name="download_waiting_for_wifi">En attente de connexion Wi-Fi</string>
     <string name="download_failed_try_again">Le téléchargement a échoué. Veuillez réessayer.</string>
@@ -2176,7 +2176,7 @@
     <string name="discord_presence_privacy_title">Confidentialité</string>
     <string name="discord_presence_privacy_body">Lorsqu\'elle est activée, l\'application Flow partage avec Discord le titre de la vidéo, du « Short », du live ou du morceau en cours de lecture, ainsi que le nom du créateur ou de l\'artiste, la pochette et la durée de lecture. Ce paramètre est désactivé par défaut. Votre jeton de session Discord est chiffré à l\'aide du Keystore Android et n\'est jamais ajouté aux journaux de l\'application.</string>
     <string name="discord_presence_gateway_warning">Flow utilise une connexion non officielle de type « self-bot » via le jeton de votre compte Discord, et non via OAuth. Cela constitue une violation des Conditions d\'utilisation de Discord et peut entraîner la suspension ou la résiliation de votre compte. Les clients non pris en charge peuvent également déclencher des alertes de fuite de jeton, des réinitialisations de mot de passe, des CAPTCHA ou des verrouillages nécessitant une vérification par téléphone.</string>
-    <string name="discord_presence_risk_dialog_title">Accepter les risques liés au compte Discord ?</string>
+    <string name="discord_presence_risk_dialog_title">Accepter les risques liés au compte Discord ?</string>
     <string name="discord_presence_risk_dialog_body">En vous connectant via Discord, vous fournissez à Flow le jeton de votre compte Discord. Flow le stocke en le chiffrant à l\'aide du Keystore Android et ne l\'envoie qu\'à Discord, mais cette méthode non officielle d\'utilisation d\'un bot personnel enfreint les Conditions d\'utilisation de Discord. Discord peut suspendre ou résilier votre compte, vous obliger à réinitialiser votre mot de passe, vous demander de saisir des CAPTCHA ou verrouiller votre compte en exigeant une vérification par téléphone.</string>
     <string name="discord_presence_risk_accept">Je comprends, me connecter</string>
     <string name="discord_error_not_initialized">La fonctionnalité « Rich Presence » de Discord ne s\'est pas initialisée.</string>
@@ -2202,7 +2202,7 @@
     <string name="download_failed_video_length">Impossible d\'obtenir la durée du contenu vidéo</string>
     <string name="download_failed_audio_length">Impossible d\'obtenir la durée du contenu audio</string>
     <string name="download_workers_failed">Un ou plusieurs travailleurs ont échoué</string>
-    <string name="download_block_failed">Échec du bloc %1$s : %2$s</string>
+    <string name="download_block_failed">Échec du bloc %1$s : %2$s</string>
     <string name="import_migrate_description">Transférez en toute simplicité vos abonnements et votre historique depuis d\'autres plateformes vers Flow.</string>
     <string name="import_backup_restore">Sauvegarde &amp; Restauration</string>
     <string name="import_manage_backups">Gérer vos sauvegardes Flow</string>
@@ -2278,12 +2278,12 @@
     <string name="tv_guide_search_voice">Lancez la recherche vocale si le téléviseur dispose d\'un service de microphone compatible.</string>
     <string name="tv_guide_search_results">Passez du clavier aux filtres et aux résultats ; utilisez les touches Haut et Bas pour naviguer entre les sections.</string>
     <string name="tv_guide_player_toggle">Lancez la lecture ou mettez-la en pause pour afficher les commandes de lecture.</string>
-    <string name="tv_guide_player_seek">Effectuez une recherche en arrière ou en avant ; la barre de recherche indique la position actuelle.</string>
+    <string name="tv_guide_player_seek">Effectuez une recherche en arrière ou en avant ; la barre de recherche indique la position actuelle.</string>
     <string name="tv_guide_player_hold">Maintenez la touche gauche ou droite enfoncée pour accélérer le défilement, puis relâchez-la pour valider.</string>
     <string name="tv_guide_player_up">Affichez les commandes et sélectionnez la ligne « À suivre ».</string>
     <string name="tv_guide_player_down">Afficher les commandes de navigation et mettre en surbrillance les boutons Lecture/Pause.</string>
     <string name="tv_guide_player_media">Les touches « Lecture », « Pause », « Précédent », « Suivant », « Retour rapide », « Avance rapide » et « Sous-titres » fonctionnent directement.</string>
-    <string name="tv_guide_player_back">Fermez d\'abord un panneau ou les commandes ; appuyez à nouveau pour quitter le lecteur.</string>
+    <string name="tv_guide_player_back">Fermez d\'abord un panneau ou les commandes ; appuyez à nouveau pour quitter le lecteur.</string>
     <string name="tv_settings_wifi_quality">Qualité par défaut (Wi-Fi)</string>
     <string name="tv_settings_cellular_quality">Qualité par défaut (réseau mobile)</string>
     <string name="tv_settings_codec">Codec préféré</string>
@@ -2303,7 +2303,7 @@
         <item quantity="many">%d chaînes n\'ont pas pu être chargées</item>
         <item quantity="other">%d chaînes n\'ont pas pu être chargées</item>
     </plurals>
-    <string name="subscriptions_failed_channels_body">Leurs dernières vidéos ne figurent pas dans ce fil d\'actualité : %1$s</string>
+    <string name="subscriptions_failed_channels_body">Leurs dernières vidéos ne figurent pas dans ce fil d\'actualité : %1$s</string>
     <string name="subscriptions_failed_channels_more">%1$s et %2$d de plus</string>
     <string name="comment_edited">modifié</string>
     <string name="comment_time_edited_template">%1$s (%2$s)</string>
@@ -2321,7 +2321,7 @@
     <string name="import_no_videos">Aucune vidéo n\'a été trouvée dans le fichier de la playlist</string>
     <string name="import_no_content">Aucun contenu importable n\'a été détecté dans cette sauvegarde</string>
     <string name="import_invalid_format">Format de sauvegarde non reconnu — assurez-vous d\'avoir sélectionné le bon fichier</string>
-    <string name="import_failed_template">Échec de l\'importation : %1$s</string>
+    <string name="import_failed_template">Échec de l\'importation : %1$s</string>
     <string name="player_appearance_seek_gesture_title">Geste de recherche</string>
     <string name="player_appearance_seek_gesture_subtitle">En mode plein écran, faites glisser votre doigt latéralement pour avancer ou reculer</string>
     <string name="player_settings_subtitle_language">Langue préférée pour les sous-titres</string>
@@ -2349,7 +2349,7 @@
     <string name="cd_short_watched">Vu</string>
     <string name="sync_collection_subscription_groups">Groupes d\'abonnement</string>
     <string name="sync_collection_subscription_groups_body">Les dossiers dans lesquels vous classez vos chaînes.</string>
-    <string name="sync_qr_advertised_address">Cet appareil : %1$s</string>
+    <string name="sync_qr_advertised_address">Cet appareil : %1$s</string>
     <string name="sync_step_title_send">Envoyer</string>
     <string name="sync_step_title_receive">Recevoir</string>
     <string name="sync_step_title_pair">Appairer des appareils</string>
@@ -2383,15 +2383,15 @@
     </plurals>
     <plurals name="subscriptions_last_refreshed_template">
         <item quantity="one">Dernière mise à jour le %1$s - %2$d vidéos vérifiée</item>
-        <item quantity="many">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
-        <item quantity="other">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
+        <item quantity="many">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
+        <item quantity="other">Dernière mise à jour : %1$s - %2$d vidéos vérifiées</item>
     </plurals>
     <string name="conjunction_and">et</string>
     <string name="streamed_date_template">Diffusé en streaming %1$s</string>
     <plurals name="download_all_confirmation">
-        <item quantity="one">Télécharger %1$d vidéo ? Cela risque d\'occuper beaucoup d\'espace de stockage.</item>
-        <item quantity="many">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
-        <item quantity="other">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
+        <item quantity="one">Télécharger %1$d vidéo ? Cela risque d\'occuper beaucoup d\'espace de stockage.</item>
+        <item quantity="many">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
+        <item quantity="other">Télécharger toutes les %1$d vidéos ? Cela risque de prendre beaucoup d\'espace de stockage.</item>
     </plurals>
     <string name="explicit_badge">E</string>
     <plurals name="view_replies_template">
@@ -2472,7 +2472,7 @@
     <string name="import_yt_watch_later">Importer pour regarder plus tard</string>
     <string name="import_yt_watch_later_desc">Importez un fichier CSV YouTube Takeout directement dans votre liste « À regarder plus tard », quel que soit le nom du fichier.</string>
     <string name="queue_position_template">%1$d / %2$d</string>
-    <string name="next_up_template">%1$s : %2$s</string>
+    <string name="next_up_template">%1$s : %2$s</string>
     <string name="equalizer_frequency_label">F</string>
     <string name="equalizer_gain_label">G</string>
     <string name="equalizer_q_label">Q</string>
@@ -2527,7 +2527,7 @@
     <string name="music_metric_on_repeat">En Boucle</string>
     <string name="music_metric_on_repeat_detail">très tendance en ce moment</string>
     <string name="music_discovery_appetite">Soif de découvertes</string>
-    <string name="music_discovery_appetite_detail">Quelle proportion de morceaux récents le moteur intègre-t-il dans la sélection ?</string>
+    <string name="music_discovery_appetite_detail">Quelle proportion de morceaux récents le moteur intègre-t-il dans la sélection ?</string>
     <string name="music_persona_empty">Mettez de la musique et le moteur commencera à apprendre</string>
     <string name="lyrics_save_file">Enregistrer sous forme de fichier .lrc</string>
     <plurals name="queue_track_count">
@@ -2558,7 +2558,7 @@
     <string name="lyrics_searching_sources">Recherche de sources…</string>
     <string name="lyrics_no_sources_found">Aucune parole n\'a été trouvée, quelle que soit la source</string>
     <string name="lyrics_source_edited">Modifié</string>
-    <string name="lyrics_current_source">Source actuelle : %1$s</string>
+    <string name="lyrics_current_source">Source actuelle : %1$s</string>
     <string name="lyrics_display_header">Affichage</string>
     <string name="audio_bitrate_kbps_template">%1$d kbps</string>
     <string name="scheduled_for_prefix">Prévu pour %1$s</string>
@@ -2660,9 +2660,9 @@
         <item quantity="other">%1$d min</item>
     </plurals>
     <plurals name="currently_searches_template">
-        <item quantity="one">Actuellement : %1$d recherche</item>
-        <item quantity="many">Actuellement : %1$d recherches</item>
-        <item quantity="other">Actuellement : %1$d recherches</item>
+        <item quantity="one">Actuellement : %1$d recherche</item>
+        <item quantity="many">Actuellement : %1$d recherches</item>
+        <item quantity="other">Actuellement : %1$d recherches</item>
     </plurals>
     <plurals name="delete_after_days_template">
         <item quantity="one">Supprimer après %1$d jour</item>
@@ -2794,4 +2794,36 @@
     <string name="notes_filter_all">Tout</string>
     <string name="notes_filter_videos">Vidéos</string>
     <string name="notes_filter_channels">Chaînes</string>
+    <string name="notification_download_paused"></string>
+    <plurals name="toast_downloaded_tracks">
+    </plurals>
+    <plurals name="taste_topic_breadth_detail">
+    </plurals>
+    <plurals name="merge_playlist_success">
+    </plurals>
+    <string name="notification_channel_downloads_name"></string>
+    <string name="notification_download_paused_hint"></string>
+    <string name="notification_download_progress"></string>
+    <plurals name="remove_incomplete_downloads_message">
+    </plurals>
+    <plurals name="duration_minutes">
+    </plurals>
+    <plurals name="notification_new_videos_from_subscriptions">
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+    </plurals>
+    <plurals name="notification_downloads_paused">
+    </plurals>
+    <plurals name="sync_selected_count">
+    </plurals>
+    <plurals name="remove_selected_videos_title">
+    </plurals>
+    <plurals name="ui_downloading_videos">
+    </plurals>
+    <string name="download_stream_blocked_403"></string>
+    <plurals name="notification_downloads_active">
+    </plurals>
+    <string name="subtitle_load_failed"></string>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+    </plurals>
 </resources>
