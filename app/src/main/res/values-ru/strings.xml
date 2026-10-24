@@ -4513,23 +4513,4 @@
     <string name="liked_videos_empty_title">Пока нет понравившихся видео</string>
     <string name="liked_videos_empty_body">Здесь отображаются видео, которые вам понравились</string>
     <string name="remove_selected_likes_text">Их не будут любить.</string>
-    <string name="theme_name_tako" translatable="false"></string>
-    <string name="donation_method_open_collective" translatable="false"></string>
-    <string name="donation_method_patreon" translatable="false"></string>
-    <string name="donation_currency_monero" translatable="false"></string>
-    <string name="app_launcher_name" translatable="false"></string>
-    <string name="donation_currency_solana" translatable="false"></string>
-    <string name="theme_name_everforest" translatable="false"></string>
-    <string name="donation_currency_bitcoin" translatable="false"></string>
-    <string name="theme_name_tokyo_night" translatable="false"></string>
-    <string name="donation_currency_ethereum" translatable="false"></string>
-    <string name="donation_currency_usdt" translatable="false"></string>
-    <string name="theme_name_gruvbox" translatable="false"></string>
-    <string name="theme_name_catppuccin" translatable="false"></string>
-    <string name="theme_name_solarized" translatable="false"></string>
-    <string name="codec_name_hevc" translatable="false"></string>
-    <string name="theme_name_dracula" translatable="false"></string>
-    <string name="theme_name_rose_pine" translatable="false"></string>
-    <string name="theme_name_kanagawa" translatable="false"></string>
-    <string name="theme_name_claude" translatable="false"></string>
 </resources>
