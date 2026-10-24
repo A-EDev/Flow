@@ -4152,4 +4152,8 @@
     <string name="diagnostics_engine_queries_none"></string>
     <string name="taste_reset_video_body"></string>
     <string name="recap_sponsor_label"></string>
+    <plurals name="favorites_count_template">
+    </plurals>
+    <plurals name="selected_count_template">
+    </plurals>
 </resources>
