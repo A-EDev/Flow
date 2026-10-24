@@ -4022,4 +4022,7 @@
     <string name="recap_sponsor_label"></string>
     <string name="datetime_context_description"></string>
     <string name="about_reddit_subtitle"></string>
+    <string name="search_watch_empty_watched"></string>
+    <string name="categories_rate_limited"></string>
+    <string name="search_watch_empty_unwatched"></string>
 </resources>
