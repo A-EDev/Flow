@@ -98,19 +98,23 @@ internal fun PlayerDialogsContainer(
             isCasting = DlnaCastManager.isCasting,
             videoTitle = video.title,
             onDeviceSelected = { device ->
+                val playerManager = EnhancedPlayerManager.getInstance()
                 val currentPlayerUrl =
-                    EnhancedPlayerManager
-                        .getInstance()
+                    playerManager
                         .getPlayer()
                         ?.currentMediaItem
                         ?.localConfiguration
                         ?.uri
                         ?.toString()
+                val (videoOnlyStreams, muxedStreams) = playerManager.getCastVideoStreams().partition { it.isVideoOnly }
                 DlnaCastManager.castStreamInfo(
                     device = device,
                     title = video.title,
-                    streamInfo = null,
                     currentPlayerUrl = currentPlayerUrl,
+                    videoOnlyStreams = videoOnlyStreams,
+                    audioStreams = playerManager.getCastAudioStreams(),
+                    muxedStreams = muxedStreams,
+                    durationSeconds = playerManager.getDuration() / 1000,
                 )
                 screenState.closeSheet()
             },

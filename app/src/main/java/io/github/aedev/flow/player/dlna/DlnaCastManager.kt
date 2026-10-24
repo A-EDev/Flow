@@ -5,21 +5,25 @@ import android.net.wifi.WifiManager
 import android.os.SystemClock
 import android.util.Log
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.VideoStream
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.net.DatagramPacket
@@ -27,6 +31,7 @@ import java.net.InetAddress
 import java.net.MulticastSocket
 import java.net.URI
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -48,6 +53,8 @@ object DlnaCastManager {
     private const val SSDP_ADDR = "239.255.255.250"
     private const val SSDP_PORT = 1900
     private const val DISCOVERY_TIMEOUT_MS = 5_000L
+    private const val STOP_TIMEOUT_MS = 5_000L
+    private const val SEGMENTED_START_TIMEOUT_MS = 10_000L
     private val SOAP_TYPE = "text/xml; charset=\"utf-8\"".toMediaType()
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -81,6 +88,12 @@ object DlnaCastManager {
     val castDuration: StateFlow<Long> = _castDuration.asStateFlow()
 
     private var positionPollingJob: Job? = null
+
+    private enum class CastMode { SEGMENTED_AV1, SEGMENTED, WHOLE_FILE, MUXED }
+
+    // In memory only: the first cast to a renderer after an app start probes the ladder again.
+    private val failedCastModes = ConcurrentHashMap<String, MutableSet<CastMode>>()
+    private var castJob: Job? = null
 
     // ── Discovery ──────────────────────────────────────────────────────────────
 
@@ -284,9 +297,10 @@ object DlnaCastManager {
      * The proxy runs on the phone and relays the stream, so the renderer
      * connects to the phone instead of YouTube.
      *
-     * Build cast variants from an extracted [StreamInfo] and start casting to [device].
-     * Prefers HLS-style separate video variants + best AAC audio; falls back to a pre-muxed
-     * stream (or [currentPlayerUrl]) when separate streams aren't usable.
+     * Tries each [CastMode] in order, skipping those a renderer already failed: AV1 goes above
+     * 1080p but most renderers can't decode it, segmented fMP4 HLS starts in seconds but older
+     * renderers can't play it, single-segment HLS works there but downloads the whole file first,
+     * and a pre-muxed stream (or [currentPlayerUrl]) is the last resort.
      *
      * @param currentPlayerUrl the currently-playing media URI, supplied by the caller so this
      *   manager stays decoupled from the player engine; used as a last-resort fallback.
@@ -294,142 +308,169 @@ object DlnaCastManager {
     fun castStreamInfo(
         device: DlnaDevice,
         title: String,
-        streamInfo: StreamInfo?,
         currentPlayerUrl: String?,
+        videoOnlyStreams: List<VideoStream>,
+        audioStreams: List<AudioStream>,
+        muxedStreams: List<VideoStream>,
+        durationSeconds: Long,
     ) {
-        if (streamInfo != null) {
-            val duration = streamInfo.duration
-
-            val videoVariants =
-                (streamInfo.videoOnlyStreams ?: emptyList())
-                    .filter { it.height > 0 }
-                    .filter {
-                        val mime = it.format?.mimeType ?: ""
-                        mime.contains("mp4") || mime.contains("avc")
-                    }.sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
-                    .map { stream ->
-                        CastStreamVariant(
-                            url = stream.content ?: stream.url ?: "",
-                            width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
-                            height = stream.height,
-                            bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
-                            mime = "video/mp4",
-                            codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
-                        )
-                    }.filter { it.url.isNotEmpty() }
-
-            val bestAudio =
-                streamInfo.audioStreams
-                    ?.filter {
-                        val mime = it.format?.mimeType ?: ""
-                        mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
-                    }?.maxByOrNull { it.bitrate }
-
-            val audioUrl = bestAudio?.let { it.content ?: it.url }
-            val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
-            val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
-            val audioMime =
-                bestAudio?.format?.mimeType?.let {
-                    if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
-                } ?: "audio/mp4"
-
-            if (videoVariants.isNotEmpty() && audioUrl != null) {
-                Log.d(TAG, "HLS cast: ${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps")
-                castTo(
-                    device = device,
-                    title = title,
-                    videoVariants = videoVariants,
-                    audioUrl = audioUrl,
-                    audioMime = audioMime,
-                    audioBitrate = audioBitrate,
-                    audioCodec = audioCodec,
-                    durationSeconds = duration,
+        // Renderers fail playlists that mix codecs, so each playlist carries a single variant.
+        fun bestVariants(codecKey: String): List<CastStreamVariant> =
+            listOfNotNull(
+                videoOnlyStreams
+                    .filter { it.height > 0 && !(it.content ?: it.url).isNullOrEmpty() }
+                    .filter { VideoCodecUtils.codecKeyFromStream(it) == codecKey }
+                    // Renderers start on the first variant listed, and each one is probed before they get the playlist.
+                    .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) },
+            ).map { stream ->
+                CastStreamVariant(
+                    url = stream.content ?: stream.url ?: "",
+                    width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
+                    height = stream.height,
+                    bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
+                    mime = "video/mp4",
+                    codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F",
+                    segmentRanges = stream.castSegmentRanges(),
                 )
-            } else {
-                val bestMuxed =
-                    streamInfo.videoStreams
-                        ?.filter { it.height > 0 }
-                        ?.maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
-                val muxedUrl = bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl
-                if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
-                    Log.d(TAG, "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
-                    castTo(device = device, title = title, fallbackVideoUrl = muxedUrl)
-                }
             }
-        } else {
-            if (currentPlayerUrl != null && currentPlayerUrl.isNotEmpty() && !currentPlayerUrl.startsWith("local://")) {
-                castTo(device = device, title = title, fallbackVideoUrl = currentPlayerUrl)
-            }
-        }
-    }
+        val videoVariants = bestVariants("h264")
+        // H.264 stops at 1080p, so AV1 is only worth trying when it goes higher.
+        val av1Variants = bestVariants("av1").filter { it.height > (videoVariants.firstOrNull()?.height ?: 0) }
 
-    fun castTo(
-        device: DlnaDevice,
-        title: String,
-        videoVariants: List<CastStreamVariant> = emptyList(),
-        audioUrl: String? = null,
-        audioMime: String = "audio/mp4",
-        audioBitrate: Int = 128_000,
-        audioCodec: String = "mp4a.40.2",
-        durationSeconds: Long = 0,
-        fallbackVideoUrl: String? = null,
-    ) {
-        scope.launch {
-            try {
-                val castUrl: String
-                val contentType: String
+        val bestAudio =
+            audioStreams
+                .filter {
+                    val mime = it.format?.mimeType ?: ""
+                    mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
+                }.maxByOrNull { it.bitrate }
 
-                if (videoVariants.isNotEmpty() && audioUrl != null) {
-                    castUrl =
-                        proxy.registerHlsCast(
-                            videoVariants = videoVariants,
-                            audioUrl = audioUrl,
-                            audioMime = audioMime,
-                            audioBitrate = audioBitrate,
-                            audioCodec = audioCodec,
-                            durationSeconds = durationSeconds,
-                        )
-                    contentType = "application/vnd.apple.mpegurl"
-                    Log.i(
-                        TAG,
-                        "Casting via HLS: $castUrl " +
-                            "(${videoVariants.size} variants, audio=${audioBitrate / 1000}kbps)",
-                    )
-                } else {
-                    val url =
-                        fallbackVideoUrl
-                            ?: videoVariants.firstOrNull()?.url
-                            ?: return@launch
-                    contentType = guessContentType(url, "video/mp4")
-                    castUrl = proxy.registerStream(url, contentType)
-                    Log.i(TAG, "Casting single stream via proxy: $castUrl")
+        val audioUrl = bestAudio?.let { it.content ?: it.url }
+        val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
+        val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
+        val audioMime =
+            bestAudio?.format?.mimeType?.let {
+                if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
+            } ?: "audio/mp4"
+
+        val bestMuxed =
+            muxedStreams
+                .filter { it.height > 0 }
+                .maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
+        val muxedUrl =
+            (bestMuxed?.let { it.content ?: it.url } ?: currentPlayerUrl)
+                ?.takeIf { it.isNotEmpty() && !it.startsWith("local://") }
+
+        val audioSegmentRanges = bestAudio?.castSegmentRanges()
+        val canHls = videoVariants.isNotEmpty() && audioUrl != null
+        val modes =
+            listOfNotNull(
+                CastMode.SEGMENTED_AV1.takeIf { canHls && av1Variants.firstOrNull()?.segmentRanges != null && audioSegmentRanges != null },
+                CastMode.SEGMENTED.takeIf { canHls && videoVariants.first().segmentRanges != null && audioSegmentRanges != null },
+                CastMode.WHOLE_FILE.takeIf { canHls },
+                CastMode.MUXED.takeIf { muxedUrl != null },
+            )
+        val deviceKey = device.usn.substringBefore("::")
+        // A mode is skipped only once it failed on this renderer, never because a video lacked it.
+        val ladder = (modes - failedCastModes[deviceKey].orEmpty()).ifEmpty { modes }
+        if (ladder.isEmpty()) return
+
+        castJob?.cancel()
+        castJob =
+            scope.launch {
+                for (mode in ladder) {
+                    val (variants, audioRanges) =
+                        when (mode) {
+                            CastMode.SEGMENTED_AV1 -> av1Variants to audioSegmentRanges
+                            CastMode.SEGMENTED -> videoVariants to audioSegmentRanges
+                            else -> videoVariants.map { it.copy(segmentRanges = null) } to null
+                        }
+                    val segmented = audioRanges != null
+                    // A video that can't be registered says nothing about the renderer, so it isn't remembered.
+                    val (castUrl, contentType) =
+                        try {
+                            when (mode) {
+                                CastMode.MUXED -> {
+                                    val type = guessContentType(muxedUrl!!, "video/mp4")
+                                    proxy.registerStream(muxedUrl, type) to type
+                                }
+
+                                else -> {
+                                    proxy.registerHlsCast(
+                                        videoVariants = variants,
+                                        audioUrl = audioUrl!!,
+                                        audioMime = audioMime,
+                                        audioBitrate = audioBitrate,
+                                        audioCodec = audioCodec,
+                                        audioSegmentRanges = audioRanges,
+                                        durationSeconds = durationSeconds,
+                                    ) to "application/vnd.apple.mpegurl"
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Cast $mode registration failed: ${e.message}")
+                            continue
+                        }
+                    Log.i(TAG, "Casting $mode: $castUrl")
+                    // Registration blocks, so a newer cast or stop() may have cancelled this one meanwhile.
+                    ensureActive()
+                    try {
+                        startCast(device, title, castUrl, contentType)
+                        if (!segmented || awaitPlaying(device)) return@launch
+                        Log.w(TAG, "Renderer did not start $mode within ${SEGMENTED_START_TIMEOUT_MS}ms, falling back")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Cast $mode failed: ${e.message}")
+                    }
+                    failedCastModes.getOrPut(deviceKey) { ConcurrentHashMap.newKeySet() } += mode
                 }
-
-                setAVTransportUri(device, castUrl, title, contentType)
-                delay(500)
-                play(device)
-                _currentDevice.value = device
-                startPositionPolling(device)
-            } catch (e: Exception) {
-                Log.e(TAG, "castTo failed: ${e.message}")
                 _currentDevice.value = null
             }
-        }
     }
 
+    private suspend fun startCast(
+        device: DlnaDevice,
+        title: String,
+        castUrl: String,
+        contentType: String,
+    ) {
+        // Renderers still holding a previous session reject SetAVTransportURI with UPnP 701.
+        runCatching { stop(device) }
+        // Some only finish stopping after answering, and still reject the URI until then.
+        withTimeoutOrNull(STOP_TIMEOUT_MS) {
+            while (transportState(device).let { it != null && it != "STOPPED" && it != "NO_MEDIA_PRESENT" }) delay(500)
+        }
+        setAVTransportUri(device, castUrl, title, contentType)
+        delay(500)
+        // Renderers that buffer before answering can time Play out and still start playback.
+        runCatching { play(device) }.onFailure { Log.w(TAG, "Play failed: ${it.message}") }
+        _currentDevice.value = device
+        startPositionPolling(device)
+    }
+
+    private suspend fun awaitPlaying(device: DlnaDevice): Boolean =
+        withTimeoutOrNull(SEGMENTED_START_TIMEOUT_MS) {
+            while (transportState(device) != "PLAYING") delay(1_000)
+            true
+        } ?: false
+
+    private fun transportState(device: DlnaDevice): String? =
+        runCatching {
+            val response =
+                sendSoapWithResponse(
+                    device.avTransportUrl,
+                    "urn:schemas-upnp-org:service:AVTransport:1#GetTransportInfo",
+                    soapAction("GetTransportInfo", "urn:schemas-upnp-org:service:AVTransport:1", "<InstanceID>0</InstanceID>"),
+                )
+            Regex("<CurrentTransportState>([^<]+)</CurrentTransportState>").find(response)?.groupValues?.get(1)
+        }.getOrNull()
+
     fun stop() {
+        castJob?.cancel()
         val device = _currentDevice.value ?: return
         scope.launch {
             try {
-                sendSoap(
-                    device.avTransportUrl,
-                    "urn:schemas-upnp-org:service:AVTransport:1#Stop",
-                    soapAction(
-                        "Stop",
-                        "urn:schemas-upnp-org:service:AVTransport:1",
-                        "<InstanceID>0</InstanceID>",
-                    ),
-                )
+                stop(device)
             } catch (e: Exception) {
                 Log.e(TAG, "stop failed: ${e.message}")
             } finally {
@@ -587,6 +628,14 @@ object DlnaCastManager {
             device.avTransportUrl,
             "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
             body,
+        )
+    }
+
+    private fun stop(device: DlnaDevice) {
+        sendSoap(
+            device.avTransportUrl,
+            "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+            soapAction("Stop", "urn:schemas-upnp-org:service:AVTransport:1", "<InstanceID>0</InstanceID>"),
         )
     }
 
