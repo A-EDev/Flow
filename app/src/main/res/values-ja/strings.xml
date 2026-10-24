@@ -4024,4 +4024,6 @@
     </plurals>
     <plurals name="subscriptions_last_refreshed_template">
     </plurals>
+    <string name="download_muxing_incompatible"></string>
+    <string name="topic_score_prefix"></string>
 </resources>
