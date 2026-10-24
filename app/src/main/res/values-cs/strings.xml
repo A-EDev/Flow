@@ -4010,4 +4010,6 @@
     <string name="recap_sponsor_label"></string>
     <string name="datetime_context_description"></string>
     <string name="about_reddit_subtitle"></string>
+    <plurals name="download_all_confirmation">
+    </plurals>
 </resources>
