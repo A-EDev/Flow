@@ -4043,4 +4043,5 @@
     </plurals>
     <plurals name="ui_downloading_videos">
     </plurals>
+    <string name="topic_score_prefix"></string>
 </resources>
