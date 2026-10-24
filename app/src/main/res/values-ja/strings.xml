@@ -4022,4 +4022,6 @@
     </plurals>
     <plurals name="deep_flow_duration_hours">
     </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
 </resources>
