@@ -2323,4 +2323,44 @@
     <string name="sync_expires_seconds">%1$dg</string>
     <string name="sync_done_stats_summary">%1$d đã thêm · %2$d đã cập nhật · %3$d đã bỏ qua</string>
     <string name="sync_scanning_hint">Đưa mã trên thiết bị còn lại vào trong khung.</string>
+    <plurals name="toast_downloaded_tracks">
+    </plurals>
+    <plurals name="taste_topic_breadth_detail">
+    </plurals>
+    <plurals name="download_all_confirmation">
+    </plurals>
+    <plurals name="videos_curated_template">
+    </plurals>
+    <plurals name="subscriptions_refresh_progress_template">
+    </plurals>
+    <plurals name="videos_count_template">
+    </plurals>
+    <plurals name="merge_playlist_success">
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
+    <plurals name="currently_searches_template">
+    </plurals>
+    <plurals name="favorites_count_template">
+    </plurals>
+    <plurals name="remove_incomplete_downloads_message">
+    </plurals>
+    <plurals name="duration_minutes">
+    </plurals>
+    <plurals name="notification_new_videos_from_subscriptions">
+    </plurals>
+    <plurals name="deep_flow_duration_hours">
+    </plurals>
+    <plurals name="threads_per_download_template">
+    </plurals>
+    <plurals name="sync_selected_count">
+    </plurals>
+    <plurals name="ui_downloading_videos">
+    </plurals>
+    <plurals name="view_replies_template">
+    </plurals>
+    <plurals name="import_yt_playlist_success_template">
+    </plurals>
+    <plurals name="toast_downloaded_tracks_from_playlist">
+    </plurals>
 </resources>
