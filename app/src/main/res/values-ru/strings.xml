@@ -4479,12 +4479,12 @@
     <string name="settings_theme_role_surface">Surface</string>
     <string name="taste_interests_footer">Boost a topic to see more of it, or block it to see none of it.</string>
     <string name="taste_evidence_some">Watched a few times</string>
-    <string name="taste_item_actions">Больше вариантов для %1$</string>
+    <string name="taste_item_actions">Больше вариантов для %1$s</string>
     <string name="recap_insight_night_owl_body">Значительная часть вашего времени приходилась на поздний вечер или ночь.</string>
     <string name="recap_insight_early_bird_body">Вы любите начинать день пораньше.</string>
     <string name="recap_insight_weekend_body">Выходные — это время, когда вы устраиваетесь поудобнее.</string>
     <string name="recap_insight_marathon_body">Прошёл как минимум один день, превысивший три часа.</string>
-    <string name="recap_story_intro">Ваш %1$ в Flow</string>
+    <string name="recap_story_intro">Ваш %1$s в Flow</string>
     <string name="playlist_import_empty">В этом плейлисте нет видео для импорта</string>
     <string name="playlist_import_unreadable">Не удалось прочитать этот файлы</string>
     <plurals name="playlist_imported">
@@ -4493,7 +4493,7 @@
         <item quantity="many">Импортировано: %1$s, %2$d видеороликов</item>
         <item quantity="other">Импортировано: %1$s, %2$d видеороликов</item>
     </plurals>
-    <string name="home_chip_description">Показать %1$ на главной странице</string>
+    <string name="home_chip_description">Показать %1$s на главной странице</string>
     <string name="home_chip_empty_title">Здесь сейчас ничего нет.</string>
     <string name="settings_keywords_scrobbling">scrobble scrobbling last.fm lastfm libre.fm librefm listenbrainz</string>
     <string name="scrobbling_listenbrainz">ListenBrainz</string>
