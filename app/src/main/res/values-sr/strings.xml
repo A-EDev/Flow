@@ -4013,4 +4013,8 @@
     <string name="recap_sponsor_label"></string>
     <string name="datetime_context_description"></string>
     <string name="about_reddit_subtitle"></string>
+    <plurals name="subscriptions_refresh_progress_template">
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+    </plurals>
 </resources>
