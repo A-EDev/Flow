@@ -10,9 +10,15 @@ import io.github.aedev.flow.data.local.UploadDate
 import io.github.aedev.flow.data.local.WatchState
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.innertube.pages.SearchFixture
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
+import io.github.aedev.flow.innertube.pages.renderer.videoOrNull
 import io.github.aedev.flow.innertube.pages.search.SearchHeader
+import io.github.aedev.flow.innertube.pages.search.SearchSection
 import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.junit.Test
 
 class SearchPagingSourceTest {
@@ -152,6 +158,36 @@ class SearchPagingSourceTest {
 
             assertThat(loader.calls).hasSize(1)
             assertThat(loader.calls.single().second).isEqualTo("EgIQCQ%3D%3D")
+        }
+
+    @Test
+    fun `the shorts filter lays its shorts strips out as single shorts`() =
+        runTest {
+            val page = source(RecordingLoader(listOf(SearchFixture.TYPE_SHORTS)), SearchFilter(contentType = ContentType.SHORTS)).loadPage()
+
+            assertThat(page.data).isNotEmpty()
+            assertThat(page.data.all { it is SearchResultItem.VideoResult && it.video.isShort }).isTrue()
+            assertThat(page.data.videoIds()).containsAtLeastElementsIn(SearchFixture(SearchFixture.TYPE_SHORTS).stripShortIds())
+        }
+
+    @Test
+    fun `a later shorts filter page keeps its shorts although its strips reuse the first page's ids`() =
+        runTest {
+            val first = SearchFixture(SearchFixture.TYPE_SHORTS)
+            val ids = first.stripShortIds()
+            val second = Json.parseToJsonElement(ids.fold(first.toString()) { text, id -> text.replace(id, id.reversed()) }).jsonObject
+            val pages = mutableListOf(first, second)
+            val paging =
+                SearchPagingSource(
+                    query = "sam sulek",
+                    filter = SearchFilter(contentType = ContentType.SHORTS),
+                    loadPage = SearchPageLoader { _, _, _ -> pages.removeAt(0).toSearchResultsPage() },
+                )
+
+            val one = paging.loadPage()
+            val two = paging.loadPage(one.nextKey)
+
+            assertThat(two.data.videoIds()).containsAtLeastElementsIn(ids.map { it.reversed() })
         }
 
     @Test
@@ -395,6 +431,16 @@ class SearchPagingSourceTest {
         runTest {
             assertThat(source(RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK))).getRefreshKey(mockState())).isNull()
         }
+
+    private fun List<SearchResultItem>.videoIds() = filterIsInstance<SearchResultItem.VideoResult>().map { it.video.id }
+
+    private fun JsonObject.stripShortIds() =
+        toSearchResultsPage()
+            .sections
+            .filterIsInstance<SearchSection.Strip>()
+            .filter { it.shelf.style == FeedShelfStyle.Grid }
+            .flatMap { strip -> strip.shelf.items.mapNotNull { it.videoOrNull()?.id } }
+            .distinct()
 
     private fun mockState() = androidx.paging.PagingState<String, SearchResultItem>(emptyList(), null, PAGING_CONFIG, 0)
 

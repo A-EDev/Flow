@@ -122,8 +122,18 @@ interface VideoDao {
     suspend fun getVideo(id: String): VideoEntity?
 
     @Query("SELECT * FROM videos WHERE id IN (:ids)")
-    suspend fun getVideosByIds(ids: List<String>): List<VideoEntity>
+    suspend fun videosWithIds(ids: List<String>): List<VideoEntity>
+
+    suspend fun getVideosByIds(ids: List<String>): List<VideoEntity> = chunkedLookup(ids) { videosWithIds(it) }
 
     @Query("SELECT * FROM videos")
     suspend fun getAllVideos(): List<VideoEntity>
 }
+
+/** SQLite before Android 11 binds at most 999 variables per statement, so one IN list stays well under it. */
+internal const val MAX_IDS_PER_QUERY = 500
+
+internal suspend fun <T> chunkedLookup(
+    ids: List<String>,
+    query: suspend (List<String>) -> List<T>,
+): List<T> = ids.distinct().chunked(MAX_IDS_PER_QUERY).flatMap { query(it) }

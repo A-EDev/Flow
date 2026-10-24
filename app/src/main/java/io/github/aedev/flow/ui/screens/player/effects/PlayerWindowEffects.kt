@@ -215,12 +215,7 @@ internal fun OrientationListenerEffect(
 
                     if (!autoRotateOn) return
 
-                    val newOrientation =
-                        when {
-                            orientation in 60..120 || orientation in 240..300 -> 1
-                            orientation in 0..30 || orientation in 330..359 || orientation in 150..210 -> 0
-                            else -> physicalOrientation
-                        }
+                    val newOrientation = heldOrientation(orientation, physicalOrientation)
 
                     if (newOrientation != physicalOrientation) {
                         physicalOrientation = newOrientation
@@ -252,3 +247,18 @@ internal fun OrientationListenerEffect(
         }
     }
 }
+
+/**
+ * How the phone is held, from [OrientationEventListener] degrees: 0 upright, 1 on either side, and
+ * [previous] in between. Upside down also keeps [previous]: counted as portrait, it left fullscreen
+ * and pinned normal portrait while the phone was inverted, so the picture showed upside down (#1426).
+ */
+internal fun heldOrientation(
+    degrees: Int,
+    previous: Int,
+): Int =
+    when (degrees) {
+        in 60..120, in 240..300 -> 1
+        in 0..30, in 330..359 -> 0
+        else -> previous
+    }
