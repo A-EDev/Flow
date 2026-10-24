@@ -4013,4 +4013,14 @@
     <string name="recap_sponsor_label"></string>
     <string name="datetime_context_description"></string>
     <string name="about_reddit_subtitle"></string>
+    <plurals name="videos_curated_template">
+    </plurals>
+    <plurals name="videos_count_template">
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+    </plurals>
+    <plurals name="songs_count_template">
+    </plurals>
+    <plurals name="view_replies_template">
+    </plurals>
 </resources>
