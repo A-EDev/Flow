@@ -4380,4 +4380,160 @@
     </plurals>
     <string name="deep_flow_on_search_title">Показати у результатах пошуку</string>
     <string name="deep_flow_on_search_subtitle">Перемикач «Deep Flow» над останніми пошуковими запитами</string>
+    <string name="error_members_or_paid_hint"></string>
+    <string name="keyboard_shortcut_seek_back"></string>
+    <string name="shared_link_play_now"></string>
+    <string name="notifications_already_in_watch_later"></string>
+    <string name="queue_move_to_end"></string>
+    <string name="player_settings_speed_swipe_step_dialog_body"></string>
+    <string name="music_playback_warning_rate_limited"></string>
+    <string name="discover_channels_like_yours_footer"></string>
+    <string name="lyrics_provider_lyrics_plus_desc"></string>
+    <string name="filter_profiles"></string>
+    <string name="keyboard_shortcut_volume_up"></string>
+    <string name="theme_name_tako" translatable="false"></string>
+    <string name="player_settings_normalize_volume_summary"></string>
+    <string name="error_members_or_paid"></string>
+    <string name="player_settings_speed_swipe_dialog_body"></string>
+    <string name="home_theme_science"></string>
+    <string name="home_theme_autos"></string>
+    <string name="settings_diagnostics_export_snapshot_summary"></string>
+    <string name="settings_library_summary"></string>
+    <string name="queue_swipe_subtitle"></string>
+    <string name="home_origin_neighbour"></string>
+    <string name="taste_starter_searches_detail"></string>
+    <string name="taste_topic_block_named"></string>
+    <string name="player_settings_speed_swipe_right"></string>
+    <string name="content_settings_shared_links_subtitle"></string>
+    <string name="lyrics_auto_romanize_japanese"></string>
+    <string name="tv_guide_search_field"></string>
+    <string name="keyboard_shortcut_exit_fullscreen"></string>
+    <string name="error_video_decoder_failed"></string>
+    <string name="player_settings_seek_zone_edge_to_edge_desc"></string>
+    <string name="donation_method_open_collective" translatable="false"></string>
+    <string name="shared_link_play_now_desc"></string>
+    <string name="lyrics_provider_lrc_red_desc"></string>
+    <string name="home_theme_nonprofits"></string>
+    <string name="donation_method_patreon" translatable="false"></string>
+    <string name="keyboard_shortcut_slower"></string>
+    <string name="settings_keywords_original_titles"></string>
+    <string name="donation_currency_monero" translatable="false"></string>
+    <string name="settings_original_titles_summary"></string>
+    <string name="taste_evidence_some"></string>
+    <string name="taste_evidence_none"></string>
+    <string name="filter_artists"></string>
+    <string name="discover_channels_like_yours"></string>
+    <string name="lyrics_provider_simpmusic_desc"></string>
+    <string name="error_bot_wall_session"></string>
+    <string name="settings_diagnostics_record_snapshots_summary"></string>
+    <string name="content_settings_shared_links_ask_while_playing"></string>
+    <string name="diagnostics_snapshot_exported"></string>
+    <string name="settings_music_side_swipes_summary"></string>
+    <string name="playlist_moved_to_music"></string>
+    <string name="player_settings_overlay_next_prev"></string>
+    <string name="home_theme_travel"></string>
+    <string name="player_settings_speed_swipe_left"></string>
+    <string name="filter_episodes"></string>
+    <string name="player_settings_speed_swipe"></string>
+    <string name="content_settings_shared_links_title"></string>
+    <string name="dearrow_random_frame_subtitle"></string>
+    <string name="home_theme_pets"></string>
+    <string name="lyrics_provider_youtube_captions_desc"></string>
+    <string name="app_launcher_name" translatable="false"></string>
+    <string name="playlist_unavailable_hidden"></string>
+    <string name="donation_currency_solana" translatable="false"></string>
+    <string name="theme_name_everforest" translatable="false"></string>
+    <string name="playlist_moved_to_videos"></string>
+    <string name="diagnostics_export_home_snapshot"></string>
+    <string name="settings_original_titles"></string>
+    <string name="keyboard_shortcut_faster"></string>
+    <string name="taste_evidence_once"></string>
+    <string name="lyrics_provider_paxsenix"></string>
+    <string name="donation_currency_bitcoin" translatable="false"></string>
+    <string name="lyrics_provider_unison"></string>
+    <string name="diagnostics_no_home_snapshot"></string>
+    <string name="settings_music_resume_title"></string>
+    <string name="taste_starter_searches"></string>
+    <string name="auto_tab_queue"></string>
+    <string name="error_bot_wall_network_hint"></string>
+    <string name="keyboard_shortcut_volume_down"></string>
+    <string name="diagnostics_record_home_snapshots"></string>
+    <string name="taste_unknown_channel"></string>
+    <string name="theme_name_tokyo_night" translatable="false"></string>
+    <string name="about_notices"></string>
+    <string name="content_settings_shared_links_always_ask"></string>
+    <string name="subtitle_profile"></string>
+    <string name="player_settings_seek_zone_edge_to_edge"></string>
+    <string name="about_notices_summary"></string>
+    <string name="notif_check_interval_off_new_videos"></string>
+    <string name="error_rate_limited"></string>
+    <string name="lyrics_provider_youtube_captions"></string>
+    <string name="content_settings_shared_links_play"></string>
+    <string name="home_origin_neighbour_pair"></string>
+    <string name="auto_tab_for_you"></string>
+    <string name="donation_currency_ethereum" translatable="false"></string>
+    <string name="player_settings_speed_swipe_off"></string>
+    <string name="diagnostics_snapshot_export_failed"></string>
+    <string name="support_flow_open_collective"></string>
+    <string name="home_origin_channel_memory"></string>
+    <string name="details_why_shown"></string>
+    <string name="lyrics_provider_youtube_music"></string>
+    <string name="home_origin_search"></string>
+    <string name="lyrics_provider_lrclib_desc"></string>
+    <string name="queue_swipe_left"></string>
+    <string name="notifications_save_to_watch_later"></string>
+    <string name="donation_currency_usdt" translatable="false"></string>
+    <string name="lyrics_provider_youtube_music_desc"></string>
+    <string name="settings_music_side_swipes_title"></string>
+    <string name="home_origin_search_unnamed"></string>
+    <plurals name="import_takeout_part_music_playlists">
+    </plurals>
+    <string name="lyrics_provider_kugou_desc"></string>
+    <string name="theme_name_gruvbox" translatable="false"></string>
+    <string name="theme_name_catppuccin" translatable="false"></string>
+    <string name="theme_name_solarized" translatable="false"></string>
+    <string name="keyboard_shortcut_play_pause"></string>
+    <string name="codec_name_hevc" translatable="false"></string>
+    <string name="taste_picks_header"></string>
+    <string name="home_theme_howto"></string>
+    <string name="settings_music_resume_summary"></string>
+    <string name="lyrics_provider_better_lyrics_desc"></string>
+    <string name="playlist_move_to_videos"></string>
+    <string name="lyrics_provider_paxsenix_desc"></string>
+    <string name="home_origin_related"></string>
+    <string name="theme_name_dracula" translatable="false"></string>
+    <string name="tv_guide_search_open"></string>
+    <string name="music_playback_warning_members_or_paid"></string>
+    <string name="theme_name_rose_pine" translatable="false"></string>
+    <string name="player_settings_speed_swipe_step"></string>
+    <string name="player_settings_overlay_next_prev_subtitle"></string>
+    <string name="error_rate_limited_hint"></string>
+    <string name="error_bot_wall_session_hint"></string>
+    <string name="keyboard_shortcuts_player"></string>
+    <string name="filter_featured_playlists"></string>
+    <string name="content_settings_shared_links_dialog_body"></string>
+    <string name="tv_guide_search_down"></string>
+    <string name="error_video_decoder_failed_hint"></string>
+    <string name="taste_evidence_often"></string>
+    <string name="settings_keywords_next_prev"></string>
+    <string name="lyrics_provider_unison_desc"></string>
+    <string name="home_origin_neighbour_unnamed"></string>
+    <string name="content_settings_live_chat_enabled_title"></string>
+    <string name="queue_swipe_right"></string>
+    <string name="filter_podcasts"></string>
+    <string name="dearrow_random_frame"></string>
+    <string name="playlist_move_to_music"></string>
+    <string name="home_theme_film"></string>
+    <string name="theme_name_kanagawa" translatable="false"></string>
+    <string name="lyrics_provider_kugou"></string>
+    <string name="home_origin_related_watched"></string>
+    <string name="home_theme_comedy"></string>
+    <string name="home_origin_subscription"></string>
+    <string name="player_settings_speed_swipe_step_value"></string>
+    <string name="content_settings_live_chat_enabled_subtitle"></string>
+    <string name="theme_name_claude" translatable="false"></string>
+    <string name="keyboard_shortcut_seek_forward"></string>
+    <string name="lyrics_provider_lrc_red"></string>
+    <string name="settings_section_home_snapshots"></string>
+    <string name="player_settings_normalize_volume"></string>
 </resources>
