@@ -2684,10 +2684,7 @@
     <string name="search_filter_group_duration">Продолжительность</string>
     <string name="search_filter_group_upload_date">Дата загрузки</string>
     <plurals name="search_watch_empty_watched">
-        <item quantity="one">Просмотренного видео нет</item>
-        <item quantity="few">Просмотренных видео нет</item>
-        <item quantity="many">Просмотренного видео нет</item>
-        <item quantity="other">Просмотренного видео нет</item>
+        <item quantity="one">Здесь нет просмотренных видео</item>
     </plurals>
     <string name="search_feature_subtitles">Субтитры/СС</string>
     <string name="search_results_estimated">Результаты по %1$s</string>
@@ -3527,7 +3524,7 @@
     <string name="download_failed_no_audio">В этом загруженном файле нет аудиофайлов</string>
     <string name="download_failed_refused">YouTube отклонил загрузку. Попробуйте позже.</string>
     <string name="settings_navigation_bar_title">Панель навигации</string>
-    <string name="font_import_too_large">Размер файлов шрифтов может достигать 1 МБ.</string>
+    <string name="font_import_too_large">Размер файлов шрифтов может достигать %1$d МБ</string>
     <string name="settings_shorts_tab_disabled_summary">В разделе «Ленты и контент» функция показа коротких роликов отключена.</string>
     <string name="settings_content_country_summary">Страна, используемая для отображения трендов, графиков и рекомендаций</string>
     <string name="thumbnail_quality_low_desc">Минимум данных, более щадящий режим для карт большого объёма</string>
@@ -4477,8 +4474,8 @@
     <string name="scrobbling_import_action">Импорт</string>
     <string name="diagnostics_no_home_snapshot">Показ c вашим снимком в начале.</string>
     <string name="settings_theme_role_surface">Surface</string>
-    <string name="taste_interests_footer">Boost a topic to see more of it, or block it to see none of it.</string>
-    <string name="taste_evidence_some">Watched a few times</string>
+    <string name="taste_interests_footer">Повысьте приоритет темы, чтобы видеть её чаще, или заблокируйте её, чтобы не видеть совсем.</string>
+    <string name="taste_evidence_some">Просмотрено несколько раз</string>
     <string name="taste_item_actions">Больше вариантов для %1$s</string>
     <string name="recap_insight_night_owl_body">Значительная часть вашего времени приходилась на поздний вечер или ночь.</string>
     <string name="recap_insight_early_bird_body">Вы любите начинать день пораньше.</string>
