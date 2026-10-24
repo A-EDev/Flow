@@ -4121,4 +4121,10 @@
     <string name="diagnostics_engine_queries_none"></string>
     <string name="taste_reset_video_body"></string>
     <string name="recap_sponsor_label"></string>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+    </plurals>
+    <plurals name="favorites_count_template">
+    </plurals>
+    <plurals name="remove_incomplete_downloads_message">
+    </plurals>
 </resources>
